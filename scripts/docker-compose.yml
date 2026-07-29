@@ -1,0 +1,14 @@
+services:
+  backend:
+    build:
+      context: ../backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - libra_data:/app/data
+    environment:
+      LIBRA_DATABASE_URL: sqlite:////app/data/libra.db
+
+volumes:
+  libra_data:
