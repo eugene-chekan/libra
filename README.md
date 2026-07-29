@@ -9,9 +9,40 @@ quality, structure, and testability are treated as first-class concerns.
 
 ## Status
 
-**Phase 1 — Backend core (in progress).** FastAPI skeleton with book metadata
-CRUD and SQLite persistence. No file upload, RAG pipeline, agent, or client
-yet — see [docs/architecture.md](docs/architecture.md) for the full roadmap.
+**Phase 1 — Backend core (in progress).** FastAPI backend with EPUB upload,
+automatic metadata extraction, book CRUD, and SQLite persistence. Format
+conversion, Kindle delivery, the RAG pipeline, the agent, and the client are
+still to come — see [docs/architecture.md](docs/architecture.md) for the
+roadmap.
+
+### API
+
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/health` | Health check |
+| `POST` | `/books/upload` | Upload an EPUB; metadata is parsed from the file |
+| `POST` | `/books` | Create a book row from supplied metadata |
+| `GET` | `/books` | List books |
+| `GET` | `/books/{id}` | Fetch one book |
+| `PATCH` | `/books/{id}` | Correct a book's metadata |
+| `DELETE` | `/books/{id}` | Delete a book and its stored file |
+
+Uploading is the primary path: `POST /books/upload` validates the EPUB, pulls
+title/author/language/publisher/subjects out of its OPF package document, and
+stores the file under a generated name. Missing metadata falls back to the
+filename and `"Unknown"` rather than failing the upload, and `PATCH` is there
+to fix whatever the parser guessed wrong.
+
+### Configuration
+
+Settings are read from the environment with a `LIBRA_` prefix (or a `.env`
+file in `backend/`):
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `LIBRA_DATABASE_URL` | `sqlite:///./libra.db` | Database connection |
+| `LIBRA_LIBRARY_DIR` | `./library` | Where ebook files are stored |
+| `LIBRA_MAX_UPLOAD_BYTES` | `104857600` (100 MB) | Upload size ceiling |
 
 ## Project structure
 

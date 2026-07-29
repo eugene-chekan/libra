@@ -11,6 +11,9 @@ venv/
 *.db
 *.sqlite3
 
+# Stored ebook files
+library/
+
 # Env
 .env
 
