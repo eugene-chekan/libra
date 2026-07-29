@@ -92,6 +92,23 @@ uv run pytest
 uv run ruff check .
 ```
 
+### Git hooks
+
+A [pre-commit](https://pre-commit.com) config mirrors the CI checks locally:
+lint/format run on every commit, the full test suite runs on every push, so a
+broken branch never leaves the machine. One-time setup:
+
+```bash
+uv tool install pre-commit
+pre-commit install --hook-type pre-commit --hook-type pre-push
+```
+
+To run everything on demand without committing:
+
+```bash
+pre-commit run --all-files
+```
+
 ## Conventions
 
 - Python 3.12+, type hints everywhere

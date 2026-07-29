@@ -1,0 +1,51 @@
+# Local git-hook gate. Mirrors the checks CI runs (see .github/workflows/ci.yml)
+# but catches them before a commit/push leaves the machine instead of after.
+# Setup: `uv tool install pre-commit && pre-commit install --hook-type pre-commit --hook-type pre-push`
+# (see README.md for the full contributor setup).
+repos:
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Pinned to match the ruff version in backend/pyproject.toml's dev group,
+    # so a local pass means the same thing as a CI pass.
+    rev: v0.16.0
+    hooks:
+      - id: ruff-check
+        args: [--fix]
+        files: ^backend/
+        stages: [pre-commit]
+      - id: ruff-format
+        files: ^backend/
+        stages: [pre-commit]
+
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v6.0.0
+    hooks:
+      - id: trailing-whitespace
+        exclude: ^backend/uv\.lock$
+        stages: [pre-commit]
+      - id: end-of-file-fixer
+        exclude: ^backend/uv\.lock$
+        stages: [pre-commit]
+      - id: check-yaml
+        stages: [pre-commit]
+      - id: check-toml
+        stages: [pre-commit]
+      - id: check-added-large-files
+        stages: [pre-commit]
+      - id: check-merge-conflict
+        stages: [pre-commit]
+      - id: check-case-conflict
+        stages: [pre-commit]
+
+  - repo: local
+    hooks:
+      # Full-suite run, gated to push rather than every commit: pytest is
+      # fast here, but a per-commit gate encourages committing in tiny,
+      # always-green steps, and a per-push one still stops a broken branch
+      # from reaching the remote.
+      - id: pytest
+        name: pytest (backend)
+        entry: uv run --project backend pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
