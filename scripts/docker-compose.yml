@@ -9,6 +9,9 @@ services:
       - libra_data:/app/data
     environment:
       LIBRA_DATABASE_URL: sqlite:////app/data/libra.db
+      # Uploaded books live on the same volume as the database, so a container
+      # restart doesn't leave rows pointing at files that no longer exist.
+      LIBRA_LIBRARY_DIR: /app/data/library
 
 volumes:
   libra_data:
