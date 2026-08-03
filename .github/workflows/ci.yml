@@ -27,5 +27,14 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check .
 
+      # Proves the migrations actually apply to an empty database. The test
+      # suite covers drift between models and migrations; this covers the
+      # revisions themselves running end to end, which is what a deployment
+      # does and what a broken revision would break.
+      - name: Run migrations against a fresh database
+        env:
+          LIBRA_DATABASE_URL: sqlite:///./ci-migrations.db
+        run: uv run alembic upgrade head
+
       - name: Run tests
         run: uv run pytest

@@ -49,6 +49,7 @@ file in `backend/`):
 | `LIBRA_DATABASE_URL` | `sqlite:///./libra.db` | Database connection |
 | `LIBRA_LIBRARY_DIR` | `./library` | Where ebook files are stored |
 | `LIBRA_MAX_UPLOAD_BYTES` | `104857600` (100 MB) | Upload size ceiling |
+| `LIBRA_AUTO_UPGRADE_DB` | `true` | Apply pending migrations on startup |
 | `LIBRA_SMTP_HOST` | — | Mail server for Kindle delivery; unset disables the feature |
 | `LIBRA_SMTP_PORT` | `587` | Mail server port |
 | `LIBRA_SMTP_USERNAME` | — | Mail account username |
@@ -90,6 +91,40 @@ uv run uvicorn app.main:app --reload
 
 The API is served at `http://localhost:8000`; interactive docs at
 `http://localhost:8000/docs`.
+
+### Database migrations
+
+The schema is owned by [Alembic](https://alembic.sqlalchemy.org/). The app
+applies pending migrations on startup, so a normal upgrade needs no action —
+pull the new version and start it.
+
+To run them yourself (or if you set `LIBRA_AUTO_UPGRADE_DB=false` to make
+migrations a separate deploy step):
+
+```bash
+cd backend
+uv run alembic upgrade head
+```
+
+After changing a model, generate the matching revision and read it before
+committing — autogenerate is a good first draft, not a finished one:
+
+```bash
+uv run alembic revision --autogenerate -m "what changed"
+```
+
+`uv run pytest tests/test_migrations.py` fails if a model has drifted ahead
+of the migrations, so a forgotten revision is caught locally rather than as
+a runtime error later.
+
+> **Upgrading a database created before Alembic was introduced?** It already
+> has a `book` table, so the baseline revision would fail trying to create
+> one. Mark it as current instead of running it — once, then upgrade
+> normally from then on:
+>
+> ```bash
+> uv run alembic stamp 45e89aabeb7c
+> ```
 
 ### Kindle delivery
 
