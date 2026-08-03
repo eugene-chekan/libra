@@ -45,6 +45,16 @@ def run_migrations() -> None:
     open its own, so a single SQLite file is never touched by two
     connections at once during startup.
     """
+    if not ALEMBIC_INI.is_file():
+        # Only reachable if a deployment separates the package from the
+        # migration scripts. Alembic's own error for this names neither the
+        # path it wanted nor the reason, so say both.
+        raise RuntimeError(
+            f"Alembic config not found at {ALEMBIC_INI}. alembic.ini and "
+            "alembic/ must be deployed alongside the app package; see the "
+            "Dockerfile for the expected layout."
+        )
+
     config = Config(ALEMBIC_INI)
     with get_engine().begin() as connection:
         config.attributes["connection"] = connection

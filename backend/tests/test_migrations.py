@@ -6,6 +6,7 @@ cover what a real deployment actually runs, and — via
 `test_models_and_migrations_agree` — are what makes that shortcut safe.
 """
 
+import logging
 import sqlite3
 from collections.abc import Generator
 from pathlib import Path
@@ -115,6 +116,24 @@ def test_migrations_do_not_depend_on_the_working_directory(
     run_migrations()
 
     assert "book" in _tables(fresh_db)
+
+
+def test_migrations_leave_application_logging_alone(fresh_db: Path) -> None:
+    """Running migrations must not switch off the app's own loggers.
+
+    `fileConfig` defaults to `disable_existing_loggers=True`, which disables
+    every logger not named in alembic.ini. Since migrations run inside the
+    startup lifespan, uvicorn has already configured `uvicorn.access` and
+    `uvicorn.error` by then — so the default would silently kill access and
+    error logging for the whole life of the process, in production only,
+    with nothing in the output to say why.
+    """
+    access_log = logging.getLogger("uvicorn.access")
+    access_log.disabled = False
+
+    run_migrations()
+
+    assert not access_log.disabled
 
 
 def test_auto_upgrade_can_be_disabled(fresh_db: Path, monkeypatch: pytest.MonkeyPatch) -> None:

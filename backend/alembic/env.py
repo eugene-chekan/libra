@@ -22,8 +22,15 @@ from app.config import get_settings
 
 config = context.config
 
-if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+# alembic.ini's logging config is for when Alembic owns the process, i.e. the
+# CLI. When the app calls `run_migrations()` during startup it has already
+# configured logging, and `fileConfig` would tear that down: its default
+# `disable_existing_loggers=True` switches off every logger not named in
+# alembic.ini — which includes `uvicorn.access` and `uvicorn.error`, silently
+# and for the remaining life of the process. Skip it entirely when embedded,
+# and even from the CLI leave loggers we do not own alone.
+if config.config_file_name is not None and config.attributes.get("connection") is None:
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 target_metadata = SQLModel.metadata
 
