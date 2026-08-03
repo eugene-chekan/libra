@@ -2,17 +2,39 @@
 
 ## Vision
 
-A local-first, self-hosted personal ebook library manager, simpler in scope
-than Calibre-web, built specifically around Kindle delivery workflows,
-supporting EPUB in the first iteration, with a RAG-backed AI "librarian"
-agent that can answer questions about and across the user's library.
+A local-first, self-hosted ebook library manager, simpler in scope than
+Calibre-web, built specifically around Kindle delivery workflows, supporting
+EPUB in the first iteration, with a RAG-backed AI "librarian" agent that can
+answer questions about and across the library.
+
+One instance serves a household: the catalog of books is shared, while
+reading progress, ratings, shelves, and personal tags belong to individual
+users.
 
 ## Phased scope
 
 **Phase 1 — Backend core (diploma months 1–2)**
 - FastAPI app, book metadata CRUD, local file storage, SQLite persistence
-- Format conversion via Calibre's `ebook-convert` CLI (shell out, don't reimplement)
-- Kindle delivery: email-based "Send to Kindle" integration
+- Alembic migrations
+- Multi-user: password auth, sessions, an admin role, per-user reading state
+- Kindle delivery: email-based "Send to Kindle" integration, per-user address
+- Library organization: shelves, tags, ratings, reading progress, cover art
+
+The last two bullets were added after the UI design handoff arrived; see
+[specs/library-organization.md](specs/library-organization.md). Both are
+deliberately placed here rather than alongside the Phase 4 client: they are
+backend model work that is fully testable without a UI, and user scoping in
+particular is the most expensive thing in the project to retrofit — every
+endpoint gains a `current_user` dependency and every query a scoping clause,
+which is an afternoon against four endpoints and a rewrite against twenty.
+
+**Format conversion has moved out of Phase 1**, to after Phase 2. It is the
+least novel work in the project, and it turns out not to block Kindle
+delivery the way [specs/format-conversion.md](specs/format-conversion.md)
+assumed. Deferred deliberately and on the record, not dropped — the reasoning
+and the sequencing that replaced it are in
+[specs/phase-1-plan.md](specs/phase-1-plan.md), which is the working plan for
+this phase.
 
 **Phase 2 — RAG (diploma months 2–4)**
 - EPUB/text ingestion and chunking pipeline
@@ -24,6 +46,12 @@ agent that can answer questions about and across the user's library.
 - Anthropic SDK agent with tools: `search_library`, `get_book_metadata`,
   `answer_about_book` (RAG-backed), `recommend_similar`
 - Evaluation: task success rate on a defined scenario set
+- The agent is a second path to every piece of data in the system and must
+  enforce the same user scoping as the REST API — a `search_library` that
+  ignores it will surface another household member's private shelves, and
+  `recommend_similar` should reason over the caller's reading history, not
+  everyone's. An authorization boundary present in one interface and absent
+  in the other is not a boundary.
 
 **Phase 4 — Web client (diploma months 5–6)**
 - Flutter web client: library browsing, search, chat interface to the agent
@@ -35,7 +63,11 @@ agent that can answer questions about and across the user's library.
 
 ## Non-goals for diploma window
 
-- Multi-user support / auth beyond a single local user
+- Public multi-tenancy. Libra supports several users on one self-hosted
+  instance — a household sharing a library — not accounts for strangers.
+  Concretely out: self-registration, email verification, password reset
+  flows, and per-book access control. Admin creates accounts; every user can
+  see every book. Reading state, shelves, and personal tags are private.
 - Full DRM handling (explicitly out of scope, not silently ignored)
 - Desktop/mobile builds
 - Autonomous multi-step agent planning — the agent stays tool-calling, not
@@ -58,6 +90,8 @@ Built alongside each phase, not retrofitted afterward — see
 |---|---|---|
 | Backend | FastAPI (Python 3.12+) | async, good for RAG/agent endpoints |
 | Persistence | SQLite → Postgres if needed | start simple |
+| Migrations | Alembic | needed once `create_all()` can no longer add columns |
+| Auth | Argon2id + server-side sessions | revocable; JWT statelessness buys nothing with one server |
 | Format conversion | Calibre `ebook-convert` CLI | don't reimplement |
 | Vector store | Chroma | local-first, low ops overhead |
 | Embeddings | TBD (evaluate local vs API-based) | decide in Phase 2 |
@@ -133,5 +167,8 @@ metadata, the storage layer owns file locations. `DELETE` removes the row
 first and the file second, so a failed unlink leaves a stray file rather than
 a listed book that cannot be opened.
 
-**Still deferred**: Calibre-backed format conversion and Kindle email delivery
-are the remaining Phase 1 items; both now have real files to operate on.
+**Still deferred**: Kindle email delivery remains a Phase 1 item and now has
+real files to operate on. Calibre-backed format conversion has moved out of
+Phase 1 — see [specs/phase-1-plan.md](specs/phase-1-plan.md). The larger
+remaining Phase 1 work is auth and library organization, neither of which
+existed as a goal when this section was written.

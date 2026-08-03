@@ -10,10 +10,16 @@ quality, structure, and testability are treated as first-class concerns.
 ## Status
 
 **Phase 1 — Backend core (in progress).** FastAPI backend with EPUB upload,
-automatic metadata extraction, book CRUD, and SQLite persistence. Format
-conversion, Kindle delivery, the RAG pipeline, the agent, and the client are
-still to come — see [docs/architecture.md](docs/architecture.md) for the
-roadmap.
+automatic metadata extraction, book CRUD, and SQLite persistence.
+
+Still to come in Phase 1: multi-user accounts, Kindle delivery, and library
+organization (shelves, tags, ratings, reading progress, covers) — planned in
+[docs/specs/phase-1-plan.md](docs/specs/phase-1-plan.md). The RAG pipeline,
+the librarian agent, format conversion, and the client come later; see
+[docs/architecture.md](docs/architecture.md) for the roadmap.
+
+The configuration and Kindle sections below describe the target setup,
+including settings whose features are not built yet.
 
 ### API
 
@@ -43,6 +49,12 @@ file in `backend/`):
 | `LIBRA_DATABASE_URL` | `sqlite:///./libra.db` | Database connection |
 | `LIBRA_LIBRARY_DIR` | `./library` | Where ebook files are stored |
 | `LIBRA_MAX_UPLOAD_BYTES` | `104857600` (100 MB) | Upload size ceiling |
+| `LIBRA_SMTP_HOST` | — | Mail server for Kindle delivery; unset disables the feature |
+| `LIBRA_SMTP_PORT` | `587` | Mail server port |
+| `LIBRA_SMTP_USERNAME` | — | Mail account username |
+| `LIBRA_SMTP_PASSWORD` | — | Mail account password — environment only, never commit it |
+| `LIBRA_SMTP_FROM` | — | Sender address; **every user must approve this one** |
+| `LIBRA_KINDLE_MAX_ATTACHMENT_BYTES` | `52428800` (50 MB) | Amazon's attachment ceiling |
 
 ## Project structure
 
@@ -58,7 +70,9 @@ libra/
 ├── client/                # Flutter app (Phase 4+)
 ├── docs/
 │   ├── architecture.md
-│   └── evaluation.md
+│   ├── evaluation.md
+│   ├── specs/             # per-feature design docs and the Phase 1 plan
+│   └── design_handoff_libra/   # UI design reference (prototype, not source)
 ├── scripts/
 │   └── docker-compose.yml
 └── .github/workflows/
@@ -77,6 +91,42 @@ uv run uvicorn app.main:app --reload
 
 The API is served at `http://localhost:8000`; interactive docs at
 `http://localhost:8000/docs`.
+
+### Kindle delivery
+
+Setup has two halves: SMTP is configured **once for the whole server**, and
+then **each user approves the sender address on their own Amazon account**.
+libra cannot do the second half for anyone — Amazon exposes no API for it.
+
+**1. Configure SMTP (server admin, once)**
+
+Set the `LIBRA_SMTP_*` variables above. Use a dedicated mailbox rather than a
+personal one: the address becomes something every user has to approve, and a
+dedicated account's app password is easy to revoke without disrupting anything
+else.
+
+**2. Approve the sender address (each user, once)**
+
+Amazon accepts personal documents only from addresses on your approved list:
+
+1. Sign in to Amazon → **Account & Lists → Manage Your Content and Devices →
+   Preferences → Personal Document Settings** (the exact path moves
+   occasionally).
+2. Under **Approved Personal Document E-mail List**, add the address in
+   `LIBRA_SMTP_FROM`.
+3. On the same page, find your device's own **`@kindle.com` address** and set
+   it as your Kindle address in libra.
+
+> **Mail from an unapproved address is silently discarded.** No bounce, no
+> error, no notification — Amazon simply drops it. libra can only report that
+> its mail server accepted the message, never that a Kindle received it. If
+> sends look successful but nothing arrives on the device, an unapproved
+> sender address is almost always the reason.
+
+Books are sent as EPUB with no conversion: Send to Kindle accepts EPUB
+directly. Note that Amazon's attachment ceiling (~50 MB) is lower than
+libra's upload ceiling (100 MB), so a very large book can be stored but not
+emailed.
 
 ### Running with Docker
 
