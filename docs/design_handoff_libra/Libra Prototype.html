@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Libra</title>
+<link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script type="text/babel" src="proto/data.jsx"></script>
+<script type="text/babel" src="proto/components.jsx"></script>
+<script type="text/babel" src="proto/page-library.jsx"></script>
+<script type="text/babel" src="proto/page-shelves.jsx"></script>
+<script type="text/babel" src="proto/page-detail.jsx"></script>
+<script type="text/babel" src="proto/page-add.jsx"></script>
+<script type="text/babel" src="proto/page-tags.jsx"></script>
+<script type="text/babel" src="proto/page-shelves-manager.jsx"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body, #root { height: 100%; }
+  body { font-family: "DM Sans", system-ui, sans-serif; -webkit-font-smoothing: antialiased; }
+  ::selection { background: #8b5e3c33; }
+  input::placeholder { color: #a39a8e; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "accentColor": "#5c6b5e",
+  "coverStyle": "rich",
+  "gridColumns": 4
+}/*EDITMODE-END*/;
+
+function App() {
+  const [tweaks, setTweaks] = React.useState(TWEAK_DEFAULTS);
+  const [tweaksVisible, setTweaksVisible] = React.useState(false);
+  const [page, setPage] = React.useState('library');
+  const [detailId, setDetailId] = React.useState(null);
+  const [books, setBooks] = React.useState(LIBRA_BOOKS);
+  const [showAdd, setShowAdd] = React.useState(false);
+  const [searchQuery, setSearchQuery] = React.useState('');
+  const [activeTags, setActiveTags] = React.useState([]);
+  const [showTagManager, setShowTagManager] = React.useState(false);
+  const [showShelfManager, setShowShelfManager] = React.useState(false);
+  const [customShelves, setCustomShelves] = React.useState(['Currently Reading', 'Completed', 'To Read']);
+
+  const [customTags, setCustomTags] = React.useState([]);
+  const allTags = React.useMemo(() => [...new Set([...books.flatMap(b => b.tags), ...customTags])].sort(), [books, customTags]);
+  const toggleTag = (t) => setActiveTags(prev => prev.includes(t) ? prev.filter(x => x !== t) : [...prev, t]);
+
+  // Apply accent color tweak
+  React.useEffect(() => {
+    if (tweaks.accentColor !== LibraTokens.accent) {
+      LibraTokens.accent = tweaks.accentColor;
+      // Derive hover color (darken)
+      LibraTokens.accentHover = tweaks.accentColor;
+    }
+  }, [tweaks.accentColor]);
+
+  // Tweaks protocol
+  React.useEffect(() => {
+    const handler = (e) => {
+      if (e.data?.type === '__activate_edit_mode') setTweaksVisible(true);
+      if (e.data?.type === '__deactivate_edit_mode') setTweaksVisible(false);
+    };
+    window.addEventListener('message', handler);
+    window.parent.postMessage({ type: '__edit_mode_available' }, '*');
+    return () => window.removeEventListener('message', handler);
+  }, []);
+
+  const updateTweak = (key, val) => {
+    const next = { ...tweaks, [key]: val };
+    setTweaks(next);
+    window.parent.postMessage({ type: '__edit_mode_set_keys', edits: { [key]: val } }, '*');
+  };
+
+  const navigate = (p) => {
+    if (p === 'add') { setShowAdd(true); return; }
+    setPage(p);
+    setDetailId(null);
+  };
+
+  const openDetail = (id) => { setDetailId(id); setPage('detail'); };
+  const goBack = () => { setPage('library'); setDetailId(null); };
+
+  const addBook = (book) => setBooks(prev => [...prev, book]);
+  const updateBook = (book) => setBooks(prev => prev.map(b => b.id === book.id ? book : b));
+
+  const selectedBook = books.find(b => b.id === detailId);
+
+  return (
+    <div style={{ display: 'flex', height: '100vh', overflow: 'hidden' }}>
+      <LibraSidebar currentPage={page === 'detail' ? 'library' : page} onNavigate={navigate}
+        allTags={allTags} activeTags={activeTags} onToggleTag={toggleTag}
+        onManageTags={() => setShowTagManager(true)}
+        shelves={customShelves} onManageShelves={() => setShowShelfManager(true)}
+        onShelfClick={(s) => { setPage('shelves'); setDetailId(null); }} />
+
+      {page === 'library' && (
+        <LibraryPage books={books} onBookClick={openDetail}
+          searchQuery={searchQuery} setSearchQuery={setSearchQuery}
+          activeTags={activeTags} />
+      )}
+      {page === 'shelves' && <ShelvesPage books={books} onBookClick={openDetail} shelves={customShelves} />}
+      {page === 'detail' && <BookDetailPage book={selectedBook} onBack={goBack} onUpdate={updateBook} allTags={allTags} allShelves={customShelves} />}
+
+      {showAdd && <AddBookModal onClose={() => setShowAdd(false)} onAdd={addBook} />}
+      {showTagManager && <TagManagerModal onClose={() => setShowTagManager(false)} tags={allTags}
+        onUpdateTags={(newTags) => {
+          setCustomTags(newTags);
+          setBooks(prev => prev.map(b => ({ ...b, tags: b.tags.filter(t => newTags.includes(t)) })));
+          setActiveTags(prev => prev.filter(t => newTags.includes(t)));
+        }} />}
+      {showShelfManager && <ShelfManagerModal onClose={() => setShowShelfManager(false)}
+        shelves={customShelves} books={books}
+        onUpdateShelves={(newShelves) => {
+          const removed = customShelves.filter(s => !newShelves.includes(s));
+          if (removed.length) {
+            setBooks(prev => prev.map(b => removed.includes(b.shelf) ? { ...b, shelf: newShelves[0] || 'To Read' } : b));
+          }
+          setCustomShelves(newShelves);
+        }} />}
+
+      {/* Tweaks Panel */}
+      {tweaksVisible && (
+        <div style={{
+          position: 'fixed', bottom: 16, right: 16, width: 260, background: '#fff',
+          borderRadius: 12, boxShadow: '0 8px 40px rgba(0,0,0,.15)', padding: '20px',
+          fontFamily: '"DM Sans", system-ui, sans-serif', zIndex: 200,
+          animation: 'modalIn .2s ease-out',
+        }}>
+          <style>{`@keyframes modalIn { from { opacity:0; transform: translateY(8px); } to { opacity:1; transform: none; } }`}</style>
+          <div style={{ fontSize: 14, fontWeight: 700, color: '#2a2520', marginBottom: 18 }}>Tweaks</div>
+
+          {/* Accent color */}
+          <div style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#6b6259', marginBottom: 8 }}>Accent Color</div>
+            <div style={{ display: 'flex', gap: 8 }}>
+              {['#8b5e3c', '#5c6b5e', '#6b5a7b', '#5a6878', '#8a5a5a'].map(c => (
+                <div key={c} onClick={() => updateTweak('accentColor', c)} style={{
+                  width: 28, height: 28, borderRadius: 14, background: c, cursor: 'pointer',
+                  border: tweaks.accentColor === c ? '2.5px solid #2a2520' : '2.5px solid transparent',
+                  transition: 'border-color .15s',
+                }} />
+              ))}
+            </div>
+          </div>
+
+          {/* Grid density */}
+          <div>
+            <div style={{ fontSize: 12, fontWeight: 600, color: '#6b6259', marginBottom: 8 }}>Grid Density</div>
+            <div style={{ display: 'flex', gap: 6 }}>
+              {[{l: 'Compact', v: 6}, {l: 'Default', v: 5}, {l: 'Large', v: 4}].map(o => (
+                <button key={o.v} onClick={() => updateTweak('gridColumns', o.v)} style={{
+                  flex: 1, padding: '6px 0', borderRadius: 6, border: 'none', fontSize: 11, fontWeight: 500,
+                  fontFamily: 'inherit', cursor: 'pointer',
+                  background: tweaks.gridColumns === o.v ? '#8b5e3c' : '#f0e8df',
+                  color: tweaks.gridColumns === o.v ? '#fff' : '#6b6259',
+                }}>{o.l}</button>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App />);
+</script>
+</body>
+</html>
