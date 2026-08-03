@@ -1,12 +1,19 @@
 # Spec: Library Organization and Multi-User
 
 **Status:** Not started — planning only. Supersedes the single-user draft of
-this document. Two inputs: the UI design handoff in
-[`docs/design_handoff_libra/`](../design_handoff_libra/README.md), which
-assumes a domain model roughly twice the size of the one the API exposes
-today, and the decision to support **multiple users on one instance** (shared
-family library), which contradicts the current non-goal list in
-[architecture.md](../architecture.md) and needs it updated.
+this document. Two inputs: the UI design handoff, which assumes a domain
+model roughly twice the size of the one the API exposes today, and the
+decision to support **multiple users on one instance** (shared family
+library), which contradicted the non-goal list in
+[architecture.md](../architecture.md) and has since been reflected there.
+
+> The handoff bundle — the HTML/React prototype and its written spec — was
+> removed from the tree in commit `9b1b423`'s successor once this document
+> superseded it. It remains the only source for the **design tokens** (the
+> colour table, type scale, spacing, radii, shadows, transitions, and cover
+> palettes) that the Phase 4 client will want. Recover it with
+> `git show 9b1b423:docs/design_handoff_libra/README.md`, or
+> `git checkout 9b1b423 -- docs/design_handoff_libra/` for the whole bundle.
 
 ## Goal
 

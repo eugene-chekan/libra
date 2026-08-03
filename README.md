@@ -71,8 +71,7 @@ libra/
 ├── docs/
 │   ├── architecture.md
 │   ├── evaluation.md
-│   ├── specs/             # per-feature design docs and the Phase 1 plan
-│   └── design_handoff_libra/   # UI design reference (prototype, not source)
+│   └── specs/             # per-feature design docs and the Phase 1 plan
 ├── scripts/
 │   └── docker-compose.yml
 └── .github/workflows/
