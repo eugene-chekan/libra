@@ -9,6 +9,12 @@ COPY app ./app
 COPY rag ./rag
 COPY agent ./agent
 
+# The app applies pending migrations on startup, so the image needs the
+# revision scripts and their config, not just the package. Without these,
+# a container starts and immediately fails resolving alembic.ini.
+COPY alembic.ini ./
+COPY alembic ./alembic
+
 RUN uv pip install --system --no-cache .
 
 EXPOSE 8000
