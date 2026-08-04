@@ -7,9 +7,16 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session, SQLModel, create_engine
 from sqlmodel.pool import StaticPool
 
+from app.auth import current_user, hash_password
 from app.config import Settings, get_settings
 from app.db import get_engine, get_session
 from app.main import create_app
+from app.models import User
+
+# Known plaintext for the seeded accounts, so tests that exercise the real
+# login path have something to send.
+USER_PASSWORD = "correct-horse-battery-staple"
+ADMIN_PASSWORD = "admin-horse-battery-staple"
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -55,8 +62,27 @@ def session_fixture() -> Generator[Session, None, None]:
         yield session
 
 
-@pytest.fixture(name="client")
-def client_fixture(session: Session, settings: Settings) -> Generator[TestClient, None, None]:
+@pytest.fixture(name="user")
+def user_fixture(session: Session) -> User:
+    user = User(username="reader", password_hash=hash_password(USER_PASSWORD))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@pytest.fixture(name="admin_user")
+def admin_user_fixture(session: Session) -> User:
+    user = User(username="keeper", password_hash=hash_password(ADMIN_PASSWORD), is_admin=True)
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+def _build_client(
+    session: Session, settings: Settings, as_user: User | None
+) -> Generator[TestClient, None, None]:
     app = create_app()
 
     def get_session_override() -> Generator[Session, None, None]:
@@ -64,6 +90,38 @@ def client_fixture(session: Session, settings: Settings) -> Generator[TestClient
 
     app.dependency_overrides[get_session] = get_session_override
     app.dependency_overrides[get_settings] = lambda: settings
+    if as_user is not None:
+        # Overriding `current_user` also covers `require_admin`, which depends
+        # on it — so an admin-only route still genuinely checks `is_admin`
+        # against whichever user was injected, rather than being waved past.
+        app.dependency_overrides[current_user] = lambda: as_user
+
     with TestClient(app) as client:
         yield client
     app.dependency_overrides.clear()
+
+
+@pytest.fixture(name="client")
+def client_fixture(
+    session: Session, settings: Settings, user: User
+) -> Generator[TestClient, None, None]:
+    """Authenticated as an ordinary user — the default for most tests."""
+    yield from _build_client(session, settings, user)
+
+
+@pytest.fixture(name="admin_client")
+def admin_client_fixture(
+    session: Session, settings: Settings, admin_user: User
+) -> Generator[TestClient, None, None]:
+    """Authenticated as an admin, for routes that manage shared state."""
+    yield from _build_client(session, settings, admin_user)
+
+
+@pytest.fixture(name="anon_client")
+def anon_client_fixture(session: Session, settings: Settings) -> Generator[TestClient, None, None]:
+    """No auth override, so the real cookie/session path runs.
+
+    Used both for the unauthenticated 401 sweep and for tests that log in
+    for real against the seeded accounts.
+    """
+    yield from _build_client(session, settings, None)
