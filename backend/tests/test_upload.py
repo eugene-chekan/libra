@@ -69,9 +69,7 @@ def test_upload_rejects_invalid_epub(client: TestClient) -> None:
     assert "Invalid EPUB" in response.json()["detail"]
 
 
-def test_rejected_upload_leaves_no_file_behind(
-    client: TestClient, library_dir: Path
-) -> None:
+def test_rejected_upload_leaves_no_file_behind(client: TestClient, library_dir: Path) -> None:
     """A malformed upload must not litter the library with staged temp files."""
     assert _upload(client, b"not a zip at all").status_code == 422
 
@@ -118,9 +116,7 @@ def test_delete_removes_the_stored_file(
     assert not stored.exists()
 
 
-def test_delete_tolerates_a_row_with_no_file_on_disk(
-    client: TestClient, library_dir: Path
-) -> None:
+def test_delete_tolerates_a_row_with_no_file_on_disk(client: TestClient, library_dir: Path) -> None:
     """Rows created via POST /books reference a path we never wrote."""
     created = client.post(
         "/books",

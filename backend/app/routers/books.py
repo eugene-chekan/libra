@@ -37,14 +37,10 @@ def upload_book(
     """
     original_name = file.filename or "upload.epub"
     if Path(original_name).suffix.lower() != ".epub":
-        raise HTTPException(
-            status_code=415, detail="Only .epub files are supported in this phase"
-        )
+        raise HTTPException(status_code=415, detail="Only .epub files are supported in this phase")
 
     try:
-        staged = storage.stage_upload(
-            file.file, settings.library_dir, settings.max_upload_bytes
-        )
+        staged = storage.stage_upload(file.file, settings.library_dir, settings.max_upload_bytes)
     except UploadTooLargeError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
 
@@ -98,9 +94,7 @@ def get_book(book_id: int, session: Session = Depends(get_session)) -> Book:
 
 
 @router.patch("/{book_id}", response_model=BookRead)
-def update_book(
-    book_id: int, update: BookUpdate, session: Session = Depends(get_session)
-) -> Book:
+def update_book(book_id: int, update: BookUpdate, session: Session = Depends(get_session)) -> Book:
     """Correct a book's metadata, e.g. after an imperfect parse on upload."""
     book = session.get(Book, book_id)
     if book is None:

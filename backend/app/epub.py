@@ -100,9 +100,7 @@ def _opf_path(archive: zipfile.ZipFile) -> str:
 def _dc_values(metadata: ET.Element, tag: str) -> list[str]:
     """Collect non-empty Dublin Core values for a tag, in document order."""
     return [
-        el.text.strip()
-        for el in metadata.findall(f"dc:{tag}", NS)
-        if el.text and el.text.strip()
+        el.text.strip() for el in metadata.findall(f"dc:{tag}", NS) if el.text and el.text.strip()
     ]
 
 

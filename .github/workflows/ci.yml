@@ -27,6 +27,12 @@ jobs:
       - name: Lint with ruff
         run: uv run ruff check .
 
+      # The pre-commit hook formats staged files, which leaves two gaps: a
+      # clone without hooks installed, and files committed before the hooks
+      # existed. Both went unnoticed until a whole-repo run turned them up.
+      - name: Check formatting with ruff
+        run: uv run ruff format --check .
+
       # Proves the migrations actually apply to an empty database. The test
       # suite covers drift between models and migrations; this covers the
       # revisions themselves running end to end, which is what a deployment
