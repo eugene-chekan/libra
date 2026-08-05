@@ -20,6 +20,10 @@ class Settings(BaseSettings):
     # write to disk.
     max_upload_bytes: int = 100 * 1024 * 1024
 
+    # Level for the app's own `libra.*` loggers. Does not touch uvicorn's
+    # request logging, which uvicorn configures for itself.
+    log_level: str = "INFO"
+
     # Run pending migrations on startup. On by default because this is a
     # self-hosted app a household upgrades by pulling a new image: the
     # alternative is that they hit an OperationalError from a schema the

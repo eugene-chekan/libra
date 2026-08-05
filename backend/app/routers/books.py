@@ -8,10 +8,13 @@ from app.auth import current_user, require_admin
 from app.config import Settings, get_settings
 from app.db import get_session
 from app.epub import InvalidEpubError, read_metadata
+from app.logging_config import get_logger
 from app.models import Book, BookCreate, BookRead, BookUpdate, User
 from app.storage import UploadTooLargeError
 
 router = APIRouter(prefix="/books", tags=["books"])
+
+log = get_logger(__name__)
 
 # The catalog is shared: any member of the household may read it and add to
 # it, because uploading is additive and reversible. Editing shared metadata
@@ -84,6 +87,11 @@ def upload_book(
         session.commit()
     except BaseException:
         session.rollback()
+        # The file is already committed to the library at this point, so it
+        # has to go back out or it is an orphan nothing references. Logged
+        # because the request is about to fail with a 500 whose traceback
+        # says nothing about the file that was written and removed.
+        log.exception("Insert failed after storing %s; removing the orphaned file", stored_name)
         storage.delete(stored_name, settings.library_dir)
         raise
     session.refresh(book)

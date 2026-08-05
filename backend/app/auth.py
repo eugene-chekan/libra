@@ -16,9 +16,12 @@ from sqlmodel import Session, select
 
 from app.config import Settings
 from app.db import get_session
+from app.logging_config import get_logger
 from app.models import User, UserSession, utcnow
 
 SESSION_COOKIE = "libra_session"
+
+log = get_logger(__name__)
 
 # Argon2id at the library's defaults, which track the RFC 9106 guidance and
 # are revised as hardware moves. Pinning our own parameters here would mean
@@ -124,9 +127,14 @@ def authenticate(session: Session, username: str, password: str) -> User | None:
     user = get_user_by_username(session, username)
     if user is None:
         verify_password(_DUMMY_HASH, password)
+        # The attempted username only. Never the password: a failed login is
+        # very often a password that is right for a *different* account, and
+        # a log file is not the place to collect those.
+        log.warning("Failed login for unknown username %r", normalise_username(username))
         return None
 
     if not verify_password(user.password_hash, password):
+        log.warning("Failed login for %r: wrong password", user.username)
         return None
 
     # Transparently upgrade a hash left behind by older Argon2 parameters,
