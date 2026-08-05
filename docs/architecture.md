@@ -51,7 +51,9 @@ this phase.
   ignores it will surface another household member's private shelves, and
   `recommend_similar` should reason over the caller's reading history, not
   everyone's. An authorization boundary present in one interface and absent
-  in the other is not a boundary.
+  in the other is not a boundary. Giving it one implementation rather than
+  two is why library operations are written outside route handlers from
+  Phase 1 onward — see [specs/layering.md](specs/layering.md).
 
 **Phase 4 — Web client (diploma months 5–6)**
 - Flutter web client: library browsing, search, chat interface to the agent
