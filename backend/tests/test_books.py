@@ -38,8 +38,9 @@ def test_get_book_not_found(client: TestClient) -> None:
     assert response.status_code == 404
 
 
-def test_delete_book(client: TestClient) -> None:
-    created = client.post("/books", json=BOOK_PAYLOAD).json()
-    response = client.delete(f"/books/{created['id']}")
+def test_delete_book(admin_client: TestClient) -> None:
+    """Admin client: deleting removes a file the whole household shares."""
+    created = admin_client.post("/books", json=BOOK_PAYLOAD).json()
+    response = admin_client.delete(f"/books/{created['id']}")
     assert response.status_code == 204
-    assert client.get(f"/books/{created['id']}").status_code == 404
+    assert admin_client.get(f"/books/{created['id']}").status_code == 404

@@ -106,19 +106,21 @@ def test_oversized_upload_leaves_no_file_behind(
 
 
 def test_delete_removes_the_stored_file(
-    client: TestClient, tmp_path: Path, library_dir: Path
+    admin_client: TestClient, tmp_path: Path, library_dir: Path
 ) -> None:
-    created = _upload(client, epub_bytes(tmp_path)).json()
+    created = _upload(admin_client, epub_bytes(tmp_path)).json()
     stored = library_dir / created["file_path"]
     assert stored.is_file()
 
-    assert client.delete(f"/books/{created['id']}").status_code == 204
+    assert admin_client.delete(f"/books/{created['id']}").status_code == 204
     assert not stored.exists()
 
 
-def test_delete_tolerates_a_row_with_no_file_on_disk(client: TestClient, library_dir: Path) -> None:
+def test_delete_tolerates_a_row_with_no_file_on_disk(
+    admin_client: TestClient, library_dir: Path
+) -> None:
     """Rows created via POST /books reference a path we never wrote."""
-    created = client.post(
+    created = admin_client.post(
         "/books",
         json={
             "title": "Manual",
@@ -129,19 +131,19 @@ def test_delete_tolerates_a_row_with_no_file_on_disk(client: TestClient, library
         },
     ).json()
 
-    assert client.delete(f"/books/{created['id']}").status_code == 204
-    assert client.get(f"/books/{created['id']}").status_code == 404
+    assert admin_client.delete(f"/books/{created['id']}").status_code == 204
+    assert admin_client.get(f"/books/{created['id']}").status_code == 404
 
 
 def test_delete_ignores_a_path_escaping_the_library(
-    client: TestClient, tmp_path: Path, library_dir: Path
+    admin_client: TestClient, tmp_path: Path, library_dir: Path
 ) -> None:
     """A traversal path in file_path must not delete anything outside the library."""
     outsider = tmp_path / "precious.txt"
     outsider.write_text("do not delete me")
     library_dir.mkdir(parents=True, exist_ok=True)
 
-    created = client.post(
+    created = admin_client.post(
         "/books",
         json={
             "title": "Evil",
@@ -152,5 +154,5 @@ def test_delete_ignores_a_path_escaping_the_library(
         },
     ).json()
 
-    assert client.delete(f"/books/{created['id']}").status_code == 204
+    assert admin_client.delete(f"/books/{created['id']}").status_code == 204
     assert outsider.exists()

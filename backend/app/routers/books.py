@@ -4,17 +4,26 @@ from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from sqlmodel import Session, select
 
 from app import storage
+from app.auth import current_user, require_admin
 from app.config import Settings, get_settings
 from app.db import get_session
 from app.epub import InvalidEpubError, read_metadata
-from app.models import Book, BookCreate, BookRead, BookUpdate
+from app.models import Book, BookCreate, BookRead, BookUpdate, User
 from app.storage import UploadTooLargeError
 
 router = APIRouter(prefix="/books", tags=["books"])
 
+# The catalog is shared: any member of the household may read it and add to
+# it, because uploading is additive and reversible. Editing shared metadata
+# and deleting are admin-only — a delete removes the file for everyone.
+
 
 @router.post("", response_model=BookRead, status_code=201)
-def create_book(book: BookCreate, session: Session = Depends(get_session)) -> Book:
+def create_book(
+    book: BookCreate,
+    session: Session = Depends(get_session),
+    _: User = Depends(current_user),
+) -> Book:
     db_book = Book.model_validate(book)
     session.add(db_book)
     session.commit()
@@ -27,6 +36,7 @@ def upload_book(
     file: UploadFile,
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    _: User = Depends(current_user),
 ) -> Book:
     """Create a book from an uploaded EPUB, deriving metadata from the file.
 
@@ -81,12 +91,19 @@ def upload_book(
 
 
 @router.get("", response_model=list[BookRead])
-def list_books(session: Session = Depends(get_session)) -> list[Book]:
+def list_books(
+    session: Session = Depends(get_session),
+    _: User = Depends(current_user),
+) -> list[Book]:
     return list(session.exec(select(Book)).all())
 
 
 @router.get("/{book_id}", response_model=BookRead)
-def get_book(book_id: int, session: Session = Depends(get_session)) -> Book:
+def get_book(
+    book_id: int,
+    session: Session = Depends(get_session),
+    _: User = Depends(current_user),
+) -> Book:
     book = session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -94,8 +111,17 @@ def get_book(book_id: int, session: Session = Depends(get_session)) -> Book:
 
 
 @router.patch("/{book_id}", response_model=BookRead)
-def update_book(book_id: int, update: BookUpdate, session: Session = Depends(get_session)) -> Book:
-    """Correct a book's metadata, e.g. after an imperfect parse on upload."""
+def update_book(
+    book_id: int,
+    update: BookUpdate,
+    session: Session = Depends(get_session),
+    _: User = Depends(require_admin),
+) -> Book:
+    """Correct a book's metadata, e.g. after an imperfect parse on upload.
+
+    Admin only: title and author describe the shared catalog, so one
+    person's correction changes what everyone sees.
+    """
     book = session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -116,7 +142,14 @@ def delete_book(
     book_id: int,
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
+    _: User = Depends(require_admin),
 ) -> None:
+    """Remove a book and its file.
+
+    Admin only. Uploading is additive and reversible; deleting destroys a
+    file the whole household shares, and later a row every user has reading
+    state against.
+    """
     book = session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")

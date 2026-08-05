@@ -12,6 +12,7 @@ dependencies = [
     # >=1.9 for `alembic check`, which CI uses to catch models drifting
     # ahead of migrations.
     "alembic>=1.9",
+    "argon2-cffi>=25.1.0",
 ]
 
 [dependency-groups]

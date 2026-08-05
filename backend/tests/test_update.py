@@ -1,3 +1,11 @@
+"""PATCH /books/{id} — correcting shared catalog metadata.
+
+Every test here uses `admin_client`: title and author describe the book
+itself, so a correction changes what the whole household sees, which makes
+editing them an admin action. The ordinary-user side of that boundary is
+covered in test_permissions.py.
+"""
+
 from pathlib import Path
 
 from fastapi.testclient import TestClient
@@ -13,10 +21,10 @@ BOOK_PAYLOAD = {
 }
 
 
-def test_patch_corrects_a_single_field(client: TestClient) -> None:
-    created = client.post("/books", json=BOOK_PAYLOAD).json()
+def test_patch_corrects_a_single_field(admin_client: TestClient) -> None:
+    created = admin_client.post("/books", json=BOOK_PAYLOAD).json()
 
-    response = client.patch(f"/books/{created['id']}", json={"author": "F. Herbert"})
+    response = admin_client.patch(f"/books/{created['id']}", json={"author": "F. Herbert"})
     assert response.status_code == 200
 
     body = response.json()
@@ -24,44 +32,44 @@ def test_patch_corrects_a_single_field(client: TestClient) -> None:
     assert body["title"] == "Dune"  # untouched
 
 
-def test_patch_leaves_omitted_fields_alone(client: TestClient) -> None:
-    created = client.post("/books", json=BOOK_PAYLOAD).json()
-    client.patch(f"/books/{created['id']}", json={"title": "Dune (1965)"})
+def test_patch_leaves_omitted_fields_alone(admin_client: TestClient) -> None:
+    created = admin_client.post("/books", json=BOOK_PAYLOAD).json()
+    admin_client.patch(f"/books/{created['id']}", json={"title": "Dune (1965)"})
 
-    body = client.get(f"/books/{created['id']}").json()
+    body = admin_client.get(f"/books/{created['id']}").json()
     assert body["title"] == "Dune (1965)"
     assert body["author"] == "Frank Herbert"
     assert body["book_metadata"] == {"language": "en"}
 
 
-def test_patch_replaces_metadata_wholesale(client: TestClient) -> None:
-    created = client.post("/books", json=BOOK_PAYLOAD).json()
+def test_patch_replaces_metadata_wholesale(admin_client: TestClient) -> None:
+    created = admin_client.post("/books", json=BOOK_PAYLOAD).json()
 
-    response = client.patch(
+    response = admin_client.patch(
         f"/books/{created['id']}", json={"book_metadata": {"series": "Dune Chronicles"}}
     )
     assert response.json()["book_metadata"] == {"series": "Dune Chronicles"}
 
 
-def test_patch_cannot_move_the_file(client: TestClient) -> None:
+def test_patch_cannot_move_the_file(admin_client: TestClient) -> None:
     """file_path is storage-owned, so a supplied value is ignored, not applied."""
-    created = client.post("/books", json=BOOK_PAYLOAD).json()
+    created = admin_client.post("/books", json=BOOK_PAYLOAD).json()
 
-    response = client.patch(f"/books/{created['id']}", json={"file_path": "/etc/passwd"})
+    response = admin_client.patch(f"/books/{created['id']}", json={"file_path": "/etc/passwd"})
     assert response.status_code == 200
     assert response.json()["file_path"] == "dune.epub"
 
 
-def test_patch_fixes_a_bad_parse_after_upload(client: TestClient, tmp_path: Path) -> None:
+def test_patch_fixes_a_bad_parse_after_upload(admin_client: TestClient, tmp_path: Path) -> None:
     """The end-to-end reason PATCH exists: correcting what the parser guessed."""
     content = epub_bytes(tmp_path, name="mystery.epub", titles=[], creators=[])
-    created = client.post(
+    created = admin_client.post(
         "/books/upload",
         files={"file": ("mystery.epub", content, "application/epub+zip")},
     ).json()
     assert created["author"] == "Unknown"
 
-    fixed = client.patch(
+    fixed = admin_client.patch(
         f"/books/{created['id']}",
         json={"title": "The Real Title", "author": "The Real Author"},
     ).json()
@@ -71,5 +79,5 @@ def test_patch_fixes_a_bad_parse_after_upload(client: TestClient, tmp_path: Path
     assert fixed["file_path"] == created["file_path"]
 
 
-def test_patch_missing_book_returns_404(client: TestClient) -> None:
-    assert client.patch("/books/999", json={"title": "Nope"}).status_code == 404
+def test_patch_missing_book_returns_404(admin_client: TestClient) -> None:
+    assert admin_client.patch("/books/999", json={"title": "Nope"}).status_code == 404

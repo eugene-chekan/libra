@@ -23,6 +23,9 @@ including settings whose features are not built yet.
 
 ### API
 
+All endpoints except `/health` and `POST /auth/login` require a session — see
+[Accounts and login](#accounts-and-login).
+
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Health check |
@@ -30,8 +33,8 @@ including settings whose features are not built yet.
 | `POST` | `/books` | Create a book row from supplied metadata |
 | `GET` | `/books` | List books |
 | `GET` | `/books/{id}` | Fetch one book |
-| `PATCH` | `/books/{id}` | Correct a book's metadata |
-| `DELETE` | `/books/{id}` | Delete a book and its stored file |
+| `PATCH` | `/books/{id}` | Correct a book's metadata (admin) |
+| `DELETE` | `/books/{id}` | Delete a book and its stored file (admin) |
 
 Uploading is the primary path: `POST /books/upload` validates the EPUB, pulls
 title/author/language/publisher/subjects out of its OPF package document, and
@@ -50,6 +53,9 @@ file in `backend/`):
 | `LIBRA_LIBRARY_DIR` | `./library` | Where ebook files are stored |
 | `LIBRA_MAX_UPLOAD_BYTES` | `104857600` (100 MB) | Upload size ceiling |
 | `LIBRA_AUTO_UPGRADE_DB` | `true` | Apply pending migrations on startup |
+| `LIBRA_CORS_ORIGINS` | `[]` | Browser origins allowed to call the API, as JSON |
+| `LIBRA_SESSION_TTL_DAYS` | `14` | How long a login lasts |
+| `LIBRA_SESSION_COOKIE_SECURE` | `false` | Set `true` when serving over HTTPS |
 | `LIBRA_SMTP_HOST` | — | Mail server for Kindle delivery; unset disables the feature |
 | `LIBRA_SMTP_PORT` | `587` | Mail server port |
 | `LIBRA_SMTP_USERNAME` | — | Mail account username |
@@ -91,6 +97,52 @@ uv run uvicorn app.main:app --reload
 
 The API is served at `http://localhost:8000`; interactive docs at
 `http://localhost:8000/docs`.
+
+### Accounts and login
+
+One instance serves a household. The book catalog is shared; reading state,
+and later shelves and personal tags, belong to individual users.
+
+There is **no open registration endpoint** — on a self-hosted server reachable
+from the network, the first stranger to find one would own the library. The
+first account is created from a shell on the host:
+
+```bash
+cd backend
+uv run python -m app.cli create-admin --username yourname
+```
+
+It prompts for a password (or reads `LIBRA_ADMIN_PASSWORD`, for scripted
+setup) and runs any pending migrations first, so it works on a fresh install
+with no database yet. That admin then creates everyone else via
+`POST /users`.
+
+Logging in sets an httpOnly `SameSite=Lax` session cookie. Sessions live in
+the database, so logging out revokes them server-side rather than merely
+clearing the browser's copy.
+
+| Method | Path | Purpose |
+|---|---|---|
+| `POST` | `/auth/login` | Exchange credentials for a session cookie |
+| `POST` | `/auth/logout` | Revoke the current session |
+| `GET` | `/auth/me` | The current user |
+| `GET` | `/users` | List accounts (admin) |
+| `POST` | `/users` | Create an account (admin) |
+| `PATCH` | `/users/{id}` | Update a profile; admin to change `is_admin` or edit another user |
+
+Every other endpoint requires a session. Reading the catalog and uploading to
+it are open to any user; **editing shared book metadata and deleting books
+are admin-only**, because both change what everyone sees.
+
+**Serving over HTTPS?** Set `LIBRA_SESSION_COOKIE_SECURE=true`. It defaults
+to `false` because the common deployment is plain HTTP on a home LAN, where a
+secure-only cookie would never be sent and login would appear to fail
+silently.
+
+**Browser client on another origin?** Set `LIBRA_CORS_ORIGINS` to a JSON list,
+e.g. `'["http://localhost:8080"]'`. Cookie auth requires credentialed CORS,
+which the spec forbids combining with a `*` origin — so origins have to be
+enumerated and there is no permissive default.
 
 ### Database migrations
 
