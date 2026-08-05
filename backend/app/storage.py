@@ -18,7 +18,11 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import BinaryIO
 
+from app.logging_config import get_logger
+
 CHUNK_BYTES = 1024 * 1024
+
+log = get_logger(__name__)
 
 
 class UploadTooLargeError(ValueError):
@@ -76,6 +80,17 @@ def commit(staged: StagedUpload, library_dir: Path, suffix: str = ".epub") -> st
     try:
         os.replace(staged.path, destination)
     except OSError:
+        # The staging file was supposed to be on the same filesystem as the
+        # library, making this a rename. If it is not, we are now copying
+        # whole books instead — slower, and no longer atomic. Worth knowing
+        # about, since it points at a misconfigured mount rather than a bug
+        # in this request.
+        log.warning(
+            "Cross-filesystem commit: %s could not be renamed into the library, "
+            "falling back to a copy. Is library_dir on a different mount from "
+            "the system temp directory?",
+            staged.path,
+        )
         shutil.move(str(staged.path), str(destination))
     return stored_name
 
@@ -95,12 +110,31 @@ def resolve(relative_path: str, library_dir: Path) -> Path:
 
 
 def delete(relative_path: str, library_dir: Path) -> bool:
-    """Remove a stored file. Returns False if it was absent or out of bounds."""
+    """Remove a stored file. Returns False if it was absent or out of bounds.
+
+    Both failure modes are logged rather than merely returned, because every
+    caller ignores the return value on purpose: deletion is best-effort by
+    design, so that a book row is never left listed but unreadable. The
+    consequence is that a stray file is invisible unless it says so here.
+    """
     try:
         target = resolve(relative_path, library_dir)
     except ValueError:
+        # A stored path pointing outside the library means a row was written
+        # with a hand-supplied file_path. The traversal guard did its job;
+        # the row is still worth looking at.
+        log.warning(
+            "Refused to delete %r: it resolves outside the library directory.",
+            relative_path,
+        )
         return False
+
     if not target.is_file():
+        log.warning(
+            "Nothing to delete at %r: the row referenced a file that is not on disk.",
+            relative_path,
+        )
         return False
+
     target.unlink()
     return True

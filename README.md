@@ -53,6 +53,7 @@ file in `backend/`):
 | `LIBRA_LIBRARY_DIR` | `./library` | Where ebook files are stored |
 | `LIBRA_MAX_UPLOAD_BYTES` | `104857600` (100 MB) | Upload size ceiling |
 | `LIBRA_AUTO_UPGRADE_DB` | `true` | Apply pending migrations on startup |
+| `LIBRA_LOG_LEVEL` | `INFO` | Level for the app's own logs; uvicorn's request logging is separate |
 | `LIBRA_CORS_ORIGINS` | `[]` | Browser origins allowed to call the API, as JSON |
 | `LIBRA_SESSION_TTL_DAYS` | `14` | How long a login lasts |
 | `LIBRA_SESSION_COOKIE_SECURE` | `false` | Set `true` when serving over HTTPS |
@@ -143,6 +144,25 @@ silently.
 e.g. `'["http://localhost:8080"]'`. Cookie auth requires credentialed CORS,
 which the spec forbids combining with a `*` origin — so origins have to be
 enumerated and there is no permissive default.
+
+### Logs
+
+Written to stdout under the `libra.*` namespace, alongside uvicorn's own
+request logging — read them with `docker compose logs -f` or journald. There
+are no log files to rotate.
+
+The app logs sparingly, and only where it deliberately carries on after
+something went wrong and would otherwise say nothing:
+
+- a stored file that could not be deleted, leaving a stray file on disk
+- a commit falling back from a rename to a copy, meaning `LIBRA_LIBRARY_DIR`
+  is on a different mount from the system temp directory
+- an orphaned file cleaned up after a failed database insert
+- a rejected login, with the attempted username but never the password
+- a schema upgrade actually applying on startup
+
+Set `LIBRA_LOG_LEVEL=DEBUG` for more, `WARNING` for less. It governs only the
+app's own loggers; uvicorn's access log is configured by uvicorn.
 
 ### Database migrations
 

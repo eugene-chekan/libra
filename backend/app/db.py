@@ -3,16 +3,20 @@ from functools import lru_cache
 from pathlib import Path
 
 from alembic.config import Config
+from alembic.runtime.migration import MigrationContext
 from sqlalchemy import Engine
 from sqlmodel import Session, create_engine
 
 from alembic import command
 from app.config import get_settings
+from app.logging_config import get_logger
 
 # backend/alembic.ini — resolved from this file rather than the working
 # directory, so migrations run the same whether invoked by uvicorn, pytest,
 # or a container entrypoint.
 ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
+
+log = get_logger(__name__)
 
 
 @lru_cache
@@ -57,8 +61,17 @@ def run_migrations() -> None:
 
     config = Config(ALEMBIC_INI)
     with get_engine().begin() as connection:
+        before = MigrationContext.configure(connection).get_current_revision()
         config.attributes["connection"] = connection
         command.upgrade(config, "head")
+        after = MigrationContext.configure(connection).get_current_revision()
+
+    # Only when something actually moved. Startup applies migrations on every
+    # boot, so an unconditional line would be noise on every restart — and
+    # the one case an operator wants to see is a deployment whose schema
+    # changed underneath it.
+    if before != after:
+        log.info("Database schema upgraded: %s -> %s", before or "(empty)", after)
 
 
 def init_db() -> None:
