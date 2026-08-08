@@ -2,9 +2,16 @@
 
 **Status:** Partially shipped. Auth, users and sessions landed in #12
 (issue #4); the shared catalog fields, `UserBookState` and `Note` in #14
-(issue #5). **Shelves (#7), tags (#8), search (#9) and cover art (#10) are
-still planning only** — the sections below describing them have not been
-built and may still be wrong in the way the validation block was.
+(issue #5); shelves in #16 (issue #7). **Tags (#8), search (#9) and cover art
+(#10) are still planning only** — the sections below describing them have not
+been built and may still be wrong in the way the validation block was.
+
+One correction from building shelves: case-insensitive uniqueness is spelled
+`COLLATE NOCASE` on the column plus a plain unique index, **not** a
+normalised shadow column and not an index over `lower(name)`. It preserves
+display casing, which shelf and tag names need and usernames did not, and
+autogenerate renders it cleanly so `alembic check` stays quiet. Tags should
+use the same shape. Caveat: SQLite's NOCASE folds ASCII only.
 
 Supersedes the single-user draft of
 this document. Two inputs: the UI design handoff, which assumes a domain
