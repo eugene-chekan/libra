@@ -12,7 +12,7 @@ from app.auth import (
 )
 from app.config import Settings, get_settings
 from app.db import get_session
-from app.models import LoginRequest, User, UserRead
+from app.models import CurrentUserRead, LoginRequest, User, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -57,6 +57,20 @@ def logout(
     clear_session_cookie(response)
 
 
-@router.get("/me", response_model=UserRead)
-def read_current_user(user: User = Depends(current_user)) -> User:
-    return user
+@router.get("/me", response_model=CurrentUserRead)
+def read_current_user(
+    user: User = Depends(current_user),
+    settings: Settings = Depends(get_settings),
+) -> CurrentUserRead:
+    """The caller, plus the one piece of server config they need.
+
+    `kindle_sender` is the address every user must add to their own Amazon
+    approved-sender list before delivery works. It is not a secret — it is
+    precisely the string they have to copy — and handing it out here lets the
+    client show the real value instead of a placeholder. Credentials never
+    leave the server.
+    """
+    return CurrentUserRead(
+        **user.model_dump(include=set(UserRead.model_fields)),
+        kindle_sender=settings.smtp_from,
+    )

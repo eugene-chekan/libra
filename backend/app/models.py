@@ -216,6 +216,17 @@ class UserRead(SQLModel):
     created_at: datetime
 
 
+class CurrentUserRead(UserRead):
+    """`UserRead` plus the server configuration the caller needs to act on.
+
+    Only on /auth/me, never on /users — the sender address is instance
+    config, not a property of a user, and repeating it per row in a listing
+    would imply otherwise.
+    """
+
+    kindle_sender: str | None = None
+
+
 class UserUpdate(SQLModel):
     password: str | None = None
     kindle_email: str | None = None
@@ -225,3 +236,16 @@ class UserUpdate(SQLModel):
 class LoginRequest(SQLModel):
     username: str
     password: str
+
+
+class KindleDeliveryRead(SQLModel):
+    """What a send attempt reports back.
+
+    `attempted_at`, not `sent_at`. Amazon discards mail from an unapproved
+    sender without a bounce, so handing the message to the mail server is the
+    last observable event — the field name should not claim more than that.
+    """
+
+    book_id: int
+    sent_to: str
+    attempted_at: datetime
