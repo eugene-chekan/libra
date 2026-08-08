@@ -16,9 +16,15 @@ CONTAINER_XML = """<?xml version="1.0" encoding="UTF-8"?>
 </container>
 """
 
+# xmlns:opf is bound even though the default namespace already covers the
+# elements: OPF 2 fixtures need the `opf:event` *attribute*, and without the
+# binding those files are not well-formed. They would then be rejected by the
+# XML guard rather than by the logic under test — a green test proving the
+# wrong thing.
 OPF_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
-  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/"
+            xmlns:opf="http://www.idpf.org/2007/opf">
 {metadata}
   </metadata>
   <manifest>
@@ -38,6 +44,8 @@ def _metadata_block(
     description: str | None,
     identifiers: list[str],
     subjects: list[str],
+    pages: str | None,
+    extra_meta: list[str],
 ) -> str:
     lines: list[str] = []
     lines += [f"    <dc:title>{value}</dc:title>" for value in titles]
@@ -50,8 +58,11 @@ def _metadata_block(
         lines.append(f"    <dc:date>{published}</dc:date>")
     if description:
         lines.append(f"    <dc:description>{description}</dc:description>")
+    if pages is not None:
+        lines.append(f'    <meta property="schema:numberOfPages">{pages}</meta>')
     lines += [f'    <dc:identifier id="bookid">{v}</dc:identifier>' for v in identifiers]
     lines += [f"    <dc:subject>{value}</dc:subject>" for value in subjects]
+    lines += [f"    {raw}" for raw in extra_meta]
     return "\n".join(lines)
 
 
@@ -66,6 +77,14 @@ def build_epub(
     description: str | None = "Desert planet politics.",
     identifiers: list[str] | None = None,
     subjects: list[str] | None = None,
+    # Raw text, not an int, so "four hundred" or "²" are each one keyword away
+    # from the happy path. Defaults to None because real EPUBs overwhelmingly
+    # do not declare a page count — which means every other test exercises the
+    # "not declared" path for free.
+    pages: str | None = None,
+    # Arbitrary verbatim <meta>/<dc:*> lines, for the cases a named keyword
+    # would not cover: opf:event, refines, EPUB 2 <meta name=.../>.
+    extra_meta: list[str] | None = None,
     opf_path: str = "OEBPS/content.opf",
     mimetype: str | None = "application/epub+zip",
     include_container: bool = True,
@@ -77,6 +96,7 @@ def build_epub(
     creators = ["Frank Herbert"] if creators is None else creators
     identifiers = ["urn:isbn:9780441013593"] if identifiers is None else identifiers
     subjects = ["Science Fiction"] if subjects is None else subjects
+    extra_meta = [] if extra_meta is None else extra_meta
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
@@ -102,6 +122,8 @@ def build_epub(
                         description,
                         identifiers,
                         subjects,
+                        pages,
+                        extra_meta,
                     )
                 )
             )

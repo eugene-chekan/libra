@@ -60,8 +60,25 @@ def test_migrations_create_the_schema(fresh_db: Path) -> None:
         "author",
         "format",
         "file_path",
+        "year",
+        "blurb",
+        "pages",
+        "uploaded_by",
         "book_metadata",
     }
+    assert {"user_book_state", "note"} <= _tables(fresh_db)
+
+
+def test_reading_state_is_keyed_by_user_and_book(fresh_db: Path) -> None:
+    """The composite key is load-bearing: it makes the lazy upsert a single
+    primary-key lookup, and in #7 it is what makes 'one shelf per user per
+    book' structural rather than a constraint something has to enforce."""
+    run_migrations()
+
+    with sqlite3.connect(fresh_db) as conn:
+        key = [row[1] for row in conn.execute("PRAGMA table_info(user_book_state)") if row[5]]
+
+    assert sorted(key) == ["book_id", "user_id"]
 
 
 def test_migrations_record_their_version(fresh_db: Path) -> None:

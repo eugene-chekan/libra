@@ -1,15 +1,15 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile
-from sqlmodel import Session, select
+from sqlmodel import Session
 
-from app import storage
+from app import library, storage
 from app.auth import current_user, require_admin
 from app.config import Settings, get_settings
 from app.db import get_session
 from app.epub import InvalidEpubError, read_metadata
 from app.logging_config import get_logger
-from app.models import Book, BookCreate, BookRead, BookUpdate, User
+from app.models import Book, BookCreate, BookRead, BookUpdate, User, UserBookStateWrite
 from app.storage import UploadTooLargeError
 
 router = APIRouter(prefix="/books", tags=["books"])
@@ -39,7 +39,7 @@ def upload_book(
     file: UploadFile,
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
-    _: User = Depends(current_user),
+    user: User = Depends(current_user),
 ) -> Book:
     """Create a book from an uploaded EPUB, deriving metadata from the file.
 
@@ -73,6 +73,10 @@ def upload_book(
         author=metadata.author,
         format="epub",
         file_path=stored_name,
+        year=metadata.year,
+        blurb=metadata.blurb,
+        pages=metadata.pages,
+        uploaded_by=user.id,
         book_metadata={
             **metadata.extra,
             "original_filename": original_name,
@@ -101,21 +105,50 @@ def upload_book(
 @router.get("", response_model=list[BookRead])
 def list_books(
     session: Session = Depends(get_session),
-    _: User = Depends(current_user),
-) -> list[Book]:
-    return list(session.exec(select(Book)).all())
+    user: User = Depends(current_user),
+) -> list[BookRead]:
+    """The shared catalog, each book carrying the caller's own reading state."""
+    return library.list_books(session, user)
 
 
 @router.get("/{book_id}", response_model=BookRead)
 def get_book(
     book_id: int,
     session: Session = Depends(get_session),
-    _: User = Depends(current_user),
-) -> Book:
+    user: User = Depends(current_user),
+) -> BookRead:
+    view = library.get_book(session, book_id, user)
+    if view is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+    return view
+
+
+@router.put("/{book_id}/state", response_model=BookRead)
+def set_reading_state(
+    book_id: int,
+    state: UserBookStateWrite,
+    session: Session = Depends(get_session),
+    user: User = Depends(current_user),
+) -> BookRead:
+    """Set the caller's own rating and progress for a book.
+
+    Always permitted — this touches nobody else's view. Separate from
+    `PATCH /books/{id}`, which edits the shared catalog and is admin-only:
+    an endpoint whose authorization depended on which keys the body happened
+    to contain would be difficult to test exhaustively and worse to reason
+    about.
+
+    PUT rather than PATCH because the row is small enough that a full
+    representation is honest, and the designed edit form commits every field
+    at once anyway.
+    """
     book = session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
-    return book
+
+    return library.set_reading_state(
+        session, book, user, rating=state.rating, progress=state.progress
+    )
 
 
 @router.patch("/{book_id}", response_model=BookRead)

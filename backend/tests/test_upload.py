@@ -2,6 +2,7 @@ from pathlib import Path
 
 from fastapi.testclient import TestClient
 
+from app.models import User
 from tests.epub_factory import build_epub, epub_bytes
 
 
@@ -103,6 +104,28 @@ def test_oversized_upload_leaves_no_file_behind(
 
     assert _upload(client, large, name="large.epub").status_code == 413
     assert list(library_dir.iterdir()) == []
+
+
+def test_upload_stores_the_parsed_catalog_fields(
+    client: TestClient, tmp_path: Path, user: User
+) -> None:
+    """epub.py returning these proves nothing about the row the router writes."""
+    body = epub_bytes(tmp_path, published="1965-08-01", pages="412")
+
+    data = _upload(client, body).json()
+
+    assert data["year"] == 1965
+    assert data["pages"] == 412
+    assert data["blurb"] == "Desert planet politics."
+    assert data["uploaded_by"] == user.id
+    # The raw date stays in the blob; the description does not.
+    assert data["book_metadata"]["published"] == "1965-08-01"
+    assert "description" not in data["book_metadata"]
+
+
+def test_upload_leaves_pages_null_when_undeclared(client: TestClient, tmp_path: Path) -> None:
+    """The common real-world case: almost no EPUB declares a page count."""
+    assert _upload(client, epub_bytes(tmp_path)).json()["pages"] is None
 
 
 def test_delete_removes_the_stored_file(

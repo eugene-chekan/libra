@@ -33,8 +33,19 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `POST` | `/books` | Create a book row from supplied metadata |
 | `GET` | `/books` | List books |
 | `GET` | `/books/{id}` | Fetch one book |
-| `PATCH` | `/books/{id}` | Correct a book's metadata (admin) |
+| `PUT` | `/books/{id}/state` | Set your own rating and reading progress |
+| `PATCH` | `/books/{id}` | Correct a book's shared metadata (admin) |
 | `DELETE` | `/books/{id}` | Delete a book and its stored file (admin) |
+
+The catalog is shared; reading state is not. `GET /books` and
+`GET /books/{id}` return each book with the *calling user's* rating and
+progress merged in, defaulting to unrated and unstarted for a book they have
+never opened. Two people can be at different points in the same book.
+
+`year`, `blurb` and `pages` are parsed from the EPUB when it declares them —
+and left blank when it does not, rather than estimated. `schema:numberOfPages`
+is rare in practice, so `pages` is mostly a field an admin fills in via
+`PATCH`.
 
 Uploading is the primary path: `POST /books/upload` validates the EPUB, pulls
 title/author/language/publisher/subjects out of its OPF package document, and

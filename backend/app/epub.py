@@ -14,9 +14,11 @@ Layout we rely on (EPUB 2 and 3 both guarantee it):
     <the OPF>                -> <metadata> with Dublin Core elements
 """
 
+import re
 import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass, field
+from datetime import UTC, datetime
 from pathlib import Path
 
 CONTAINER_PATH = "META-INF/container.xml"
@@ -33,6 +35,38 @@ NS = {
 # read guards against a compressed member that expands to something huge.
 MAX_XML_BYTES = 2 * 1024 * 1024
 
+# OPF 2 distinguishes several dc:date elements with this attribute. Unlike the
+# `schema:` prefix below, this one is a genuine namespaced attribute name, so
+# it resolves through NS.
+DATE_EVENT_ATTR = f"{{{NS['opf']}}}event"
+
+# These describe the file, not the edition: a 1965 novel re-exported last week
+# is not a 2026 book.
+IGNORED_DATE_EVENTS = frozenset({"creation", "modification"})
+DATE_EVENT_RANK = {"publication": 0, "original-publication": 1, "": 2}
+
+# dc:date is W3C-DTF, so the year is the leading four-digit run. The negative
+# lookahead refuses "20110101", which is a malformed date rather than 2011.
+_ISO_YEAR = re.compile(r"^\s*(\d{4})(?!\d)")
+# Non-conformant free text happens ("August 1965", "01/08/1965"). An isolated
+# four-digit run is still a year; nothing beyond that is guessed at.
+_LOOSE_YEAR = re.compile(r"(?<!\d)(\d{4})(?!\d)")
+
+# Nothing was printed before movable type, and Calibre writes 0101-01-01 as its
+# "date unknown" sentinel. Both fall outside this floor.
+MIN_PLAUSIBLE_YEAR = 1450
+
+# EPUB 3 reserves the `schema` prefix for schema.org, so a declared page count
+# is spelled exactly this way. It is a prefix inside an attribute *value*, not
+# an XML namespace — ElementTree resolves prefixes on names only, so NS cannot
+# help and the comparison is against this literal string.
+NUMBER_OF_PAGES = "schema:numberOfPages"
+
+# Explicitly [0-9] rather than \d or str.isdigit(): int("٤٥٠") happily returns
+# 450, and "²".isdigit() is True while int("²") raises. Only the ASCII spelling
+# is both crash-free and honest about what it accepts.
+_PAGE_COUNT = re.compile(r"[0-9]{1,6}")
+
 
 class InvalidEpubError(ValueError):
     """Raised when a file is not a usable EPUB."""
@@ -40,10 +74,20 @@ class InvalidEpubError(ValueError):
 
 @dataclass
 class EpubMetadata:
-    """Metadata recovered from an EPUB, with fallbacks already applied."""
+    """Metadata recovered from an EPUB, with fallbacks already applied.
+
+    The typed fields are the ones with a column on `Book`; `extra` is
+    everything that stays in the `book_metadata` blob. Unlike `title` and
+    `author`, these three are `None` rather than placeholder values — a book
+    with no answer is better shown blank than shown a guess, and an admin can
+    correct it afterwards.
+    """
 
     title: str
     author: str
+    year: int | None = None
+    blurb: str | None = None
+    pages: int | None = None
     extra: dict = field(default_factory=dict)
 
 
@@ -104,6 +148,69 @@ def _dc_values(metadata: ET.Element, tag: str) -> list[str]:
     ]
 
 
+def _publication_date(metadata: ET.Element) -> str | None:
+    """Pick the `dc:date` describing the edition, as its raw string.
+
+    EPUB 3 permits exactly one `dc:date` and defines it as the publication
+    date, so the common case has a single candidate. OPF 2 permits several,
+    told apart by `opf:event` — and taking the first in document order would
+    read a re-export timestamp as the publication year for any file Calibre
+    has round-tripped. A modification date presented as a publication year is
+    a wrong fact, and wrong is worse than blank here, so lifecycle dates are
+    ignored outright rather than merely ranked last.
+    """
+    candidates: list[tuple[int, str]] = []
+    for el in metadata.findall("dc:date", NS):
+        if not (el.text and el.text.strip()):
+            continue
+        event = (el.get(DATE_EVENT_ATTR) or "").strip().lower()
+        if event in IGNORED_DATE_EVENTS:
+            continue
+        candidates.append((DATE_EVENT_RANK.get(event, 3), el.text.strip()))
+
+    if not candidates:
+        return None
+    # min() is stable, so equal ranks keep document order.
+    return min(candidates, key=lambda candidate: candidate[0])[1]
+
+
+def _parse_year(value: str) -> int | None:
+    """Turn a `dc:date` string into a year, or None if it does not yield one."""
+    match = _ISO_YEAR.match(value) or _LOOSE_YEAR.search(value)
+    if match is None:
+        return None
+
+    year = int(match.group(1))
+    if not MIN_PLAUSIBLE_YEAR <= year <= datetime.now(tz=UTC).year + 1:
+        return None
+    return year
+
+
+def _declared_pages(metadata: ET.Element) -> int | None:
+    """Read the print page count the file declares, or None.
+
+    Never estimated. A count derived from word or character count would be an
+    invention presented as fact, and would not match the print edition anyone
+    is holding — so a file that does not say gets no answer.
+    """
+    for el in metadata.findall("opf:meta", NS):
+        # `property` is absent on EPUB 2 `<meta name=... content=.../>`, which
+        # coexists with EPUB 3 `<meta>` in most Calibre output. Calling
+        # .strip() on that None is an AttributeError, i.e. a 500 on upload of
+        # a very ordinary book.
+        if (el.get("property") or "").strip() != NUMBER_OF_PAGES:
+            continue
+        # `refines` scopes the statement to another element — a chapter or a
+        # collection — so only the unrefined one describes the book itself.
+        if el.get("refines"):
+            continue
+
+        text = (el.text or "").strip()
+        if _PAGE_COUNT.fullmatch(text) and int(text) > 0:
+            return int(text)
+    return None
+
+
 def _verify_mimetype(archive: zipfile.ZipFile) -> None:
     # The mimetype member is required by the spec but some real-world files
     # produced by sloppy tooling omit it. Treat a *wrong* value as fatal and a
@@ -148,8 +255,6 @@ def read_metadata(path: Path, fallback_title: str) -> EpubMetadata:
         for tag, key in (
             ("language", "language"),
             ("publisher", "publisher"),
-            ("date", "published"),
-            ("description", "description"),
             ("identifier", "identifiers"),
             ("subject", "subjects"),
         ):
@@ -163,8 +268,21 @@ def read_metadata(path: Path, fallback_title: str) -> EpubMetadata:
         if len(creators) > 1:
             extra["authors"] = creators
 
+        # `date` and `description` have left this loop: the first is now chosen
+        # by rank rather than document order, and the second is a column. The
+        # raw date string still goes in the blob even when it parses cleanly,
+        # so a wrong `year` can always be traced to what the file actually said.
+        published = _publication_date(metadata)
+        if published is not None:
+            extra["published"] = published
+
+        descriptions = _dc_values(metadata, "description")
+
         return EpubMetadata(
             title=titles[0] if titles else fallback_title,
             author=", ".join(creators) if creators else "Unknown",
+            year=_parse_year(published) if published is not None else None,
+            blurb=descriptions[0] if descriptions else None,
+            pages=_declared_pages(metadata),
             extra=extra,
         )
