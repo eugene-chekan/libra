@@ -131,15 +131,37 @@ Note what is *absent*: no `shelf_id`, no `rating`, no `progress`. Those moved.
 
 ```python
 class UserBookState(SQLModel, table=True):
+    __tablename__ = "user_book_state"
+
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     book_id: int = Field(foreign_key="book.id", primary_key=True)
-    shelf_id: int | None = Field(default=None, foreign_key="shelf.id")
-    rating: int = Field(default=0, ge=0, le=5)      # 0 = unrated
-    progress: float = Field(default=0.0, ge=0, le=1)
+    shelf_id: int | None = Field(default=None, foreign_key="shelf.id")  # lands in #7
+    rating: int = Field(default=0)                  # 0 = unrated
+    progress: float = Field(default=0.0)
     started_at: datetime | None = None              # set on first progress > 0
     finished_at: datetime | None = None             # set when progress reaches 1
+    last_sent_at: datetime | None = None            # see kindle-delivery.md
     updated_at: datetime
+
+
+class UserBookStateWrite(SQLModel):
+    """The writable half. Bounds live here, not on the table model."""
+
+    rating: int = Field(default=0, ge=0, le=5)
+    progress: float = Field(default=0.0, ge=0, le=1)
 ```
+
+> **Validation does not work on `table=True` models.** An earlier draft of
+> this spec put `ge=0, le=5` directly on `UserBookState`, where SQLModel
+> silently ignores it — `UserBookState(rating=99, progress=17.0)` is accepted
+> without complaint, and the `422` promised in
+> [Error handling](#error-handling) never fires. Bounds have to live on a
+> non-table request model, which is also the `BookCreate`/`BookUpdate` pattern
+> already in `models.py`. **This applies to every constraint in this document**
+> — the shelf and tag models below inherit the same rule.
+>
+> Note the upsert's `setattr` path does not validate either, so the endpoint's
+> request model is the only place a bound is real.
 
 `started_at` and `finished_at` are here despite nothing in the design showing
 a date, because neither can be backfilled — the moment someone wants a
