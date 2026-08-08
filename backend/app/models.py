@@ -1,8 +1,16 @@
 from datetime import UTC, datetime
+from typing import Literal
 
 from sqlalchemy import JSON as SA_JSON
-from sqlalchemy import Column
+from sqlalchemy import Column, Index, String
 from sqlmodel import Field, SQLModel
+
+SHELF_PRIVATE = "private"
+SHELF_PUBLIC = "public"
+# A Literal on the *write* models, so an unknown value is a 422 from FastAPI
+# rather than a string that reaches the database. Bounds and enums never bite
+# on `table=True` classes — see the note in library-organization.md.
+ShelfVisibility = Literal["private", "public"]
 
 
 def utcnow() -> datetime:
@@ -59,6 +67,7 @@ class BookRead(BookBase):
 
     id: int
     uploaded_by: int | None = None
+    shelf_id: int | None = None
     rating: int = 0
     progress: float = 0.0
     started_at: datetime | None = None
@@ -133,6 +142,72 @@ class UserSession(SQLModel, table=True):
     created_at: datetime = Field(default_factory=utcnow)
 
 
+class Shelf(SQLModel, table=True):
+    """A named, ordered grouping of books belonging to one reader.
+
+    Always owned; there is no global shelf. That follows from what shelves
+    *mean* in the design — "Currently Reading", "Completed", "To Read" are
+    statements about a reader, not about a book, and a shared "Currently
+    Reading" would stop meaning anything the moment two people used it.
+
+    `visibility = "public"` makes a shelf **readable** by others, never
+    writable. Viewing one necessarily exposes the owner's progress on those
+    books, since the design draws a progress bar under each cover; that is an
+    intended consequence of publishing a shelf rather than a leak.
+    """
+
+    __tablename__ = "shelf"
+    # Unique per owner and case-insensitive, so one reader cannot hold both
+    # "To Read" and "to read". Enforced by COLLATE NOCASE on the column rather
+    # than a normalised shadow column or an index over lower(name): shelf
+    # names are display text and must keep their casing, and an expression
+    # index renders badly enough in autogenerate to leave `alembic check`
+    # permanently red. Caveat: SQLite's NOCASE folds ASCII only, so "Café" and
+    # "CAFÉ" would both be accepted. A Postgres move would want citext.
+    __table_args__ = (Index("ix_shelf_owner_name", "owner_id", "name", unique=True),)
+
+    id: int | None = Field(default=None, primary_key=True)
+    owner_id: int = Field(foreign_key="user.id", index=True)
+    name: str = Field(sa_column=Column("name", String(collation="NOCASE"), nullable=False))
+    # Contiguous from 0 within an owner. The Shelves page renders blocks in
+    # this order and the manage dialog reorders them.
+    position: int = Field(default=0)
+    visibility: str = Field(default=SHELF_PRIVATE)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class ShelfCreate(SQLModel):
+    name: str
+    visibility: ShelfVisibility = SHELF_PRIVATE
+
+
+class ShelfUpdate(SQLModel):
+    """Omitted means unchanged; `name` and `visibility` are the only fields a
+    caller may set. `position` moves through `PUT /shelves/order` instead, so
+    that reordering is one atomic decision rather than a race between rows."""
+
+    name: str | None = None
+    visibility: ShelfVisibility | None = None
+
+
+class ShelfRead(SQLModel):
+    id: int
+    owner_id: int
+    name: str
+    position: int
+    visibility: str
+    book_count: int = 0
+    # True when the caller may modify it. Saves the client re-deriving the
+    # rule from owner_id, and keeps the answer in one place.
+    editable: bool = False
+
+
+class ShelfOrder(SQLModel):
+    """The caller's complete shelf list, in the order they want it."""
+
+    shelf_ids: list[int]
+
+
 class UserBookState(SQLModel, table=True):
     """One reader's relationship with one book. Created lazily on first write.
 
@@ -157,6 +232,14 @@ class UserBookState(SQLModel, table=True):
 
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     book_id: int = Field(foreign_key="book.id", primary_key=True)
+    # Null means "on no shelf", which is the default and a perfectly valid
+    # state. The composite key above is what makes "at most one shelf per
+    # user per book" structural rather than a constraint to enforce.
+    #
+    # No foreign key expresses the rule that actually matters — that the shelf
+    # belongs to `user_id` — so it is checked in `library.set_reading_state`,
+    # and therefore needs its own test.
+    shelf_id: int | None = Field(default=None, foreign_key="shelf.id")
     rating: int = Field(default=0)  # 0 = unrated
     progress: float = Field(default=0.0)
     started_at: datetime | None = Field(default=None)
@@ -177,6 +260,9 @@ class UserBookStateWrite(SQLModel):
 
     rating: int = Field(default=0, ge=0, le=5)
     progress: float = Field(default=0.0, ge=0, le=1)
+    # Omitted leaves the current placement alone; explicit null takes the book
+    # off its shelf. `exclude_unset` in the router is what tells them apart.
+    shelf_id: int | None = None
 
 
 class Note(SQLModel, table=True):

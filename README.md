@@ -33,10 +33,20 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `POST` | `/books` | Create a book row from supplied metadata |
 | `GET` | `/books` | List books |
 | `GET` | `/books/{id}` | Fetch one book |
-| `PUT` | `/books/{id}/state` | Set your own rating and reading progress |
+| `GET` | `/shelves` | Your shelves in order, plus others' public ones |
+| `POST` | `/shelves` | Create a shelf |
+| `PATCH` | `/shelves/{id}` | Rename a shelf or publish it (owner) |
+| `DELETE` | `/shelves/{id}` | Delete it; `?reassign_to=` moves its books first |
+| `PUT` | `/shelves/order` | Reorder your shelves from a complete list |
+| `PUT` | `/books/{id}/state` | Set your own rating, progress and shelf |
 | `POST` | `/books/{id}/send-to-kindle` | Email the book to your own Kindle |
 | `PATCH` | `/books/{id}` | Correct a book's shared metadata (admin) |
 | `DELETE` | `/books/{id}` | Delete a book and its stored file (admin) |
+
+Shelves belong to readers and are private by default. Making one public lets
+others read it — including your progress on the books it holds — but never
+write to it. A book sits on at most one of *your* shelves; two people can
+file the same book differently.
 
 The catalog is shared; reading state is not. `GET /books` and
 `GET /books/{id}` return each book with the *calling user's* rating and

@@ -155,9 +155,24 @@ def set_reading_state(
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    return library.set_reading_state(
-        session, book, user, rating=state.rating, progress=state.progress
-    )
+    fields = state.model_dump(exclude_unset=True)
+    try:
+        return library.set_reading_state(
+            session,
+            book,
+            user,
+            rating=state.rating,
+            progress=state.progress,
+            shelf_id=state.shelf_id,
+            # Omitted leaves the placement alone; an explicit null clears it.
+            set_shelf="shelf_id" in fields,
+        )
+    except library.ShelfNotVisibleError as exc:
+        raise HTTPException(status_code=404, detail="Shelf not found") from exc
+    except library.ShelfNotOwnedError as exc:
+        raise HTTPException(
+            status_code=403, detail="You can only place books on your own shelves"
+        ) from exc
 
 
 @router.post("/{book_id}/send-to-kindle", status_code=202, response_model=KindleDeliveryRead)
