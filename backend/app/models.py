@@ -2,7 +2,7 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy import JSON as SA_JSON
-from sqlalchemy import Column, Index, String
+from sqlalchemy import Column, Index, String, text
 from sqlmodel import Field, SQLModel
 
 SHELF_PRIVATE = "private"
@@ -68,6 +68,8 @@ class BookRead(BookBase):
     id: int
     uploaded_by: int | None = None
     shelf_id: int | None = None
+    # Global tags plus the caller's own. Never another reader's.
+    tag_ids: list[int] = []
     rating: int = 0
     progress: float = 0.0
     started_at: datetime | None = None
@@ -208,6 +210,80 @@ class ShelfOrder(SQLModel):
     shelf_ids: list[int]
 
 
+class Tag(SQLModel, table=True):
+    """A label on a book. Either curated for everyone, or private to a reader.
+
+    `owner_id IS NULL` means a **global** tag, maintained by an admin and
+    visible to everyone. A non-null owner means a **personal** tag, visible
+    only to them. The vocabulary a reader sees is global ∪ own.
+
+    The split earns its complexity because the two kinds genuinely differ:
+    "Sci-Fi" is a fact about the book that a household should agree on, while
+    "Read before the trip" is nobody else's business.
+    """
+
+    __tablename__ = "tag"
+    __table_args__ = (
+        # Personal tags: unique per owner, case-insensitive via NOCASE.
+        Index("ix_tag_owner_name", "owner_id", "name", unique=True),
+        # Global tags need their own index. NULL never equals NULL in SQLite,
+        # so the composite index above lets an unlimited number of global
+        # "Sci-Fi" rows coexist — verified, not assumed. A partial index over
+        # just the globals closes that, and unlike the `coalesce(owner_id, 0)`
+        # expression index the spec proposed, autogenerate renders it cleanly
+        # and `alembic check` stays quiet.
+        Index(
+            "ix_tag_global_name",
+            "name",
+            unique=True,
+            sqlite_where=text("owner_id IS NULL"),
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    owner_id: int | None = Field(default=None, foreign_key="user.id", index=True)
+    # NOCASE for the same reason as shelves: tag names are display text and
+    # must keep their casing, so lowercasing them the way usernames are
+    # lowercased is not an option. ASCII-only folding.
+    name: str = Field(sa_column=Column("name", String(collation="NOCASE"), nullable=False))
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class BookTag(SQLModel, table=True):
+    """Which books carry which tags.
+
+    Deliberately carries no `user_id`. A personal tag is only visible to its
+    owner, so a row pointing at one inherits that visibility automatically —
+    scoping flows from `Tag.owner_id` and never has to be restated. A global
+    tag's assignment is likewise global.
+    """
+
+    __tablename__ = "book_tag"
+
+    book_id: int = Field(foreign_key="book.id", primary_key=True)
+    tag_id: int = Field(foreign_key="tag.id", primary_key=True)
+
+
+class TagCreate(SQLModel):
+    name: str
+
+
+class TagUpdate(SQLModel):
+    name: str | None = None
+
+
+class TagRead(SQLModel):
+    id: int
+    name: str
+    # Null for a global tag. Present rather than a bare `is_global` flag so a
+    # client can tell "mine" from "someone else's" — though the latter is
+    # never returned, since personal tags are only ever the caller's own.
+    owner_id: int | None = None
+    is_global: bool = False
+    book_count: int = 0
+    editable: bool = False
+
+
 class UserBookState(SQLModel, table=True):
     """One reader's relationship with one book. Created lazily on first write.
 
@@ -263,6 +339,10 @@ class UserBookStateWrite(SQLModel):
     # Omitted leaves the current placement alone; explicit null takes the book
     # off its shelf. `exclude_unset` in the router is what tells them apart.
     shelf_id: int | None = None
+    # Omitted leaves tags alone; supplied replaces the caller's *personal*
+    # tags on this book wholesale. Global tags are unaffected — they are
+    # curated through the tag endpoints, not per book by whoever is reading.
+    tag_ids: list[int] | None = None
 
 
 class Note(SQLModel, table=True):

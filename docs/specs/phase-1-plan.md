@@ -126,11 +126,11 @@ Tracked as GitHub issues under the **Phase 1 — Backend core** milestone.
 | 2 | Reading state + shared catalog fields | [#5](https://github.com/eugene-chekan/libra/issues/5) | 1 | 1 week | ✅ #14 |
 | 3 | Kindle delivery | [#6](https://github.com/eugene-chekan/libra/issues/6) | 1, 2 | 1 week | ✅ #15 |
 | 4 | Shelves | [#7](https://github.com/eugene-chekan/libra/issues/7) | 2 | 1 week | ✅ #16 |
-| 5 | Tags | [#8](https://github.com/eugene-chekan/libra/issues/8) | 2 | 1 week | next |
-| 6 | Search and filtering | [#9](https://github.com/eugene-chekan/libra/issues/9) | 4, 5 | 0.5 week | |
+| 5 | Tags | [#8](https://github.com/eugene-chekan/libra/issues/8) | 2 | 1 week | ✅ #18 |
+| 6 | Search and filtering | [#9](https://github.com/eugene-chekan/libra/issues/9) | 4, 5 | 0.5 week | next |
 | 7 | Cover art | [#10](https://github.com/eugene-chekan/libra/issues/10) | — | 0.5 week | |
 
-**Progress as of 2026-08-08:** five of eight done, roughly on estimate.
+**Progress as of 2026-08-08:** six of eight done, roughly on estimate.
 Application logging (#13) was added outside the plan — it was not on the
 issue list, but two specs already assumed a logger existed. About 3 weeks of
 estimated work remain against ~7 weeks of window.

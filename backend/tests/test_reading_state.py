@@ -247,6 +247,8 @@ def test_listing_books_is_not_n_plus_one(client: TestClient, session: Session, u
         f"query count grew with library size ({with_one} -> {with_twenty}): "
         "the per-user state merge is an N+1"
     )
-    # And that constant is one — the outer join, not a books query plus a
-    # separate state query.
-    assert with_one == 1
+    # Two, and pinned: the outer join that merges reading state, plus one
+    # grouped fetch of every visible tag assignment. Not "at most a few" — an
+    # exact bound, so that adding a third query is a decision someone makes on
+    # purpose rather than something that drifts in a milestone at a time.
+    assert with_one == 2

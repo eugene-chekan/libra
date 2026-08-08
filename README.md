@@ -38,10 +38,21 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `PATCH` | `/shelves/{id}` | Rename a shelf or publish it (owner) |
 | `DELETE` | `/shelves/{id}` | Delete it; `?reassign_to=` moves its books first |
 | `PUT` | `/shelves/order` | Reorder your shelves from a complete list |
+| `GET` | `/tags` | Global tags plus your own |
+| `POST` | `/tags` | Create a tag; `?make_global=true` is admin-only |
+| `PATCH` | `/tags/{id}` | Rename a tag |
+| `DELETE` | `/tags/{id}` | Delete it and remove it from every book |
 | `PUT` | `/books/{id}/state` | Set your own rating, progress and shelf |
 | `POST` | `/books/{id}/send-to-kindle` | Email the book to your own Kindle |
 | `PATCH` | `/books/{id}` | Correct a book's shared metadata (admin) |
 | `DELETE` | `/books/{id}` | Delete a book and its stored file (admin) |
+
+Tags come in two kinds. **Global** tags are curated by an admin and seen by
+everyone — "Sci-Fi" is a fact about the book the household should agree on.
+**Personal** tags belong to one reader and are invisible to the rest; "Read
+before the trip" is nobody else's business. Set a book's personal tags with
+`tag_ids` on `PUT /books/{id}/state`; global tags are applied by an admin
+through `/tags`, because a global assignment changes what everyone sees.
 
 Shelves belong to readers and are private by default. Making one public lets
 others read it — including your progress on the books it holds — but never

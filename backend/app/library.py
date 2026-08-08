@@ -25,8 +25,11 @@ from app.models import (
     SHELF_PUBLIC,
     Book,
     BookRead,
+    BookTag,
     Shelf,
     ShelfRead,
+    Tag,
+    TagRead,
     User,
     UserBookState,
     utcnow,
@@ -57,6 +60,31 @@ class InvalidShelfOrderError(Exception):
     """A reorder that is not a permutation of the caller's own shelves."""
 
 
+class TagNotVisibleError(Exception):
+    """No such tag, or one belonging to another reader.
+
+    Deliberately indistinguishable, for the same reason as shelves: telling
+    them apart lets a caller enumerate someone else's private vocabulary by
+    walking ids.
+    """
+
+
+class TagNotEditableError(Exception):
+    """A global tag, and the caller is not an admin."""
+
+
+class DuplicateTagNameError(Exception):
+    """That name is already taken in the scope being written to."""
+
+
+class ShadowsGlobalTagError(Exception):
+    """A personal tag may not take the name of a global one.
+
+    Two rows both rendering as "Sci-Fi" in one sidebar is a bug from the
+    reader's side however defensible it is in the schema.
+    """
+
+
 class AttachmentTooLargeError(Exception):
     """The encoded message would exceed what Send to Kindle accepts."""
 
@@ -65,7 +93,7 @@ class AttachmentTooLargeError(Exception):
         self.limit_bytes = limit_bytes
 
 
-def _merge(book: Book, state: UserBookState | None) -> BookRead:
+def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = None) -> BookRead:
     """Combine a shared catalog row with one reader's state.
 
     A missing state row is not an error — rows are created lazily, so most
@@ -73,6 +101,7 @@ def _merge(book: Book, state: UserBookState | None) -> BookRead:
     correct answer for "never touched this book".
     """
     view = BookRead.model_validate(book, from_attributes=True)
+    view.tag_ids = tag_ids or []
     if state is not None:
         view.shelf_id = state.shelf_id
         view.rating = state.rating
@@ -88,7 +117,11 @@ def get_book(session: Session, book_id: int, user: User) -> BookRead | None:
     book = session.get(Book, book_id)
     if book is None:
         return None
-    return _merge(book, session.get(UserBookState, (user.id, book_id)))
+    return _merge(
+        book,
+        session.get(UserBookState, (user.id, book_id)),
+        book_tag_ids(session, book_id, user),
+    )
 
 
 def list_books(session: Session, user: User) -> list[BookRead]:
@@ -111,7 +144,20 @@ def list_books(session: Session, user: User) -> list[BookRead]:
         )
         .order_by(Book.id)
     ).all()
-    return [_merge(book, state) for book, state in rows]
+
+    # Second and final query: every visible tag assignment for the whole
+    # listing at once. Fetching a book's tags individually would reintroduce
+    # exactly the N+1 the join above exists to avoid.
+    tags_by_book: dict[int, list[int]] = {}
+    for book_id, tag_id in session.exec(
+        select(BookTag.book_id, BookTag.tag_id)
+        .join(Tag, Tag.id == BookTag.tag_id)
+        .where(_visible_tag_filter(user))
+        .order_by(BookTag.book_id, BookTag.tag_id)
+    ).all():
+        tags_by_book.setdefault(book_id, []).append(tag_id)
+
+    return [_merge(book, state, tags_by_book.get(book.id, [])) for book, state in rows]
 
 
 def set_reading_state(
@@ -363,6 +409,163 @@ def reorder_shelves(session: Session, user: User, shelf_ids: list[int]) -> list[
     session.commit()
 
     return list_shelves(session, user)
+
+
+# --- tags -----------------------------------------------------------------
+
+
+def _visible_tag_filter(user: User):
+    """Global tags, plus the caller's own. Never another reader's."""
+    return (Tag.owner_id.is_(None)) | (Tag.owner_id == user.id)
+
+
+def visible_tag(session: Session, tag_id: int, user: User) -> Tag:
+    tag = session.get(Tag, tag_id)
+    if tag is None or (tag.owner_id is not None and tag.owner_id != user.id):
+        raise TagNotVisibleError
+    return tag
+
+
+def _tag_counts(session: Session, tag_ids: list[int]) -> dict[int, int]:
+    """Books per tag, in one grouped query rather than one query per tag."""
+    if not tag_ids:
+        return {}
+    rows = session.exec(
+        select(BookTag.tag_id, func.count())
+        .where(BookTag.tag_id.in_(tag_ids))
+        .group_by(BookTag.tag_id)
+    ).all()
+    return dict(rows)
+
+
+def _tag_to_read(tag: Tag, user: User, counts: dict[int, int]) -> TagRead:
+    return TagRead(
+        id=tag.id,
+        name=tag.name,
+        owner_id=tag.owner_id,
+        is_global=tag.owner_id is None,
+        book_count=counts.get(tag.id, 0),
+        # Global tags are curated by admins; personal ones by their owner.
+        editable=user.is_admin if tag.owner_id is None else tag.owner_id == user.id,
+    )
+
+
+def list_tags(session: Session, user: User) -> list[TagRead]:
+    tags = session.exec(
+        select(Tag)
+        .where(_visible_tag_filter(user))
+        .order_by(Tag.owner_id.is_(None).desc(), Tag.name)
+    ).all()
+    counts = _tag_counts(session, [tag.id for tag in tags])
+    return [_tag_to_read(tag, user, counts) for tag in tags]
+
+
+def _assert_tag_name_free(
+    session: Session, user: User, name: str, is_global: bool, exclude_id: int | None = None
+) -> None:
+    """Reject a clash before the database does, and refuse to shadow a global.
+
+    A personal tag sharing a global tag's name would render as two identical
+    rows in one sidebar, so it is rejected even though the indexes permit it.
+    """
+    global_match = session.exec(select(Tag).where(Tag.owner_id.is_(None), Tag.name == name)).first()
+    if global_match is not None and global_match.id != exclude_id:
+        raise ShadowsGlobalTagError if not is_global else DuplicateTagNameError
+
+    if not is_global:
+        own = session.exec(select(Tag).where(Tag.owner_id == user.id, Tag.name == name)).first()
+        if own is not None and own.id != exclude_id:
+            raise DuplicateTagNameError
+
+
+def create_tag(session: Session, user: User, name: str, is_global: bool) -> TagRead:
+    name = name.strip()
+    if not name:
+        raise ValueError("Tag name must not be empty")
+    if is_global and not user.is_admin:
+        raise TagNotEditableError
+
+    _assert_tag_name_free(session, user, name, is_global)
+
+    tag = Tag(owner_id=None if is_global else user.id, name=name)
+    session.add(tag)
+    session.commit()
+    session.refresh(tag)
+    return _tag_to_read(tag, user, {})
+
+
+def update_tag(session: Session, tag_id: int, user: User, name: str) -> TagRead:
+    """Rename a tag. Moves nothing: books reference it by id."""
+    tag = visible_tag(session, tag_id, user)
+    if tag.owner_id is None and not user.is_admin:
+        raise TagNotEditableError
+
+    name = name.strip()
+    if not name:
+        raise ValueError("Tag name must not be empty")
+    _assert_tag_name_free(session, user, name, tag.owner_id is None, exclude_id=tag.id)
+
+    tag.name = name
+    session.add(tag)
+    session.commit()
+    session.refresh(tag)
+    return _tag_to_read(tag, user, _tag_counts(session, [tag.id]))
+
+
+def delete_tag(session: Session, tag_id: int, user: User) -> None:
+    """Delete a tag and remove it from every book, in one transaction.
+
+    There is no foreign-key cascade to rely on: SQLite has enforcement off by
+    default, so the link rows are deleted explicitly. Leaving them would
+    strand `book_tag` rows pointing at a tag that no longer exists.
+    """
+    tag = visible_tag(session, tag_id, user)
+    if tag.owner_id is None and not user.is_admin:
+        raise TagNotEditableError
+
+    for link in session.exec(select(BookTag).where(BookTag.tag_id == tag.id)).all():
+        session.delete(link)
+    session.delete(tag)
+    session.commit()
+
+
+def set_book_tags(session: Session, book: Book, user: User, tag_ids: list[int]) -> None:
+    """Replace the caller's *personal* tags on a book.
+
+    Global tags are left alone: they describe the book for the whole
+    household and are curated through the tag endpoints, not by whoever
+    happens to be reading. A caller who lists a global id is therefore
+    asking for something they cannot grant, and gets told so.
+    """
+    requested = []
+    for tag_id in dict.fromkeys(tag_ids):
+        tag = visible_tag(session, tag_id, user)
+        if tag.owner_id is None:
+            raise TagNotEditableError
+        requested.append(tag)
+
+    personal_links = session.exec(
+        select(BookTag)
+        .join(Tag, Tag.id == BookTag.tag_id)
+        .where(BookTag.book_id == book.id, Tag.owner_id == user.id)
+    ).all()
+    for link in personal_links:
+        session.delete(link)
+
+    for tag in requested:
+        session.add(BookTag(book_id=book.id, tag_id=tag.id))
+    session.commit()
+
+
+def book_tag_ids(session: Session, book_id: int, user: User) -> list[int]:
+    return list(
+        session.exec(
+            select(BookTag.tag_id)
+            .join(Tag, Tag.id == BookTag.tag_id)
+            .where(BookTag.book_id == book_id, _visible_tag_filter(user))
+            .order_by(BookTag.tag_id)
+        ).all()
+    )
 
 
 def send_to_kindle(

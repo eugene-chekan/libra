@@ -2,16 +2,25 @@
 
 **Status:** Partially shipped. Auth, users and sessions landed in #12
 (issue #4); the shared catalog fields, `UserBookState` and `Note` in #14
-(issue #5); shelves in #16 (issue #7). **Tags (#8), search (#9) and cover art
-(#10) are still planning only** — the sections below describing them have not
-been built and may still be wrong in the way the validation block was.
+(issue #5); shelves in #16 (issue #7); tags in #18 (issue #8). **Search (#9)
+and cover art (#10) are still planning only** — the sections below describing
+them have not been built and may still be wrong in the way the validation
+block was.
 
 One correction from building shelves: case-insensitive uniqueness is spelled
 `COLLATE NOCASE` on the column plus a plain unique index, **not** a
 normalised shadow column and not an index over `lower(name)`. It preserves
 display casing, which shelf and tag names need and usernames did not, and
-autogenerate renders it cleanly so `alembic check` stays quiet. Tags should
-use the same shape. Caveat: SQLite's NOCASE folds ASCII only.
+autogenerate renders it cleanly so `alembic check` stays quiet. Tags use the
+same shape. Caveat: SQLite's NOCASE folds ASCII only.
+
+A second correction from building tags: the unique index proposed below as
+`(coalesce(owner_id, 0), lower(name))` is not needed, but a plain composite
+index over a **nullable** `owner_id` is not sufficient either. `NULL` never
+equals `NULL`, so such an index lets unlimited global tags share a name —
+verified, not assumed. What works is two indexes: the composite one for
+personal tags, plus a **partial** unique index on `name` `WHERE owner_id IS
+NULL` for the globals. Autogenerate renders the partial index cleanly.
 
 Supersedes the single-user draft of
 this document. Two inputs: the UI design handoff, which assumes a domain
