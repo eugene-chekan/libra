@@ -71,6 +71,29 @@ def user_fixture(session: Session) -> User:
     return user
 
 
+@pytest.fixture(name="other_user")
+def other_user_fixture(session: Session) -> User:
+    """A second ordinary user.
+
+    Required, not decorative: per-user state is only meaningfully tested by
+    proving one reader cannot see or affect another's, and a single-user
+    fixture set can assert isolation that does not exist.
+    """
+    user = User(username="roommate", password_hash=hash_password(USER_PASSWORD))
+    session.add(user)
+    session.commit()
+    session.refresh(user)
+    return user
+
+
+@pytest.fixture(name="other_client")
+def other_client_fixture(
+    session: Session, settings: Settings, other_user: User
+) -> Generator[TestClient, None, None]:
+    """Authenticated as the second ordinary user, sharing one database."""
+    yield from _build_client(session, settings, other_user)
+
+
 @pytest.fixture(name="admin_user")
 def admin_user_fixture(session: Session) -> User:
     user = User(username="keeper", password_hash=hash_password(ADMIN_PASSWORD), is_admin=True)
