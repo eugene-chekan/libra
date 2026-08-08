@@ -11,9 +11,12 @@ from app.epub import InvalidEpubError, read_metadata
 from app.logging_config import get_logger
 from app.mailer import SendFailedError, SmtpNotConfiguredError, get_mailer
 from app.models import (
+    SORT_TITLE,
     Book,
     BookCreate,
+    BookList,
     BookRead,
+    BookSort,
     BookUpdate,
     KindleDeliveryRead,
     User,
@@ -111,13 +114,48 @@ def upload_book(
     return book
 
 
-@router.get("", response_model=list[BookRead])
+@router.get("", response_model=BookList)
 def list_books(
+    q: str | None = None,
+    tags: str | None = None,
+    shelf_id: int | None = None,
+    sort: BookSort = SORT_TITLE,
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
-) -> list[BookRead]:
-    """The shared catalog, each book carrying the caller's own reading state."""
-    return library.list_books(session, user)
+) -> BookList:
+    """The shared catalog, filtered, each book carrying the caller's own state.
+
+    `tags` is a comma-separated list of ids. Tag filters **OR** each other — a
+    book matches if it carries any one of them — and `q` **ANDs** against that
+    result, matching case-insensitively on title or author. Those semantics
+    come from the UI design; the client merges its sidebar selection and any
+    `#tag` tokens into the single list this takes.
+    """
+    try:
+        tag_ids = _parse_ids(tags)
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=422, detail="tags must be a comma-separated id list"
+        ) from exc
+
+    try:
+        items, total = library.search_books(
+            session, user, query=q, tag_ids=tag_ids, shelf_id=shelf_id, sort=sort
+        )
+    except library.TagNotVisibleError as exc:
+        # 404 rather than an empty result: an empty list would confirm the tag
+        # exists, which is enough to enumerate a private vocabulary by id.
+        raise HTTPException(status_code=404, detail="Tag not found") from exc
+    except library.ShelfNotVisibleError as exc:
+        raise HTTPException(status_code=404, detail="Shelf not found") from exc
+
+    return BookList(items=items, total=total)
+
+
+def _parse_ids(raw: str | None) -> list[int]:
+    if not raw or not raw.strip():
+        return []
+    return [int(part) for part in raw.split(",") if part.strip()]
 
 
 @router.get("/{book_id}", response_model=BookRead)

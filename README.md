@@ -31,7 +31,7 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `GET` | `/health` | Health check |
 | `POST` | `/books/upload` | Upload an EPUB; metadata is parsed from the file |
 | `POST` | `/books` | Create a book row from supplied metadata |
-| `GET` | `/books` | List books |
+| `GET` | `/books` | Search books: `?q=`, `?tags=`, `?shelf_id=`, `?sort=` |
 | `GET` | `/books/{id}` | Fetch one book |
 | `GET` | `/shelves` | Your shelves in order, plus others' public ones |
 | `POST` | `/shelves` | Create a shelf |
@@ -46,6 +46,14 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `POST` | `/books/{id}/send-to-kindle` | Email the book to your own Kindle |
 | `PATCH` | `/books/{id}` | Correct a book's shared metadata (admin) |
 | `DELETE` | `/books/{id}` | Delete a book and its stored file (admin) |
+
+`GET /books` returns `{"items": [...], "total": N}` — an envelope rather than
+a bare list, so adding pagination later cannot change the shape under a
+client. Filters: `q` matches title or author case-insensitively, `tags` takes
+a comma-separated list of ids, `shelf_id` narrows to one shelf, and `sort` is
+`title` (default) or `added`. **Tag filters OR each other** — a book matches
+if it carries any one of them — and **`q` ANDs against that result**.
+Filtering by a tag or shelf you cannot see is a `404`, not an empty list.
 
 Tags come in two kinds. **Global** tags are curated by an admin and seen by
 everyone — "Sci-Fi" is a fact about the book the household should agree on.

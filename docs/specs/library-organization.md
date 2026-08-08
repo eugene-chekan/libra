@@ -2,10 +2,10 @@
 
 **Status:** Partially shipped. Auth, users and sessions landed in #12
 (issue #4); the shared catalog fields, `UserBookState` and `Note` in #14
-(issue #5); shelves in #16 (issue #7); tags in #18 (issue #8). **Search (#9)
-and cover art (#10) are still planning only** — the sections below describing
-them have not been built and may still be wrong in the way the validation
-block was.
+(issue #5); shelves in #16 (issue #7); tags in #18 (issue #8); search in #19
+(issue #9). **Cover art (#10) is still planning only** — the section below
+describing it has not been built and may still be wrong in the way the
+validation block was.
 
 One correction from building shelves: case-insensitive uniqueness is spelled
 `COLLATE NOCASE` on the column plus a plain unique index, **not** a

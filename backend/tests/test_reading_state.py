@@ -175,7 +175,7 @@ def test_the_shared_catalog_is_still_shared(client: TestClient, other_client: Te
     book_id = _make_book(client)
 
     assert other_client.get(f"/books/{book_id}").json()["title"] == "Dune"
-    assert len(other_client.get("/books").json()) == 1
+    assert other_client.get("/books").json()["total"] == 1
 
 
 def test_listing_carries_each_callers_own_state(
@@ -186,8 +186,8 @@ def test_listing_carries_each_callers_own_state(
     book_id = _make_book(client)
     client.put(f"/books/{book_id}/state", json={"rating": 3, "progress": 0.4})
 
-    assert client.get("/books").json()[0]["rating"] == 3
-    assert other_client.get("/books").json()[0]["rating"] == 0
+    assert client.get("/books").json()["items"][0]["rating"] == 3
+    assert other_client.get("/books").json()["items"][0]["rating"] == 0
 
 
 # --- query shape ---------------------------------------------------------
@@ -242,7 +242,7 @@ def test_listing_books_is_not_n_plus_one(client: TestClient, session: Session, u
     _seed_books(session, 20, offset=1)
     with_twenty = _count_queries_touching_books(session, client)
 
-    assert len(client.get("/books").json()) == 21
+    assert client.get("/books").json()["total"] == 21
     assert with_twenty == with_one, (
         f"query count grew with library size ({with_one} -> {with_twenty}): "
         "the per-user state merge is an N+1"
