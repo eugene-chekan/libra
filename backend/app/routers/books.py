@@ -157,6 +157,11 @@ def set_reading_state(
 
     fields = state.model_dump(exclude_unset=True)
     try:
+        if "tag_ids" in fields:
+            # Replaces the caller's personal tags on this book. Global tags
+            # are curated through /tags and are not the reader's to set here.
+            library.set_book_tags(session, book, user, state.tag_ids or [])
+
         return library.set_reading_state(
             session,
             book,
@@ -172,6 +177,12 @@ def set_reading_state(
     except library.ShelfNotOwnedError as exc:
         raise HTTPException(
             status_code=403, detail="You can only place books on your own shelves"
+        ) from exc
+    except library.TagNotVisibleError as exc:
+        raise HTTPException(status_code=404, detail="Tag not found") from exc
+    except library.TagNotEditableError as exc:
+        raise HTTPException(
+            status_code=403, detail="Global tags are managed by an admin, not per book"
         ) from exc
 
 
