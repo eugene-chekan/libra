@@ -12,6 +12,12 @@ SHELF_PUBLIC = "public"
 # on `table=True` classes — see the note in library-organization.md.
 ShelfVisibility = Literal["private", "public"]
 
+SORT_TITLE = "title"
+SORT_ADDED = "added"
+# Default is title: what a browsing reader expects. `added` suits a library
+# being actively filled.
+BookSort = Literal["title", "added"]
+
 
 def utcnow() -> datetime:
     """Current UTC time as a naive datetime.
@@ -75,6 +81,19 @@ class BookRead(BookBase):
     started_at: datetime | None = None
     finished_at: datetime | None = None
     last_sent_at: datetime | None = None
+
+
+class BookList(SQLModel):
+    """A page of results.
+
+    An envelope rather than a bare list, decided before pagination exists:
+    the designed header shows a book count, and changing the response shape
+    later would break every client at once. `total` equals `len(items)` while
+    nothing is paginated.
+    """
+
+    items: list[BookRead]
+    total: int
 
 
 class BookUpdate(SQLModel):

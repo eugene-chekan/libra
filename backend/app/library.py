@@ -17,12 +17,14 @@ from datetime import datetime
 from pathlib import Path
 
 from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app import mailer, storage
 from app.config import Settings
 from app.models import (
     SHELF_PUBLIC,
+    SORT_ADDED,
+    SORT_TITLE,
     Book,
     BookRead,
     BookTag,
@@ -125,39 +127,102 @@ def get_book(session: Session, book_id: int, user: User) -> BookRead | None:
 
 
 def list_books(session: Session, user: User) -> list[BookRead]:
-    """Every book, each carrying `user`'s own state.
+    """Every book, each carrying `user`'s own state. Unfiltered `search_books`."""
+    items, _ = search_books(session, user)
+    return items
 
-    Deliberately one round trip. The obvious implementation — fetch the books,
-    then look up a state row per book — is an N+1 that grows with the library
-    and is invisible until someone has a few hundred books. The outer join
-    keeps it at a single query, and `test_list_books_is_not_n_plus_one` fails
-    if that regresses.
 
-    LEFT OUTER JOIN rather than inner: a book nobody has touched must still
-    appear, which is most of them.
+def search_books(
+    session: Session,
+    user: User,
+    *,
+    query: str | None = None,
+    tag_ids: list[int] | None = None,
+    shelf_id: int | None = None,
+    sort: str = SORT_TITLE,
+) -> tuple[list[BookRead], int]:
+    """Find books, as `user` sees them. Returns the matches and their count.
+
+    This is Phase 3's `search_library`. It lives here rather than in the route
+    handler precisely so the agent and the REST API share one implementation
+    of the scoping rules — two copies would be two chances to disagree about
+    what a reader is allowed to see.
+
+    Semantics come straight from the UI design and are not negotiable
+    downstream: **tag filters OR each other** (a book matches if it carries
+    any one of them), and **the text query ANDs against that result**, matching
+    case-insensitively against title or author.
     """
-    rows = session.exec(
-        select(Book, UserBookState)
-        .outerjoin(
-            UserBookState,
-            (UserBookState.book_id == Book.id) & (UserBookState.user_id == user.id),
-        )
-        .order_by(Book.id)
-    ).all()
+    statement = select(Book, UserBookState).outerjoin(
+        UserBookState,
+        (UserBookState.book_id == Book.id) & (UserBookState.user_id == user.id),
+    )
 
-    # Second and final query: every visible tag assignment for the whole
-    # listing at once. Fetching a book's tags individually would reintroduce
-    # exactly the N+1 the join above exists to avoid.
-    tags_by_book: dict[int, list[int]] = {}
+    if tag_ids:
+        # Visibility first: filtering by a tag the caller cannot see must not
+        # quietly return an empty list, because an empty result would confirm
+        # the tag exists and let someone enumerate another reader's private
+        # vocabulary by walking ids.
+        for tag_id in tag_ids:
+            visible_tag(session, tag_id, user)
+
+        # No visibility filter on this subquery: the loop above has already
+        # rejected any id the caller cannot see, so every id reaching here is
+        # one of theirs. Repeating the check would be untestable — removing it
+        # changes no behaviour — and security code no test can distinguish
+        # from its absence is worse than none, because it reads as protection.
+        statement = statement.where(
+            col(Book.id).in_(select(BookTag.book_id).where(col(BookTag.tag_id).in_(tag_ids)))
+        )
+
+    if shelf_id is not None:
+        # Raises if the shelf is not visible, so a private shelf cannot be
+        # probed through the search endpoint either.
+        _visible_shelf(session, shelf_id, user)
+        statement = statement.where(
+            col(Book.id).in_(
+                select(UserBookState.book_id).where(UserBookState.shelf_id == shelf_id)
+            )
+        )
+
+    if query and query.strip():
+        pattern = f"%{query.strip()}%"
+        statement = statement.where(
+            col(Book.title).ilike(pattern) | col(Book.author).ilike(pattern)
+        )
+
+    statement = statement.order_by(*_sort_clause(sort))
+
+    rows = session.exec(statement).all()
+    tags_by_book = _tags_by_book(session, user)
+    items = [_merge(book, state, tags_by_book.get(book.id, [])) for book, state in rows]
+    # Exact, because nothing is paginated yet. Pagination would make this a
+    # separate COUNT — which is the reason the response is an envelope now
+    # rather than a bare list a client would have to re-learn later.
+    return items, len(items)
+
+
+def _sort_clause(sort: str):
+    if sort == SORT_ADDED:
+        # No created_at on Book; the primary key is insertion order, which is
+        # the same thing for an append-only catalog.
+        return (col(Book.id).desc(),)
+    # Default. NOCASE so "a book" and "A Book" sort together rather than in
+    # two ASCII blocks.
+    return (col(Book.title).collate("NOCASE").asc(), col(Book.id).asc())
+
+
+def _tags_by_book(session: Session, user: User) -> dict[int, list[int]]:
+    """Every visible tag assignment, grouped, in one query."""
+    grouped: dict[int, list[int]] = {}
     for book_id, tag_id in session.exec(
         select(BookTag.book_id, BookTag.tag_id)
         .join(Tag, Tag.id == BookTag.tag_id)
         .where(_visible_tag_filter(user))
         .order_by(BookTag.book_id, BookTag.tag_id)
     ).all():
-        tags_by_book.setdefault(book_id, []).append(tag_id)
-
-    return [_merge(book, state, tags_by_book.get(book.id, [])) for book, state in rows]
+        grouped.setdefault(book_id, []).append(tag_id)
+    return grouped
 
 
 def set_reading_state(

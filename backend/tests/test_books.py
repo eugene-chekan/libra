@@ -18,12 +18,14 @@ def test_create_book(client: TestClient) -> None:
 
 
 def test_list_books(client: TestClient) -> None:
+    """The response is an envelope, not a bare list — decided before
+    pagination exists, so the shape never has to change under a client."""
     client.post("/books", json=BOOK_PAYLOAD)
     response = client.get("/books")
     assert response.status_code == 200
-    books = response.json()
-    assert len(books) == 1
-    assert books[0]["title"] == "Dune"
+    body = response.json()
+    assert body["total"] == 1
+    assert body["items"][0]["title"] == "Dune"
 
 
 def test_get_book(client: TestClient) -> None:

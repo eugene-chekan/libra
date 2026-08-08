@@ -254,7 +254,7 @@ def test_a_books_tags_never_include_another_readers(
     _set_tags(other_client, book_id, [theirs["id"]])
 
     assert client.get(f"/books/{book_id}").json()["tag_ids"] == []
-    assert client.get("/books").json()[0]["tag_ids"] == []
+    assert client.get("/books").json()["items"][0]["tag_ids"] == []
 
 
 # --- deletion -------------------------------------------------------------

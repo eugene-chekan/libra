@@ -36,7 +36,7 @@ def test_upload_creates_book_from_parsed_metadata(
 def test_uploaded_book_is_listed_and_fetchable(client: TestClient, tmp_path: Path) -> None:
     created = _upload(client, epub_bytes(tmp_path)).json()
 
-    assert len(client.get("/books").json()) == 1
+    assert client.get("/books").json()["total"] == 1
     assert client.get(f"/books/{created['id']}").json()["title"] == "Dune"
 
 
