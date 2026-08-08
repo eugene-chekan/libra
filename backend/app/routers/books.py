@@ -9,7 +9,16 @@ from app.config import Settings, get_settings
 from app.db import get_session
 from app.epub import InvalidEpubError, read_metadata
 from app.logging_config import get_logger
-from app.models import Book, BookCreate, BookRead, BookUpdate, User, UserBookStateWrite
+from app.mailer import SendFailedError, SmtpNotConfiguredError, get_mailer
+from app.models import (
+    Book,
+    BookCreate,
+    BookRead,
+    BookUpdate,
+    KindleDeliveryRead,
+    User,
+    UserBookStateWrite,
+)
 from app.storage import UploadTooLargeError
 
 router = APIRouter(prefix="/books", tags=["books"])
@@ -149,6 +158,63 @@ def set_reading_state(
     return library.set_reading_state(
         session, book, user, rating=state.rating, progress=state.progress
     )
+
+
+@router.post("/{book_id}/send-to-kindle", status_code=202, response_model=KindleDeliveryRead)
+def send_to_kindle(
+    book_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(current_user),
+    send=Depends(get_mailer),
+) -> KindleDeliveryRead:
+    """Mail a book to the caller's own Kindle address.
+
+    No request body: the destination is the caller's stored address and
+    cannot be overridden per request. An endpoint that mails an arbitrary
+    file to an arbitrary address is an open relay wearing a library's
+    clothes, and the feature gains nothing from allowing it.
+
+    `202`, not `200`. Amazon silently discards mail from a sender the
+    recipient has not approved — no bounce, no status API — so handing the
+    message to the mail server is the last thing this process can observe.
+    Claiming delivery would be claiming more than we know.
+    """
+    if not settings.kindle_delivery_configured:
+        raise HTTPException(
+            status_code=503, detail="Kindle delivery is not configured on this server"
+        )
+
+    book = session.get(Book, book_id)
+    if book is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    try:
+        attempted_at = library.send_to_kindle(session, book, user, settings, send)
+    except library.NoKindleAddressError as exc:
+        raise HTTPException(
+            status_code=422, detail="Set your Kindle address before sending"
+        ) from exc
+    except library.AttachmentTooLargeError as exc:
+        raise HTTPException(
+            status_code=413,
+            detail=f"This book is too large to email; the limit is {exc.limit_bytes} bytes",
+        ) from exc
+    except FileNotFoundError as exc:
+        # A row pointing at a file that is not on disk is an integrity bug,
+        # not something the caller did wrong.
+        log.error("Book %s references a missing file: %s", book_id, book.file_path)
+        raise HTTPException(status_code=500, detail="The stored file is missing") from exc
+    except SmtpNotConfiguredError as exc:
+        raise HTTPException(
+            status_code=503, detail="Kindle delivery is not configured on this server"
+        ) from exc
+    except SendFailedError as exc:
+        # str(exc) is written to be safe to show; the SMTP server's own
+        # response text stays in the log, because it quotes the username.
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
+
+    return KindleDeliveryRead(book_id=book_id, sent_to=user.kindle_email, attempted_at=attempted_at)
 
 
 @router.patch("/{book_id}", response_model=BookRead)

@@ -12,9 +12,27 @@ routers map them to status codes. A service that raised HTTP would force the
 agent to catch HTTP exceptions in order to read a book.
 """
 
+from collections.abc import Callable
+from datetime import datetime
+from pathlib import Path
+
 from sqlmodel import Session, select
 
+from app import mailer, storage
+from app.config import Settings
 from app.models import Book, BookRead, User, UserBookState, utcnow
+
+
+class NoKindleAddressError(Exception):
+    """The caller has not told us where to send their books."""
+
+
+class AttachmentTooLargeError(Exception):
+    """The encoded message would exceed what Send to Kindle accepts."""
+
+    def __init__(self, limit_bytes: int) -> None:
+        super().__init__(f"exceeds the {limit_bytes} byte attachment limit")
+        self.limit_bytes = limit_bytes
 
 
 def _merge(book: Book, state: UserBookState | None) -> BookRead:
@@ -104,3 +122,53 @@ def set_reading_state(
     session.commit()
     session.refresh(state)
     return _merge(book, state)
+
+
+def send_to_kindle(
+    session: Session,
+    book: Book,
+    user: User,
+    settings: Settings,
+    send: Callable[[object, Settings], None],
+) -> datetime:
+    """Mail `book` to `user`'s Kindle address; returns when it was attempted.
+
+    "Attempted" is the strongest word available. Amazon silently discards mail
+    from an address that is not on the recipient's approved-sender list — no
+    bounce, no status API — so SMTP acceptance is the only observable signal
+    and nothing here can promise the book arrived.
+
+    Everything checkable is checked before anything with a side effect, and
+    `last_sent_at` is written only after the mail server accepts: a failed
+    send must not leave a record claiming the book went out.
+    """
+    if not user.kindle_email:
+        raise NoKindleAddressError
+
+    # Reuses the existing traversal guard rather than adding a second one.
+    path: Path = storage.resolve(book.file_path, settings.library_dir)
+    content = path.read_bytes()
+
+    if mailer.encoded_size(len(content)) > settings.kindle_max_attachment_bytes:
+        raise AttachmentTooLargeError(settings.kindle_max_attachment_bytes)
+
+    message = mailer.build_message(
+        to_address=user.kindle_email,
+        settings=settings,
+        title=book.title,
+        author=book.author,
+        content=content,
+        filename=mailer.attachment_filename(book.title, book.author),
+    )
+    send(message, settings)
+
+    attempted_at = utcnow()
+    state = session.get(UserBookState, (user.id, book.id))
+    if state is None:
+        state = UserBookState(user_id=user.id, book_id=book.id)
+    state.last_sent_at = attempted_at
+    state.updated_at = attempted_at
+    session.add(state)
+    session.commit()
+
+    return attempted_at

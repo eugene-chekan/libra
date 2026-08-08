@@ -48,6 +48,37 @@ class Settings(BaseSettings):
     # login would appear to silently fail.
     session_cookie_secure: bool = False
 
+    # One SMTP account for the whole instance, shared by every user. A
+    # household running one server has one mail account; per-user credentials
+    # would multiply the secrets to protect and gain nobody anything. The
+    # per-user half is `User.kindle_email` plus the Amazon-side approval,
+    # which each person manages themselves.
+    #
+    # Kindle delivery is disabled unless both `smtp_host` and `smtp_from` are
+    # set, so a deployment that never configures mail gets a clear 503 rather
+    # than an obscure failure at send time.
+    smtp_host: str | None = None
+    smtp_port: int = 587
+    smtp_username: str | None = None
+    # Environment-only. Never in a response body, never in a log line, never
+    # in an error message.
+    smtp_password: str | None = None
+    # The address every user must add to their Amazon approved-sender list.
+    # Not a secret — it is precisely the string they need to copy — so the API
+    # hands it out via /auth/me.
+    smtp_from: str | None = None
+    smtp_starttls: bool = True
+    smtp_timeout_seconds: int = 30
+
+    # Send to Kindle caps attachments around 50 MB, below this app's own
+    # 100 MB upload ceiling — so a book can be stored and never sendable.
+    # Checked against the *encoded* size; see app/mailer.py.
+    kindle_max_attachment_bytes: int = 50 * 1024 * 1024
+
+    @property
+    def kindle_delivery_configured(self) -> bool:
+        return bool(self.smtp_host and self.smtp_from)
+
 
 @lru_cache
 def get_settings() -> Settings:

@@ -34,6 +34,7 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `GET` | `/books` | List books |
 | `GET` | `/books/{id}` | Fetch one book |
 | `PUT` | `/books/{id}/state` | Set your own rating and reading progress |
+| `POST` | `/books/{id}/send-to-kindle` | Email the book to your own Kindle |
 | `PATCH` | `/books/{id}` | Correct a book's shared metadata (admin) |
 | `DELETE` | `/books/{id}` | Delete a book and its stored file (admin) |
 
@@ -241,9 +242,17 @@ Amazon accepts personal documents only from addresses on your approved list:
 > sender address is almost always the reason.
 
 Books are sent as EPUB with no conversion: Send to Kindle accepts EPUB
-directly. Note that Amazon's attachment ceiling (~50 MB) is lower than
-libra's upload ceiling (100 MB), so a very large book can be stored but not
-emailed.
+directly. `GET /auth/me` returns `kindle_sender`, the address to approve, so
+you never have to go looking for it.
+
+Amazon's attachment ceiling (~50 MB) is lower than libra's upload ceiling
+(100 MB), so a very large book can be stored but not emailed — and the check
+runs against the *encoded* size, since base64 inflates an attachment by about
+a third. A 45 MB book is roughly 60 MB on the wire.
+
+`POST /books/{id}/send-to-kindle` responds `202`, not `200`, and reports
+`attempted_at` rather than `sent_at`. Handing the message to the mail server
+is the last thing libra can observe.
 
 ### Running with Docker
 

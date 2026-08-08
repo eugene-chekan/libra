@@ -10,6 +10,7 @@ from sqlmodel.pool import StaticPool
 from app.auth import current_user, hash_password
 from app.config import Settings, get_settings
 from app.db import get_engine, get_session
+from app.mailer import get_mailer
 from app.main import create_app
 from app.models import User
 
@@ -104,7 +105,10 @@ def admin_user_fixture(session: Session) -> User:
 
 
 def _build_client(
-    session: Session, settings: Settings, as_user: User | None
+    session: Session,
+    settings: Settings,
+    as_user: User | None,
+    extra_overrides: dict | None = None,
 ) -> Generator[TestClient, None, None]:
     app = create_app()
 
@@ -113,6 +117,8 @@ def _build_client(
 
     app.dependency_overrides[get_session] = get_session_override
     app.dependency_overrides[get_settings] = lambda: settings
+    for dependency, replacement in (extra_overrides or {}).items():
+        app.dependency_overrides[dependency] = replacement
     if as_user is not None:
         # Overriding `current_user` also covers `require_admin`, which depends
         # on it — so an admin-only route still genuinely checks `is_admin`
@@ -138,6 +144,51 @@ def admin_client_fixture(
 ) -> Generator[TestClient, None, None]:
     """Authenticated as an admin, for routes that manage shared state."""
     yield from _build_client(session, settings, admin_user)
+
+
+# A password-shaped string that must never surface in a response or a log.
+SMTP_PASSWORD = "smtp-secret-do-not-leak"
+
+
+@pytest.fixture(name="smtp_settings")
+def smtp_settings_fixture(library_dir: Path) -> Settings:
+    """Settings with Kindle delivery configured."""
+    return Settings(
+        database_url="sqlite://",
+        library_dir=library_dir,
+        smtp_host="smtp.example.test",
+        smtp_from="libra@example.test",
+        smtp_username="libra-mailer",
+        smtp_password=SMTP_PASSWORD,
+    )
+
+
+@pytest.fixture(name="mailbox")
+def mailbox_fixture() -> list:
+    """Messages the app handed to the mail server, in order."""
+    return []
+
+
+@pytest.fixture(name="kindle_client")
+def kindle_client_fixture(
+    session: Session, smtp_settings: Settings, user: User, mailbox: list
+) -> Generator[TestClient, None, None]:
+    """Authenticated, with delivery configured and the transport replaced.
+
+    The mailer is injected rather than monkeypatched so the suite never opens
+    a socket, and so a test can assert that nothing was sent — which is the
+    half that matters for every precondition failure.
+    """
+
+    def fake_mailer():
+        def send(message, settings):
+            mailbox.append(message)
+
+        return send
+
+    yield from _build_client(
+        session, smtp_settings, user, extra_overrides={get_mailer: fake_mailer}
+    )
 
 
 @pytest.fixture(name="anon_client")
