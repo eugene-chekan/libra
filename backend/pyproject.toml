@@ -18,7 +18,10 @@ dependencies = [
 [dependency-groups]
 dev = [
     "pytest>=8.3.0",
-    "httpx>=0.27.0",
+    # httpx2 rather than httpx: starlette.testclient does
+    # `import httpx2 as httpx`, falling back to httpx with a deprecation
+    # warning. Same library, new distribution name for its 2.x line.
+    "httpx2>=2.9.0",
     "ruff>=0.7.0",
 ]
 
