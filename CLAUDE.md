@@ -49,8 +49,13 @@ before pushing rather than relying on CI to catch a broken branch.
 
 ## Workflow conventions
 
-- **One feature per branch**, branched from `main`. Open PRs only when
-  explicitly asked, not automatically after pushing.
+- **One feature per branch**, branched from `main`. Open the PR once the
+  feature is complete — pushed, suite green — rather than waiting to be
+  asked. Keep PR descriptions short: what the feature does, which files
+  changed, and anything a reviewer must know. The detailed reasoning belongs
+  in the commit message and in `docs/specs/`, which already carry it.
+- Docs and planning changes (specs, plans, README, architecture) go straight
+  to `main`. Branches are for code.
 - `gh` CLI is installed and authenticated — use it for PR creation and reading
   CI status/logs rather than the GitHub web UI or scraping the REST API.
 - [Conventional commits](https://www.conventionalcommits.org/) (`feat:`,
