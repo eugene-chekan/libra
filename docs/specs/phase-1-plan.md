@@ -119,16 +119,21 @@ Eight milestones, one per branch and PR, in dependency order.
 
 Tracked as GitHub issues under the **Phase 1 — Backend core** milestone.
 
-| # | Milestone | Issue | Depends on | Rough size |
-|---|---|---|---|---|
-| 0 | Alembic + baseline revision | [#3](https://github.com/eugene-chekan/libra/issues/3) | — | 2 days |
-| 1 | Auth: users, sessions, admin, CORS | [#4](https://github.com/eugene-chekan/libra/issues/4) | 0 | 1.5 weeks |
-| 2 | Reading state + shared catalog fields | [#5](https://github.com/eugene-chekan/libra/issues/5) | 1 | 1 week |
-| 3 | Kindle delivery | [#6](https://github.com/eugene-chekan/libra/issues/6) | 1, 2 | 1 week |
-| 4 | Shelves | [#7](https://github.com/eugene-chekan/libra/issues/7) | 2 | 1 week |
-| 5 | Tags | [#8](https://github.com/eugene-chekan/libra/issues/8) | 2 | 1 week |
-| 6 | Search and filtering | [#9](https://github.com/eugene-chekan/libra/issues/9) | 4, 5 | 0.5 week |
-| 7 | Cover art | [#10](https://github.com/eugene-chekan/libra/issues/10) | — | 0.5 week |
+| # | Milestone | Issue | Depends on | Rough size | Status |
+|---|---|---|---|---|---|
+| 0 | Alembic + baseline revision | [#3](https://github.com/eugene-chekan/libra/issues/3) | — | 2 days | ✅ #11 |
+| 1 | Auth: users, sessions, admin, CORS | [#4](https://github.com/eugene-chekan/libra/issues/4) | 0 | 1.5 weeks | ✅ #12 |
+| 2 | Reading state + shared catalog fields | [#5](https://github.com/eugene-chekan/libra/issues/5) | 1 | 1 week | ✅ #14 |
+| 3 | Kindle delivery | [#6](https://github.com/eugene-chekan/libra/issues/6) | 1, 2 | 1 week | ✅ #15 |
+| 4 | Shelves | [#7](https://github.com/eugene-chekan/libra/issues/7) | 2 | 1 week | next |
+| 5 | Tags | [#8](https://github.com/eugene-chekan/libra/issues/8) | 2 | 1 week | |
+| 6 | Search and filtering | [#9](https://github.com/eugene-chekan/libra/issues/9) | 4, 5 | 0.5 week | |
+| 7 | Cover art | [#10](https://github.com/eugene-chekan/libra/issues/10) | — | 0.5 week | |
+
+**Progress as of 2026-08-08:** four of eight done, roughly on estimate.
+Application logging (#13) was added outside the plan — it was not on the
+issue list, but two specs already assumed a logger existed. About 3 weeks of
+estimated work remain against ~7 weeks of window.
 
 **Alembic first (0)** because every milestone after it changes the schema,
 and `SQLModel.metadata.create_all()` silently declines to add columns to

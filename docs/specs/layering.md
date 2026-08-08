@@ -5,6 +5,10 @@ Nothing in this document requires rewriting existing code; it decides where
 the code written in milestones [#5–#10](phase-1-plan.md#sequence) goes, and
 why.
 
+`app/library.py` now exists, created in #14 for the merged read model and
+extended in #15 with `send_to_kindle`. The rule has held so far: nothing in
+it raises `HTTPException`, and simple CRUD has stayed in the routers.
+
 ## Goal
 
 Make sure the library operations Phase 3's agent needs are callable from

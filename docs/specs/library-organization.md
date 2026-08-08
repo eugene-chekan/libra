@@ -1,6 +1,12 @@
 # Spec: Library Organization and Multi-User
 
-**Status:** Not started — planning only. Supersedes the single-user draft of
+**Status:** Partially shipped. Auth, users and sessions landed in #12
+(issue #4); the shared catalog fields, `UserBookState` and `Note` in #14
+(issue #5). **Shelves (#7), tags (#8), search (#9) and cover art (#10) are
+still planning only** — the sections below describing them have not been
+built and may still be wrong in the way the validation block was.
+
+Supersedes the single-user draft of
 this document. Two inputs: the UI design handoff, which assumes a domain
 model roughly twice the size of the one the API exposes today, and the
 decision to support **multiple users on one instance** (shared family

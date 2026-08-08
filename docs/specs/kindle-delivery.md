@@ -1,8 +1,16 @@
 # Spec: Kindle Delivery
 
-**Status:** Not started — planning only. A Phase 1 milestone; see
-[phase-1-plan.md](phase-1-plan.md#sequence) for where it sits and what it
-depends on.
+**Status:** Shipped in #15 (issue #6). Implemented as specified, in
+`app/mailer.py` and `library.send_to_kindle`.
+
+Verified end to end against a real Kindle: a public-domain EPUB sent through
+Gmail's SMTP arrived on the device. That check is manual — the test suite
+never opens a socket, by design.
+
+Two things the real file confirmed: `pages` came back `NULL` (no
+`schema:numberOfPages`, as predicted), and `year` parsed to the Gutenberg
+transcription date rather than the publication year, because an unlabelled
+`dc:date` is indistinguishable from a publication date. Admin-correctable.
 
 The question that shaped this feature was settled on 2026-08-03: Send to
 Kindle accepts EPUB directly, so nothing needs converting and
