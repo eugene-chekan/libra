@@ -37,6 +37,7 @@ from app.models import (
     TagRead,
     User,
     UserBookState,
+    UserSession,
     utcnow,
 )
 
@@ -872,4 +873,72 @@ def update_note(session: Session, note_id: int, user: User, fields: dict) -> Not
 
 def delete_note(session: Session, note_id: int, user: User) -> None:
     session.delete(_owned_note(session, note_id, user))
+    session.commit()
+
+
+# --- users ----------------------------------------------------------------
+
+# Deleting an account is mostly deleting library rows, which is why it lives
+# here rather than in the router: it is a multi-table cascade, and a
+# multi-table cascade hidden inside an HTTP handler is how one of the tables
+# gets forgotten.
+
+
+class UserNotFoundError(Exception):
+    """No such account."""
+
+
+class SelfDeletionError(Exception):
+    """An admin may not delete their own account."""
+
+
+def delete_user(session: Session, user_id: int, caller: User) -> None:
+    """Remove a reader and everything private to them, in one transaction.
+
+    Books survive with `uploaded_by` nulled: a shared catalog should not lose
+    volumes because a household member left. Their public shelves do vanish
+    for everyone else, which is the visible consequence and is accepted.
+
+    Every dependent row is deleted by hand. SQLite has foreign-key enforcement
+    off by default, so there is no database cascade to lean on — the same
+    reason `delete_tag` removes its own link rows.
+
+    **There is deliberately no last-admin check.** It would be unreachable:
+    the endpoint is admin-only and self-deletion raises below, so the caller
+    is an administrator who is not the target and therefore survives. A guard
+    no test can distinguish from its absence reads as protection while
+    providing none, which is worse than not having it.
+    """
+    user = session.get(User, user_id)
+    if user is None:
+        raise UserNotFoundError
+
+    if user.id == caller.id:
+        # Also what makes the last-admin case above impossible.
+        raise SelfDeletionError
+
+    # Order matters if foreign keys are ever enforced: children before
+    # parents. Link rows before tags, reading state before the shelves it
+    # points at.
+    own_tag_ids = [tag.id for tag in session.exec(select(Tag).where(Tag.owner_id == user.id)).all()]
+    if own_tag_ids:
+        for link in session.exec(select(BookTag).where(col(BookTag.tag_id).in_(own_tag_ids))).all():
+            session.delete(link)
+
+    for model, column in (
+        (Tag, Tag.owner_id),
+        (Note, Note.user_id),
+        (UserBookState, UserBookState.user_id),
+        (Shelf, Shelf.owner_id),
+        (UserSession, UserSession.user_id),
+    ):
+        for row in session.exec(select(model).where(column == user.id)).all():
+            session.delete(row)
+
+    # Nulled rather than deleted — the whole point of the exercise.
+    for book in session.exec(select(Book).where(Book.uploaded_by == user.id)).all():
+        book.uploaded_by = None
+        session.add(book)
+
+    session.delete(user)
     session.commit()

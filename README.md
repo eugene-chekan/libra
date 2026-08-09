@@ -191,6 +191,14 @@ clearing the browser's copy.
 | `GET` | `/users` | List accounts (admin) |
 | `POST` | `/users` | Create an account (admin) |
 | `PATCH` | `/users/{id}` | Update a profile; admin to change `is_admin` or edit another user |
+| `DELETE` | `/users/{id}` | Delete an account and everything private to it (admin) |
+
+**Deleting an account keeps their books.** A shared catalog should not lose
+volumes because a household member left, so uploads survive with
+`uploaded_by` nulled while shelves, personal tags, reading state, notes and
+sessions are removed. Their public shelves vanish for everyone — the visible
+consequence, accepted rather than overlooked. An admin cannot delete their own
+account, which is also why an instance can never be left with no administrator.
 
 Every other endpoint requires a session. Reading the catalog and uploading to
 it are open to any user; **editing shared book metadata and deleting books
