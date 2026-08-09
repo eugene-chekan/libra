@@ -162,6 +162,15 @@ decisions the agent would otherwise make unilaterally, leaving the client to
 accommodate them. The same reasoning put `search_library` in `app/library.py`
 rather than a route handler: the caller's needs should shape the interface.
 
+**All five are now answered** — designing the screen is what answered them,
+which was the point. The table at the end of
+[client-design.md](client-design.md)'s chat section is the summary; the
+reasoning is below, kept because Phase 3 needs the *why*, not only the *what*.
+
+The consequence for Phase 3, stated plainly: the agent's response format is
+not free. It must emit text incrementally, announce tool calls as it makes
+them, and carry book ids alongside prose rather than only inside it.
+
 Questions the fake service must answer, and which therefore become **input to
 the Phase 3 spec**:
 
@@ -195,8 +204,15 @@ Record the answers here as they are decided; Phase 3 starts from them.
 
 ## Design gaps to close first
 
+**Closed 2026-08-09 — see [client-design.md](client-design.md)**, which
+specifies all six to the handoff's standard and additionally restores the
+design tokens into the working tree, settles the loading/error/empty-state
+conventions the handoff declined to invent, and states the accessibility
+baseline. Two decisions there reach back into the API: sidebar shelf clicks
+filter the library via `shelf_id`, and `DELETE /users/{id}` joins milestone 1.
+
 The handoff specified five screens to a high standard and stopped there. These
-are missing and block the client regardless of when it is built:
+were missing and blocked the client regardless of when it is built:
 
 - **Login**, and what session expiry looks like mid-session.
 - **User administration** — creating accounts, granting admin, per-user Kindle
@@ -298,19 +314,19 @@ Phase 3's is not.
 
 One branch per milestone, as in Phase 1.
 
-| # | Milestone | Notes |
-|---|---|---|
-| 0 | Close the six design gaps | Not code, and a prerequisite. See above |
-| 1 | Notes API + `GET /books/{id}/file` | Backend only. Done first so no client milestone ever blocks on it |
-| 2 | Scaffold | `client/`, tokens → Dart, bundled fonts, `go_router` shell, `ThemeExtension`, Riverpod, CI analyze + test |
-| 3 | API client + auth | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards |
-| 4 | Library grid + search | `#tag` autocomplete, OR/AND semantics, gradient cover fallback, empty state |
-| 5 | Book detail | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, download, Send to Kindle |
-| 6 | Shelves page + shelf manager | Real drag-reorder, visibility control, other people's public shelves |
-| 7 | Tag manager | Shared / Mine split, `editable` respected |
-| 8 | Add Book | Upload-first redesign |
-| 9 | User administration | Admin-only screen |
-| 10 | Librarian chat, stubbed | `Conversation`/`Message` tables and migration, service seam, screen, stub badge |
+| # | Milestone | Status | Notes |
+|---|---|---|---|
+| 0 | Close the six design gaps | ✅ | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions |
+| 1 | Notes API, `GET /books/{id}/file`, `DELETE /users/{id}` | | Backend only. Done first so no client milestone ever blocks on it |
+| 2 | Scaffold | | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, `ThemeExtension`, Riverpod, skeleton/error/empty primitives, CI analyze + test |
+| 3 | API client + auth | | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
+| 4 | Library grid + search | | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states |
+| 5 | Book detail | | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states |
+| 6 | Shelves page + shelf manager | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page |
+| 7 | Tag manager | | Shared / Mine split, `editable` respected, name-hashed colour swatches |
+| 8 | Add Book | | Upload-first redesign |
+| 9 | User administration | | Admin-only modal, per-row commits, destructive delete dialog |
+| 10 | Librarian chat, stubbed | | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
 
 **Milestone 3 is what the reordering was for.** It is the first time anything
 has reached this API from outside the process, so cookie handling, CORS and
@@ -319,9 +335,13 @@ things; that is the point.
 
 ## Open questions
 
-- **Does the sidebar need a home for other people's public shelves, or a
-  filter?** Part of milestone 0, listed here because it is the one design gap
-  whose answer changes the API's usage rather than only the UI.
+None blocking. Milestone 0 settled the outstanding design questions; what
+remains is implementation detail:
+
 - **Drag-to-reorder implementation.** The handoff advertises it and the
-  prototype never built it; `PUT /shelves/order` exists and takes the full
+  prototype never built it. `PUT /shelves/order` exists and takes the full
   order, so this is a client question only.
+- **Whether `POST /books/upload` should stream progress.** A large EPUB over
+  a household LAN is fast, but the Add Book modal has no progress affordance
+  and the upload is the one place a reader waits on bytes. Decide in
+  milestone 8, with a measurement rather than a guess.
