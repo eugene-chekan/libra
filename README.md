@@ -9,17 +9,15 @@ quality, structure, and testability are treated as first-class concerns.
 
 ## Status
 
-**Phase 1 — Backend core (in progress).** FastAPI backend with EPUB upload,
-automatic metadata extraction, book CRUD, and SQLite persistence.
+**Phase 1 — Backend core: complete.** A FastAPI backend with EPUB upload and
+metadata extraction, Alembic migrations, multi-user accounts with password
+auth, per-user reading state, shelves, tags, search, cover art, and Kindle
+delivery over SMTP.
 
-Still to come in Phase 1: multi-user accounts, Kindle delivery, and library
-organization (shelves, tags, ratings, reading progress, covers) — planned in
-[docs/specs/phase-1-plan.md](docs/specs/phase-1-plan.md). The RAG pipeline,
-the librarian agent, format conversion, and the client come later; see
+Next: the RAG pipeline (Phase 2), the librarian agent (Phase 3), and the
+Flutter client (Phase 4). Format conversion was deferred out of Phase 1 — see
+[docs/specs/phase-1-plan.md](docs/specs/phase-1-plan.md) for that decision and
 [docs/architecture.md](docs/architecture.md) for the roadmap.
-
-The configuration and Kindle sections below describe the target setup,
-including settings whose features are not built yet.
 
 ### API
 
@@ -33,6 +31,7 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `POST` | `/books` | Create a book row from supplied metadata |
 | `GET` | `/books` | Search books: `?q=`, `?tags=`, `?shelf_id=`, `?sort=` |
 | `GET` | `/books/{id}` | Fetch one book |
+| `GET` | `/books/{id}/cover` | The cover image, read from the EPUB |
 | `GET` | `/shelves` | Your shelves in order, plus others' public ones |
 | `POST` | `/shelves` | Create a shelf |
 | `PATCH` | `/shelves/{id}` | Rename a shelf or publish it (owner) |

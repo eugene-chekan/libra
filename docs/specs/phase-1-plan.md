@@ -1,6 +1,9 @@
 # Phase 1 — Scope and Plan
 
-**Status:** Active. Written 2026-08-03, six days into the build.
+**Status:** Complete. Written 2026-08-03, six days into the build; all eight
+milestones shipped by 2026-08-08. Kept as written, with outcomes recorded
+under [Sequence](#sequence) — the plan and what actually happened are more
+useful together than a tidied-up version of either.
 
 Phase 1's window is diploma months 1–2, which runs from the first commit
 (2026-07-29) to roughly **29 September 2026** — about eight weeks from
@@ -128,12 +131,23 @@ Tracked as GitHub issues under the **Phase 1 — Backend core** milestone.
 | 4 | Shelves | [#7](https://github.com/eugene-chekan/libra/issues/7) | 2 | 1 week | ✅ #16 |
 | 5 | Tags | [#8](https://github.com/eugene-chekan/libra/issues/8) | 2 | 1 week | ✅ #18 |
 | 6 | Search and filtering | [#9](https://github.com/eugene-chekan/libra/issues/9) | 4, 5 | 0.5 week | ✅ #19 |
-| 7 | Cover art | [#10](https://github.com/eugene-chekan/libra/issues/10) | — | 0.5 week | next |
+| 7 | Cover art | [#10](https://github.com/eugene-chekan/libra/issues/10) | — | 0.5 week | ✅ #20 |
 
-**Progress as of 2026-08-08:** seven of eight done, roughly on estimate.
-Application logging (#13) was added outside the plan — it was not on the
-issue list, but two specs already assumed a logger existed. About 3 weeks of
-estimated work remain against ~7 weeks of window.
+**Complete as of 2026-08-08.** All eight milestones shipped, plus two items
+not on the original list: application logging (#13), because two specs
+already assumed a logger existed, and the httpx→httpx2 swap (#17).
+
+Against the plan: the window ran to 29 September and the work finished in the
+first fortnight, well inside the estimate. The two things that most reduced
+risk were sequencing auth second — the retrofit cost grows with every
+endpoint, and it was an afternoon against four rather than a rewrite against
+twenty — and probing schema decisions before committing to them, which caught
+three problems that would otherwise have shipped: inert validation on
+`table=True` models, expression indexes breaking `alembic check`, and a
+composite unique index giving nullable-owner rows no protection at all.
+
+Format conversion remains deferred to after Phase 2; the reasoning in
+[Scope](#scope) still holds, and nothing built here depended on it.
 
 **Alembic first (0)** because every milestone after it changes the schema,
 and `SQLModel.metadata.create_all()` silently declines to add columns to

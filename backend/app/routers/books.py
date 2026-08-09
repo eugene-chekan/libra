@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
 from sqlmodel import Session
 
 from app import library, storage
@@ -37,13 +37,16 @@ log = get_logger(__name__)
 def create_book(
     book: BookCreate,
     session: Session = Depends(get_session),
-    _: User = Depends(current_user),
-) -> Book:
+    user: User = Depends(current_user),
+) -> BookRead:
     db_book = Book.model_validate(book)
     session.add(db_book)
     session.commit()
     session.refresh(db_book)
-    return db_book
+    # Through the read model, not by letting `response_model` serialize the
+    # row: has_cover and tag_ids are not columns on Book, so that path drops
+    # them silently and the response disagrees with GET /books/{id}.
+    return library.get_book(session, db_book.id, user)
 
 
 @router.post("/upload", response_model=BookRead, status_code=201)
@@ -52,7 +55,7 @@ def upload_book(
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
     user: User = Depends(current_user),
-) -> Book:
+) -> BookRead:
     """Create a book from an uploaded EPUB, deriving metadata from the file.
 
     Ordering matters: we stage the bytes to a temp file, validate and parse
@@ -93,6 +96,16 @@ def upload_book(
             **metadata.extra,
             "original_filename": original_name,
             "size_bytes": staged.size_bytes,
+            # Recorded at parse time so serving a cover never re-parses the
+            # OPF. Absent when the file declares none.
+            **(
+                {
+                    "cover_href": metadata.cover_href,
+                    "cover_media_type": metadata.cover_media_type,
+                }
+                if metadata.cover_href
+                else {}
+            ),
             # Kept so Phase 2 can tell whether a file has already been
             # ingested into the vector store without re-reading it.
             "sha256": staged.sha256,
@@ -111,7 +124,7 @@ def upload_book(
         storage.delete(stored_name, settings.library_dir)
         raise
     session.refresh(book)
-    return book
+    return library.get_book(session, book.id, user)
 
 
 @router.get("", response_model=BookList)
@@ -168,6 +181,44 @@ def get_book(
     if view is None:
         raise HTTPException(status_code=404, detail="Book not found")
     return view
+
+
+@router.get("/{book_id}/cover")
+def get_cover(
+    book_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _: User = Depends(current_user),
+) -> Response:
+    """The book's cover image, read straight out of the EPUB.
+
+    `404` when the file declares no cover, when the image is missing from the
+    archive, or when the declared media type is not an image. A caller cannot
+    act on the difference — there is nothing to show either way — and the
+    last case is server-side detail, not something to explain to a browser.
+    """
+    book = session.get(Book, book_id)
+    if book is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    try:
+        data, media_type, etag = library.cover_for(session, book, settings)
+    except library.NoCoverError as exc:
+        raise HTTPException(status_code=404, detail="This book has no cover") from exc
+
+    return Response(
+        content=data,
+        media_type=media_type,
+        headers={
+            # The media type is allowlisted, but nosniff stops a browser
+            # deciding for itself that the allowlist was wrong.
+            "X-Content-Type-Options": "nosniff",
+            # `private` specifically: responses require a session, so a shared
+            # cache must never hand one household member's request to another.
+            "Cache-Control": "private, max-age=86400",
+            "ETag": etag,
+        },
+    )
 
 
 @router.put("/{book_id}/state", response_model=BookRead)

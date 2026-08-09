@@ -20,6 +20,11 @@ class Settings(BaseSettings):
     # write to disk.
     max_upload_bytes: int = 100 * 1024 * 1024
 
+    # Cover images are read out of the EPUB on demand. Capped for the same
+    # reason the XML reads are: an archive member that claims to be small and
+    # expands hugely is the same threat whether it holds markup or pixels.
+    max_cover_bytes: int = 10 * 1024 * 1024
+
     # Level for the app's own `libra.*` loggers. Does not touch uvicorn's
     # request logging, which uvicorn configures for itself.
     log_level: str = "INFO"

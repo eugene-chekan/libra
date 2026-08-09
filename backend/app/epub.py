@@ -14,6 +14,7 @@ Layout we rely on (EPUB 2 and 3 both guarantee it):
     <the OPF>                -> <metadata> with Dublin Core elements
 """
 
+import posixpath
 import re
 import xml.etree.ElementTree as ET
 import zipfile
@@ -88,6 +89,11 @@ class EpubMetadata:
     year: int | None = None
     blurb: str | None = None
     pages: int | None = None
+    # Path to the cover *within the archive*, already resolved against the
+    # OPF's directory, plus the media type the manifest declares. Both None
+    # when the file declares no cover, which is a normal and common state.
+    cover_href: str | None = None
+    cover_media_type: str | None = None
     extra: dict = field(default_factory=dict)
 
 
@@ -224,6 +230,74 @@ def _verify_mimetype(archive: zipfile.ZipFile) -> None:
         raise InvalidEpubError(f"unexpected mimetype: {declared!r}")
 
 
+def _cover_href(opf_root: ET.Element, metadata: ET.Element) -> tuple[str, str] | None:
+    """Find the cover image's path within the archive, and its media type.
+
+    Both EPUB generations declare it differently and both are common:
+
+    - EPUB 3 marks a manifest item ``properties="cover-image"``.
+    - EPUB 2 uses ``<meta name="cover" content="{manifest item id}"/>``.
+
+    Returns the href *as written in the OPF* — resolving it against the OPF's
+    own directory is the caller's job, because only the caller knows where
+    that is.
+    """
+    manifest = opf_root.find("opf:manifest", NS)
+    if manifest is None:
+        return None
+
+    items = manifest.findall("opf:item", NS)
+
+    # EPUB 3 first: an explicit declaration beats an indirect one.
+    for item in items:
+        properties = (item.get("properties") or "").split()
+        if "cover-image" in properties:
+            href, media_type = item.get("href"), item.get("media-type")
+            if href and media_type:
+                return href, media_type
+
+    # EPUB 2: a <meta> naming a manifest item by id. `.get("name")` rather
+    # than assuming it exists — EPUB 3 <meta property=...> elements have no
+    # `name` at all and sit in the same <metadata>.
+    cover_id = None
+    for meta in metadata.findall("opf:meta", NS):
+        if (meta.get("name") or "").strip().lower() == "cover":
+            cover_id = (meta.get("content") or "").strip()
+            break
+
+    if cover_id:
+        for item in items:
+            if item.get("id") == cover_id:
+                href, media_type = item.get("href"), item.get("media-type")
+                if href and media_type:
+                    return href, media_type
+    return None
+
+
+def read_cover(path: Path, archive_href: str, max_bytes: int) -> bytes:
+    """Read a cover image out of the EPUB.
+
+    Size-capped with the same reasoning as the XML reads: a member that
+    claims to be small and expands hugely is the same threat whether it holds
+    markup or pixels.
+    """
+    with zipfile.ZipFile(path) as archive:
+        try:
+            info = archive.getinfo(archive_href)
+        except KeyError as exc:
+            raise InvalidEpubError(f"cover member is missing: {archive_href}") from exc
+
+        if info.file_size > max_bytes:
+            raise InvalidEpubError(f"cover is implausibly large ({info.file_size} bytes)")
+
+        with archive.open(info) as handle:
+            data = handle.read(max_bytes + 1)
+
+    if len(data) > max_bytes:
+        raise InvalidEpubError(f"cover exceeds {max_bytes} bytes")
+    return data
+
+
 def read_metadata(path: Path, fallback_title: str) -> EpubMetadata:
     """Validate `path` as an EPUB and extract its metadata.
 
@@ -278,11 +352,23 @@ def read_metadata(path: Path, fallback_title: str) -> EpubMetadata:
 
         descriptions = _dc_values(metadata, "description")
 
+        cover_href = cover_media_type = None
+        declared_cover = _cover_href(opf_root, metadata)
+        if declared_cover is not None:
+            href, cover_media_type = declared_cover
+            # The manifest href is relative to the OPF, not the zip root, and
+            # the OPF is very often in a subdirectory. posixpath because zip
+            # member names always use forward slashes regardless of platform.
+            opf_dir = posixpath.dirname(opf_path)
+            cover_href = posixpath.normpath(posixpath.join(opf_dir, href)) if opf_dir else href
+
         return EpubMetadata(
             title=titles[0] if titles else fallback_title,
             author=", ".join(creators) if creators else "Unknown",
             year=_parse_year(published) if published is not None else None,
             blurb=descriptions[0] if descriptions else None,
             pages=_declared_pages(metadata),
+            cover_href=cover_href,
+            cover_media_type=cover_media_type,
             extra=extra,
         )

@@ -12,6 +12,12 @@ SHELF_PUBLIC = "public"
 # on `table=True` classes — see the note in library-organization.md.
 ShelfVisibility = Literal["private", "public"]
 
+# What a cover may claim to be. Anything else is treated as "no cover":
+# serving `text/html` out of a user-uploaded archive from the API's own
+# origin is stored XSS, and since #12 there is a session cookie on that
+# origin to steal.
+COVER_MEDIA_TYPES = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
+
 SORT_TITLE = "title"
 SORT_ADDED = "added"
 # Default is title: what a browsing reader expects. `added` suits a library
@@ -73,6 +79,10 @@ class BookRead(BookBase):
 
     id: int
     uploaded_by: int | None = None
+    # So a grid of covers does not fire one request per book that 404s on
+    # first paint. The design's gradient fallback is rendered client-side and
+    # needs no round trip to decide on.
+    has_cover: bool = False
     shelf_id: int | None = None
     # Global tags plus the caller's own. Never another reader's.
     tag_ids: list[int] = []
