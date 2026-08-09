@@ -1,6 +1,7 @@
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
+from fastapi.responses import FileResponse
 from sqlmodel import Session
 
 from app import library, storage
@@ -217,6 +218,58 @@ def get_cover(
             # cache must never hand one household member's request to another.
             "Cache-Control": "private, max-age=86400",
             "ETag": etag,
+        },
+    )
+
+
+@router.get("/{book_id}/file")
+def download_book(
+    book_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    _: User = Depends(current_user),
+) -> FileResponse:
+    """The stored EPUB itself, as an attachment.
+
+    There is no in-browser reader in any phase — the Kindle, or whatever the
+    reader already uses, is the reader — so the design's "Start Reading"
+    button downloads. Nothing else served book content before this.
+
+    The catalog is shared, so any signed-in reader may download any book;
+    there is nothing to scope. What matters here is the filename, which is
+    rebuilt from the catalog rather than echoed from the uploader's own.
+    """
+    book = session.get(Book, book_id)
+    if book is None:
+        raise HTTPException(status_code=404, detail="Book not found")
+
+    try:
+        path, filename = library.file_for(session, book, settings)
+    except library.BookFileMissingError as exc:
+        # The row outlived its file — an unmounted volume, or a file removed
+        # by hand. Logged because it means the installation is inconsistent,
+        # not that the caller did anything wrong.
+        log.warning("book %s has no file at %s", book_id, book.file_path)
+        raise HTTPException(status_code=404, detail="This book's file is missing") from exc
+    except ValueError as exc:
+        # A stored path that escapes the library. Only reachable through
+        # POST /books, which takes a caller-supplied file_path; getting here
+        # means storage.resolve() did its job.
+        log.warning("book %s has a file_path outside the library", book_id)
+        raise HTTPException(status_code=404, detail="This book's file is missing") from exc
+
+    return FileResponse(
+        path,
+        media_type="application/epub+zip",
+        filename=filename,
+        headers={
+            # The bytes are a user-uploaded file served from an origin that
+            # carries a session cookie, so the browser must not be left to
+            # decide the type for itself.
+            "X-Content-Type-Options": "nosniff",
+            # `private`: every response here required a session, so a shared
+            # cache must never hand one household member's book to another.
+            "Cache-Control": "private, max-age=86400",
         },
     )
 

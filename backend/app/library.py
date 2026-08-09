@@ -19,7 +19,7 @@ from pathlib import Path
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
-from app import epub, mailer, storage
+from app import epub, mailer, naming, storage
 from app.config import Settings
 from app.models import (
     COVER_MEDIA_TYPES,
@@ -106,6 +106,16 @@ class NoteNotFoundError(Exception):
     private even though the book it hangs off is not, so distinguishing the
     cases would let a caller confirm someone else's notes exist by walking
     ids.
+    """
+
+
+class BookFileMissingError(Exception):
+    """The row is there but the file it points at is not.
+
+    Distinct from `BookNotFoundError`: one is a bad id, the other is a library
+    that has drifted from its database — a volume unmounted, a file removed by
+    hand. Worth telling apart in a log even though a caller sees the same 404,
+    because only one of them means something is wrong with the installation.
     """
 
 
@@ -199,6 +209,24 @@ def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, 
     # the href distinguishes covers within one archive.
     etag = f'"{book.book_metadata.get("sha256", book.id)}-{href}"'
     return data, media_type, etag
+
+
+def file_for(session: Session, book: Book, settings: Settings) -> tuple[Path, str]:
+    """The stored EPUB and the name to offer it under.
+
+    Returns a path rather than bytes, unlike `cover_for`: a cover is a handful
+    of kilobytes and gets an ETag computed from it, while a book is megabytes
+    and should stream off disk rather than through memory.
+
+    The offered filename is rebuilt from the catalog by `naming.book_filename`
+    and never taken from `book_metadata["original_filename"]`, which is the
+    string the uploader supplied and so exactly what should not be echoed into
+    a response header.
+    """
+    path = storage.resolve(book.file_path, settings.library_dir)
+    if not path.is_file():
+        raise BookFileMissingError
+    return path, naming.book_filename(book.title, book.author)
 
 
 def search_books(
@@ -736,7 +764,7 @@ def send_to_kindle(
         title=book.title,
         author=book.author,
         content=content,
-        filename=mailer.attachment_filename(book.title, book.author),
+        filename=naming.book_filename(book.title, book.author),
     )
     send(message, settings)
 
