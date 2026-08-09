@@ -53,6 +53,12 @@ dart format .                     # format
 CI additionally runs `dart format --output=none --set-exit-if-changed .`, so
 format before pushing or the client job fails on whitespace.
 
+**Running the client against a real backend needs
+`LIBRA_CORS_ORIGINS='["http://localhost:<client-port>"]'` on the backend.** It
+is empty by default, credentialed requests cannot use a `*` origin, and a
+blocked preflight reaches the client as an indistinguishable network failure —
+so a misconfigured origin looks exactly like a server that is not running.
+
 ### Git hooks
 
 A pre-commit config (`.pre-commit-config.yaml`, repo root) mirrors CI locally:

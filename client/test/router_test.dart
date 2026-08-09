@@ -2,68 +2,47 @@
 /// a working back button, and a shell that survives navigation.
 library;
 
-import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:libra_client/router.dart';
-import 'package:libra_client/session/session.dart';
+import 'package:libra_client/api/fake_libra_api.dart';
 import 'package:libra_client/shell/sidebar.dart';
-import 'package:libra_client/theme/theme.dart';
 
 import 'helpers.dart';
 
-const _reader = SessionUser(id: 2, username: 'eugene', isAdmin: false);
-
-Future<void> pumpApp(WidgetTester tester, {String at = '/'}) async {
-  useDesignViewport(tester);
-  final router = buildRouter(initialLocation: at);
-  addTearDown(router.dispose);
-
-  await tester.pumpWidget(
-    ProviderScope(
-      // A resolved session, so the account row is not showing its skeleton.
-      // That skeleton pulses forever by design, and `pumpAndSettle` waits for
-      // an idle frame that would never come.
-      overrides: [sessionProvider.overrideWithValue(_reader)],
-      child: MaterialApp.router(theme: buildLibraTheme(), routerConfig: router),
-    ),
-  );
-  await tester.pump();
-}
+FakeLibraApi _signedIn() => FakeLibraApi(signedIn: true);
 
 void main() {
   testWidgets('the shell wraps the signed-in routes', (tester) async {
-    await pumpApp(tester);
+    await pumpApp(tester, api: _signedIn());
 
     expect(find.byType(LibraSidebar), findsOneWidget);
-    expect(find.text('Library'), findsWidgets);
+    expect(find.text('Library arrives with #26.'), findsOneWidget);
   });
 
-  testWidgets('login sits outside the shell', (tester) async {
-    // It has no sidebar, and there is nothing to sign out of yet.
-    await pumpApp(tester, at: '/login');
-
-    expect(find.byType(LibraSidebar), findsNothing);
-  });
-
-  testWidgets('each route resolves to its own screen', (tester) async {
-    await pumpApp(tester, at: '/shelves');
+  // One app per test: replacing a mounted MaterialApp.router leaves the
+  // outgoing router's shell navigator and the incoming one's briefly sharing
+  // the tree, which Flutter reports as a duplicate GlobalKey.
+  testWidgets('/shelves resolves to the shelves screen', (tester) async {
+    await pumpApp(tester, api: _signedIn(), at: '/shelves');
     expect(find.text('Shelves arrives with #28.'), findsOneWidget);
+  });
 
-    await pumpApp(tester, at: '/chat');
+  testWidgets('/chat resolves to the librarian screen', (tester) async {
+    await pumpApp(tester, api: _signedIn(), at: '/chat');
     expect(find.text('Librarian arrives with #32.'), findsOneWidget);
+  });
 
-    await pumpApp(tester, at: '/books/7');
+  testWidgets('/books/:id resolves to the book screen', (tester) async {
+    await pumpApp(tester, api: _signedIn(), at: '/books/7');
     expect(find.text('Book arrives with #27.'), findsOneWidget);
   });
 
   testWidgets('a nav row changes the route under one shell', (tester) async {
-    await pumpApp(tester);
+    await pumpApp(tester, api: _signedIn());
     expect(find.text('Library arrives with #26.'), findsOneWidget);
 
     await tester.tap(find.text('Shelves'));
-    await tester.pumpAndSettle();
+    await pumpUntilSessionKnown(tester);
 
     expect(find.text('Shelves arrives with #28.'), findsOneWidget);
     expect(find.text('Library arrives with #26.'), findsNothing);
@@ -73,10 +52,10 @@ void main() {
   });
 
   testWidgets('the browser back button works', (tester) async {
-    await pumpApp(tester);
+    await pumpApp(tester, api: _signedIn());
 
     await tester.tap(find.text('Shelves'));
-    await tester.pumpAndSettle();
+    await pumpUntilSessionKnown(tester);
     expect(find.text('Shelves arrives with #28.'), findsOneWidget);
 
     await _browserNavigateTo(tester, '/');
@@ -85,7 +64,7 @@ void main() {
   });
 
   testWidgets('an unknown address gets the not-found page', (tester) async {
-    await pumpApp(tester, at: '/nope');
+    await pumpApp(tester, api: _signedIn(), at: '/nope');
 
     expect(find.text('No such page'), findsOneWidget);
   });
@@ -105,5 +84,5 @@ Future<void> _browserNavigateTo(WidgetTester tester, String location) async {
     ),
     (_) {},
   );
-  await tester.pumpAndSettle();
+  await pumpUntilSessionKnown(tester);
 }

@@ -11,12 +11,13 @@
 library;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../theme/tokens.dart';
 import 'sidebar.dart';
 
-class AppShell extends StatelessWidget {
+class AppShell extends ConsumerWidget {
   const AppShell({required this.location, required this.child, super.key});
 
   /// Passed down rather than read off the context so the sidebar's active-row
@@ -26,7 +27,12 @@ class AppShell extends StatelessWidget {
   final Widget child;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // No cold-load branch here on purpose: the router keeps this route from
+    // matching at all until the session is known (see `startingRoute`). Hiding
+    // go_router's `child` instead would unmount the shell navigator's
+    // GlobalKey and re-attach it a frame later, which Flutter reports as a
+    // duplicate key.
     return Scaffold(
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.stretch,

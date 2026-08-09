@@ -5,13 +5,38 @@
 /// widgets would overflow and fail for a reason the app will never hit. Every
 /// widget test that renders the shell sizes the surface to the design width
 /// first.
+///
+/// Everything is driven through [FakeLibraApi] rather than by overriding the
+/// session directly. That is the point of the seam: the tests exercise the real
+/// [SessionController], including its cold-load probe and its expiry rule,
+/// against an API that behaves like the server. No test needs a backend, and
+/// none of them can accidentally assert on a session state the controller could
+/// never actually produce.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:libra_client/session/session.dart';
+import 'package:libra_client/api/fake_libra_api.dart';
+import 'package:libra_client/api/models.dart';
+import 'package:libra_client/api/providers.dart';
+import 'package:libra_client/app.dart';
+import 'package:libra_client/router.dart';
 import 'package:libra_client/theme/theme.dart';
+
+const testReader = CurrentUser(
+  id: 1,
+  username: 'eugene',
+  isAdmin: false,
+  kindleSender: 'libra@example.com',
+);
+
+const testAdmin = CurrentUser(
+  id: 2,
+  username: 'ada',
+  isAdmin: true,
+  kindleSender: 'libra@example.com',
+);
 
 /// Sizes the test surface to the width the design was drawn for, and restores
 /// it afterwards.
@@ -21,22 +46,66 @@ void useDesignViewport(WidgetTester tester) {
   addTearDown(tester.view.reset);
 }
 
-/// Pumps [child] with the real theme and a provider scope, which is the
-/// smallest thing most of these widgets need to build.
+/// A container wired to [api], for testing the session without any widgets.
+ProviderContainer apiContainer(FakeLibraApi api) {
+  final container = ProviderContainer(
+    overrides: [apiProvider.overrideWithValue(api)],
+  );
+  addTearDown(container.dispose);
+  return container;
+}
+
+/// Pumps [child] with the real theme, over [api].
 ///
-/// [user] is taken rather than a list of overrides because `flutter_riverpod`
-/// does not export the `Override` type — it is public only from
-/// `package:riverpod/misc.dart`, which is a transitive dependency this client
-/// should not import. The session is the only thing the scaffold overrides
-/// anyway; a milestone that needs more can widen this then.
-Future<void> pumpLibra(WidgetTester tester, Widget child, {SessionUser? user}) {
-  return tester.pumpWidget(
+/// Does **not** settle by default. Several of these widgets animate forever —
+/// the skeleton pulse — and one exists precisely to do nothing for its first
+/// 200ms, so a blanket `pumpAndSettle` would either hang or skip the behaviour
+/// under test. Callers that need the session resolved use
+/// [pumpUntilSessionKnown].
+Future<void> pumpLibra(
+  WidgetTester tester,
+  Widget child, {
+  FakeLibraApi? api,
+  bool settle = false,
+}) async {
+  await tester.pumpWidget(
     ProviderScope(
-      overrides: [sessionProvider.overrideWithValue(user)],
+      overrides: [
+        apiProvider.overrideWithValue(api ?? FakeLibraApi(signedIn: true)),
+      ],
       child: MaterialApp(
         theme: buildLibraTheme(),
         home: Scaffold(body: child),
       ),
     ),
   );
+  if (settle) await tester.pumpAndSettle();
+}
+
+/// Pumps the whole app — router, guards and all — over [api], opening at [at].
+Future<void> pumpApp(
+  WidgetTester tester, {
+  required FakeLibraApi api,
+  String at = '/',
+}) async {
+  useDesignViewport(tester);
+  await tester.pumpWidget(
+    ProviderScope(
+      overrides: [
+        apiProvider.overrideWithValue(api),
+        initialLocationProvider.overrideWithValue(at),
+      ],
+      child: const LibraApp(),
+    ),
+  );
+  await pumpUntilSessionKnown(tester);
+}
+
+/// Waits for the session's `GET /auth/me` to land without waiting for the
+/// animations `pumpAndSettle` insists on — the account row's skeleton pulses
+/// forever, so settling is not always available.
+Future<void> pumpUntilSessionKnown(WidgetTester tester) async {
+  for (var i = 0; i < 30; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+  }
 }
