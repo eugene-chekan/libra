@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:libra_client/session/session.dart';
+import 'package:libra_client/api/fake_libra_api.dart';
+import 'package:libra_client/api/models.dart';
 import 'package:libra_client/shell/account_row.dart';
 import 'package:libra_client/shell/add_book_button.dart';
 import 'package:libra_client/shell/sidebar.dart';
@@ -9,21 +10,22 @@ import 'package:libra_client/widgets/skeleton.dart';
 
 import '../helpers.dart';
 
-const _reader = SessionUser(id: 2, username: 'eugene', isAdmin: false);
-const _admin = SessionUser(id: 1, username: 'ada', isAdmin: true);
-
 Future<void> pumpSidebar(
   WidgetTester tester, {
   String location = '/',
-  SessionUser? user,
+  CurrentUser? user,
+  bool signedIn = true,
   ValueChanged<String>? onNavigate,
-}) {
+  bool settle = true,
+}) async {
   useDesignViewport(tester);
-  return pumpLibra(
+  await pumpLibra(
     tester,
     LibraSidebar(location: location, onNavigate: onNavigate ?? (_) {}),
-    user: user,
+    api: FakeLibraApi(user: user ?? testReader, signedIn: signedIn),
+    settle: false,
   );
+  if (settle) await pumpUntilSessionKnown(tester);
 }
 
 void main() {
@@ -52,9 +54,8 @@ void main() {
     expect(_isActive(tester, 'Librarian'), isFalse);
   });
 
-  testWidgets('keeps Library lit on a book detail route', (tester) async {
-    // `/` is matched exactly — a prefix match would light every route — but a
-    // book still belongs to the library as far as the nav is concerned.
+  testWidgets('keeps Library unlit on a book detail route', (tester) async {
+    // `/` is matched exactly — a prefix match would light every route.
     await pumpSidebar(tester, location: '/books/7');
 
     expect(_isActive(tester, 'Library'), isFalse);
@@ -63,20 +64,22 @@ void main() {
 
   group('pinned footer', () {
     testWidgets('holds Add Book and the account row', (tester) async {
-      await pumpSidebar(tester, user: _reader);
+      await pumpSidebar(tester);
 
       expect(find.byType(AddBookButton), findsOneWidget);
       expect(find.byType(AccountRow), findsOneWidget);
     });
 
     testWidgets('does not scroll with the nav', (tester) async {
-      await pumpSidebar(tester, user: _reader);
+      await pumpSidebar(tester);
 
       // Sign-out must be reachable without hunting, which is the whole reason
       // the footer left the scrollable column.
-      final scroller = find.byType(SingleChildScrollView);
       expect(
-        find.descendant(of: scroller, matching: find.byType(AccountRow)),
+        find.descendant(
+          of: find.byType(SingleChildScrollView),
+          matching: find.byType(AccountRow),
+        ),
         findsNothing,
       );
     });
@@ -84,28 +87,29 @@ void main() {
 
   group('account row', () {
     testWidgets('shows a skeleton before the session resolves', (tester) async {
-      await pumpSidebar(tester);
-      await tester.pump();
+      // No settle: this is the cold-load window, before `/auth/me` answers.
+      await pumpSidebar(tester, settle: false);
 
       expect(find.byType(LibraSkeletonLine), findsOneWidget);
+      expect(find.text('eugene'), findsNothing);
     });
 
     testWidgets('shows the username and its initial', (tester) async {
-      await pumpSidebar(tester, user: _reader);
+      await pumpSidebar(tester);
 
       expect(find.text('eugene'), findsOneWidget);
       expect(find.text('E'), findsOneWidget);
     });
 
     testWidgets('marks an admin', (tester) async {
-      await pumpSidebar(tester, user: _admin);
+      await pumpSidebar(tester, user: testAdmin);
 
       expect(find.text('ada'), findsOneWidget);
       expect(find.text('Admin'), findsOneWidget);
     });
 
     testWidgets('stays single-line for an ordinary reader', (tester) async {
-      await pumpSidebar(tester, user: _reader);
+      await pumpSidebar(tester);
 
       expect(find.text('Admin'), findsNothing);
     });

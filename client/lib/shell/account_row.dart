@@ -1,55 +1,99 @@
-/// The account row at the foot of the sidebar.
+/// The account row at the foot of the sidebar, and the menu it opens.
 ///
 /// This is the furniture gaps 1 and 2 both hang off: before it there was
 /// nowhere to sign out, and nowhere to reach user administration from.
 ///
-/// The row is built here; the dropdown it opens is #25, along with the session
-/// that fills it. Until then [sessionProvider] resolves to `null` and the row
-/// shows a skeleton in place of the username — which is not a placeholder for
-/// the sake of the scaffold but the state this row will genuinely be in on
-/// every cold load, before `GET /auth/me` answers.
+/// While `GET /auth/me` is still out the row shows a skeleton in place of the
+/// username — not a placeholder for the scaffold's sake but the state it is
+/// genuinely in on every cold load.
 library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../api/models.dart';
 import '../session/session.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
 import '../widgets/skeleton.dart';
 import '../widgets/tappable_row.dart';
+import '../widgets/upward_dropdown.dart';
+import 'kindle_email_modal.dart';
 
 class AccountRow extends ConsumerWidget {
-  const AccountRow({this.onTap, super.key});
-
-  /// Opens the account dropdown. Wired in #25; until then the row is inert
-  /// rather than absent, because the sidebar's shape is what this milestone is
-  /// for.
-  final VoidCallback? onTap;
+  const AccountRow({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(sessionProvider);
+    final user = ref.watch(currentUserProvider);
 
-    return LibraTappableRow(
-      onTap: onTap ?? () {},
-      semanticLabel: user == null ? 'Account' : 'Account: ${user.username}',
-      child: Row(
-        children: [
-          _Avatar(initial: user?.initial),
-          const SizedBox(width: 10),
-          Expanded(
-            child: user == null
-                ? const LibraSkeletonLine(widthFactor: 0.7, height: 12)
-                : _Identity(user: user),
+    return UpwardDropdown(
+      trigger: (context, open, node) => Focus(
+        focusNode: node,
+        child: LibraTappableRow(
+          // Inert until the session resolves: there is nothing to sign out of,
+          // and no way to know whether Manage Users belongs in the menu.
+          onTap: user == null ? () {} : open,
+          semanticLabel: user == null ? 'Account' : 'Account: ${user.username}',
+          child: Row(
+            children: [
+              _Avatar(initial: user?.initial),
+              const SizedBox(width: 10),
+              Expanded(
+                child: user == null
+                    ? const LibraSkeletonLine(widthFactor: 0.7, height: 12)
+                    : _Identity(user: user),
+              ),
+              const Icon(
+                Icons.keyboard_arrow_up,
+                size: 14,
+                color: LibraColors.textLight,
+              ),
+            ],
           ),
-          const Icon(
-            Icons.keyboard_arrow_up,
-            size: 14,
-            color: LibraColors.textLight,
-          ),
-        ],
+        ),
       ),
+      menuBuilder: (context, close) => _AccountMenu(close: close),
+    );
+  }
+}
+
+class _AccountMenu extends ConsumerWidget {
+  const _AccountMenu({required this.close});
+
+  final VoidCallback close;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(currentUserProvider);
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        DropdownRow(
+          label: 'Kindle Email…',
+          onTap: () {
+            close();
+            showKindleEmailModal(context);
+          },
+        ),
+        // Rendered only for an admin. The modal itself is #31; the entry point
+        // is here because the menu is what makes it reachable at all.
+        if (user?.isAdmin ?? false)
+          DropdownRow(label: 'Manage Users', onTap: close),
+        const DropdownDivider(),
+        DropdownRow(
+          label: 'Sign Out',
+          icon: Icons.logout,
+          muted: true,
+          onTap: () {
+            close();
+            // Clears state and revokes server-side; the router's redirect
+            // notices the anonymous session and moves to /login.
+            ref.read(sessionProvider.notifier).signOut();
+          },
+        ),
+      ],
     );
   }
 }
@@ -87,7 +131,7 @@ class _Avatar extends StatelessWidget {
 class _Identity extends StatelessWidget {
   const _Identity({required this.user});
 
-  final SessionUser user;
+  final CurrentUser user;
 
   @override
   Widget build(BuildContext context) {

@@ -375,7 +375,7 @@ is one.
 | 1 | `GET /books/{id}/file` | #22 | ✅ | Filename rebuilt from the catalog by the new `app/naming.py`, shared with Kindle delivery |
 | 1 | `DELETE /users/{id}` | #23 | ✅ | Hand-written cascade; no last-admin check, because admin-only plus no self-deletion makes it unreachable |
 | 2 | Scaffold | #24 | ✅ | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, Riverpod, skeleton/error/empty primitives, CI analyze + test. No `ThemeExtension` — see below |
-| 3 | API client + auth | #25 | | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
+| 3 | API client + auth | #25 | ✅ | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
 | 4 | Library grid + search | #26 | | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states |
 | 5 | Book detail | #27 | | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states |
 | 6 | Shelves page + shelf manager | #28 | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page |
@@ -395,6 +395,27 @@ order once #25 lands.
 has reached this API from outside the process, so cookie handling, CORS and
 every response shape get their first real test there. Expect it to find
 things; that is the point.
+
+What it actually found, now that it is done:
+
+- **The backend was fine.** Login, `/auth/me`, `PATCH /users/{id}`, the
+  `SameSite=lax` cookie and the credentialed CORS preflight all worked
+  first time against a real browser on a different origin. The one operational
+  requirement is that `LIBRA_CORS_ORIGINS` name the client's origin exactly;
+  recorded in [client README](../../client/README.md) because a blocked
+  preflight is indistinguishable from an unreachable server.
+- **The cold-load window needed its own route.** Letting a protected route
+  match while the session is still unknown mounts the shell for someone who may
+  not be allowed it, then tears it down — which churns the shell navigator's
+  `GlobalKey`, and from milestone 4 would fire every screen's initial load
+  before anyone knows whether there is a session. Redirecting to `/login`
+  instead would flash the login card on every refresh. Hence `/starting`, which
+  carries the intended destination through as `?next=`.
+- **The fire-once expiry rule needed a sharper test than "count the
+  notifications".** `SessionState`'s anonymous value is `const`, so repeated
+  assignments hand Riverpod the same canonical instance and get coalesced for
+  free — a broken guard passed a notification-counting test. The test now asks
+  each concurrent 401 whether *it* was the one that ended the session.
 
 **Milestone 2 dropped the `ThemeExtension`.** It was going to hold the tokens
 Material has no slot for — `accentHover`, `accentLighter`, `coverBg` — but the

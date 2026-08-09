@@ -17,6 +17,7 @@ dependencies:
   # handoff leaves both of those states undesigned and they would otherwise be
   # improvised per screen.
   flutter_riverpod: ^3.4.2
+  http: ^1.6.0
 
 dev_dependencies:
   flutter_test:
