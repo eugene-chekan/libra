@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlmodel import Session, select
 
+from app import library
 from app.auth import (
     current_user,
     get_user_by_username,
@@ -89,3 +90,27 @@ def update_user(
     session.commit()
     session.refresh(user)
     return user
+
+
+@router.delete("/{user_id}", status_code=204)
+def delete_user(
+    user_id: int,
+    session: Session = Depends(get_session),
+    caller: User = Depends(require_admin),
+) -> None:
+    """Remove an account and everything private to it.
+
+    Books they uploaded stay in the library with `uploaded_by` nulled; their
+    shelves, personal tags, reading state, notes and sessions go. Public
+    shelves vanish for everyone, which is the accepted visible consequence.
+
+    Refusing self-deletion is the API's job, not the interface's. The design
+    hides the control on the admin's own row, but hiding a button is a
+    courtesy and this is the guard.
+    """
+    try:
+        library.delete_user(session, user_id, caller)
+    except library.UserNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="User not found") from exc
+    except library.SelfDeletionError as exc:
+        raise HTTPException(status_code=409, detail="Cannot delete your own account") from exc

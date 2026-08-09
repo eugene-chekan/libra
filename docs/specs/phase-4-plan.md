@@ -373,7 +373,7 @@ is one.
 | 0 | Close the six design gaps | — | ✅ | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions |
 | 1 | Notes endpoints | #21 | ✅ | Over the table Phase 1 defined for exactly this — no migration needed, which was the point |
 | 1 | `GET /books/{id}/file` | #22 | ✅ | Filename rebuilt from the catalog by the new `app/naming.py`, shared with Kindle delivery |
-| 1 | `DELETE /users/{id}` | #23 | | Behaviour already specified, endpoint never exposed |
+| 1 | `DELETE /users/{id}` | #23 | ✅ | Hand-written cascade; no last-admin check, because admin-only plus no self-deletion makes it unreachable |
 | 2 | Scaffold | #24 | | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, `ThemeExtension`, Riverpod, skeleton/error/empty primitives, CI analyze + test |
 | 3 | API client + auth | #25 | | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
 | 4 | Library grid + search | #26 | | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states |
