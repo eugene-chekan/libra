@@ -20,8 +20,12 @@ import 'sidebar.dart';
 class AppShell extends ConsumerWidget {
   const AppShell({required this.location, required this.child, super.key});
 
-  /// Passed down rather than read off the context so the sidebar's active-row
-  /// logic is a pure function of a string, and testable without a router.
+  /// The full location *including* the query string, not just the matched path:
+  /// the sidebar's shelf and tag rows have to show which of them the current
+  /// filter selected, and that lives in the query.
+  ///
+  /// Passed down rather than read off the context so the sidebar stays a pure
+  /// function of a string, and testable without a router.
   final String location;
 
   final Widget child;

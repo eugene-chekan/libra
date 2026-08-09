@@ -376,7 +376,7 @@ is one.
 | 1 | `DELETE /users/{id}` | #23 | ✅ | Hand-written cascade; no last-admin check, because admin-only plus no self-deletion makes it unreachable |
 | 2 | Scaffold | #24 | ✅ | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, Riverpod, skeleton/error/empty primitives, CI analyze + test. No `ThemeExtension` — see below |
 | 3 | API client + auth | #25 | ✅ | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
-| 4 | Library grid + search | #26 | | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states |
+| 4 | Library grid + search | #26 | ✅ | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
 | 5 | Book detail | #27 | | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states |
 | 6 | Shelves page + shelf manager | #28 | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page |
 | 7 | Tag manager | #29 | | Shared / Mine split, `editable` respected, name-hashed colour swatches |
@@ -430,6 +430,23 @@ The collapsible SHELVES / SHARED WITH YOU / TAGS sections of the sidebar are
 **not** stubbed by milestone 2. They are #28 and #29, they need real data, and
 an empty section carrying invented copy would be harder to replace than
 nothing. Milestone 2 owns the frame: logo, primary nav, and the pinned footer.
+
+**Milestone 4 then took the SHELVES and TAGS lists**, because gap 4 makes them
+filters over the library grid rather than links to a management screen — they
+belong to whoever owns the grid. #28 and #29 keep the Shelves page, the SHARED
+WITH YOU section, and both manager modals.
+
+Two decisions worth recording from milestone 4:
+
+- **The library moved to `/library`**, with `/` redirecting, so the filter can
+  live in the query string. A filtered view is then linkable, survives a
+  reload, and comes back with the back button — and the screen holds no filter
+  state of its own.
+- **Automatic provider retry is off.** Riverpod 3 retries a failed provider
+  indefinitely with backoff. The design specifies an error block with a "Try
+  again" button, and an invisible retry racing it is two mechanisms for one
+  job: the error flickers in and out and the reader cannot tell whether their
+  click did anything. Failure is reported once; retrying is the reader's call.
 
 ## Open questions
 

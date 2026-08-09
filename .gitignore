@@ -11,8 +11,11 @@ venv/
 *.db
 *.sqlite3
 
-# Stored ebook files
-library/
+# Stored ebook files. Anchored, because a bare `library/` matches any directory
+# with that name at any depth — it was silently swallowing the client's
+# `lib/library/` source folder, which is a feature, not a book store.
+/library/
+/backend/library/
 
 # Env
 .env

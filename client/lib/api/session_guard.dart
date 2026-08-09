@@ -11,6 +11,8 @@
 /// times and produce one state change, hence one redirect.
 library;
 
+import 'dart:typed_data';
+
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../session/session.dart';
@@ -59,6 +61,31 @@ class SessionAwareApi implements LibraApi {
   @override
   Future<CurrentUser> updateUser(int id, {String? kindleEmail}) =>
       _guard(() => inner.updateUser(id, kindleEmail: kindleEmail));
+
+  @override
+  Future<BookPage> listBooks({
+    String? query,
+    List<int> tagIds = const [],
+    int? shelfId,
+    String sort = 'title',
+  }) => _guard(
+    () => inner.listBooks(
+      query: query,
+      tagIds: tagIds,
+      shelfId: shelfId,
+      sort: sort,
+    ),
+  );
+
+  @override
+  Future<List<Tag>> listTags() => _guard(inner.listTags);
+
+  @override
+  Future<List<Shelf>> listShelves() => _guard(inner.listShelves);
+
+  @override
+  Future<Uint8List?> coverBytes(int bookId) =>
+      _guard(() => inner.coverBytes(bookId));
 }
 
 /// What every screen from milestone 4 onwards uses.

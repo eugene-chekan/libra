@@ -7,6 +7,7 @@
 library;
 
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:http/http.dart' as http;
 
@@ -63,6 +64,64 @@ class HttpLibraApi implements LibraApi {
     return CurrentUser.fromJson(body as Map<String, dynamic>);
   }
 
+  @override
+  Future<BookPage> listBooks({
+    String? query,
+    List<int> tagIds = const [],
+    int? shelfId,
+    String sort = 'title',
+  }) async {
+    final body =
+        await _send(
+              'GET',
+              '/books',
+              query: {
+                if (query != null && query.trim().isNotEmpty) 'q': query.trim(),
+                if (tagIds.isNotEmpty) 'tags': tagIds.join(','),
+                if (shelfId != null) 'shelf_id': '$shelfId',
+                'sort': sort,
+              },
+            )
+            as Map<String, dynamic>;
+
+    return BookPage(
+      items: [
+        ...?(body['items'] as List?)?.map(
+          (e) => Book.fromJson(e as Map<String, dynamic>),
+        ),
+      ],
+      total: body['total'] as int? ?? 0,
+    );
+  }
+
+  @override
+  Future<List<Tag>> listTags() async {
+    final body = await _send('GET', '/tags') as List;
+    return [for (final e in body) Tag.fromJson(e as Map<String, dynamic>)];
+  }
+
+  @override
+  Future<List<Shelf>> listShelves() async {
+    final body = await _send('GET', '/shelves') as List;
+    return [for (final e in body) Shelf.fromJson(e as Map<String, dynamic>)];
+  }
+
+  @override
+  Future<Uint8List?> coverBytes(int bookId) async {
+    final http.Response response;
+    try {
+      response = await client.get(Uri.parse('$baseUrl/books/$bookId/cover'));
+    } on Exception {
+      throw const NetworkFailure();
+    }
+
+    // A 404 is the ordinary answer for a book whose file declares no cover, so
+    // it is null rather than an error. A 401 still has to reach the session.
+    if (response.statusCode == 404) return null;
+    _throwForStatus(response.statusCode, null);
+    return response.bodyBytes;
+  }
+
   /// Sends the request and returns the decoded body, or throws.
   ///
   /// Returns `null` for 204, which `/auth/logout` answers with.
@@ -70,8 +129,13 @@ class HttpLibraApi implements LibraApi {
     String method,
     String path, {
     Map<String, Object?>? body,
+    Map<String, String>? query,
   }) async {
-    final request = http.Request(method, Uri.parse('$baseUrl$path'));
+    var uri = Uri.parse('$baseUrl$path');
+    if (query != null && query.isNotEmpty) {
+      uri = uri.replace(queryParameters: query);
+    }
+    final request = http.Request(method, uri);
     if (body != null) {
       request.headers['content-type'] = 'application/json';
       request.body = jsonEncode(body);
