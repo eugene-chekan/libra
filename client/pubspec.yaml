@@ -1,0 +1,49 @@
+name: libra_client
+description: "libra web client"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  # Real, linkable routes. The design prototype switched a `page` string; the
+  # handoff explicitly asks for routable pages and a working back button.
+  go_router: ^17.4.0
+  # Chosen so the librarian service and the API client are one-line provider
+  # overrides in tests, and so loading/error arrive as an explicit type — the
+  # handoff leaves both of those states undesigned and they would otherwise be
+  # improvised per screen.
+  flutter_riverpod: ^3.4.2
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true
+
+  # Bundled, never fetched. A local-first application that needs the network to
+  # render text is a contradiction that would not survive review. Both families
+  # are OFL; the licences ship beside them.
+  fonts:
+    - family: Instrument Serif
+      fonts:
+        - asset: assets/fonts/InstrumentSerif-Regular.ttf
+          weight: 400
+    # Static instances rather than the variable DMSans[opsz,wght].ttf, so that
+    # `fontWeight` alone selects the right face without every TextStyle having
+    # to carry a FontVariation.
+    - family: DM Sans
+      fonts:
+        - asset: assets/fonts/DMSans-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/DMSans-Medium.ttf
+          weight: 500
+        - asset: assets/fonts/DMSans-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/DMSans-Bold.ttf
+          weight: 700

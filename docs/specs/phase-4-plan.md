@@ -374,7 +374,7 @@ is one.
 | 1 | Notes endpoints | #21 | ✅ | Over the table Phase 1 defined for exactly this — no migration needed, which was the point |
 | 1 | `GET /books/{id}/file` | #22 | ✅ | Filename rebuilt from the catalog by the new `app/naming.py`, shared with Kindle delivery |
 | 1 | `DELETE /users/{id}` | #23 | ✅ | Hand-written cascade; no last-admin check, because admin-only plus no self-deletion makes it unreachable |
-| 2 | Scaffold | #24 | | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, `ThemeExtension`, Riverpod, skeleton/error/empty primitives, CI analyze + test |
+| 2 | Scaffold | #24 | ✅ | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, Riverpod, skeleton/error/empty primitives, CI analyze + test. No `ThemeExtension` — see below |
 | 3 | API client + auth | #25 | | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
 | 4 | Library grid + search | #26 | | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states |
 | 5 | Book detail | #27 | | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states |
@@ -395,6 +395,20 @@ order once #25 lands.
 has reached this API from outside the process, so cookie handling, CORS and
 every response shape get their first real test there. Expect it to find
 things; that is the point.
+
+**Milestone 2 dropped the `ThemeExtension`.** It was going to hold the tokens
+Material has no slot for — `accentHover`, `accentLighter`, `coverBg` — but the
+design is a single fixed palette with no dark mode drawn, and theming is not a
+project goal. With no second implementation behind it, the extension would only
+re-expose `LibraColors` through a context lookup: indirection for its own sake,
+the same thing as the redundant tag filter deleted in #9. Widgets read the
+token classes directly, and `lib/theme/theme.dart` records where an extension
+goes if a second palette is ever designed.
+
+The collapsible SHELVES / SHARED WITH YOU / TAGS sections of the sidebar are
+**not** stubbed by milestone 2. They are #28 and #29, they need real data, and
+an empty section carrying invented copy would be harder to replace than
+nothing. Milestone 2 owns the frame: logo, primary nav, and the pinned footer.
 
 ## Open questions
 
