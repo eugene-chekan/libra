@@ -13,7 +13,7 @@ users.
 
 ## Phased scope
 
-**Phase 1 — Backend core (diploma months 1–2)**
+**Phase 1 — Backend core (diploma months 1–2) — COMPLETE**
 - FastAPI app, book metadata CRUD, local file storage, SQLite persistence
 - Alembic migrations
 - Multi-user: password auth, sessions, an admin role, per-user reading state

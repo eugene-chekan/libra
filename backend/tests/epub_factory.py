@@ -29,6 +29,7 @@ OPF_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
   </metadata>
   <manifest>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+{manifest_extra}
   </manifest>
   <spine/>
 </package>
@@ -85,6 +86,13 @@ def build_epub(
     # Arbitrary verbatim <meta>/<dc:*> lines, for the cases a named keyword
     # would not cover: opf:event, refines, EPUB 2 <meta name=.../>.
     extra_meta: list[str] | None = None,
+    # None writes no cover at all — the state of plenty of real books.
+    # "epub3" declares it with properties="cover-image"; "epub2" with a
+    # <meta name="cover"> pointing at a manifest id. Both are common.
+    cover: str | None = None,
+    cover_bytes: bytes = b"\x89PNG\r\n\x1a\n fake image data",
+    cover_media_type: str = "image/png",
+    cover_href: str = "images/cover.png",
     opf_path: str = "OEBPS/content.opf",
     mimetype: str | None = "application/epub+zip",
     include_container: bool = True,
@@ -96,7 +104,17 @@ def build_epub(
     creators = ["Frank Herbert"] if creators is None else creators
     identifiers = ["urn:isbn:9780441013593"] if identifiers is None else identifiers
     subjects = ["Science Fiction"] if subjects is None else subjects
-    extra_meta = [] if extra_meta is None else extra_meta
+    extra_meta = list(extra_meta or [])
+    manifest_extra = ""
+
+    if cover is not None:
+        properties = ' properties="cover-image"' if cover == "epub3" else ""
+        manifest_extra = (
+            f'    <item id="cover-img" href="{cover_href}" '
+            f'media-type="{cover_media_type}"{properties}/>'
+        )
+        if cover == "epub2":
+            extra_meta.append('<meta name="cover" content="cover-img"/>')
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
@@ -124,11 +142,17 @@ def build_epub(
                         subjects,
                         pages,
                         extra_meta,
-                    )
+                    ),
+                    manifest_extra=manifest_extra,
                 )
             )
             archive.writestr(opf_path, body)
         archive.writestr("OEBPS/nav.xhtml", "<html><body><nav/></body></html>")
+        if cover is not None:
+            # Written where the OPF's directory says, since the manifest href
+            # is relative to the OPF rather than the zip root.
+            opf_dir = opf_path.rsplit("/", 1)[0] if "/" in opf_path else ""
+            archive.writestr(f"{opf_dir}/{cover_href}" if opf_dir else cover_href, cover_bytes)
     return path
 
 

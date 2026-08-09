@@ -19,9 +19,10 @@ from pathlib import Path
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
-from app import mailer, storage
+from app import epub, mailer, storage
 from app.config import Settings
 from app.models import (
+    COVER_MEDIA_TYPES,
     SHELF_PUBLIC,
     SORT_ADDED,
     SORT_TITLE,
@@ -87,6 +88,17 @@ class ShadowsGlobalTagError(Exception):
     """
 
 
+class NoCoverError(Exception):
+    """This book has no usable cover.
+
+    Covers a file that declares none, one whose image is missing from the
+    archive, and one whose declared media type is not an image. All three are
+    the same thing to a caller — there is nothing to show — and the last is
+    deliberately not distinguished, since "this book's cover is the wrong
+    type" is server-side detail.
+    """
+
+
 class AttachmentTooLargeError(Exception):
     """The encoded message would exceed what Send to Kindle accepts."""
 
@@ -104,6 +116,12 @@ def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = 
     """
     view = BookRead.model_validate(book, from_attributes=True)
     view.tag_ids = tag_ids or []
+    # Derived from what the parse recorded, so it costs no extra query and
+    # cannot disagree with what the cover endpoint would actually serve.
+    view.has_cover = bool(
+        book.book_metadata.get("cover_href")
+        and book.book_metadata.get("cover_media_type") in COVER_MEDIA_TYPES
+    )
     if state is not None:
         view.shelf_id = state.shelf_id
         view.rating = state.rating
@@ -130,6 +148,36 @@ def list_books(session: Session, user: User) -> list[BookRead]:
     """Every book, each carrying `user`'s own state. Unfiltered `search_books`."""
     items, _ = search_books(session, user)
     return items
+
+
+def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, str, str]:
+    """A book's cover image, its media type, and an ETag.
+
+    Read from the archive on demand rather than extracted to disk at upload:
+    that keeps exactly one file per book on disk, so `DELETE /books/{id}` has
+    one artifact to clean up rather than two.
+
+    The bytes come from a file a user uploaded and are served from the API's
+    own origin — which now carries a session cookie — so the media type is
+    checked against an allowlist rather than trusted. A book archive that
+    declares its "cover" as text/html would otherwise be stored XSS with a
+    session to steal.
+    """
+    href = book.book_metadata.get("cover_href")
+    media_type = book.book_metadata.get("cover_media_type")
+    if not href or media_type not in COVER_MEDIA_TYPES:
+        raise NoCoverError
+
+    path = storage.resolve(book.file_path, settings.library_dir)
+    try:
+        data = epub.read_cover(path, href, settings.max_cover_bytes)
+    except (epub.InvalidEpubError, FileNotFoundError) as exc:
+        raise NoCoverError from exc
+
+    # Free and stable: the file's hash already identifies its contents, and
+    # the href distinguishes covers within one archive.
+    etag = f'"{book.book_metadata.get("sha256", book.id)}-{href}"'
+    return data, media_type, etag
 
 
 def search_books(
