@@ -137,7 +137,7 @@ void main() {
       await _signIn(tester);
 
       expect(find.byType(LibraSidebar), findsOneWidget);
-      expect(find.text('Library arrives with #26.'), findsOneWidget);
+      expect(find.text('Your library is empty'), findsOneWidget);
     });
 
     testWidgets('returns to next rather than the library', (tester) async {
@@ -147,7 +147,7 @@ void main() {
       // The whole point of carrying `next`: a reader whose session expired
       // mid-task comes back to the task.
       expect(find.text('Shelves arrives with #28.'), findsOneWidget);
-      expect(find.text('Library arrives with #26.'), findsNothing);
+      expect(find.text('Your library is empty'), findsNothing);
     });
   });
 

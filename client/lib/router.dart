@@ -29,6 +29,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'library/filter.dart';
+import 'library/library_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/pending_screen.dart';
 import 'session/session.dart';
@@ -48,10 +50,13 @@ const startingRoute = '/starting';
 /// screen and the redirect cannot disagree about it.
 const nextParam = 'next';
 
-/// `path`, carrying `target` as `next` — unless `target` is nothing or `/`,
-/// which is where these routes send people anyway.
+/// `path`, carrying `target` as `next` — unless `target` is where these routes
+/// send people anyway, in which case it would only add noise to the URL.
 String _withNext(String path, String? target) =>
-    (target == null || target.isEmpty || target == '/')
+    (target == null ||
+        target.isEmpty ||
+        target == '/' ||
+        target == libraryRoute)
     ? path
     : Uri(path: path, queryParameters: {nextParam: target}).toString();
 
@@ -75,7 +80,7 @@ GoRouter buildRouter(Ref ref, {String initialLocation = '/'}) {
       // The session just resolved; send them where they were going.
       if (here == startingRoute) {
         return session.isAuthenticated
-            ? (next ?? '/')
+            ? (next ?? libraryRoute)
             : _withNext(loginRoute, next);
       }
 
@@ -87,7 +92,11 @@ GoRouter buildRouter(Ref ref, {String initialLocation = '/'}) {
 
       // Signed in and sitting on /login — either they just authenticated or
       // they typed the address. Either way, forward to `next`, else home.
-      if (here == loginRoute) return next ?? '/';
+      if (here == loginRoute) return next ?? libraryRoute;
+
+      // `/` is a convenience address only; the library's real route carries the
+      // filter, so everything else can link to it without special-casing.
+      if (here == '/') return libraryRoute;
 
       return null;
     },
@@ -103,12 +112,21 @@ GoRouter buildRouter(Ref ref, {String initialLocation = '/'}) {
       ),
       ShellRoute(
         builder: (context, state, child) =>
-            AppShell(location: state.matchedLocation, child: child),
+            AppShell(location: state.uri.toString(), child: child),
         routes: [
+          // Only ever reached for the redirect above; `/` needs to match a
+          // route inside the shell for the redirect to fire at all.
           GoRoute(
             path: '/',
-            builder: (context, state) =>
-                const PendingScreen(title: 'Library', issue: '#26'),
+            builder: (context, state) => const SizedBox.shrink(),
+          ),
+          GoRoute(
+            path: libraryRoute,
+            builder: (context, state) => LibraryScreen(
+              filter: LibraryFilter.fromQueryParameters(
+                state.uri.queryParameters,
+              ),
+            ),
           ),
           GoRoute(
             path: '/shelves',

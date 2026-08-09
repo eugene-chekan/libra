@@ -59,6 +59,7 @@ lib/
 ├── router.dart        # go_router, the shell route, and the auth guard
 ├── api/               # LibraApi + its HTTP and fake implementations
 ├── session/           # the signed-in reader and the expiry rule
+├── library/           # the grid, its filter (which lives in the URL), search
 ├── theme/             # tokens, type scale, and the Material theme built from them
 ├── shell/             # sidebar, nav rows, the pinned footer and its account row
 ├── screens/           # one file per route
@@ -76,6 +77,8 @@ server.
 - **#25 — API client and auth.** Typed client, credentialed cookies, login,
   route guards, session expiry, the account dropdown, sign-out, and the Kindle
   address modal.
+- **#26 — library grid and search.** Cover grid with gradient fallbacks, search
+  with `#tag` autocomplete, sidebar shelf/tag filters, and the filter summary.
 
 Everything else is a `PendingScreen` naming the issue that replaces it, so the
 gap between the frame and the app is visible rather than blank.

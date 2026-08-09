@@ -16,7 +16,9 @@ void main() {
     await pumpApp(tester, api: _signedIn());
 
     expect(find.byType(LibraSidebar), findsOneWidget);
-    expect(find.text('Library arrives with #26.'), findsOneWidget);
+    // `/` redirects to the library, which with no books shows its first-run
+    // state rather than an empty grid.
+    expect(find.text('Your library is empty'), findsOneWidget);
   });
 
   // One app per test: replacing a mounted MaterialApp.router leaves the
@@ -39,13 +41,13 @@ void main() {
 
   testWidgets('a nav row changes the route under one shell', (tester) async {
     await pumpApp(tester, api: _signedIn());
-    expect(find.text('Library arrives with #26.'), findsOneWidget);
+    expect(find.text('Your library is empty'), findsOneWidget);
 
     await tester.tap(find.text('Shelves'));
     await pumpUntilSessionKnown(tester);
 
     expect(find.text('Shelves arrives with #28.'), findsOneWidget);
-    expect(find.text('Library arrives with #26.'), findsNothing);
+    expect(find.text('Your library is empty'), findsNothing);
     // One sidebar throughout: the content pane swapped inside the shell rather
     // than the whole frame being rebuilt.
     expect(find.byType(LibraSidebar), findsOneWidget);
@@ -58,9 +60,9 @@ void main() {
     await pumpUntilSessionKnown(tester);
     expect(find.text('Shelves arrives with #28.'), findsOneWidget);
 
-    await _browserNavigateTo(tester, '/');
+    await _browserNavigateTo(tester, '/library');
 
-    expect(find.text('Library arrives with #26.'), findsOneWidget);
+    expect(find.text('Your library is empty'), findsOneWidget);
   });
 
   testWidgets('an unknown address gets the not-found page', (tester) async {

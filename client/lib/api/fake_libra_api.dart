@@ -10,6 +10,8 @@
 /// everything tests nothing.
 library;
 
+import 'dart:typed_data';
+
 import 'exceptions.dart';
 import 'libra_api.dart';
 import 'models.dart';
@@ -19,6 +21,10 @@ class FakeLibraApi implements LibraApi {
     CurrentUser? user,
     this.password = 'correct-horse',
     this.signedIn = false,
+    List<Book>? books,
+    List<Tag>? tags,
+    List<Shelf>? shelves,
+    this.covers = const {},
   }) : user =
            user ??
            const CurrentUser(
@@ -26,9 +32,25 @@ class FakeLibraApi implements LibraApi {
              username: 'eugene',
              isAdmin: false,
              kindleSender: 'libra@example.com',
-           );
+           ),
+       books = books ?? [],
+       tags = tags ?? [],
+       shelves = shelves ?? [];
 
   CurrentUser user;
+  List<Book> books;
+  List<Tag> tags;
+  List<Shelf> shelves;
+
+  /// Book id → cover bytes. A book absent from this map has no cover, which is
+  /// the 404 the real endpoint answers with.
+  Map<int, Uint8List> covers;
+
+  /// Records the arguments of the last [listBooks] call, so a test can assert
+  /// what the client *sent* — the filter merge is the client's whole job here,
+  /// and asserting on the rendered result would not distinguish "sent the right
+  /// filter" from "filtered locally".
+  ({String? query, List<int> tagIds, int? shelfId, String sort})? lastQuery;
 
   /// The one password [login] accepts. Anything else throws [Unauthorized],
   /// exactly as a wrong password and an unknown username both do server-side.
@@ -43,6 +65,14 @@ class FakeLibraApi implements LibraApi {
   /// single stale request rather than a permanently broken server.
   ApiException? failNextWith;
 
+  /// Set to make *every* call fail until cleared.
+  ///
+  /// Needed because Riverpod retries a failed provider on its own: a one-shot
+  /// failure is swallowed by the retry succeeding, which is the right
+  /// behaviour for a blip but means a test of the error state has to model a
+  /// server that is actually down.
+  ApiException? failAlwaysWith;
+
   /// Every call, in order — lets a test assert that logout actually reached the
   /// server rather than only clearing local state.
   final calls = <String>[];
@@ -55,9 +85,9 @@ class FakeLibraApi implements LibraApi {
     calls.add(name);
     if (gate != null) await gate;
 
-    final failure = failNextWith;
+    final failure = failAlwaysWith ?? failNextWith;
     if (failure != null) {
-      failNextWith = null;
+      if (failure == failNextWith) failNextWith = null;
       if (failure is Unauthorized) signedIn = false;
       throw failure;
     }
@@ -106,4 +136,54 @@ class FakeLibraApi implements LibraApi {
         );
         return user;
       });
+
+  /// Applies the server's own semantics: tags **OR** each other, then `q` and
+  /// `shelf_id` **AND** against that. A fake that ignored them would let a
+  /// filter bug pass every test.
+  @override
+  Future<BookPage> listBooks({
+    String? query,
+    List<int> tagIds = const [],
+    int? shelfId,
+    String sort = 'title',
+  }) => _call('listBooks', () {
+    _requireSession();
+    lastQuery = (query: query, tagIds: tagIds, shelfId: shelfId, sort: sort);
+
+    final needle = query?.trim().toLowerCase();
+    final matched = books.where((b) {
+      if (tagIds.isNotEmpty && !tagIds.any(b.tagIds.contains)) return false;
+      if (shelfId != null && b.shelfId != shelfId) return false;
+      if (needle != null && needle.isNotEmpty) {
+        final hay = '${b.title} ${b.author}'.toLowerCase();
+        if (!hay.contains(needle)) return false;
+      }
+      return true;
+    }).toList();
+
+    matched.sort(
+      sort == 'added'
+          ? (a, b) => b.id.compareTo(a.id)
+          : (a, b) => a.title.toLowerCase().compareTo(b.title.toLowerCase()),
+    );
+    return BookPage(items: matched, total: matched.length);
+  });
+
+  @override
+  Future<List<Tag>> listTags() => _call('listTags', () {
+    _requireSession();
+    return tags;
+  });
+
+  @override
+  Future<List<Shelf>> listShelves() => _call('listShelves', () {
+    _requireSession();
+    return shelves;
+  });
+
+  @override
+  Future<Uint8List?> coverBytes(int bookId) => _call('coverBytes', () {
+    _requireSession();
+    return covers[bookId];
+  });
 }
