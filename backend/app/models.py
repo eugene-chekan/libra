@@ -375,13 +375,17 @@ class UserBookStateWrite(SQLModel):
 
 
 class Note(SQLModel, table=True):
-    """A reader's note or highlight. No endpoints until Phase 2.
+    """A reader's note or highlight.
 
-    The table exists now because Phase 2 builds RAG ingestion over these same
-    tables, and adding it then would mean a schema change at exactly the
-    moment the vector store is being wired up. Highlights are also unusually
-    good retrieval material — they are the passages a reader already decided
-    were worth keeping.
+    The table was defined in Phase 1 with no endpoints, because Phase 2 builds
+    RAG ingestion over these same tables and adding it then would mean a
+    schema change at exactly the moment the vector store is being wired up.
+    Highlights are also unusually good retrieval material — they are the
+    passages a reader already decided were worth keeping.
+
+    The endpoints arrived in Phase 4 rather than Phase 2, once the Book Detail
+    design turned out to need them. Defining the shape early is what made that
+    cheap.
     """
 
     id: int | None = Field(default=None, primary_key=True)
@@ -390,6 +394,42 @@ class Note(SQLModel, table=True):
     text: str
     page: int | None = Field(default=None)
     created_at: datetime = Field(default_factory=utcnow)
+
+
+class NoteCreate(SQLModel):
+    """The writable half of a note.
+
+    The `page` bound lives here rather than on `Note` because SQLModel does
+    not validate `table=True` classes — `Note(page=-5)` is accepted in
+    silence. The constraint only bites on a non-table model, which makes this
+    the one the endpoint takes.
+    """
+
+    text: str
+    page: int | None = Field(default=None, ge=1)
+
+
+class NoteUpdate(SQLModel):
+    """Every field optional, so a caller may send only what changed.
+
+    `page` is nullable *and* clearable, so an explicit null has to be
+    distinguishable from an omitted key. `exclude_unset` in the router is what
+    tells them apart, the same way `shelf_id` works on reading state.
+    """
+
+    text: str | None = None
+    page: int | None = Field(default=None, ge=1)
+
+
+class NoteRead(SQLModel):
+    """No `user_id`: every note a caller can read is their own, so publishing
+    the field would only ever restate the session."""
+
+    id: int
+    book_id: int
+    text: str
+    page: int | None
+    created_at: datetime
 
 
 class UserCreate(SQLModel):
