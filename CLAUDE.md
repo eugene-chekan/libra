@@ -11,13 +11,16 @@ build window, so code quality, structure, and testability are treated as
 first-class concerns — this needs to hold up to committee scrutiny, not just
 "work on my machine."
 
-Only **Phase 1 (backend core)** is underway; see `docs/architecture.md` for
-the full 5-phase roadmap (RAG → librarian agent → Flutter web client →
-desktop/mobile) and `docs/evaluation.md` for how each phase's evaluation
-methodology is meant to be built alongside the implementation, not
-retrofitted after.
+**Phase 1 (backend core)** is done bar format conversion, and **Phase 4 (the
+Flutter web client)** is underway — it was deliberately reordered ahead of RAG
+and the agent, see `docs/specs/phase-4-plan.md` for why. See
+`docs/architecture.md` for the full 5-phase roadmap and `docs/evaluation.md`
+for how each phase's evaluation methodology is meant to be built alongside the
+implementation, not retrofitted after.
 
 ## Commands
+
+### Backend
 
 All commands run from `backend/`.
 
@@ -32,6 +35,23 @@ uv run ruff format .               # format
 ```
 
 Docker: `docker compose -f scripts/docker-compose.yml up --build` (from repo root).
+
+### Client
+
+All commands run from `client/`. Flutter 3.44.9 — pinned in CI, and the
+version `pubspec.lock` was resolved with.
+
+```bash
+flutter pub get                   # install deps
+flutter run -d chrome             # run against a backend on localhost:8000
+flutter test                      # run the full suite
+flutter test test/router_test.dart   # single file
+flutter analyze                   # lint
+dart format .                     # format
+```
+
+CI additionally runs `dart format --output=none --set-exit-if-changed .`, so
+format before pushing or the client job fails on whitespace.
 
 ### Git hooks
 
