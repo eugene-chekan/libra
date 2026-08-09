@@ -483,8 +483,8 @@ alongside prose rather than only inside it.
 
 ## Gap 6 — The book detail action row
 
-The design drew three buttons. With `GET /books/{id}/file` and Send to Kindle
-there are four, which does not fit the drawn row at 1024px.
+The design drew three buttons. There are now five, which does not fit the
+drawn row at 1024px.
 
 **Two rows, split on meaning** — not wrapped:
 
@@ -492,10 +492,16 @@ there are four, which does not fit the drawn row at 1024px.
 10px gap.
 - **Primary**, `accent` fill, white, hover `accentHover`. Label keeps the
   handoff's three states: "Start Reading" at `progress == 0`, "Continue
-  Reading" between, "Read Again" at 1. It downloads the EPUB via
-  `GET /books/{id}/file`.
-- **Send to Kindle**, outlined: 1.5px `border`, `card` fill, `textMid`, hover
-  → `accent` border and text.
+  Reading" between, "Read Again" at 1. It opens the reader at `/books/:id/read`,
+  resuming where the reader left off.
+- **Download**, outlined: 1.5px `border`, `card` fill, `textMid`, hover →
+  `accent` border and text. `GET /books/{id}/file`.
+- **Send to Kindle**, same outlined treatment.
+
+The three-state label was very nearly attached to the download button. It
+would have been a small lie — a reader clicking "Start Reading" and finding a
+file in their Downloads folder — and it is the reason the reader exists at
+all. Now the label is true, and Download says exactly what it does.
 
 **Row 2 — how you file it.** 12px below row 1, 9px/18px padding, 13px labels,
 same outlined treatment.
@@ -527,6 +533,42 @@ reasons outside the app.
 no other state is showing, an 11px `textLight` line below the row reads "Last
 sent {relative time}". It is the answer to "did I already send this?", which
 is the question a reader actually has.
+
+---
+
+## Gap 7 — The reader
+
+Nothing drew this screen because nothing planned a reader. It is specified
+alongside milestone 12 rather than here — the screen and the code that fills
+it are one piece of work — but it is held to the same standard, and these are
+the decisions it has to make before any of it is built.
+
+**The frame.** A reader is the one screen where the application's own
+furniture is in the way. Whether the sidebar stays, collapses, or disappears
+into a hover-revealed strip is the first question, and the honest default is
+that it goes: 240px of navigation beside a column of prose is 240px of
+distraction.
+
+**The measure.** Prose wants roughly 60–75 characters a line. The library grid
+fills its pane; the reader must not. A centred column is the one place in this
+application where centring is right, because the reader's eye is the only
+thing being aligned to.
+
+**What the chrome is.** At minimum: back to the book, table of contents, font
+size. Whether it is always visible or fades on scroll is a real choice, and
+fading chrome needs a way back that is not "guess where to move the mouse".
+
+**Progress made visible.** The reading progress panel on the detail screen
+now reflects something observed rather than declared, and the reader should
+show its own position — a thin `accent` rule against `border`, at the top or
+bottom edge, is enough. Percentage rather than pages: see the plan's reader
+section for why pagination is not attempted.
+
+**What it must not become.** Themes, margins, line-height controls, dictionary
+lookup, annotation-from-selection. Each is defensible and none is in scope.
+The one exception worth arguing for later is **highlight-to-note**, because
+the `Note` table and its endpoints already exist and the passage a reader
+selects is exactly what Phase 2 wants to ingest.
 
 ---
 

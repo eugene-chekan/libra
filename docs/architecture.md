@@ -72,10 +72,16 @@ this phase.
   not built — see [specs/phase-4-plan.md](specs/phase-4-plan.md)
 - Carries a small amount of backend work, because the design needs three
   things Phase 1 did not build: notes endpoints (over the `Note` table, which
-  was defined early for exactly this reason), `GET /books/{id}/file` — nothing
-  currently serves book content and no phase plans an in-browser reader — and
+  was defined early for exactly this reason), `GET /books/{id}/file`, and
   `DELETE /users/{id}`, whose behaviour was already specified but never
   exposed. All land before any client screen depends on them
+- **Includes an in-browser EPUB reader**, added to scope on 2026-08-09. The
+  spine parsing lives in `app/epub.py` rather than the client because Phase 2's
+  chunker needs the same walk — one parser, two projections. Rendering is
+  `flutter_html` into widgets rather than epub.js into a DOM, since book
+  markup comes from an uploaded file and would otherwise be stored XSS on an
+  origin carrying a session cookie. The real gain is that reading progress
+  becomes observed rather than typed in by the reader
 - The design work is done up front rather than alongside: see
   [specs/client-design.md](specs/client-design.md), which closes the six
   surfaces the handoff never drew and restores the design tokens into the

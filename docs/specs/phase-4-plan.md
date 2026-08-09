@@ -61,13 +61,21 @@ Conversely the design has **no Send to Kindle control at all**, which is a
 strange gap in an app built around Kindle delivery.
 
 *Decision:* add `GET /books/{id}/file`, serving the EPUB as an attachment. The
-design keeps its three-state primary button and its label; the button
-downloads, and the reader is whatever the user already uses. Send to Kindle
-joins the action row as an outlined secondary. The endpoint mirrors the cover
-route — authenticated, resolved through `storage.resolve()`, `FileResponse`.
-The one new concern is `Content-Disposition`: the original filename in
-`book_metadata` is client-supplied and must be sanitized before it reaches a
-header, not echoed.
+endpoint mirrors the cover route — authenticated, resolved through
+`storage.resolve()`, `FileResponse`. The one new concern is
+`Content-Disposition`: the original filename in `book_metadata` is
+client-supplied, so the offered name is rebuilt from the catalog by
+`app/naming.py` rather than echoed.
+
+***Revised 2026-08-09, later the same day: an in-browser reader is in scope
+after all*** — milestones 11 and 12. The download endpoint stands and is
+unchanged; a reader who wants the file on their own device should not have to
+go through the browser. What changed is the reasoning above about the primary
+button, which had it downloading while keeping the label "Start Reading".
+That label was making a promise the application could not keep, and the fix
+turned out to be building the thing rather than renaming the button. The
+deeper win is that **progress stops being declared and becomes observed** —
+see the reader section below.
 
 **2. Notes are designed but have no endpoints.** The `Note` table exists —
 Phase 1 defined it deliberately and deferred the endpoints — while the detail
@@ -136,6 +144,44 @@ navigation placeholder is the whole of it.
 The distinction that decides what gets stubbed: **does the stub encode
 something known, or something guessed?** A chat is a chat. What a reader does
 to manage a vector store is not yet known.
+
+## The in-browser reader
+
+Added after the milestone list was drawn, so recorded here rather than folded
+in as though it were always planned.
+
+**Why it earns two milestones.** The download button was going to be labelled
+"Start Reading" and deliver a file to a Downloads folder, and the panel above
+it was going to show a progress bar the reader had to move by hand. Both are
+the same defect: the application asking to be told something it could observe.
+A reader makes `progress` a fact rather than a claim, which is worth more than
+the feature itself.
+
+**Where the parse lives: the backend.** Phase 2's chunker has to walk the
+spine to produce text; the reader walks it to produce markup. One parser, two
+projections. Unzipping in Dart would have been faster to ship and would have
+left the same walk written twice in two languages, with the RAG copy being the
+one nobody notices drifting.
+
+**Why Flutter renders it rather than epub.js.** `flutter_html` renders to
+widgets and executes no JavaScript. Book markup comes from an uploaded file
+and would be served from an origin carrying a session cookie, so putting it in
+a browser DOM is stored XSS — the hazard `cover_for`'s media-type allowlist
+already exists to prevent. epub.js is the more capable renderer and would have
+needed a separate origin or a strict sandbox to be safe. The Flutter path
+avoids the question instead of answering it.
+
+**Scrolling, not paginated.** Reflowed pagination with real page numbers is a
+project of its own and is not attempted. Progress is
+`(spine_index + scroll_fraction) / spine_count`, which fits the existing
+`0..1` float — no schema change, and no CFI-style locator to design. The
+Reading Progress panel therefore leads with a percentage and shows
+"≈ page N of M" only where `pages` happens to be known.
+
+**Accepted limitations**, stated here rather than discovered at defence:
+publisher CSS is approximated rather than honoured, which is fine for prose
+and poor for technical books with complex layout; and very large archives are
+capped.
 
 ## The stub boundary
 
@@ -210,6 +256,12 @@ design tokens into the working tree, settles the loading/error/empty-state
 conventions the handoff declined to invent, and states the accessibility
 baseline. Two decisions there reach back into the API: sidebar shelf clicks
 filter the library via `shelf_id`, and `DELETE /users/{id}` joins milestone 1.
+
+**A seventh gap opened the same day**: the reader screen, which nothing had
+drawn because nothing had planned a reader. It is designed as part of
+milestone 12 rather than retrofitted into milestone 0, since the screen and
+the code that fills it are one piece of work — but it is held to the same
+standard, and the section below records what it has to answer.
 
 The handoff specified five screens to a high standard and stopped there. These
 were missing and blocked the client regardless of when it is built:
@@ -331,6 +383,8 @@ is one.
 | 8 | Add Book | #30 | | Upload-first redesign |
 | 9 | User administration | #31 | | Admin-only modal, per-row commits, destructive delete dialog |
 | 10 | Librarian chat, stubbed | #32 | | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
+| 11 | EPUB chapters and resources | #35 | | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
+| 12 | In-browser reader | #36 | | `flutter_html` over the spine, TOC, scroll position written back as progress |
 
 The three milestone-1 issues and #24 are independent of everything; #25 gates
 every client milestone after it; #27 additionally waits on #21 and #22, and
