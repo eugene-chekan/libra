@@ -312,21 +312,30 @@ Phase 3's is not.
 
 ## Milestones
 
-One branch per milestone, as in Phase 1.
+One branch per feature, as in Phase 1. Milestone 1 spans three issues because
+its three endpoint groups are unrelated to each other; every other milestone
+is one.
 
-| # | Milestone | Status | Notes |
-|---|---|---|---|
-| 0 | Close the six design gaps | ✅ | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions |
-| 1 | Notes API, `GET /books/{id}/file`, `DELETE /users/{id}` | | Backend only. Done first so no client milestone ever blocks on it |
-| 2 | Scaffold | | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, `ThemeExtension`, Riverpod, skeleton/error/empty primitives, CI analyze + test |
-| 3 | API client + auth | | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
-| 4 | Library grid + search | | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states |
-| 5 | Book detail | | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states |
-| 6 | Shelves page + shelf manager | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page |
-| 7 | Tag manager | | Shared / Mine split, `editable` respected, name-hashed colour swatches |
-| 8 | Add Book | | Upload-first redesign |
-| 9 | User administration | | Admin-only modal, per-row commits, destructive delete dialog |
-| 10 | Librarian chat, stubbed | | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
+| # | Milestone | Issue | Status | Notes |
+|---|---|---|---|---|
+| 0 | Close the six design gaps | — | ✅ | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions |
+| 1 | Notes endpoints | #21 | | Over the table Phase 1 defined for exactly this |
+| 1 | `GET /books/{id}/file` | #22 | | Mirrors the cover route; the filename is the only new risk |
+| 1 | `DELETE /users/{id}` | #23 | | Behaviour already specified, endpoint never exposed |
+| 2 | Scaffold | #24 | | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, `ThemeExtension`, Riverpod, skeleton/error/empty primitives, CI analyze + test |
+| 3 | API client + auth | #25 | | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
+| 4 | Library grid + search | #26 | | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states |
+| 5 | Book detail | #27 | | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states |
+| 6 | Shelves page + shelf manager | #28 | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page |
+| 7 | Tag manager | #29 | | Shared / Mine split, `editable` respected, name-hashed colour swatches |
+| 8 | Add Book | #30 | | Upload-first redesign |
+| 9 | User administration | #31 | | Admin-only modal, per-row commits, destructive delete dialog |
+| 10 | Librarian chat, stubbed | #32 | | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
+
+The three milestone-1 issues and #24 are independent of everything; #25 gates
+every client milestone after it; #27 additionally waits on #21 and #22, and
+#31 on #23. Nothing else has a dependency, so 4 and 6–10 can be built in any
+order once #25 lands.
 
 **Milestone 3 is what the reordering was for.** It is the first time anything
 has reached this API from outside the process, so cookie handling, CORS and
