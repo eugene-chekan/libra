@@ -13,6 +13,14 @@ users.
 
 ## Phased scope
 
+**Execution order is 1 → 4 → 2 → 3.** The phase numbers below are unchanged,
+because they are referenced throughout the specs, but the client is being
+built before the RAG pipeline and the agent. Phase 1 finished in twelve days
+against a two-month budget, and the slack is better spent proving the API
+against a real client — nothing else has ever exercised it — than held in
+reserve. See [specs/phase-4-plan.md](specs/phase-4-plan.md), including which
+parts are stubbed and why RAG management is not among them.
+
 **Phase 1 — Backend core (diploma months 1–2) — COMPLETE**
 - FastAPI app, book metadata CRUD, local file storage, SQLite persistence
 - Alembic migrations
@@ -55,9 +63,13 @@ this phase.
   two is why library operations are written outside route handlers from
   Phase 1 onward — see [specs/layering.md](specs/layering.md).
 
-**Phase 4 — Web client (diploma months 5–6)**
+**Phase 4 — Web client** — *building now, ahead of Phases 2 and 3*
 - Flutter web client: library browsing, search, chat interface to the agent
 - This is the client shown at defense
+- The chat surface ships as a designed screen against a stubbed service; what
+  that stub has to answer becomes input to the Phase 3 spec rather than
+  something the agent decides alone. RAG management screens are deliberately
+  not built — see [specs/phase-4-plan.md](specs/phase-4-plan.md)
 
 **Phase 5 — Desktop/mobile (post-diploma, own pace)**
 - Same Flutter codebase, additional build targets
