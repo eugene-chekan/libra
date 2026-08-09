@@ -284,7 +284,7 @@ colour by cycling a fixed 12-swatch palette by list index. That is
 presentation, the palette is already documented in the handoff, and storing
 it would invent a colour-picking feature nothing designed.
 
-### `Note` — defined now, built in Phase 2
+### `Note` — defined now, built in Phase 4
 
 ```python
 class Note(SQLModel, table=True):
@@ -301,6 +301,13 @@ ingestion over these same tables, and adding a notes table *then* means a
 schema change at exactly the moment the vector store is being wired up.
 Highlights are also unusually good retrieval material — they are the passages
 a reader already decided were worth keeping.
+
+**Update (2026-08-09):** the endpoints moved forward to Phase 4 rather than
+Phase 2, because reordering put the client first and the designed Book Detail
+screen specifies a Notes & Highlights panel. Nothing about the reasoning
+changes — the table was defined ahead of its endpoints, and that is precisely
+what made building them cheap when the screen turned out to need them.
+See [phase-4-plan.md](phase-4-plan.md).
 
 Per-user, like everything else about reading rather than about the book.
 

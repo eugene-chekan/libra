@@ -30,6 +30,8 @@ Three reasons to spend it here:
 
 ### Real — backed by shipped endpoints
 
+The API is **17 paths / 26 operations** as of Phase 1's close.
+
 | Screen | Endpoints |
 |---|---|
 | Login, session expiry | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` |
@@ -41,6 +43,78 @@ Three reasons to spend it here:
 | Add book | `POST /books/upload` |
 | Send to Kindle | `POST /books/{id}/send-to-kindle` |
 | User administration | `GET/POST /users`, `PATCH /users/{id}` |
+
+Two endpoint groups are added in Phase 4 — see *Where the design and the API
+disagree* below: notes CRUD, and `GET /books/{id}/file`.
+
+## Where the design and the API disagree
+
+The handoff was drawn before the API existed, so six of its assumptions do not
+survive contact with what shipped. These are the decisions that shape the
+milestones, and none of them is cosmetic.
+
+**1. Nothing serves book content.** The book routes are `GET/PATCH/DELETE
+/books/{id}`, `/cover`, `/send-to-kindle`, `/state` — there is no download.
+The design's primary button ("Start Reading" / "Continue Reading" / "Read
+Again") therefore pointed at nothing, and no phase plans an in-browser reader.
+Conversely the design has **no Send to Kindle control at all**, which is a
+strange gap in an app built around Kindle delivery.
+
+*Decision:* add `GET /books/{id}/file`, serving the EPUB as an attachment. The
+design keeps its three-state primary button and its label; the button
+downloads, and the reader is whatever the user already uses. Send to Kindle
+joins the action row as an outlined secondary. The endpoint mirrors the cover
+route — authenticated, resolved through `storage.resolve()`, `FileResponse`.
+The one new concern is `Content-Disposition`: the original filename in
+`book_metadata` is client-supplied and must be sanitized before it reaches a
+header, not echoed.
+
+**2. Notes are designed but have no endpoints.** The `Note` table exists —
+Phase 1 defined it deliberately and deferred the endpoints — while the detail
+screen specifies a Notes & Highlights panel. The handoff hedges: *"Notes are
+hardcoded placeholder content in the prototype... confirm scope before
+building."*
+
+*Decision:* build the endpoints now. Unlike the librarian there is nothing to
+guess — the table already fixed the shape — and a second stub on an app that
+is already stubbing its headline feature is where a project starts reading as
+a demo.
+
+**3. The Add Book modal contradicts the upload pipeline.** The design is a
+manual metadata form with a **no-op** upload zone, and it offers "EPUB or
+PDF"; the API is upload-first and rejects PDF with a 415.
+
+*Decision:* redesign rather than port. Drop an EPUB → `POST /books/upload` →
+the server returns parsed metadata → the user confirms or corrects it. The
+client **never calls `POST /books`**: that endpoint takes a caller-supplied
+`file_path` and exists for CLI and import paths, which is exactly why
+`storage.resolve()` guards it.
+
+**4. Tag colours have no stable source.** The design cycles a fixed 12-swatch
+palette *by list index*, but the tag list interleaves global and personal tags
+in query order, so adding a tag would recolour its neighbours.
+
+*Decision:* hash the tag name to a swatch. Stable, no schema change, and the
+design never lets a user pick a colour. A user-chosen colour is a real feature
+needing a real column, and can be added when someone asks for it.
+
+**5. The manage modals assume everything is editable.** Ours has
+admin-curated global tags and other people's public shelves. The API already
+anticipated this — `TagRead.editable` and `ShelfRead.editable` both ship — but
+the design puts a pencil and a trash icon on every row.
+
+*Decision:* both modals split into Shared and Mine sections, with
+non-editable rows carrying no controls.
+
+**6. No pagination, and no way to ask for unshelved books.** `GET /books`
+returns `{items, total}` for the whole library.
+
+*Decision:* leave both as they are. The design is one scrolling grid with no
+pagination affordance, and "unshelved" is a client-side filter over a list
+that already contains every book. Recorded here so it reads as a decision
+rather than an oversight. Worth noting that covers are separate requests, so a
+large library is one request per book — acceptable over HTTP/2 on localhost,
+and the first thing to look at if the grid feels slow.
 
 ### Stubbed — the librarian chat
 
@@ -104,6 +178,18 @@ the Phase 3 spec**:
 - Is a **conversation persisted**, and if so, per user? That is a schema
   question, and per Phase 1's own lesson it is far cheaper to answer before
   the table exists.
+  **Answered: yes, per user, with the tables defined in Phase 4.**
+  `Conversation(id, user_id, title, created_at)` and `Message(id,
+  conversation_id, role, content, created_at, meta JSON)`, where `meta`
+  carries tool calls and citations without a schema change per idea — the same
+  reasoning that gave `Book` its `book_metadata` column. This mirrors the
+  `Note` precedent, which has just paid off twice: a table defined ahead of its
+  endpoints made the endpoints cheap, and made the shape hard to get wrong
+  later. The stub therefore reads and writes **real rows**, which means the
+  chat screen exercises real persistence and Phase 3 swaps only the generation
+  step. The migration belongs to the chat milestone, not the earlier backend
+  one — one branch, one feature, and the consumer is right there to validate
+  the shape.
 
 Record the answers here as they are decided; Phase 3 starts from them.
 
@@ -120,6 +206,11 @@ are missing and block the client regardless of when it is built:
 - **Other people's public shelves** — the sidebar holds one flat shelf list
   with nowhere to put them.
 - **The chat surface** itself.
+- **The book detail action row.** Now six gaps, not five. The design drew
+  three buttons; with the download decision above the row holds four —
+  Start/Continue/Read Again, Send to Kindle, Edit Book, Move to Shelf. That no
+  longer fits the drawn row, and Send to Kindle in particular is the project's
+  signature feature arriving with no designed home.
 
 Worth designing to the same standard as the original five, with tokens and
 states specified. The reason those screens were straightforward to reason
@@ -143,7 +234,29 @@ the specs superseded it. Recover with
 - **Fonts bundled, not fetched.** Instrument Serif and DM Sans as
   `pubspec.yaml` assets. A local-first application that needs the network to
   render text is a contradiction that would not survive review.
-- **Material vs. hand-rolled** is an open question — see below.
+- **Material as the substrate, restyled** — not hand-rolled widgets. The
+  handoff's own gap list says accessibility is largely absent and must be
+  rebuilt properly: real buttons, focus management, `role="dialog"`
+  equivalents. Hand-rolling means reimplementing focus traversal, keyboard
+  navigation and text editing to arrive back where Material starts. The
+  pixel-perfect tension is resolvable — `splashFactory: NoSplash`, tightened
+  density, every colour, radius and border from tokens — and the pieces that
+  genuinely fight Material (the cover grid, the shelf plank gradient, the
+  progress bars) were never Material components to begin with.
+- **Riverpod** for state. Two properties decide it against Provider and Bloc:
+  the librarian and API-client swaps become one-line provider overrides, which
+  is the seam discipline this plan demands expressed as the library's native
+  idiom; and async state arrives as an explicit loading/error/data type, which
+  matters because the handoff leaves loading and error states undesigned and
+  they would otherwise be improvised per screen or forgotten. Bloc's
+  event/state ceremony would multiply the line count across what is mostly
+  CRUD.
+- **The chat gets its own `/chat` route**, not a panel over the library. A
+  panel is arguably the better product — the library stays visible while the
+  agent discusses it — but it is the larger design invention, needing a
+  dismissal model, a width, and a defined relationship to the grid behind it.
+  There is no design for either. A route is linkable for a demo, and can
+  become a panel in Phase 3 if it earns it.
 - **Auth is a cookie.** The client must send credentialed requests, and
   `LIBRA_CORS_ORIGINS` must name its origin exactly: credentialed CORS cannot
   be combined with a `*` origin. Expect this to be the first thing that breaks.
@@ -159,11 +272,14 @@ user action.
 
 ## Risks
 
-**`BookRead` will change shape again.** Format conversion is scheduled after
-Phase 2 and adds format variants to the book model. A client written against
-today's shape will break. Two options: pull conversion forward so the shape
-settles before the client consumes it, or accept one deliberate breaking
-change. **Unresolved — worth deciding before the client is far along.**
+**`BookRead` will change shape again — resolved: accept it.** Format
+conversion is scheduled after Phase 2 and adds format variants to the book
+model. Naming the change shrinks it: conversion *adds* variants, it does not
+remove `format` or `file_path`, so the change is additive and breaks a client
+only where deserialization is exhaustive. Mitigation is one line of
+discipline — `fromJson` ignores unknown fields. Pulling conversion forward
+would re-spend on the least novel work in the project the very slack this
+phase exists to spend, so it stays where it is.
 
 **Stub drift.** Mitigated by the single seam and by recording the contract
 above, but the honest version is that some of the chat shell will be wrong.
@@ -178,15 +294,34 @@ screens need a reason.
 is a nicer Calibre-web. Phase 4 spending its slack is fine; Phase 4 spending
 Phase 3's is not.
 
+## Milestones
+
+One branch per milestone, as in Phase 1.
+
+| # | Milestone | Notes |
+|---|---|---|
+| 0 | Close the six design gaps | Not code, and a prerequisite. See above |
+| 1 | Notes API + `GET /books/{id}/file` | Backend only. Done first so no client milestone ever blocks on it |
+| 2 | Scaffold | `client/`, tokens → Dart, bundled fonts, `go_router` shell, `ThemeExtension`, Riverpod, CI analyze + test |
+| 3 | API client + auth | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards |
+| 4 | Library grid + search | `#tag` autocomplete, OR/AND semantics, gradient cover fallback, empty state |
+| 5 | Book detail | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, download, Send to Kindle |
+| 6 | Shelves page + shelf manager | Real drag-reorder, visibility control, other people's public shelves |
+| 7 | Tag manager | Shared / Mine split, `editable` respected |
+| 8 | Add Book | Upload-first redesign |
+| 9 | User administration | Admin-only screen |
+| 10 | Librarian chat, stubbed | `Conversation`/`Message` tables and migration, service seam, screen, stub badge |
+
+**Milestone 3 is what the reordering was for.** It is the first time anything
+has reached this API from outside the process, so cookie handling, CORS and
+every response shape get their first real test there. Expect it to find
+things; that is the point.
+
 ## Open questions
 
-- **Material components restyled, or hand-rolled widgets?** "Pixel-perfect"
-  and Material's defaults — ripples, 48px touch targets, focus rings — pull
-  against each other. The handoff says to substitute the codebase's existing
-  primitives, but there are none yet, so this is a genuine choice.
-- **State management.** No decision yet; whatever is chosen should make the
-  librarian service swap trivial.
-- **Does the chat get its own route, or a panel over the library?** The
-  sidebar has no slot for it either way, which is part of the design work.
-- **Conversation persistence** — see the contract section. A schema question,
-  and therefore cheapest to answer now.
+- **Does the sidebar need a home for other people's public shelves, or a
+  filter?** Part of milestone 0, listed here because it is the one design gap
+  whose answer changes the API's usage rather than only the UI.
+- **Drag-to-reorder implementation.** The handoff advertises it and the
+  prototype never built it; `PUT /shelves/order` exists and takes the full
+  order, so this is a client question only.

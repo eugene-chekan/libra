@@ -70,6 +70,11 @@ this phase.
   that stub has to answer becomes input to the Phase 3 spec rather than
   something the agent decides alone. RAG management screens are deliberately
   not built — see [specs/phase-4-plan.md](specs/phase-4-plan.md)
+- Carries a small amount of backend work, because the design needs two things
+  Phase 1 did not build: notes endpoints (over the `Note` table, which was
+  defined early for exactly this reason) and `GET /books/{id}/file`, since
+  nothing currently serves book content and no phase plans an in-browser
+  reader. Both land before any client screen depends on them
 
 **Phase 5 — Desktop/mobile (post-diploma, own pace)**
 - Same Flutter codebase, additional build targets

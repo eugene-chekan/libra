@@ -70,7 +70,7 @@ because "why is it like that" is the question a committee asks.
 | # | Question | Decision |
 |---|---|---|
 | 1 | Where does `pages` come from? | Parse when the file declares it, else user-entered, never estimated |
-| 2 | Notes and highlights scope | `Note` model defined in Phase 1, endpoints in Phase 2 |
+| 2 | Notes and highlights scope | `Note` model defined in Phase 1, endpoints in Phase 2 — later moved to Phase 4 |
 | 3 | Conversion sync or async | Build synchronous, measure, revisit — deferred with the feature |
 | 4 | Phase 1 sequencing | Model work first; conversion cut (above) |
 
@@ -88,6 +88,9 @@ parser's existing posture — lenient about missing content, never inventing it.
 awkward to retrofit later, because highlights are strong RAG material and
 Phase 2 will be building ingestion over these same tables. Defining it now
 and building it then avoids a schema change at exactly the wrong moment.
+*Later:* the endpoints landed in Phase 4 instead, once reordering put the
+client first and the Book Detail design turned out to need them. The decision
+to define the table early is what made that cheap.
 
 ### Settled by recommendation
 
