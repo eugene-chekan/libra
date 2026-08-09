@@ -24,6 +24,9 @@ client/.flutter-plugins-dependencies
 client/build/
 client/.packages
 
+# Claude Code — per-machine permission grants; shared settings.json stays tracked
+.claude/settings.local.json
+
 # IDE
 .vscode/
 .idea/
