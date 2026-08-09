@@ -42,6 +42,10 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `PATCH` | `/tags/{id}` | Rename a tag |
 | `DELETE` | `/tags/{id}` | Delete it and remove it from every book |
 | `PUT` | `/books/{id}/state` | Set your own rating, progress and shelf |
+| `GET` | `/books/{id}/notes` | Your own notes on a book, newest first |
+| `POST` | `/books/{id}/notes` | Add a note or highlight |
+| `PATCH` | `/notes/{id}` | Edit a note's text or page |
+| `DELETE` | `/notes/{id}` | Delete a note |
 | `POST` | `/books/{id}/send-to-kindle` | Email the book to your own Kindle |
 | `PATCH` | `/books/{id}` | Correct a book's shared metadata (admin) |
 | `DELETE` | `/books/{id}` | Delete a book and its stored file (admin) |
@@ -60,6 +64,13 @@ everyone — "Sci-Fi" is a fact about the book the household should agree on.
 before the trip" is nobody else's business. Set a book's personal tags with
 `tag_ids` on `PUT /books/{id}/state`; global tags are applied by an admin
 through `/tags`, because a global assignment changes what everyone sees.
+
+**Notes and highlights are private**, including from an admin. The catalog is
+shared and the book's existence is public, but what someone wrote in the
+margin is not, so another reader's note is a `404` rather than a `403` — a
+"forbidden" would confirm it exists. `page` is optional, since a reflowable
+EPUB has no pages to cite; sending `{"page": null}` clears one, while omitting
+the field leaves it alone.
 
 Shelves belong to readers and are private by default. Making one public lets
 others read it — including your progress on the books it holds — but never

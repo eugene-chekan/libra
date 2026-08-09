@@ -319,7 +319,7 @@ is one.
 | # | Milestone | Issue | Status | Notes |
 |---|---|---|---|---|
 | 0 | Close the six design gaps | — | ✅ | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions |
-| 1 | Notes endpoints | #21 | | Over the table Phase 1 defined for exactly this |
+| 1 | Notes endpoints | #21 | ✅ | Over the table Phase 1 defined for exactly this — no migration needed, which was the point |
 | 1 | `GET /books/{id}/file` | #22 | | Mirrors the cover route; the filename is the only new risk |
 | 1 | `DELETE /users/{id}` | #23 | | Behaviour already specified, endpoint never exposed |
 | 2 | Scaffold | #24 | | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, `ThemeExtension`, Riverpod, skeleton/error/empty primitives, CI analyze + test |

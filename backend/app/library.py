@@ -29,6 +29,8 @@ from app.models import (
     Book,
     BookRead,
     BookTag,
+    Note,
+    NoteRead,
     Shelf,
     ShelfRead,
     Tag,
@@ -85,6 +87,25 @@ class ShadowsGlobalTagError(Exception):
 
     Two rows both rendering as "Sci-Fi" in one sidebar is a bug from the
     reader's side however defensible it is in the schema.
+    """
+
+
+class BookNotFoundError(Exception):
+    """No such book.
+
+    Unlike shelves and tags there is nothing to conceal — the catalog is
+    shared, so every reader already knows which books exist and existence is
+    the only question a lookup can answer.
+    """
+
+
+class NoteNotFoundError(Exception):
+    """No such note, or one belonging to another reader.
+
+    One error for both, as with shelves and tags. A reader's marginalia is
+    private even though the book it hangs off is not, so distinguishing the
+    cases would let a caller confirm someone else's notes exist by walking
+    ids.
     """
 
 
@@ -729,3 +750,98 @@ def send_to_kindle(
     session.commit()
 
     return attempted_at
+
+
+# --- notes ----------------------------------------------------------------
+
+# The catalog is shared; marginalia is not. Every function here scopes to the
+# caller, and there is no admin override — an admin curating the shared tag
+# vocabulary is a librarian, but reading someone's private notes is not the
+# same job.
+
+
+def _note_to_read(note: Note) -> NoteRead:
+    return NoteRead(
+        id=note.id,
+        book_id=note.book_id,
+        text=note.text,
+        page=note.page,
+        created_at=note.created_at,
+    )
+
+
+def _require_book(session: Session, book_id: int) -> Book:
+    book = session.get(Book, book_id)
+    if book is None:
+        raise BookNotFoundError
+    return book
+
+
+def _owned_note(session: Session, note_id: int, user: User) -> Note:
+    note = session.get(Note, note_id)
+    if note is None or note.user_id != user.id:
+        raise NoteNotFoundError
+    return note
+
+
+def _clean_note_text(text: str | None) -> str:
+    cleaned = (text or "").strip()
+    if not cleaned:
+        raise ValueError("Note text must not be empty")
+    return cleaned
+
+
+def list_notes(session: Session, book_id: int, user: User) -> list[NoteRead]:
+    """The caller's own notes on one book, newest first.
+
+    Raises when the book is missing rather than returning an empty list, which
+    is where this differs from `get_book` returning `None`. An empty list is
+    already a valid answer here — a book nobody has annotated — so the two
+    cases have to be distinguishable or a typo in a book id reads as "no notes
+    yet".
+    """
+    _require_book(session, book_id)
+    notes = session.exec(
+        select(Note)
+        .where(Note.user_id == user.id, Note.book_id == book_id)
+        # id breaks ties: notes made in the same request share a timestamp,
+        # and an unstable order would make the list jump between reloads.
+        .order_by(col(Note.created_at).desc(), col(Note.id).desc())
+    ).all()
+    return [_note_to_read(note) for note in notes]
+
+
+def create_note(
+    session: Session, book_id: int, user: User, text: str, page: int | None
+) -> NoteRead:
+    _require_book(session, book_id)
+    note = Note(user_id=user.id, book_id=book_id, text=_clean_note_text(text), page=page)
+    session.add(note)
+    session.commit()
+    session.refresh(note)
+    return _note_to_read(note)
+
+
+def update_note(session: Session, note_id: int, user: User, fields: dict) -> NoteRead:
+    """Apply only the keys the caller actually sent.
+
+    Takes a dict rather than a `NoteUpdate` because the distinction that
+    matters — `page: null` to clear it versus `page` omitted to leave it —
+    survives `model_dump(exclude_unset=True)` and not the model itself.
+    """
+    note = _owned_note(session, note_id, user)
+
+    if "text" in fields:
+        note.text = _clean_note_text(fields["text"])
+    if "page" in fields:
+        note.page = fields["page"]
+
+    session.add(note)
+    session.commit()
+    session.refresh(note)
+    return _note_to_read(note)
+
+
+def delete_note(session: Session, note_id: int, user: User) -> None:
+    session.delete(_owned_note(session, note_id, user))
+    session.commit()
