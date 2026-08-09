@@ -32,6 +32,7 @@ All endpoints except `/health` and `POST /auth/login` require a session — see
 | `GET` | `/books` | Search books: `?q=`, `?tags=`, `?shelf_id=`, `?sort=` |
 | `GET` | `/books/{id}` | Fetch one book |
 | `GET` | `/books/{id}/cover` | The cover image, read from the EPUB |
+| `GET` | `/books/{id}/file` | Download the stored EPUB |
 | `GET` | `/shelves` | Your shelves in order, plus others' public ones |
 | `POST` | `/shelves` | Create a shelf |
 | `PATCH` | `/shelves/{id}` | Rename a shelf or publish it (owner) |
@@ -64,6 +65,15 @@ everyone — "Sci-Fi" is a fact about the book the household should agree on.
 before the trip" is nobody else's business. Set a book's personal tags with
 `tag_ids` on `PUT /books/{id}/state`; global tags are applied by an admin
 through `/tags`, because a global assignment changes what everyone sees.
+
+**`GET /books/{id}/file` serves the stored EPUB as an attachment**, for
+reading on a Kindle, in KOReader, or wherever else you keep books. The offered
+filename is rebuilt from the book's title and author rather than echoed from
+whatever the uploader called the file: stored names are UUIDs precisely so a
+client-supplied string never touches the filesystem, and it should not come
+back out in a response header either. An in-browser reader is planned
+alongside this, not instead of it — downloading a book you own stays a
+first-class action.
 
 **Notes and highlights are private**, including from an admin. The catalog is
 shared and the book's existence is public, but what someone wrote in the

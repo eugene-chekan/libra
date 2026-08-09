@@ -14,7 +14,6 @@ from sqlmodel import Session
 
 from app.mailer import (
     SendFailedError,
-    attachment_filename,
     encoded_size,
     get_mailer,
     send_message,
@@ -300,34 +299,4 @@ def test_a_send_records_against_only_the_sender(
     assert session.get(UserBookState, (other_user.id, book_id)) is None
 
 
-# --- filename ------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    ("title", "author", "expected"),
-    [
-        ("Dune", "Frank Herbert", "Dune - Frank Herbert.epub"),
-        # Path separators must never reach a filename, and the leading dots
-        # go too — a name beginning with a dot is hidden on some systems and
-        # is never what a book is called.
-        ("../../etc/passwd", "A", "etc passwd - A.epub"),
-        ("A\\B", "C", "A B - C.epub"),
-        # Control characters, including the newline that would otherwise let a
-        # filename inject a MIME header.
-        ("Line\nBreak", "A", "Line Break - A.epub"),
-        ("Tab\tHere", "A", "Tab Here - A.epub"),
-        # Non-ASCII is kept, not stripped; the email library encodes it.
-        ("Café", "Zoë", "Café - Zoë.epub"),
-        # A title of nothing but separators would sanitise to empty.
-        ("///", "   ", "book.epub"),
-    ],
-)
-def test_attachment_filenames_are_sanitised(title: str, author: str, expected: str) -> None:
-    assert attachment_filename(title, author) == expected
-
-
-def test_attachment_filenames_are_length_capped() -> None:
-    name = attachment_filename("T" * 500, "A" * 500)
-
-    assert len(name) <= 130
-    assert name.endswith(".epub")
+# Filename sanitising moved to tests/test_naming.py alongside the function.
