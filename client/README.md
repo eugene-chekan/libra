@@ -83,6 +83,15 @@ lib/
 single provider override swaps the whole backend out. No test needs a running
 server.
 
+**The fake has to model the server faithfully, not conveniently.** It enforces
+the real rules — credentials must match, catalog edits are admin-only,
+`PUT /books/{id}/state` is a full representation for rating and progress and a
+partial one for shelf and tags. A fake that says yes to everything turns an
+integration bug into a passing suite, which has already happened once here.
+What the fake cannot cover is the wire format, since it never encodes anything;
+`test/api/http_libra_api_test.dart` drives the real client against a mock
+transport for exactly that reason.
+
 ## What is built
 
 - **#24 — scaffold.** Routes, shell, sidebar, theme, and the loading / error /
@@ -92,6 +101,9 @@ server.
   address modal.
 - **#26 — library grid and search.** Cover grid with gradient fallbacks, search
   with `#tag` autocomplete, sidebar shelf/tag filters, and the filter summary.
+- **#27 — book detail.** View and edit modes, immediate rating and shelf
+  writes, the two-row action split, Send to Kindle's five states, download,
+  cover lightbox, and notes.
 
 Everything else is a `PendingScreen` naming the issue that replaces it, so the
 gap between the frame and the app is visible rather than blank.

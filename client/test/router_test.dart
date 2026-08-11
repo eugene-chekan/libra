@@ -5,6 +5,7 @@ library;
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libra_client/api/fake_libra_api.dart';
+import 'package:libra_client/api/models.dart';
 import 'package:libra_client/shell/sidebar.dart';
 
 import 'helpers.dart';
@@ -35,8 +36,21 @@ void main() {
   });
 
   testWidgets('/books/:id resolves to the book screen', (tester) async {
-    await pumpApp(tester, api: _signedIn(), at: '/books/7');
-    expect(find.text('Book arrives with #27.'), findsOneWidget);
+    final api = _signedIn()
+      ..books = const [
+        Book(id: 7, title: 'Dune', author: 'Frank Herbert', format: 'epub'),
+      ];
+    await pumpApp(tester, api: api, at: '/books/7');
+
+    expect(find.text('Dune'), findsWidgets);
+    expect(find.text('READING PROGRESS'), findsOneWidget);
+  });
+
+  testWidgets('a book id that is not a number does not crash', (tester) async {
+    await pumpApp(tester, api: _signedIn(), at: '/books/not-a-number');
+
+    // A typed URL, not a bug — it must not take the parse down with it.
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('a nav row changes the route under one shell', (tester) async {

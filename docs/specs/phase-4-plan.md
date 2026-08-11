@@ -377,7 +377,7 @@ is one.
 | 2 | Scaffold | #24 | ✅ | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, Riverpod, skeleton/error/empty primitives, CI analyze + test. No `ThemeExtension` — see below |
 | 3 | API client + auth | #25 | ✅ | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
 | 4 | Library grid + search | #26 | ✅ | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
-| 5 | Book detail | #27 | | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states |
+| 5 | Book detail | #27 | ✅ | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below |
 | 6 | Shelves page + shelf manager | #28 | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page |
 | 7 | Tag manager | #29 | | Shared / Mine split, `editable` respected, name-hashed colour swatches |
 | 8 | Add Book | #30 | | Upload-first redesign |
@@ -447,6 +447,35 @@ Two decisions worth recording from milestone 4:
   again" button, and an invisible retry racing it is two mechanisms for one
   job: the error flickers in and out and the reader cannot tell whether their
   click did anything. Failure is reported once; retrying is the reader's call.
+
+**Milestone 5 found the first real client/server disagreement**, and it is
+worth recording because the same shape will recur.
+
+`PUT /books/{id}/state` is a **hybrid**. `shelf_id` and `tag_ids` are guarded
+by `exclude_unset`, so omitting them leaves them alone. `rating` and `progress`
+are read straight off the parsed body, where they default to zero — so omitting
+either *sets it to zero*. The client initially treated all four as partial, and
+a rating click silently erased how far the reader had got. The endpoint is
+self-consistent and documented; the client simply did not match it.
+
+Two things follow:
+
+- `LibraApi.setState` now **requires** `rating` and `progress`, so a partial
+  write of those two is not expressible. The signature is shaped to the
+  endpoint rather than to look tidy.
+- **The fake was wrong in the same way**, which is why no test caught it. A
+  fake that does not model the server faithfully converts an integration bug
+  into a passing suite. `FakeLibraApi` now mirrors the hybrid exactly, and
+  `test/api/http_libra_api_test.dart` drives the real client against a mock
+  transport to pin the wire format — the layer the fake, by construction,
+  cannot cover.
+
+**Edit Book is admin-only.** `PATCH /books/{id}` is `require_admin`, because
+title and author describe the shared catalog. The design drew the button
+unconditionally; showing it to a reader would open a form whose Save is
+guaranteed to 403, so it is hidden instead. The form still handles a 403 for
+the case of an admin demoted while it is open — the hidden button is a
+courtesy, the endpoint is the guard.
 
 ## Open questions
 

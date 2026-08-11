@@ -59,6 +59,69 @@ abstract interface class LibraApi {
   /// `GET /shelves`.
   Future<List<Shelf>> listShelves();
 
+  /// `GET /books/{id}`.
+  Future<Book> book(int id);
+
+  /// `PUT /books/{id}/state` — the caller's *own* rating, progress, shelf and
+  /// personal tags. Always permitted: it touches nobody else's view.
+  ///
+  /// **[rating] and [progress] are required because the endpoint is a PUT for
+  /// them.** The server reads both straight off the parsed body, where they
+  /// default to zero, so omitting either *sets it to zero* — writing a rating
+  /// without passing the current progress silently discards how far the reader
+  /// had got. They are required here so that cannot be done by accident.
+  ///
+  /// [shelfId] and [tagIds] behave the other way round: the server guards both
+  /// with `exclude_unset`, so omitting them leaves them alone, and [clearShelf]
+  /// sends the explicit null that takes a book off its shelf. The endpoint is a
+  /// hybrid; this signature is shaped to match it rather than to look tidy.
+  Future<Book> setState(
+    int id, {
+    required int rating,
+    required double progress,
+    int? shelfId,
+    bool clearShelf,
+    List<int>? tagIds,
+  });
+
+  /// `PATCH /books/{id}` — the *shared* catalog: title, author, year, pages,
+  /// blurb.
+  ///
+  /// **Admin only**, and the server enforces it. One reader's correction
+  /// changes what everyone sees, which is the whole reason it is separated from
+  /// [setState] rather than being one endpoint whose permissions depend on
+  /// which keys the body happened to contain.
+  Future<Book> updateBook(
+    int id, {
+    String? title,
+    String? author,
+    int? year,
+    int? pages,
+    String? blurb,
+  });
+
+  /// `POST /books/{id}/send-to-kindle`.
+  ///
+  /// No destination argument: the address is the caller's stored one and cannot
+  /// be overridden per request, because an endpoint that mails an arbitrary
+  /// file to an arbitrary address is an open relay wearing a library's clothes.
+  Future<KindleDelivery> sendToKindle(int id);
+
+  /// `GET /books/{id}/notes` — the caller's own, newest first.
+  Future<List<Note>> listNotes(int bookId);
+
+  /// `POST /books/{id}/notes`.
+  Future<Note> createNote(int bookId, {required String text, int? page});
+
+  /// `PATCH /notes/{id}`.
+  Future<Note> updateNote(int noteId, {String? text, int? page});
+
+  /// `DELETE /notes/{id}`.
+  Future<void> deleteNote(int noteId);
+
+  /// `GET /books/{id}/file`, with the filename the server chose.
+  Future<DownloadedFile> downloadBook(int id);
+
   /// `GET /books/{id}/cover`, or null when the book has none.
   ///
   /// Returns bytes rather than a URL because the endpoint requires the session

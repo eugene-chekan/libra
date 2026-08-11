@@ -29,6 +29,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import 'book/book_screen.dart';
 import 'library/filter.dart';
 import 'library/library_screen.dart';
 import 'screens/login_screen.dart';
@@ -140,8 +141,14 @@ GoRouter buildRouter(Ref ref, {String initialLocation = '/'}) {
           ),
           GoRoute(
             path: '/books/:id',
-            builder: (context, state) =>
-                const PendingScreen(title: 'Book', issue: '#27'),
+            builder: (context, state) {
+              // A non-numeric id is a typed URL, not a bug: fall through to the
+              // not-found page rather than crashing on the parse.
+              final id = int.tryParse(state.pathParameters['id'] ?? '');
+              return id == null
+                  ? const PendingScreen(title: 'Book', issue: '#27')
+                  : BookScreen(bookId: id);
+            },
           ),
         ],
       ),

@@ -86,6 +86,70 @@ class SessionAwareApi implements LibraApi {
   @override
   Future<Uint8List?> coverBytes(int bookId) =>
       _guard(() => inner.coverBytes(bookId));
+
+  @override
+  Future<Book> book(int id) => _guard(() => inner.book(id));
+
+  @override
+  Future<Book> setState(
+    int id, {
+    required int rating,
+    required double progress,
+    int? shelfId,
+    bool clearShelf = false,
+    List<int>? tagIds,
+  }) => _guard(
+    () => inner.setState(
+      id,
+      rating: rating,
+      progress: progress,
+      shelfId: shelfId,
+      clearShelf: clearShelf,
+      tagIds: tagIds,
+    ),
+  );
+
+  @override
+  Future<Book> updateBook(
+    int id, {
+    String? title,
+    String? author,
+    int? year,
+    int? pages,
+    String? blurb,
+  }) => _guard(
+    () => inner.updateBook(
+      id,
+      title: title,
+      author: author,
+      year: year,
+      pages: pages,
+      blurb: blurb,
+    ),
+  );
+
+  @override
+  Future<KindleDelivery> sendToKindle(int id) =>
+      _guard(() => inner.sendToKindle(id));
+
+  @override
+  Future<List<Note>> listNotes(int bookId) =>
+      _guard(() => inner.listNotes(bookId));
+
+  @override
+  Future<Note> createNote(int bookId, {required String text, int? page}) =>
+      _guard(() => inner.createNote(bookId, text: text, page: page));
+
+  @override
+  Future<Note> updateNote(int noteId, {String? text, int? page}) =>
+      _guard(() => inner.updateNote(noteId, text: text, page: page));
+
+  @override
+  Future<void> deleteNote(int noteId) => _guard(() => inner.deleteNote(noteId));
+
+  @override
+  Future<DownloadedFile> downloadBook(int id) =>
+      _guard(() => inner.downloadBook(id));
 }
 
 /// What every screen from milestone 4 onwards uses.
