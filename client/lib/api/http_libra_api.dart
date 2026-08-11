@@ -107,6 +107,43 @@ class HttpLibraApi implements LibraApi {
   }
 
   @override
+  Future<Shelf> createShelf({
+    required String name,
+    bool isPublic = false,
+  }) async {
+    final body = await _send(
+      'POST',
+      '/shelves',
+      body: {'name': name, 'visibility': isPublic ? 'public' : 'private'},
+    );
+    return Shelf.fromJson(body as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Shelf> updateShelf(int id, {String? name, bool? isPublic}) async {
+    final body = await _send(
+      'PATCH',
+      '/shelves/$id',
+      body: {
+        'name': ?name,
+        if (isPublic != null) 'visibility': isPublic ? 'public' : 'private',
+      },
+    );
+    return Shelf.fromJson(body as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> deleteShelf(int id) => _send('DELETE', '/shelves/$id');
+
+  @override
+  Future<List<Shelf>> reorderShelves(List<int> shelfIds) async {
+    final body =
+        await _send('PUT', '/shelves/order', body: {'shelf_ids': shelfIds})
+            as List;
+    return [for (final e in body) Shelf.fromJson(e as Map<String, dynamic>)];
+  }
+
+  @override
   Future<Book> book(int id) async =>
       Book.fromJson(await _send('GET', '/books/$id') as Map<String, dynamic>);
 

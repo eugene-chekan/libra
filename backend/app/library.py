@@ -445,16 +445,30 @@ def _book_counts(session: Session, shelf_ids: list[int]) -> dict[int, int]:
     return {shelf_id: count for shelf_id, count in rows}
 
 
-def _to_read(shelf: Shelf, user: User, counts: dict[int, int]) -> ShelfRead:
+def _to_read(
+    shelf: Shelf,
+    user: User,
+    counts: dict[int, int],
+    owner_names: dict[int, str] | None = None,
+) -> ShelfRead:
     return ShelfRead(
         id=shelf.id,
         owner_id=shelf.owner_id,
+        owner_username=(owner_names or {}).get(shelf.owner_id, user.username),
         name=shelf.name,
         position=shelf.position,
         visibility=shelf.visibility,
         book_count=counts.get(shelf.id, 0),
         editable=shelf.owner_id == user.id,
     )
+
+
+def _owner_names(session: Session, owner_ids: list[int]) -> dict[int, str]:
+    """Owner id to username, in one query rather than one per shelf."""
+    if not owner_ids:
+        return {}
+    rows = session.exec(select(User.id, User.username).where(User.id.in_(owner_ids))).all()
+    return {user_id: username for user_id, username in rows}
 
 
 def list_shelves(session: Session, user: User) -> list[ShelfRead]:
@@ -465,12 +479,18 @@ def list_shelves(session: Session, user: User) -> list[ShelfRead]:
         .order_by(Shelf.owner_id != user.id, Shelf.position, Shelf.id)
     ).all()
     counts = _book_counts(session, [shelf.id for shelf in shelves])
-    return [_to_read(shelf, user, counts) for shelf in shelves]
+    names = _owner_names(session, [shelf.owner_id for shelf in shelves])
+    return [_to_read(shelf, user, counts, names) for shelf in shelves]
 
 
 def get_shelf(session: Session, shelf_id: int, user: User) -> ShelfRead:
     shelf = _visible_shelf(session, shelf_id, user)
-    return _to_read(shelf, user, _book_counts(session, [shelf.id]))
+    return _to_read(
+        shelf,
+        user,
+        _book_counts(session, [shelf.id]),
+        _owner_names(session, [shelf.owner_id]),
+    )
 
 
 def create_shelf(session: Session, user: User, name: str, visibility: str) -> ShelfRead:

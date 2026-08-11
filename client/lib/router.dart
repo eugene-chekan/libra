@@ -33,6 +33,7 @@ import 'book/book_screen.dart';
 import 'library/filter.dart';
 import 'library/library_screen.dart';
 import 'screens/login_screen.dart';
+import 'shelves/shelves_screen.dart';
 import 'screens/pending_screen.dart';
 import 'session/session.dart';
 import 'shell/app_shell.dart';
@@ -131,8 +132,7 @@ GoRouter buildRouter(Ref ref, {String initialLocation = '/'}) {
           ),
           GoRoute(
             path: '/shelves',
-            builder: (context, state) =>
-                const PendingScreen(title: 'Shelves', issue: '#28'),
+            builder: (context, state) => const ShelvesScreen(),
           ),
           GoRoute(
             path: '/chat',

@@ -203,6 +203,7 @@ class Shelf {
     required this.id,
     required this.name,
     required this.ownerId,
+    this.ownerUsername = '',
     this.position = 0,
     this.visibility = 'private',
     this.bookCount = 0,
@@ -213,6 +214,7 @@ class Shelf {
     id: json['id'] as int,
     name: json['name'] as String? ?? '',
     ownerId: json['owner_id'] as int? ?? 0,
+    ownerUsername: json['owner_username'] as String? ?? '',
     position: json['position'] as int? ?? 0,
     visibility: json['visibility'] as String? ?? 'private',
     bookCount: json['book_count'] as int? ?? 0,
@@ -222,6 +224,11 @@ class Shelf {
   final int id;
   final String name;
   final int ownerId;
+
+  /// Whose shelf it is. Only rendered for somebody else's — "by {username}" —
+  /// and it travels with the shelf because listing users is admin-only.
+  final String ownerUsername;
+
   final int position;
   final String visibility;
   final int bookCount;

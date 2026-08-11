@@ -88,6 +88,21 @@ class SessionAwareApi implements LibraApi {
       _guard(() => inner.coverBytes(bookId));
 
   @override
+  Future<Shelf> createShelf({required String name, bool isPublic = false}) =>
+      _guard(() => inner.createShelf(name: name, isPublic: isPublic));
+
+  @override
+  Future<Shelf> updateShelf(int id, {String? name, bool? isPublic}) =>
+      _guard(() => inner.updateShelf(id, name: name, isPublic: isPublic));
+
+  @override
+  Future<void> deleteShelf(int id) => _guard(() => inner.deleteShelf(id));
+
+  @override
+  Future<List<Shelf>> reorderShelves(List<int> shelfIds) =>
+      _guard(() => inner.reorderShelves(shelfIds));
+
+  @override
   Future<Book> book(int id) => _guard(() => inner.book(id));
 
   @override

@@ -101,6 +101,8 @@ transport for exactly that reason.
   address modal.
 - **#26 — library grid and search.** Cover grid with gradient fallbacks, search
   with `#tag` autocomplete, sidebar shelf/tag filters, and the filter summary.
+- **#28 — shelves.** Shelves page, manager with real drag-reorder, visibility
+  control, and other readers' public shelves in both sidebar and page.
 - **#27 — book detail.** View and edit modes, immediate rating and shelf
   writes, the two-row action split, Send to Kindle's five states, download,
   cover lightbox, and notes.

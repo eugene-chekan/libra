@@ -27,7 +27,7 @@ void main() {
   // the tree, which Flutter reports as a duplicate GlobalKey.
   testWidgets('/shelves resolves to the shelves screen', (tester) async {
     await pumpApp(tester, api: _signedIn(), at: '/shelves');
-    expect(find.text('Shelves arrives with #28.'), findsOneWidget);
+    expect(find.text('No shelves yet'), findsOneWidget);
   });
 
   testWidgets('/chat resolves to the librarian screen', (tester) async {
@@ -60,7 +60,7 @@ void main() {
     await tester.tap(find.text('Shelves'));
     await pumpUntilSessionKnown(tester);
 
-    expect(find.text('Shelves arrives with #28.'), findsOneWidget);
+    expect(find.text('No shelves yet'), findsOneWidget);
     expect(find.text('Your library is empty'), findsNothing);
     // One sidebar throughout: the content pane swapped inside the shell rather
     // than the whole frame being rebuilt.
@@ -72,7 +72,7 @@ void main() {
 
     await tester.tap(find.text('Shelves'));
     await pumpUntilSessionKnown(tester);
-    expect(find.text('Shelves arrives with #28.'), findsOneWidget);
+    expect(find.text('No shelves yet'), findsOneWidget);
 
     await _browserNavigateTo(tester, '/library');
 

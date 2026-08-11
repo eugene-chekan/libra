@@ -56,8 +56,26 @@ abstract interface class LibraApi {
   /// `GET /tags`. Global tags plus this reader's own.
   Future<List<Tag>> listTags();
 
-  /// `GET /shelves`.
+  /// `GET /shelves` — the caller's own in their chosen order, then others'
+  /// public ones. **Trust that order**; re-sorting client-side would throw away
+  /// the arrangement the reader chose.
   Future<List<Shelf>> listShelves();
+
+  /// `POST /shelves`.
+  Future<Shelf> createShelf({required String name, bool isPublic});
+
+  /// `PATCH /shelves/{id}`. Omitted means unchanged.
+  Future<Shelf> updateShelf(int id, {String? name, bool? isPublic});
+
+  /// `DELETE /shelves/{id}`. The books stay in the library; only the placement
+  /// goes.
+  Future<void> deleteShelf(int id);
+
+  /// `PUT /shelves/order` — the caller's complete order, in one call.
+  ///
+  /// Whole-list rather than per-row moves, which is what makes reordering one
+  /// atomic decision instead of a race between rows.
+  Future<List<Shelf>> reorderShelves(List<int> shelfIds);
 
   /// `GET /books/{id}`.
   Future<Book> book(int id);

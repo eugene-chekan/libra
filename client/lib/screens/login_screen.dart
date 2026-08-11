@@ -14,10 +14,8 @@ library;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
 
 import '../api/exceptions.dart';
-import '../router.dart';
 import '../session/session.dart';
 import '../theme/tokens.dart';
 import '../theme/typography.dart';
@@ -73,9 +71,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final expired =
-        GoRouterState.of(context).uri.queryParameters[nextParam]?.isNotEmpty ??
-        false;
+    // Read from the session, not from `?next=`. The address bar records where
+    // the reader was going; only the session knows whether anything ended.
+    final expired = ref.watch(sessionProvider).expired;
 
     return Scaffold(
       backgroundColor: LibraColors.bg,
