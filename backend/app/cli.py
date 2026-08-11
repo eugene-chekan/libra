@@ -20,19 +20,25 @@ from app.db import get_engine, run_migrations
 from app.models import User
 
 
-def _read_password() -> str:
+def _read_password(username: str) -> str:
     """Take the password from the environment, or prompt for it.
 
     `LIBRA_ADMIN_PASSWORD` exists for container entrypoints and scripted
     setup. There is deliberately no `--password` flag: an argument lands in
     shell history and in the process list, where anyone on the box can read
     it.
+
+    The prompt names the account. A bare "Password:" during a start script that
+    also builds and migrates gives no clue *which* account is being created,
+    which is exactly how someone ends up with a running server they cannot log
+    in to.
     """
     from_env = os.environ.get("LIBRA_ADMIN_PASSWORD")
     if from_env:
         return from_env
 
-    password = getpass.getpass("Password: ")
+    print(f"Creating the first account: {username!r}.")
+    password = getpass.getpass(f"Choose a password for {username!r}: ")
     if password != getpass.getpass("Confirm password: "):
         print("Passwords do not match.", file=sys.stderr)
         raise SystemExit(1)
@@ -62,7 +68,7 @@ def create_admin(username: str, *, if_missing: bool = False) -> int:
             print(f"User {username!r} already exists.", file=sys.stderr)
             return 1
 
-        password = _read_password()
+        password = _read_password(username)
         if not password:
             print("Password must not be empty.", file=sys.stderr)
             return 1

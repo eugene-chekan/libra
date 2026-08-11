@@ -114,6 +114,23 @@ step "Preparing the database"
 "$VENV_PY" -m app.cli create-admin \
   --username "${LIBRA_ADMIN_USERNAME:-admin}" --if-missing
 
+# Who to sign in as, on every run rather than only the one that created the
+# account. Otherwise the answer is a line of output from whenever the install
+# was first set up, which nobody still has. Names only — passwords are stored
+# as Argon2 hashes and cannot be recovered from here, only reset.
+ACCOUNTS="$(
+  "$VENV_PY" - <<'PY' 2>/dev/null || true
+from sqlmodel import Session, select
+
+from app.db import get_engine
+from app.models import User
+
+with Session(get_engine()) as session:
+    users = session.exec(select(User).order_by(User.id)).all()
+print(", ".join(f"{u.username}{' (admin)' if u.is_admin else ''}" for u in users))
+PY
+)"
+
 # ------------------------------------------------------------------ the serve
 # 0.0.0.0 rather than 127.0.0.1 is what actually exposes this to the network.
 step "Serving"
@@ -137,6 +154,7 @@ PY
 echo
 echo "    this machine   http://localhost:$PORT"
 [ -n "$LAN_IP" ] && echo "    other devices  http://$LAN_IP:$PORT"
+[ -n "$ACCOUNTS" ] && echo "    sign in as     $ACCOUNTS"
 echo "    books          $LIBRA_LIBRARY_DIR"
 echo
 echo "    Ctrl-C to stop."
