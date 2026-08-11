@@ -25,8 +25,16 @@ implementation, not retrofitted after.
 ```bash
 scripts/run.sh            # build client + wheel, migrate, serve on 0.0.0.0:8000
 scripts/run.sh --skip-web # reuse the last client build (skips ~30s)
+scripts/run.sh --scratch  # throwaway instance, wiped on every run
 PORT=9000 scripts/run.sh
 ```
+
+**Use `--scratch` for anything exploratory** — demoing, verifying a change,
+clicking through a new screen, seeding fake books. It keeps its data in
+`.run/scratch/` and empties that on every run, so a clean slate never requires
+deleting anything. `.run/data/` is somebody's real installation: their account,
+their books. Nothing that tests the app should be able to damage it, and a
+plain `scripts/run.sh` during a test is how that happens.
 
 **One process, one origin.** The API serves the built client at `/`, so both
 share an address. That is not tidiness: the client resolves its API address

@@ -5,6 +5,12 @@
 #   scripts/run.sh              # build and serve on http://<this machine>:8000
 #   PORT=9000 scripts/run.sh    # somewhere else
 #   scripts/run.sh --skip-web   # reuse the last client build
+#   scripts/run.sh --scratch    # throwaway instance, wiped on every run
+#
+# Real data lives in .run/data and is never touched by --scratch, which uses
+# .run/scratch instead. Use --scratch for anything exploratory: demoing,
+# verifying a change, clicking through a new screen. Nothing that tests the
+# app should be able to damage an installation somebody actually uses.
 #
 # One process, one origin: the API serves the built client at `/`, so the app
 # and its backend always share an address. That is what lets any device on the
@@ -20,17 +26,34 @@ REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND="$REPO/backend"
 CLIENT="$REPO/client"
 WEB_OUT="$BACKEND/app/web"
-RUNTIME="$REPO/.run"          # venv + data, both disposable
+RUNTIME="$REPO/.run"
+VENV="$RUNTIME/venv"          # shared; rebuilding it per run buys nothing
 PORT="${PORT:-8000}"
 
 SKIP_WEB=0
+SCRATCH=0
 for arg in "$@"; do
   case "$arg" in
     --skip-web) SKIP_WEB=1 ;;
-    -h|--help) sed -n '2,18p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    --scratch) SCRATCH=1 ;;
+    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
+
+# Where the books and the database live.
+#
+# `--scratch` is the whole point of this split: testing an install must never
+# be able to touch a real one. The scratch path is emptied on every run, which
+# is safe precisely because nothing but a throwaway instance is ever kept
+# there — and it means nobody has to reach for `rm -rf` against the real data
+# to get a clean slate. That reach is what destroyed a real account here once.
+if [ "$SCRATCH" -eq 1 ]; then
+  DATA="$RUNTIME/scratch"
+  rm -rf "$DATA"
+else
+  DATA="$RUNTIME/data"
+fi
 
 step() { printf '\n\033[1m==> %s\033[0m\n' "$1"; }
 die() { printf '\n\033[31merror:\033[0m %s\n' "$1" >&2; exit 1; }
@@ -81,7 +104,6 @@ echo "    $(basename "$WHEEL")"
 # get, so a file missing from the wheel fails now rather than on someone else's
 # machine.
 step "Installing"
-VENV="$RUNTIME/venv"
 venv_python() {
   if [ -x "$VENV/bin/python" ]; then printf '%s' "$VENV/bin/python"
   elif [ -x "$VENV/Scripts/python.exe" ]; then printf '%s' "$VENV/Scripts/python.exe"
@@ -101,8 +123,8 @@ uv pip install --quiet --python "$VENV_PY" --reinstall "$WHEEL"
 # ------------------------------------------------------------------- the data
 # Kept out of the source tree and out of the venv, so rebuilding either never
 # touches the books.
-mkdir -p "$RUNTIME/data"
-DATA_NATIVE="$(native_path "$RUNTIME/data")"
+mkdir -p "$DATA"
+DATA_NATIVE="$(native_path "$DATA")"
 export LIBRA_DATABASE_URL="${LIBRA_DATABASE_URL:-sqlite:///$DATA_NATIVE/libra.db}"
 export LIBRA_LIBRARY_DIR="${LIBRA_LIBRARY_DIR:-$DATA_NATIVE/library}"
 
@@ -152,9 +174,12 @@ PY
 )"
 
 echo
+if [ "$SCRATCH" -eq 1 ]; then
+  echo "    scratch        this instance is wiped on every run"
+fi
 echo "    this machine   http://localhost:$PORT"
-[ -n "$LAN_IP" ] && echo "    other devices  http://$LAN_IP:$PORT"
-[ -n "$ACCOUNTS" ] && echo "    sign in as     $ACCOUNTS"
+if [ -n "$LAN_IP" ]; then echo "    other devices  http://$LAN_IP:$PORT"; fi
+if [ -n "$ACCOUNTS" ]; then echo "    sign in as     $ACCOUNTS"; fi
 echo "    books          $LIBRA_LIBRARY_DIR"
 echo
 echo "    Ctrl-C to stop."
