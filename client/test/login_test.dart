@@ -6,6 +6,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:libra_client/api/exceptions.dart';
 import 'package:libra_client/api/fake_libra_api.dart';
+import 'package:libra_client/api/models.dart';
+import 'package:libra_client/library/book_card.dart';
 import 'package:libra_client/shell/sidebar.dart';
 
 import 'helpers.dart';
@@ -22,6 +24,13 @@ Future<void> _signIn(
   await pumpUntilSessionKnown(tester);
 }
 
+FakeLibraApi _withOneBook() => FakeLibraApi(
+  signedIn: true,
+  books: const [
+    Book(id: 1, title: 'Dune', author: 'Frank Herbert', format: 'epub'),
+  ],
+);
+
 void main() {
   group('the guard', () {
     testWidgets('sends an anonymous reader to /login', (tester) async {
@@ -31,22 +40,60 @@ void main() {
       expect(find.byType(LibraSidebar), findsNothing);
     });
 
-    testWidgets('carries where they were as next', (tester) async {
+    testWidgets('a deep link followed while signed out claims nothing', (
+      tester,
+    ) async {
+      // Following a shared link is not an expiry. The old copy keyed off
+      // `?next=`, so someone who had never logged in was told their session
+      // had ended.
       await pumpApp(tester, api: FakeLibraApi(), at: '/books/7');
 
-      // The message only appears when `next` is present, so its presence is
-      // the assertion that the round trip was set up.
+      expect(find.text('Libra'), findsOneWidget);
+      expect(
+        find.text('Your session expired. Please sign in again.'),
+        findsNothing,
+      );
+    });
+
+    testWidgets('an expiry says so, even with no next to carry', (
+      tester,
+    ) async {
+      // The mirror-image bug: the library is where these routes send people,
+      // so an expiry there carries no `next` — and used to show no message at
+      // all, which is the case it matters most in.
+      final api = _withOneBook();
+      await pumpApp(tester, api: api, at: '/library');
+      expect(find.byType(LibraSidebar), findsOneWidget);
+
+      // Opening the book is a real request, which is what a session ending
+      // underneath a reader actually looks like.
+      api.failAlwaysWith = const Unauthorized();
+      await tester.tap(find.byType(BookCard).first);
+      await pumpUntilSessionKnown(tester);
+
       expect(
         find.text('Your session expired. Please sign in again.'),
         findsOneWidget,
       );
     });
 
-    testWidgets('does not carry / as next — it is where you land anyway', (
-      tester,
-    ) async {
-      await pumpApp(tester, api: FakeLibraApi());
+    testWidgets('signing back in clears the claim', (tester) async {
+      final api = _withOneBook();
+      await pumpApp(tester, api: api, at: '/library');
+      api.failAlwaysWith = const Unauthorized();
+      await tester.tap(find.byType(BookCard).first);
+      await pumpUntilSessionKnown(tester);
+      expect(
+        find.text('Your session expired. Please sign in again.'),
+        findsOneWidget,
+      );
 
+      api
+        ..failAlwaysWith = null
+        ..signedIn = false;
+      await _signIn(tester);
+
+      expect(find.byType(LibraSidebar), findsOneWidget);
       expect(
         find.text('Your session expired. Please sign in again.'),
         findsNothing,

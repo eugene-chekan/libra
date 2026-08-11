@@ -30,12 +30,23 @@ enum SessionStatus {
 }
 
 class SessionState {
-  const SessionState({required this.status, this.user});
+  const SessionState({required this.status, this.user, this.expired = false});
 
   const SessionState.unknown() : this(status: SessionStatus.unknown);
 
   final SessionStatus status;
   final CurrentUser? user;
+
+  /// True only when a live session ended underneath the reader.
+  ///
+  /// The login screen used to infer this from the presence of `?next=`, which
+  /// was wrong in both directions. A deep link followed while signed out also
+  /// carries `next`, so someone who had never logged in was told their session
+  /// expired; and an expiry on the library carries no `next` at all, because
+  /// that is where these routes send people anyway, so a real expiry said
+  /// nothing. `next` records *where you were going*; this records *why you are
+  /// here*, and they are different questions.
+  final bool expired;
 
   bool get isAuthenticated => status == SessionStatus.authenticated;
   bool get isKnown => status != SessionStatus.unknown;
@@ -111,7 +122,9 @@ class SessionController extends Notifier<SessionState> {
   /// session, which is what the concurrency test asserts on.
   bool expire() {
     if (state.status == SessionStatus.anonymous) return false;
-    state = const SessionState(status: SessionStatus.anonymous);
+    // The one moment a live session ends underneath the reader, and therefore
+    // the only place `expired` is ever set.
+    state = const SessionState(status: SessionStatus.anonymous, expired: true);
     return true;
   }
 
