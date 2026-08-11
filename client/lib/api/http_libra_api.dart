@@ -107,6 +107,125 @@ class HttpLibraApi implements LibraApi {
   }
 
   @override
+  Future<Book> book(int id) async =>
+      Book.fromJson(await _send('GET', '/books/$id') as Map<String, dynamic>);
+
+  @override
+  Future<Book> setState(
+    int id, {
+    required int rating,
+    required double progress,
+    int? shelfId,
+    bool clearShelf = false,
+    List<int>? tagIds,
+  }) async {
+    final body = await _send(
+      'PUT',
+      '/books/$id/state',
+      body: {
+        // Always both: the server defaults an omitted one to zero rather than
+        // leaving it, so a partial send is a silent erase.
+        'rating': rating,
+        'progress': progress,
+        // Present-and-null is what clears the shelf; an absent key means
+        // "leave it alone". `exclude_unset` server-side is what tells them
+        // apart, so the two cases must not collapse here.
+        if (clearShelf) 'shelf_id': null else 'shelf_id': ?shelfId,
+        'tag_ids': ?tagIds,
+      },
+    );
+    return Book.fromJson(body as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Book> updateBook(
+    int id, {
+    String? title,
+    String? author,
+    int? year,
+    int? pages,
+    String? blurb,
+  }) async {
+    final body = await _send(
+      'PATCH',
+      '/books/$id',
+      body: {
+        'title': ?title,
+        'author': ?author,
+        'year': ?year,
+        'pages': ?pages,
+        'blurb': ?blurb,
+      },
+    );
+    return Book.fromJson(body as Map<String, dynamic>);
+  }
+
+  @override
+  Future<KindleDelivery> sendToKindle(int id) async {
+    final body = await _send('POST', '/books/$id/send-to-kindle');
+    return KindleDelivery.fromJson(body as Map<String, dynamic>);
+  }
+
+  @override
+  Future<List<Note>> listNotes(int bookId) async {
+    final body = await _send('GET', '/books/$bookId/notes') as List;
+    return [for (final e in body) Note.fromJson(e as Map<String, dynamic>)];
+  }
+
+  @override
+  Future<Note> createNote(int bookId, {required String text, int? page}) async {
+    final body = await _send(
+      'POST',
+      '/books/$bookId/notes',
+      body: {'text': text, 'page': ?page},
+    );
+    return Note.fromJson(body as Map<String, dynamic>);
+  }
+
+  @override
+  Future<Note> updateNote(int noteId, {String? text, int? page}) async {
+    final body = await _send(
+      'PATCH',
+      '/notes/$noteId',
+      body: {'text': ?text, 'page': ?page},
+    );
+    return Note.fromJson(body as Map<String, dynamic>);
+  }
+
+  @override
+  Future<void> deleteNote(int noteId) => _send('DELETE', '/notes/$noteId');
+
+  @override
+  Future<DownloadedFile> downloadBook(int id) async {
+    final http.Response response;
+    try {
+      response = await client.get(Uri.parse('$baseUrl/books/$id/file'));
+    } on Exception {
+      throw const NetworkFailure();
+    }
+    _throwForStatus(response.statusCode, null);
+
+    return DownloadedFile(
+      bytes: response.bodyBytes,
+      filename:
+          _filenameFrom(response.headers['content-disposition']) ??
+          'book-$id.epub',
+    );
+  }
+
+  /// Pulls the name out of `attachment; filename="Frank Herbert - Dune.epub"`.
+  ///
+  /// Without it the reader gets the stored UUID, since `file_path` is a
+  /// generated name rather than anything they would recognise.
+  static String? _filenameFrom(String? header) {
+    if (header == null) return null;
+    final quoted = RegExp('filename="([^"]+)"').firstMatch(header);
+    if (quoted != null) return quoted.group(1);
+    final bare = RegExp(r'filename=([^;]+)').firstMatch(header);
+    return bare?.group(1)?.trim();
+  }
+
+  @override
   Future<Uint8List?> coverBytes(int bookId) async {
     final http.Response response;
     try {

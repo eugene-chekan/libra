@@ -67,7 +67,9 @@ void main() {
       await tester.tap(find.byType(BookCard).first);
       await pumpUntilSessionKnown(tester);
 
-      expect(find.text('Book arrives with #27.'), findsOneWidget);
+      // The detail screen, not the grid: its progress panel is the giveaway.
+      expect(find.text('READING PROGRESS'), findsOneWidget);
+      expect(find.text('Frank Herbert'), findsOneWidget);
     });
   });
 

@@ -186,4 +186,170 @@ class FakeLibraApi implements LibraApi {
     _requireSession();
     return covers[bookId];
   });
+
+  Book _find(int id) {
+    for (final book in books) {
+      if (book.id == id) return book;
+    }
+    throw const NotFound('Book not found');
+  }
+
+  void _replace(Book book) {
+    books = [
+      for (final b in books)
+        if (b.id == book.id) book else b,
+    ];
+  }
+
+  @override
+  Future<Book> book(int id) => _call('book', () {
+    _requireSession();
+    return _find(id);
+  });
+
+  @override
+  Future<Book> setState(
+    int id, {
+    required int rating,
+    required double progress,
+    int? shelfId,
+    bool clearShelf = false,
+    List<int>? tagIds,
+  }) => _call('setState', () {
+    _requireSession();
+    final current = _find(id);
+    // Faithful to the endpoint's hybrid semantics: rating and progress are a
+    // full representation and are always applied; shelf and tags are partial
+    // and are left alone when not supplied. An earlier version of this fake
+    // treated all four as partial, which made the client's matching bug
+    // invisible to every test that used it.
+    final updated = current.copyWith(
+      rating: rating,
+      progress: progress,
+      shelfId: shelfId,
+      clearShelf: clearShelf,
+      tagIds: tagIds,
+    );
+    _replace(updated);
+    return updated;
+  });
+
+  /// Admin only, as the server enforces: the catalog is shared, so one
+  /// reader's correction changes what everyone sees.
+  @override
+  Future<Book> updateBook(
+    int id, {
+    String? title,
+    String? author,
+    int? year,
+    int? pages,
+    String? blurb,
+  }) => _call('updateBook', () {
+    _requireSession();
+    if (!user.isAdmin) throw const Forbidden();
+    final updated = _find(id).copyWith(
+      title: title,
+      author: author,
+      year: year,
+      pages: pages,
+      blurb: blurb,
+    );
+    _replace(updated);
+    return updated;
+  });
+
+  /// Set to make the next send fail, so the failure state can be driven without
+  /// pretending the whole server is down.
+  ApiException? kindleFailure;
+
+  @override
+  Future<KindleDelivery> sendToKindle(int id) => _call('sendToKindle', () {
+    _requireSession();
+    final book = _find(id);
+    final failure = kindleFailure;
+    if (failure != null) throw failure;
+    // The server's own rule: no stored address, no send.
+    if (user.kindleEmail == null) {
+      throw const BadRequest(
+        'Set your Kindle address before sending',
+        statusCode: 422,
+      );
+    }
+    final now = DateTime.fromMillisecondsSinceEpoch(clockMillis);
+    _replace(book.copyWith(lastSentAt: now));
+    return KindleDelivery(
+      bookId: id,
+      sentTo: user.kindleEmail,
+      attemptedAt: now,
+    );
+  });
+
+  /// A fixed clock. Tests assert on rendered relative times, and a real one
+  /// would make those assertions depend on when they ran.
+  int clockMillis = DateTime.utc(2026, 1, 1).millisecondsSinceEpoch;
+
+  final _notes = <int, List<Note>>{};
+  int _nextNoteId = 1;
+
+  @override
+  Future<List<Note>> listNotes(int bookId) => _call('listNotes', () {
+    _requireSession();
+    return [...?_notes[bookId]];
+  });
+
+  @override
+  Future<Note> createNote(int bookId, {required String text, int? page}) =>
+      _call('createNote', () {
+        _requireSession();
+        final note = Note(
+          id: _nextNoteId++,
+          bookId: bookId,
+          text: text,
+          page: page,
+          createdAt: DateTime.fromMillisecondsSinceEpoch(clockMillis),
+        );
+        // Newest first, as the endpoint returns them.
+        _notes.putIfAbsent(bookId, () => []).insert(0, note);
+        return note;
+      });
+
+  @override
+  Future<Note> updateNote(int noteId, {String? text, int? page}) =>
+      _call('updateNote', () {
+        _requireSession();
+        for (final entry in _notes.entries) {
+          for (var i = 0; i < entry.value.length; i++) {
+            final note = entry.value[i];
+            if (note.id != noteId) continue;
+            final updated = Note(
+              id: note.id,
+              bookId: note.bookId,
+              text: text ?? note.text,
+              page: page ?? note.page,
+              createdAt: note.createdAt,
+            );
+            entry.value[i] = updated;
+            return updated;
+          }
+        }
+        throw const NotFound('Note not found');
+      });
+
+  @override
+  Future<void> deleteNote(int noteId) => _call('deleteNote', () {
+    _requireSession();
+    for (final list in _notes.values) {
+      list.removeWhere((n) => n.id == noteId);
+    }
+  });
+
+  @override
+  Future<DownloadedFile> downloadBook(int id) => _call('downloadBook', () {
+    _requireSession();
+    final book = _find(id);
+    return DownloadedFile(
+      bytes: Uint8List.fromList('epub bytes for ${book.title}'.codeUnits),
+      filename: '${book.author} - ${book.title}.epub',
+    );
+  });
 }

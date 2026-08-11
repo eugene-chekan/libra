@@ -10,6 +10,8 @@
 /// state rather than a disabled button with no explanation.
 library;
 
+import 'dart:typed_data';
+
 /// The signed-in reader — `GET /auth/me`'s `CurrentUserRead`.
 class CurrentUser {
   const CurrentUser({
@@ -131,6 +133,39 @@ class Book {
   bool get isInProgress => progress > 0 && progress < 1;
   bool get isFinished => progress >= 1 || finishedAt != null;
   bool get isUnstarted => !isInProgress && !isFinished;
+
+  /// [clearShelf] is separate from a null [shelfId] for the same reason the
+  /// endpoint distinguishes them: omitting the shelf means "leave it alone",
+  /// while clearing it means "take this off the shelf".
+  Book copyWith({
+    String? title,
+    String? author,
+    int? year,
+    int? pages,
+    String? blurb,
+    int? rating,
+    double? progress,
+    int? shelfId,
+    bool clearShelf = false,
+    List<int>? tagIds,
+    DateTime? lastSentAt,
+  }) => Book(
+    id: id,
+    title: title ?? this.title,
+    author: author ?? this.author,
+    format: format,
+    hasCover: hasCover,
+    shelfId: clearShelf ? null : shelfId ?? this.shelfId,
+    tagIds: tagIds ?? this.tagIds,
+    rating: rating ?? this.rating,
+    progress: progress ?? this.progress,
+    year: year ?? this.year,
+    pages: pages ?? this.pages,
+    blurb: blurb ?? this.blurb,
+    startedAt: startedAt,
+    finishedAt: finishedAt,
+    lastSentAt: lastSentAt ?? this.lastSentAt,
+  );
 }
 
 /// `TagRead`. Global tags are admin-curated and shared; personal ones belong to
@@ -193,6 +228,65 @@ class Shelf {
   final bool editable;
 
   bool get isPublic => visibility == 'public';
+}
+
+/// One of this reader's notes on a book — `NoteRead`.
+///
+/// There is no `user_id`: every note a caller can read is their own, so the
+/// field would only ever restate the session.
+class Note {
+  const Note({
+    required this.id,
+    required this.bookId,
+    required this.text,
+    this.page,
+    this.createdAt,
+  });
+
+  factory Note.fromJson(Map<String, dynamic> json) => Note(
+    id: json['id'] as int,
+    bookId: json['book_id'] as int? ?? 0,
+    text: json['text'] as String? ?? '',
+    page: json['page'] as int?,
+    createdAt: _parseDate(json['created_at']),
+  );
+
+  final int id;
+  final int bookId;
+  final String text;
+  final int? page;
+  final DateTime? createdAt;
+}
+
+/// What a send attempt reports back — `KindleDeliveryRead`.
+///
+/// `attemptedAt`, not `sentAt`. Amazon discards mail from an unapproved sender
+/// without a bounce, so handing the message to the mail server is the last
+/// observable event; the name should not claim more than that.
+class KindleDelivery {
+  const KindleDelivery({required this.bookId, this.sentTo, this.attemptedAt});
+
+  factory KindleDelivery.fromJson(Map<String, dynamic> json) => KindleDelivery(
+    bookId: json['book_id'] as int? ?? 0,
+    sentTo: json['sent_to'] as String?,
+    attemptedAt: _parseDate(json['attempted_at']),
+  );
+
+  final int bookId;
+  final String? sentTo;
+  final DateTime? attemptedAt;
+}
+
+/// A downloaded file and the name the server gave it.
+///
+/// The name matters: `file_path` is a generated UUID, so without the server's
+/// `Content-Disposition` a reader would find `9f3a…-4c1b.epub` in their
+/// downloads folder rather than the book they asked for.
+class DownloadedFile {
+  const DownloadedFile({required this.bytes, required this.filename});
+
+  final Uint8List bytes;
+  final String filename;
 }
 
 DateTime? _parseDate(Object? raw) =>
