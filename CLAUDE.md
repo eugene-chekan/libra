@@ -20,6 +20,30 @@ implementation, not retrofitted after.
 
 ## Commands
 
+### Running the whole thing
+
+```bash
+scripts/run.sh            # build client + wheel, migrate, serve on 0.0.0.0:8000
+scripts/run.sh --skip-web # reuse the last client build (skips ~30s)
+PORT=9000 scripts/run.sh
+```
+
+**One process, one origin.** The API serves the built client at `/`, so both
+share an address. That is not tidiness: the client resolves its API address
+from the page it was loaded from (`Uri.base.origin`), which is what lets any
+device on the network open `http://<host>:8000` and work. Served separately,
+the client would need rebuilding for every address it might be reached at, and
+every device's origin adding to `LIBRA_CORS_ORIGINS`.
+
+The script installs the wheel into a throwaway venv at `.run/` and runs *that*,
+not the source tree — so anything missing from the wheel fails here rather than
+on someone else's machine. Data lives in `.run/data/`, untouched by rebuilds.
+It is idempotent: safe on every boot, and it creates an admin only when the
+installation has no users at all.
+
+The split two-origin setup is still what `flutter run` gives you, and still
+needs `LIBRA_CORS_ORIGINS`; see `client/README.md`.
+
 ### Backend
 
 All commands run from `backend/`.

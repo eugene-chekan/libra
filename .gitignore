@@ -17,6 +17,12 @@ venv/
 /library/
 /backend/library/
 
+# Built by scripts/run.sh: the client copied into the package, the wheel, and
+# the throwaway venv plus its data. All reproducible, none of it source.
+/backend/app/web/
+/backend/dist/
+/.run/
+
 # Env
 .env
 

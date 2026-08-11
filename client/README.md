@@ -22,12 +22,25 @@ dart format .                    # format
 dart format --output=none --set-exit-if-changed .   # what CI checks
 ```
 
-The backend address is a compile-time define, defaulting to
-`http://localhost:8000`:
+The backend address defaults to **the origin the page was served from**, which
+is why the packaged single-origin run needs no configuration at all. Override
+it when the API lives somewhere else — which is exactly the split dev setup,
+where `flutter run` serves the client on its own port:
 
 ```bash
-flutter run -d chrome --dart-define=LIBRA_API_BASE_URL=http://192.168.1.10:8000
+flutter run -d chrome --dart-define=LIBRA_API_BASE_URL=http://localhost:8000
 ```
+
+## Running the packaged app
+
+For anything other than client development, use `scripts/run.sh` from the repo
+root. It builds this client, builds the backend wheel with the client inside
+it, migrates, and serves both from one origin on `0.0.0.0:8000` — reachable
+from any device on the network, with no CORS and nothing to configure per
+device.
+
+The rest of this section is the *split* setup, which is what `flutter run`
+gives you and what client development wants.
 
 ## Running against a real backend
 
