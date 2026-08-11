@@ -179,6 +179,11 @@ The script is safe to re-run: `--skip-web` reuses the last client build, `PORT`
 moves the port, and the database and books live in `.run/data/`, untouched by
 rebuilds.
 
+For anything exploratory — trying a change, showing the app to someone, filling
+it with throwaway books — use `scripts/run.sh --scratch`. That keeps its data
+in `.run/scratch/` and wipes it on every run, so a clean slate never means
+deleting a real library.
+
 ### Backend only
 
 The API runs perfectly well on its own — useful while working on it, and the
