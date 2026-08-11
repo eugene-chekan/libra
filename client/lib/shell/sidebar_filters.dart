@@ -38,9 +38,8 @@ class SidebarFilters extends ConsumerWidget {
     final shelves = ref.watch(shelvesProvider).value ?? const <Shelf>[];
     final tags = ref.watch(tagsProvider).value ?? const <Tag>[];
 
-    // Only this reader's own shelves here; other people's public ones get the
-    // SHARED WITH YOU section in #28, which is a different heading for a reason.
     final own = shelves.where((s) => s.editable).toList();
+    final shared = shelves.where((s) => !s.editable).toList();
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -62,6 +61,13 @@ class SidebarFilters extends ConsumerWidget {
               ),
             ),
         ],
+        // Collapsed by default and hidden entirely when empty — it is
+        // secondary, and on a single-user instance it should not exist at all
+        // rather than showing a zero state about sharing nobody is doing.
+        if (shared.isNotEmpty) ...[
+          const SizedBox(height: 28),
+          _SharedSection(shelves: shared, filter: filter, onApply: onApply),
+        ],
         if (tags.isNotEmpty) ...[
           const SizedBox(height: 20),
           const _SectionLabel('TAGS'),
@@ -75,6 +81,70 @@ class SidebarFilters extends ConsumerWidget {
               onTap: () => onApply(filter.toggleTag(tag.id)),
             ),
         ],
+      ],
+    );
+  }
+}
+
+/// Somebody else's public shelves. Collapsed until asked for.
+class _SharedSection extends StatefulWidget {
+  const _SharedSection({
+    required this.shelves,
+    required this.filter,
+    required this.onApply,
+  });
+
+  final List<Shelf> shelves;
+  final LibraryFilter filter;
+  final ValueChanged<LibraryFilter> onApply;
+
+  @override
+  State<_SharedSection> createState() => _SharedSectionState();
+}
+
+class _SharedSectionState extends State<_SharedSection> {
+  bool _open = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        LibraTappableRow(
+          onTap: () => setState(() => _open = !_open),
+          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text('SHARED WITH YOU', style: LibraText.sectionLabel),
+              ),
+              AnimatedRotation(
+                turns: _open ? 0.5 : 0,
+                duration: LibraDurations.chevron,
+                child: const Icon(
+                  Icons.keyboard_arrow_down,
+                  size: 14,
+                  color: LibraColors.textLight,
+                ),
+              ),
+            ],
+          ),
+        ),
+        if (_open)
+          for (final shelf in widget.shelves)
+            _FilterRow(
+              label: shelf.name,
+              sublabel: shelf.ownerUsername.isEmpty
+                  ? null
+                  : shelf.ownerUsername,
+              count: shelf.bookCount,
+              selected: widget.filter.shelfId == shelf.id,
+              onTap: () => widget.onApply(
+                widget.filter.shelfId == shelf.id
+                    ? widget.filter.copyWith(clearShelf: true)
+                    : widget.filter.copyWith(shelfId: shelf.id),
+              ),
+            ),
       ],
     );
   }
@@ -98,9 +168,14 @@ class _FilterRow extends StatelessWidget {
     required this.count,
     required this.selected,
     required this.onTap,
+    this.sublabel,
   });
 
   final String label;
+
+  /// The owner's username, on a shared shelf only.
+  final String? sublabel;
+
   final int count;
   final bool selected;
   final VoidCallback onTap;
@@ -114,16 +189,24 @@ class _FilterRow extends StatelessWidget {
       child: Row(
         children: [
           Expanded(
-            child: Text(
-              label,
-              style: selected
-                  ? LibraText.listRow.copyWith(
-                      color: LibraColors.accent,
-                      fontWeight: FontWeight.w600,
-                    )
-                  : LibraText.listRow,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: selected
+                      ? LibraText.listRow.copyWith(
+                          color: LibraColors.accent,
+                          fontWeight: FontWeight.w600,
+                        )
+                      : LibraText.listRow,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                if (sublabel != null)
+                  Text(sublabel!, style: LibraText.metadataSmall),
+              ],
             ),
           ),
           Text('$count', style: LibraText.metadataSmall),

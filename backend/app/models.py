@@ -224,6 +224,12 @@ class ShelfUpdate(SQLModel):
 class ShelfRead(SQLModel):
     id: int
     owner_id: int
+    # Whose shelf this is, by name. Only useful for somebody else's public
+    # shelf, which the client labels "by {username}" — and only reachable
+    # here, since listing users is admin-only and a reader must still be able
+    # to tell one shared shelf from another. Publishing a shelf is a
+    # deliberate act that already discloses its owner to every reader.
+    owner_username: str = ""
     name: str
     position: int
     visibility: str

@@ -201,6 +201,98 @@ class FakeLibraApi implements LibraApi {
     ];
   }
 
+  int _nextShelfId = 100;
+
+  Shelf _findShelf(int id) {
+    for (final shelf in shelves) {
+      if (shelf.id == id) return shelf;
+    }
+    throw const NotFound('Shelf not found');
+  }
+
+  @override
+  Future<Shelf> createShelf({required String name, bool isPublic = false}) =>
+      _call('createShelf', () {
+        _requireSession();
+        if (shelves.any((s) => s.editable && s.name == name)) {
+          throw const BadRequest('You already have a shelf with that name');
+        }
+        final shelf = Shelf(
+          id: _nextShelfId++,
+          name: name,
+          ownerId: user.id,
+          ownerUsername: user.username,
+          position: shelves.where((s) => s.editable).length,
+          visibility: isPublic ? 'public' : 'private',
+          editable: true,
+        );
+        shelves = [...shelves, shelf];
+        return shelf;
+      });
+
+  @override
+  Future<Shelf> updateShelf(int id, {String? name, bool? isPublic}) =>
+      _call('updateShelf', () {
+        _requireSession();
+        final current = _findShelf(id);
+        // Somebody else's shelf is readable and not writable — the server's
+        // rule, and the reason the page shows no edit affordances for one.
+        if (!current.editable) throw const Forbidden();
+        final updated = Shelf(
+          id: current.id,
+          name: name ?? current.name,
+          ownerId: current.ownerId,
+          ownerUsername: current.ownerUsername,
+          position: current.position,
+          visibility: isPublic == null
+              ? current.visibility
+              : (isPublic ? 'public' : 'private'),
+          bookCount: current.bookCount,
+          editable: current.editable,
+        );
+        shelves = [
+          for (final s in shelves)
+            if (s.id == id) updated else s,
+        ];
+        return updated;
+      });
+
+  @override
+  Future<void> deleteShelf(int id) => _call('deleteShelf', () {
+    _requireSession();
+    if (!_findShelf(id).editable) throw const Forbidden();
+    shelves = [...shelves.where((s) => s.id != id)];
+  });
+
+  @override
+  Future<List<Shelf>> reorderShelves(List<int> shelfIds) =>
+      _call('reorderShelves', () {
+        _requireSession();
+        final mine = shelves.where((s) => s.editable).toList();
+        // The server rejects anything that is not a permutation of the
+        // caller's own shelves, so the fake does too.
+        if (shelfIds.length != mine.length ||
+            !mine.every((s) => shelfIds.contains(s.id))) {
+          throw const BadRequest('That is not your complete shelf order');
+        }
+        final byId = {for (final s in mine) s.id: s};
+        shelves = [
+          for (var i = 0; i < shelfIds.length; i++)
+            Shelf(
+              id: shelfIds[i],
+              name: byId[shelfIds[i]]!.name,
+              ownerId: byId[shelfIds[i]]!.ownerId,
+              ownerUsername: byId[shelfIds[i]]!.ownerUsername,
+              position: i,
+              visibility: byId[shelfIds[i]]!.visibility,
+              bookCount: byId[shelfIds[i]]!.bookCount,
+              editable: true,
+            ),
+          ...shelves.where((s) => !s.editable),
+        ];
+        return shelves;
+      });
+
   @override
   Future<Book> book(int id) => _call('book', () {
     _requireSession();

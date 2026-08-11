@@ -104,7 +104,7 @@ void main() {
       await pumpApp(tester, api: FakeLibraApi(signedIn: true), at: '/shelves');
 
       expect(find.byType(LibraSidebar), findsOneWidget);
-      expect(find.text('Shelves arrives with #28.'), findsOneWidget);
+      expect(find.text('No shelves yet'), findsOneWidget);
     });
   });
 
@@ -193,7 +193,7 @@ void main() {
 
       // The whole point of carrying `next`: a reader whose session expired
       // mid-task comes back to the task.
-      expect(find.text('Shelves arrives with #28.'), findsOneWidget);
+      expect(find.text('No shelves yet'), findsOneWidget);
       expect(find.text('Your library is empty'), findsNothing);
     });
   });

@@ -366,3 +366,23 @@ def test_book_counts_do_not_leak_other_readers_placements(
 
     listed = other_client.get("/shelves").json()
     assert listed[0]["book_count"] == 1
+
+
+def test_shelves_name_their_owner(client: TestClient, other_client: TestClient) -> None:
+    """The client labels somebody else's public shelf "by {username}", and
+    listing users is admin-only — so the name has to travel with the shelf or a
+    reader cannot tell two shared shelves apart."""
+    other_client.post("/shelves", json={"name": "Borrowed", "visibility": "public"})
+
+    shelves = client.get("/shelves").json()
+
+    shared = next(s for s in shelves if not s["editable"])
+    assert shared["owner_username"] == "roommate"
+
+
+def test_your_own_shelves_name_you_too(client: TestClient) -> None:
+    client.post("/shelves", json={"name": "Mine"})
+
+    mine = client.get("/shelves").json()[0]
+
+    assert mine["owner_username"] == "reader"

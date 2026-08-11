@@ -378,7 +378,7 @@ is one.
 | 3 | API client + auth | #25 | ✅ | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
 | 4 | Library grid + search | #26 | ✅ | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
 | 5 | Book detail | #27 | ✅ | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below |
-| 6 | Shelves page + shelf manager | #28 | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page |
+| 6 | Shelves page + shelf manager | #28 | ✅ | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below |
 | 7 | Tag manager | #29 | | Shared / Mine split, `editable` respected, name-hashed colour swatches |
 | 8 | Add Book | #30 | | Upload-first redesign |
 | 9 | User administration | #31 | | Admin-only modal, per-row commits, destructive delete dialog |
@@ -469,6 +469,22 @@ Two things follow:
   `test/api/http_libra_api_test.dart` drives the real client against a mock
   transport to pin the wire format — the layer the fake, by construction,
   cannot cover.
+
+**Milestone 6 needed one backend field.** The design labels somebody else's
+public shelf "by {username}", but `ShelfRead` carried only `owner_id` and
+`GET /users` is admin-only — so an ordinary reader could not turn that id into
+a name, and every shared shelf would have read as anonymous. `ShelfRead` now
+carries `owner_username`, filled in one query rather than one per shelf.
+Publishing a shelf is a deliberate act that already discloses its owner to
+every reader on the instance, so there is nothing new exposed.
+
+The same milestone corrected the login screen's expiry copy. It was inferred
+from `?next=`, which records where the reader was *going* rather than why they
+are at a login screen, and the two come apart in both directions: a shared link
+followed while signed out carried `next` and falsely claimed a session had
+ended, while an expiry on the library carried no `next` and said nothing at
+all. The session now records the one moment a live session ends, and the screen
+reads that.
 
 **Edit Book is admin-only.** `PATCH /books/{id}` is `require_admin`, because
 title and author describe the shared catalog. The design drew the button

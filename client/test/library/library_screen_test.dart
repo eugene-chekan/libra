@@ -184,7 +184,8 @@ void main() {
       await pumpUntilSessionKnown(tester);
 
       expect(api.lastQuery?.shelfId, 5);
-      expect(find.text('Shelves arrives with #28.'), findsNothing);
+      // Still the library, filtered — not the Shelves page.
+      expect(find.byType(BookCard), findsOneWidget);
     });
 
     testWidgets('a tag click toggles it', (tester) async {
