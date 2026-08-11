@@ -15,6 +15,18 @@ class Settings(BaseSettings):
     # (e.g. a Docker volume) without invalidating existing rows.
     library_dir: Path = Path("./library")
 
+    # The built Flutter client, served at `/` so the API and the app share one
+    # origin. That is not a packaging convenience: the client resolves its API
+    # address from the page it was loaded from, so one origin is what lets a
+    # phone open http://<host>:8000 and just work. Served separately, the
+    # client would have to be rebuilt with each server address baked in, and
+    # every device's origin added to `cors_origins`.
+    #
+    # Defaults to the copy inside the package, which `scripts/run.sh` fills and
+    # the wheel carries. Absent — a source checkout that has never built the
+    # client — the API simply serves no UI.
+    web_dir: Path = Path(__file__).resolve().parent / "web"
+
     # Upload ceiling. EPUBs are typically well under 10 MB; 100 MB leaves
     # room for image-heavy books while bounding what a single request can
     # write to disk.

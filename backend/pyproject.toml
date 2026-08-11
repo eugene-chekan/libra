@@ -32,6 +32,19 @@ build-backend = "hatchling.build"
 [tool.hatch.build.targets.wheel]
 packages = ["app", "rag", "agent"]
 
+# The app migrates on startup, so a wheel without the revision scripts starts
+# and immediately fails. They go *inside* the package rather than beside it
+# because `site-packages/alembic.ini` would be a stray file in a shared
+# directory — and because `script_location = %(here)s/alembic` then resolves
+# relative to the package, wherever it was installed.
+#
+# The built client needs no entry here: `scripts/run.sh` writes it to
+# `app/web`, which is already inside the package and therefore already
+# included. Listing it as well makes hatchling add every file twice and fail.
+[tool.hatch.build.targets.wheel.force-include]
+"alembic" = "app/alembic"
+"alembic.ini" = "app/alembic.ini"
+
 [tool.ruff]
 line-length = 100
 target-version = "py312"

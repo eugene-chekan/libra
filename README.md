@@ -142,6 +142,7 @@ libra/
 │   ├── evaluation.md
 │   └── specs/             # per-feature design docs and the Phase 1 plan
 ├── scripts/
+│   ├── run.sh             # build both halves and serve them on one origin
 │   └── docker-compose.yml
 └── .github/workflows/
     └── ci.yml
@@ -149,7 +150,39 @@ libra/
 
 ## Setup
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/).
+### Running the whole thing
+
+Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and the Flutter SDK.
+From the repository root:
+
+```bash
+scripts/run.sh
+```
+
+That builds the client, builds a wheel with the client inside it, installs it
+into a throwaway environment, applies migrations, creates an admin account if
+the installation has none, and serves everything on port 8000:
+
+```
+    this machine   http://localhost:8000
+    other devices  http://192.168.1.6:8000
+```
+
+**Both halves share one origin**, and that is what makes the second line work.
+The client asks whichever host served the page for its data, so any device on
+the network can open the app as it is — no rebuild per address, no CORS
+allowlist to maintain, one port to open. Serving the client separately would
+mean compiling the server's address into it and rebuilding whenever that
+address changed.
+
+The script is safe to re-run: `--skip-web` reuses the last client build, `PORT`
+moves the port, and the database and books live in `.run/data/`, untouched by
+rebuilds.
+
+### Backend only
+
+The API runs perfectly well on its own — useful while working on it, and the
+only thing the Docker image currently serves.
 
 ```bash
 cd backend
@@ -158,7 +191,8 @@ uv run uvicorn app.main:app --reload
 ```
 
 The API is served at `http://localhost:8000`; interactive docs at
-`http://localhost:8000/docs`.
+`http://localhost:8000/docs`. With no client build present it simply serves no
+UI, which is not an error.
 
 ### Accounts and login
 

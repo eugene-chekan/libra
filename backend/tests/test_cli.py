@@ -70,3 +70,32 @@ def test_create_admin_rejects_an_empty_username(fresh_install: Path) -> None:
     any side effect, so a bad invocation leaves nothing behind."""
     assert main(["create-admin", "--username", "   "]) == 1
     assert not fresh_install.exists()
+
+
+def test_if_missing_bootstraps_when_the_install_is_empty(fresh_install: Path) -> None:
+    assert main(["create-admin", "--username", "keeper", "--if-missing"]) == 0
+    assert len(_users()) == 1
+
+
+def test_if_missing_leaves_an_existing_install_alone(fresh_install: Path) -> None:
+    """`scripts/run.sh` runs this on every boot, not only the first."""
+    main(["create-admin", "--username", "keeper"])
+
+    assert main(["create-admin", "--username", "keeper", "--if-missing"]) == 0
+    assert len(_users()) == 1
+
+
+def test_if_missing_asks_about_the_install_not_the_name(fresh_install: Path) -> None:
+    """A per-name check would add a second admin the first time the script ran
+    with a different username — silently, and with full privileges."""
+    main(["create-admin", "--username", "keeper"])
+
+    assert main(["create-admin", "--username", "someone-else", "--if-missing"]) == 0
+    assert [u.username for u in _users()] == ["keeper"]
+
+
+def test_without_if_missing_a_duplicate_name_still_fails(fresh_install: Path) -> None:
+    main(["create-admin", "--username", "keeper"])
+
+    assert main(["create-admin", "--username", "keeper"]) == 1
+    assert len(_users()) == 1

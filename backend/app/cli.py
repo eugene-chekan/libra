@@ -39,7 +39,7 @@ def _read_password() -> str:
     return password
 
 
-def create_admin(username: str) -> int:
+def create_admin(username: str, *, if_missing: bool = False) -> int:
     username = normalise_username(username)
     if not username:
         print("Username must not be empty.", file=sys.stderr)
@@ -50,6 +50,14 @@ def create_admin(username: str) -> int:
     run_migrations()
 
     with Session(get_engine()) as session:
+        # `--if-missing` asks "does this installation have anybody yet?", not
+        # "does this name exist?". A start script runs on every boot, and the
+        # per-name check would happily add a second admin the first time
+        # someone ran it with a different username.
+        if if_missing and session.exec(select(User)).first():
+            print("An account already exists; leaving accounts alone.")
+            return 0
+
         if session.exec(select(User).where(User.username == username)).first():
             print(f"User {username!r} already exists.", file=sys.stderr)
             return 1
@@ -78,10 +86,15 @@ def main(argv: list[str] | None = None) -> int:
 
     admin = subcommands.add_parser("create-admin", help="Create an admin user")
     admin.add_argument("--username", required=True)
+    admin.add_argument(
+        "--if-missing",
+        action="store_true",
+        help="Do nothing (and succeed) if the installation already has any user",
+    )
 
     args = parser.parse_args(argv)
     if args.command == "create-admin":
-        return create_admin(args.username)
+        return create_admin(args.username, if_missing=args.if_missing)
     return 1
 
 

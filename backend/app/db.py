@@ -11,10 +11,17 @@ from alembic import command
 from app.config import get_settings
 from app.logging_config import get_logger
 
-# backend/alembic.ini — resolved from this file rather than the working
-# directory, so migrations run the same whether invoked by uvicorn, pytest,
-# or a container entrypoint.
-ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
+# Resolved from this file rather than the working directory, so migrations run
+# the same whether invoked by uvicorn, pytest, or a container entrypoint.
+#
+# Two locations, in order. A wheel carries the revision scripts *inside* the
+# package, so an installed copy is self-contained. A source checkout — and the
+# Docker image, which copies them beside the package — keeps them one level up.
+# Checking the packaged path first means an installed wheel never reaches past
+# itself into whatever happens to sit next to site-packages.
+_PACKAGED_ALEMBIC_INI = Path(__file__).resolve().parent / "alembic.ini"
+_SOURCE_ALEMBIC_INI = Path(__file__).resolve().parent.parent / "alembic.ini"
+ALEMBIC_INI = _PACKAGED_ALEMBIC_INI if _PACKAGED_ALEMBIC_INI.is_file() else _SOURCE_ALEMBIC_INI
 
 log = get_logger(__name__)
 
