@@ -34,3 +34,16 @@ final apiProvider = Provider<LibraApi>((ref) {
   ref.onDispose(api.close);
   return api;
 });
+
+/// The retry policy every data provider in the app uses — `retry: noRetry`.
+///
+/// Riverpod retries a failed provider on its own, with backoff, indefinitely.
+/// That is turned off here on purpose: the design specifies an error block with
+/// a "Try again" button, and an invisible automatic retry racing it means two
+/// mechanisms for one job — the reader watches the error flicker in and out and
+/// cannot tell whether their click did anything. Failure is reported once, and
+/// retrying is the reader's call.
+///
+/// Shared rather than redeclared per feature: it is one decision about how the
+/// whole app reports failure, and two copies are two things to keep in step.
+Duration? noRetry(int attempt, Object error) => null;

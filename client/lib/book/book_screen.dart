@@ -16,7 +16,6 @@ import 'package:go_router/go_router.dart';
 
 import '../api/exceptions.dart';
 import '../api/http_client_factory.dart';
-import '../api/libra_api.dart';
 import '../api/models.dart';
 import '../api/session_guard.dart';
 import '../library/filter.dart';
@@ -42,6 +41,12 @@ class BookScreen extends ConsumerStatefulWidget {
   @override
   ConsumerState<BookScreen> createState() => _BookScreenState();
 }
+
+/// Runs a write and reports its failure on the page.
+///
+/// Named because the bare type — a function taking a function returning a
+/// future — is unreadable at a call site, and it is passed down two levels.
+typedef BookWrite = Future<void> Function(Future<void> Function() action);
 
 class _BookScreenState extends ConsumerState<BookScreen> {
   bool _editing = false;
@@ -101,7 +106,10 @@ class _BookScreenState extends ConsumerState<BookScreen> {
   }
 }
 
-class _Loaded extends ConsumerWidget {
+/// The frame: cover on the left, and either the details or the edit form on the
+/// right. It deliberately reads nothing it does not use itself — the catalog
+/// lists and the current user belong to [_Details], which is what consumes them.
+class _Loaded extends StatelessWidget {
   const _Loaded({
     required this.book,
     required this.editing,
@@ -117,16 +125,11 @@ class _Loaded extends ConsumerWidget {
   final String? actionError;
   final VoidCallback onEdit;
   final VoidCallback onCloseEdit;
-  final Future<void> Function(Future<void> Function()) write;
+  final BookWrite write;
   final VoidCallback refresh;
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final api = ref.watch(libraApiProvider);
-    final user = ref.watch(currentUserProvider);
-    final shelves = ref.watch(shelvesProvider).value ?? const <Shelf>[];
-    final tags = ref.watch(tagsProvider).value ?? const <Tag>[];
-
+  Widget build(BuildContext context) {
     return SingleChildScrollView(
       padding: const EdgeInsets.symmetric(
         vertical: LibraSpace.contentPaneVertical,
@@ -147,15 +150,10 @@ class _Loaded extends ConsumerWidget {
                     ? BookEditForm(book: book, onDone: onCloseEdit)
                     : _Details(
                         book: book,
-                        tags: tags,
-                        shelves: shelves,
-                        canEdit: user?.isAdmin ?? false,
-                        hasKindleAddress: user?.kindleEmail != null,
                         actionError: actionError,
                         onEdit: onEdit,
                         write: write,
                         refresh: refresh,
-                        api: api,
                       ),
               ),
             ],
@@ -168,33 +166,34 @@ class _Loaded extends ConsumerWidget {
   }
 }
 
-class _Details extends StatelessWidget {
+/// Everything about the book that is not the cover or the edit form.
+///
+/// Reads the catalog lists and the current reader itself rather than being
+/// handed them: it is the only thing on this screen that uses any of them, so
+/// threading them through [_Loaded] made that widget depend on four things it
+/// had no use for.
+class _Details extends ConsumerWidget {
   const _Details({
     required this.book,
-    required this.tags,
-    required this.shelves,
-    required this.canEdit,
-    required this.hasKindleAddress,
     required this.actionError,
     required this.onEdit,
     required this.write,
     required this.refresh,
-    required this.api,
   });
 
   final Book book;
-  final List<Tag> tags;
-  final List<Shelf> shelves;
-  final bool canEdit;
-  final bool hasKindleAddress;
   final String? actionError;
   final VoidCallback onEdit;
-  final Future<void> Function(Future<void> Function()) write;
+  final BookWrite write;
   final VoidCallback refresh;
-  final LibraApi api;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final api = ref.watch(libraApiProvider);
+    final user = ref.watch(currentUserProvider);
+    final shelves = ref.watch(shelvesProvider).value ?? const <Shelf>[];
+    final tags = ref.watch(tagsProvider).value ?? const <Tag>[];
+
     final shelf = shelves.where((s) => s.id == book.shelfId).firstOrNull;
     final bookTags = tags.where((t) => book.tagIds.contains(t.id)).toList();
 
@@ -236,8 +235,10 @@ class _Details extends StatelessWidget {
         BookActions(
           book: book,
           shelves: shelves,
-          canEdit: canEdit,
-          hasKindleAddress: hasKindleAddress,
+          // PATCH /books/{id} is admin-only, so a reader is offered no Edit
+          // Book rather than a form whose Save is guaranteed to 403.
+          canEdit: user?.isAdmin ?? false,
+          hasKindleAddress: user?.kindleEmail != null,
           onRead: () => context.go('/books/${book.id}/read'),
           onDownload: () async {
             final file = await api.downloadBook(book.id);

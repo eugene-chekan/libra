@@ -142,27 +142,39 @@ GoRouter buildRouter(Ref ref, {String initialLocation = '/'}) {
           GoRoute(
             path: '/books/:id',
             builder: (context, state) {
-              // A non-numeric id is a typed URL, not a bug: fall through to the
-              // not-found page rather than crashing on the parse.
+              // A non-numeric id is a typed URL, not a bug: show the same
+              // not-found page any other unknown address gets, rather than
+              // crashing on the parse. It used to render the "arrives with #27"
+              // placeholder, which had been true and stopped being true the
+              // moment this screen shipped — a stand-in outliving what it stood
+              // in for tells the reader the app is unfinished when it is not.
               final id = int.tryParse(state.pathParameters['id'] ?? '');
-              return id == null
-                  ? const PendingScreen(title: 'Book', issue: '#27')
-                  : BookScreen(bookId: id);
+              return id == null ? const NotFoundPage() : BookScreen(bookId: id);
             },
           ),
         ],
       ),
     ],
-    errorBuilder: (context, state) => const Scaffold(
-      body: LibraPage(
-        title: 'Not found',
-        child: LibraEmptyState(
-          title: 'No such page',
-          message: 'The address does not match anything in this library.',
-        ),
-      ),
-    ),
+    errorBuilder: (context, state) => const Scaffold(body: NotFoundPage()),
   );
+}
+
+/// What an address that names nothing gets — an unknown route, or a `/books/:id`
+/// whose id is not a number. One widget so the two cannot drift into saying
+/// different things about the same situation.
+class NotFoundPage extends StatelessWidget {
+  const NotFoundPage({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return const LibraPage(
+      title: 'Not found',
+      child: LibraEmptyState(
+        title: 'No such page',
+        message: 'The address does not match anything in this library.',
+      ),
+    );
+  }
 }
 
 /// Bridges Riverpod's session to `go_router`'s [Listenable] refresh.

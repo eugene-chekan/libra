@@ -45,9 +45,11 @@ class LibraryScreen extends ConsumerWidget {
     return LibraPage(
       title: 'Library',
       trailing: LibrarySearchField(
-        // Keyed by the applied query so the field is rebuilt from scratch when
-        // the filter is cleared from elsewhere, rather than holding stale text.
-        key: ValueKey(filter.query),
+        // Deliberately unkeyed. Keying this by the applied query rebuilt the
+        // field from scratch every time the debounce fired — a new State, a new
+        // FocusNode, and the caret gone mid-word after the 300ms pause the
+        // debounce exists to allow. Reconciling stale text is the job of the
+        // field's own `didUpdateWidget`, which a changing key made unreachable.
         query: filter.query,
         tags: tags,
         onQueryChanged: (q) => _apply(context, filter.copyWith(query: q)),
@@ -57,10 +59,10 @@ class LibraryScreen extends ConsumerWidget {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           FilterSummary(
-            shelf: _firstOrNull(shelves.where((s) => s.id == filter.shelfId)),
+            shelf: shelves.where((s) => s.id == filter.shelfId).firstOrNull,
             tags: [
               for (final id in filter.tagIds)
-                ?_firstOrNull(tags.where((t) => t.id == id)),
+                ?tags.where((t) => t.id == id).firstOrNull,
             ],
             onClearShelf: () =>
                 _apply(context, filter.copyWith(clearShelf: true)),
@@ -157,5 +159,3 @@ class _Empty extends StatelessWidget {
 /// vocabulary here.
 String _messageFor(Object error) =>
     error is ApiException ? error.message : 'Could not load your library.';
-
-T? _firstOrNull<T>(Iterable<T> items) => items.isEmpty ? null : items.first;

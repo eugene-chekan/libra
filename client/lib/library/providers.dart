@@ -14,16 +14,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../api/libra_api.dart';
 import '../api/models.dart';
+import '../api/providers.dart';
 import '../api/session_guard.dart';
 import 'filter.dart';
-
-/// Riverpod retries a failed provider on its own, with backoff, indefinitely.
-/// That is turned off here on purpose: the design specifies an error block with
-/// a "Try again" button, and an invisible automatic retry racing it means two
-/// mechanisms for one job — the reader watches the error flicker in and out and
-/// cannot tell whether their click did anything. Failure is reported once, and
-/// retrying is the reader's call.
-Duration? _noRetry(int attempt, Object error) => null;
 
 final booksProvider = FutureProvider.family<BookPage, LibraryFilter>((
   ref,
@@ -36,16 +29,16 @@ final booksProvider = FutureProvider.family<BookPage, LibraryFilter>((
         tagIds: filter.tagIds,
         shelfId: filter.shelfId,
       );
-}, retry: _noRetry);
+}, retry: noRetry);
 
 final tagsProvider = FutureProvider<List<Tag>>(
   (ref) => ref.watch(libraApiProvider).listTags(),
-  retry: _noRetry,
+  retry: noRetry,
 );
 
 final shelvesProvider = FutureProvider<List<Shelf>>(
   (ref) => ref.watch(libraApiProvider).listShelves(),
-  retry: _noRetry,
+  retry: noRetry,
 );
 
 /// Cover bytes for one book, cached for as long as something is watching.
@@ -55,5 +48,5 @@ final shelvesProvider = FutureProvider<List<Shelf>>(
 /// library of cover-less EPUBs costs nothing.
 final coverProvider = FutureProvider.family<Uint8List?, int>(
   (ref, bookId) => ref.watch(libraApiProvider).coverBytes(bookId),
-  retry: _noRetry,
+  retry: noRetry,
 );

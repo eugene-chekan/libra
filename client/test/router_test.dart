@@ -46,11 +46,18 @@ void main() {
     expect(find.text('READING PROGRESS'), findsOneWidget);
   });
 
-  testWidgets('a book id that is not a number does not crash', (tester) async {
+  testWidgets('a book id that is not a number gets the not-found page', (
+    tester,
+  ) async {
     await pumpApp(tester, api: _signedIn(), at: '/books/not-a-number');
 
     // A typed URL, not a bug — it must not take the parse down with it.
     expect(tester.takeException(), isNull);
+    // Asserting only "did not crash" is what let this render the "arrives with
+    // #27" placeholder for months after #27 shipped: the screen was wrong and
+    // the test could not tell.
+    expect(find.text('No such page'), findsOneWidget);
+    expect(find.textContaining('arrives with'), findsNothing);
   });
 
   testWidgets('a nav row changes the route under one shell', (tester) async {
