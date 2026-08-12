@@ -49,6 +49,11 @@ on someone else's machine. Data lives in `.run/data/`, untouched by rebuilds.
 It is idempotent: safe on every boot, and it creates an admin only when the
 installation has no users at all.
 
+The script ends in `exec uvicorn`, so **uvicorn replaces the shell** — killing
+the job that launched it leaves the server running and the port held. Stop it
+by port, not by job. `LIBRA_ADMIN_PASSWORD` seeds the admin non-interactively,
+which is what makes a scratch instance scriptable.
+
 The split two-origin setup is still what `flutter run` gives you, and still
 needs `LIBRA_CORS_ORIGINS`; see `client/README.md`.
 
@@ -121,6 +126,38 @@ before pushing rather than relying on CI to catch a broken branch.
 - Squash-merge is the default merge method for this repo (single logical
   commit per PR keeps `main` linear and readable for committee review); switch
   to rebase-merge only for a PR with deliberately atomic multi-commit history.
+
+## Code style and architecture rules
+
+Full reasoning, with the defect behind each rule, in
+[`docs/specs/code-style.md`](docs/specs/code-style.md). Every one of those
+defects passed lint, format and CI — none of this is enforceable
+automatically, so it has to be read.
+
+- **One decision, one place.** Duplicated policy drifts; move it up, not
+  sideways.
+- **Check the SDK before writing a helper** — the codebase hand-rolled
+  `firstOrNull` beside the real one.
+- **Tests import constants, never transcribe them.** A copied duration had
+  already drifted 2600 vs 2500ms.
+- **A comment is a claim.** Two comments here described behaviour the code
+  did not have. Comments above changed code are part of the diff.
+- **A placeholder names a live issue and dies when it ships** — closing an
+  issue includes grepping for its number.
+- **A widget reads what it uses**; don't thread dependencies through a parent
+  that only forwards them.
+- **Never key a widget by state its own output changes** — it discards the
+  `State` and makes `didUpdateWidget` unreachable.
+- **The fake enforces the server's rules, including surprising ones.** A fake
+  that shares the client's misunderstanding tests nothing.
+- **Every widget gets at least one test.** Both bugs found in the #28 review
+  were in code the suite never touched — start any review by listing what has
+  no coverage.
+- **Assert what is on screen, not that nothing threw.**
+- **Probe before you fix**: a throwaway test that *prints* actual behaviour,
+  deleted once the real test exists.
+- **Verify a11y claims against a running build** — `flutter test` reads the
+  framework's semantics, not the rendered DOM, and the two disagree here.
 
 ## Architecture
 

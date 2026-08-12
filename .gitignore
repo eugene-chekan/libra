@@ -35,6 +35,7 @@ client/.packages
 
 # Claude Code — per-machine permission grants; shared settings.json stays tracked
 .claude/settings.local.json
+.claude.local.md
 
 # IDE
 .vscode/
