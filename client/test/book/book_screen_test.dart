@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:libra_client/api/exceptions.dart';
 import 'package:libra_client/api/fake_libra_api.dart';
 import 'package:libra_client/api/models.dart';
+import 'package:libra_client/theme/tokens.dart';
 import 'package:libra_client/widgets/upward_dropdown.dart';
 
 import '../helpers.dart';
@@ -274,7 +275,7 @@ void main() {
       await pumpUntilSessionKnown(tester);
       expect(find.text('Sent'), findsOneWidget);
 
-      await tester.pump(LibraDurationsTransient.confirmation);
+      await tester.pump(_pastConfirmation);
       await tester.pump();
 
       // "Sent" is a confirmation, not a resting state — leaving it there makes
@@ -308,7 +309,7 @@ void main() {
 
       await tester.tap(find.text('Send to Kindle'));
       await pumpUntilSessionKnown(tester);
-      await tester.pump(LibraDurationsTransient.confirmation);
+      await tester.pump(_pastConfirmation);
       await tester.pump();
 
       expect(find.textContaining('Last sent'), findsOneWidget);
@@ -364,8 +365,11 @@ void main() {
 Finder _inDropdown(String label) =>
     find.descendant(of: find.byType(DropdownRow), matching: find.text(label));
 
-/// Mirrors `LibraDurations.transientConfirmation` without importing tokens into
-/// a test that is otherwise about behaviour.
-class LibraDurationsTransient {
-  static const confirmation = Duration(milliseconds: 2600);
-}
+/// Just past the moment the confirmation is due to clear.
+///
+/// Read from the token rather than transcribed: a local copy is a second
+/// source of truth for one number, and it drifted — it said 2600ms against a
+/// token of 2500ms, so retuning the token would have left this test pumping an
+/// interval with no particular relationship to the behaviour it asserts.
+final _pastConfirmation =
+    LibraDurations.transientConfirmation + const Duration(milliseconds: 100);
