@@ -76,7 +76,15 @@ if [ "$SKIP_WEB" -eq 0 ]; then
     || die "flutter is not on PATH. Add it, or pass --skip-web to reuse the last build."
 
   step "Building the client"
-  (cd "$CLIENT" && flutter build web --release)
+  # --no-web-resources-cdn is not a nicety. It defaults to *on*, and with it on
+  # the generated loader fetches CanvasKit — the Skia build that paints every
+  # pixel of this UI — from gstatic.com at each cold load, while the complete
+  # copy it just built sits unused in the output. An instance with no internet
+  # then serves the page and renders nothing at all: a blank canvas on a home
+  # server, an air-gapped install, a laptop on a train. The fonts are already
+  # bundled for exactly this reason; shipping them locally and then borrowing
+  # the renderer from Google would leave the local-first claim half true.
+  (cd "$CLIENT" && flutter build web --release --no-web-resources-cdn)
 
   # Replaced wholesale rather than merged: a stale hashed asset left behind by
   # an earlier build is served happily and is very hard to recognise later.
