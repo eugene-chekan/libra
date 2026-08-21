@@ -2,6 +2,12 @@
 
 **Status:** Active. Written 2026-08-09, the day after Phase 1 completed.
 
+**The client stack changed on 2026-08-21**, from Flutter to TypeScript and
+React. The scope, the milestones and the design in this plan are unchanged —
+only the tools that build the screens changed. The reasons, the cost, and the
+new stack are in [client-stack.md](client-stack.md). Where this plan names a
+Flutter tool below, see the mapping table under "Technical decisions".
+
 Phase 4 is being built **before** Phases 2 and 3 rather than after. The phase
 numbers stay as they are — they are referenced across
 [architecture.md](../architecture.md) and every spec — but the execution order
@@ -171,6 +177,15 @@ already exists to prevent. epub.js is the more capable renderer and would have
 needed a separate origin or a strict sandbox to be safe. The Flutter path
 avoids the question instead of answering it.
 
+***Superseded 2026-08-21: the client is TypeScript, so the question had to be
+answered rather than avoided.*** The answer is the strict sandbox this
+paragraph names: each chapter is rendered by epub.js inside an
+`<iframe sandbox>` with `allow-same-origin` deliberately left off, which puts
+the chapter in its own empty origin where it cannot read the session cookie or
+touch the app around it. The hazard is real and the guard is standard. The
+gain is the renderer this paragraph already called more capable. Full
+reasoning in [client-stack.md](client-stack.md).
+
 **Scrolling, not paginated.** Reflowed pagination with real page numbers is a
 project of its own and is not attempted. Progress is
 `(spine_index + scroll_fraction) / spine_count`, which fits the existing
@@ -292,8 +307,25 @@ the specs superseded it. Recover with
 
 ## Technical decisions
 
+**Read this section as decisions about problems, not about tools.** The stack
+moved to TypeScript and React on 2026-08-21, but almost every bullet below
+still holds, because each one answers a question the framework does not get to
+decide: should routes be real, should fonts be local, should widgets be
+hand-rolled, how is state shaped. Only the names change.
+
+| This plan says | Now read as | Still true? |
+|---|---|---|
+| Flutter, web target first | TypeScript + React, built by Vite | Web first, yes. Phase 5 from the same code, no — see [client-stack.md](client-stack.md) |
+| `go_router` | React Router | Yes, unchanged |
+| Riverpod | TanStack Query for server data, React Context for the session | Yes — the reason given was explicit loading/error/data, which TanStack Query gives |
+| Material, restyled | Radix UI, styled from tokens | Yes — the reason given was accessibility, which is exactly what Radix supplies |
+| Design tokens as a Dart constants file | `tokens.css` custom properties + CSS Modules | Yes, unchanged |
+| `pubspec.yaml` font assets | `@font-face` over the same files, as `.woff2` | Yes, and now actually true — Flutter still pulled Roboto from Google (#51) |
+| `flutter_html` for the reader | epub.js inside `<iframe sandbox>` | No — superseded, see the reader section below |
+
 - **Flutter, web target first**, per architecture.md. Desktop and mobile are
   Phase 5 from the same codebase.
+  *(Superseded 2026-08-21 — see the table above.)*
 - **Real routes** — `/library`, `/shelves`, `/books/:id`, `/chat` — via
   `go_router`. The prototype switched a `page` string; the handoff explicitly
   asks for routable, linkable pages and a working back button.
@@ -331,8 +363,18 @@ the specs superseded it. Recover with
 
 ## Testing
 
-Widget tests over the screens, and a fake API client so the suite never needs
-a running backend — the same seam discipline as the librarian stub.
+Component tests over the screens (Vitest + React Testing Library), and a fake
+API client so the suite never needs a running backend — the same seam
+discipline as the librarian stub. The fake stays hand-written, because it has
+to copy the server's surprising rules; MSW covers only the tests that pin the
+exact shape of a request on the wire.
+
+**End-to-end tests are now possible, and are part of the scope.** Playwright
+drives the golden path through a real browser against a scratch instance. This
+could not be done under Flutter — the client painted itself onto a canvas, so
+there was nothing in the page to click, which is how issue #50 was found.
+`eslint-plugin-jsx-a11y` runs in CI and fails the build on a clickable
+`<div>`, the defect the handoff's own gap list complained about.
 
 The one thing worth testing hard is **session expiry**, because it is the only
 state the whole application shares and the only one that appears without a
@@ -384,7 +426,13 @@ is one.
 | 9 | User administration | #31 | | Admin-only modal, per-row commits, destructive delete dialog |
 | 10 | Librarian chat, stubbed | #32 | | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
 | 11 | EPUB chapters and resources | #35 | | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
-| 12 | In-browser reader | #36 | | `flutter_html` over the spine, TOC, scroll position written back as progress |
+| 12 | In-browser reader | #36 | | epub.js in a sandboxed iframe over the spine, TOC, scroll position written back as progress |
+
+**Milestones 0 to 6 were built in Flutter and are rewritten in TypeScript**,
+which is the three-week timebox in [client-stack.md](client-stack.md).
+Milestones 7 to 10 and 12 are built once, in the new client, and were never
+started in Flutter. Milestone 11 (#35) is backend work and is untouched by the
+move. The milestone numbers, scope and dependencies below are unchanged.
 
 The three milestone-1 issues and #24 are independent of everything; #25 gates
 every client milestone after it; #27 additionally waits on #21 and #22, and

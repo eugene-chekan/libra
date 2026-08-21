@@ -64,7 +64,13 @@ this phase.
   Phase 1 onward — see [specs/layering.md](specs/layering.md).
 
 **Phase 4 — Web client** — *building now, ahead of Phases 2 and 3*
-- Flutter web client: library browsing, search, chat interface to the agent
+- TypeScript + React web client: library browsing, search, chat interface to
+  the agent. **This was Flutter until 2026-08-21.** It moved because Flutter's
+  web build paints the page onto a single canvas instead of building real page
+  elements, which broke the accessibility this client promises (#50), kept
+  pulling files from Google at every cold start (#49, #51), and left no way to
+  drive the client in a real browser for tests — see
+  [specs/client-stack.md](specs/client-stack.md)
 - This is the client shown at defense
 - The chat surface ships as a designed screen against a stubbed service; what
   that stub has to answer becomes input to the Phase 3 spec rather than
@@ -78,17 +84,24 @@ this phase.
 - **Includes an in-browser EPUB reader**, added to scope on 2026-08-09. The
   spine parsing lives in `app/epub.py` rather than the client because Phase 2's
   chunker needs the same walk — one parser, two projections. Rendering is
-  `flutter_html` into widgets rather than epub.js into a DOM, since book
-  markup comes from an uploaded file and would otherwise be stored XSS on an
-  origin carrying a session cookie. The real gain is that reading progress
-  becomes observed rather than typed in by the reader
+  epub.js inside an `<iframe sandbox>` with `allow-same-origin` left off, so
+  the chapter sits in its own empty origin and cannot reach the session
+  cookie. Book markup comes from an uploaded file, so putting it into the page
+  unguarded would be stored XSS. **This was `flutter_html` until 2026-08-21**,
+  which the plan admits avoided the question rather than answering it. The
+  real gain is that reading progress becomes observed rather than typed in by
+  the reader
 - The design work is done up front rather than alongside: see
   [specs/client-design.md](specs/client-design.md), which closes the six
   surfaces the handoff never drew and restores the design tokens into the
   tree
 
 **Phase 5 — Desktop/mobile (post-diploma, own pace)**
-- Same Flutter codebase, additional build targets
+- **No longer a free build target.** Flutter would have produced desktop and
+  mobile from the same code. The move to TypeScript on 2026-08-21 ended that,
+  knowingly. The replacements are a PWA — a web app a phone can install like a
+  normal app — or a wrapper such as Tauri or Capacitor. Chosen after the
+  diploma, see [specs/client-stack.md](specs/client-stack.md)
 - Local file-system integration for desktop imports
 
 ## Non-goals for diploma window
@@ -126,7 +139,7 @@ Built alongside each phase, not retrofitted afterward — see
 | Vector store | Chroma | local-first, low ops overhead |
 | Embeddings | TBD (evaluate local vs API-based) | decide in Phase 2 |
 | Agent | Anthropic SDK, tool use | keep tool set small initially |
-| Client | Flutter (web target first) | desktop/mobile later, same codebase |
+| Client | TypeScript + React, built by Vite | real page elements, so screen readers and browser tests both work — see [specs/client-stack.md](specs/client-stack.md) |
 | CI | GitHub Actions | lint + test on push |
 
 ## Phase 1 implementation notes

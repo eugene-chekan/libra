@@ -12,8 +12,12 @@ first-class concerns — this needs to hold up to committee scrutiny, not just
 "work on my machine."
 
 **Phase 1 (backend core)** is done bar format conversion, and **Phase 4 (the
-Flutter web client)** is underway — it was deliberately reordered ahead of RAG
-and the agent, see `docs/specs/phase-4-plan.md` for why. See
+web client)** is underway — it was deliberately reordered ahead of RAG and the
+agent, see `docs/specs/phase-4-plan.md` for why. **The client moved from
+Flutter to TypeScript and React on 2026-08-21**, because Flutter's web build
+paints the page onto a single canvas instead of building real page elements —
+see `docs/specs/client-stack.md` for the reasons, the cost, and the new
+stack. See
 `docs/architecture.md` for the full 5-phase roadmap and `docs/evaluation.md`
 for how each phase's evaluation methodology is meant to be built alongside the
 implementation, not retrofitted after.
@@ -97,22 +101,19 @@ Docker: `docker compose -f scripts/docker-compose.yml up --build` (from repo roo
 
 ### Client
 
-All commands run from `client/`. Flutter 3.44.9 — pinned in CI, and the
-version `pubspec.lock` was resolved with.
+**There is no client right now.** The Flutter client was deleted on
+2026-08-21 and the TypeScript client has not been built yet. `scripts/run.sh`
+serves the API alone in the meantime — `backend/app/main.py` mounts a client
+only when `backend/app/web/` exists, and logs "serving the API only" when it
+does not.
 
-```bash
-flutter pub get                   # install deps
-flutter run -d chrome             # run against a backend on localhost:8000
-flutter test                      # run the full suite
-flutter test test/router_test.dart   # single file
-flutter analyze                   # lint
-dart format .                     # format
-```
+The new client will live in `web/`, built with Vite. Its commands and its CI
+job land with the first milestone. See `docs/specs/client-stack.md` for the
+stack, and for the command that recovers the fonts out of git history.
 
-CI additionally runs `dart format --output=none --set-exit-if-changed .`, so
-format before pushing or the client job fails on whitespace.
+One rule survives the rewrite and will bite again on day one:
 
-**Running the client against a real backend needs
+**Running the client from its own dev server against a real backend needs
 `LIBRA_CORS_ORIGINS='["http://localhost:<client-port>"]'` on the backend.** It
 is empty by default, credentialed requests cannot use a `*` origin, and a
 blocked preflight reaches the client as an indistinguishable network failure —
@@ -150,6 +151,12 @@ before pushing rather than relying on CI to catch a broken branch.
   to rebase-merge only for a PR with deliberately atomic multi-commit history.
 
 ## Code style and architecture rules
+
+Written against the Flutter client. The rules are about the defects, not the
+framework, so they carry over to the TypeScript client — "widget" reads as
+"component", and the a11y rule is now enforced by `eslint-plugin-jsx-a11y` in
+CI rather than only by reading. The last rule in the list is what ended
+Flutter here; see [`docs/specs/client-stack.md`](docs/specs/client-stack.md).
 
 Full reasoning, with the defect behind each rule, in
 [`docs/specs/code-style.md`](docs/specs/code-style.md). Every one of those
