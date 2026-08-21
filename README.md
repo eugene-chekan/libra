@@ -171,6 +171,10 @@ repository root:
 scripts/run.sh
 ```
 
+On PowerShell 7 or newer, `scriptsun.ps1` does the same thing with native
+switches — `-SkipWeb`, `-Scratch`, `-Port` — and writes to the same
+directories, so the two can be used interchangeably on one machine.
+
 That builds the client, builds a wheel with the client inside it, installs it
 into a throwaway environment, applies migrations, creates an admin account if
 the installation has none, and serves everything on port 8000:
