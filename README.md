@@ -23,37 +23,47 @@ being written in TypeScript and React after the Flutter version was dropped on
 
 ### API
 
-All endpoints except `/health` and `POST /auth/login` require a session — see
-[Accounts and login](#accounts-and-login).
+**Every endpoint lives under `/api`.** That keeps them apart from the web
+client's own URLs, which are real paths rather than `#` fragments — without the
+prefix, reloading the client at `/shelves` would ask this server for `/shelves`
+and get the shelf list as JSON instead of the app. See
+[docs/specs/client-stack.md](docs/specs/client-stack.md).
+
+`/health` is the one exception and stays at the root: it is a liveness check
+for whatever watches the process, not something the client calls, and probes
+expect to find it there.
+
+All endpoints except `/health` and `POST /api/auth/login` require a session —
+see [Accounts and login](#accounts-and-login).
 
 | Method | Path | Purpose |
 |---|---|---|
 | `GET` | `/health` | Health check |
-| `POST` | `/books/upload` | Upload an EPUB; metadata is parsed from the file |
-| `POST` | `/books` | Create a book row from supplied metadata |
-| `GET` | `/books` | Search books: `?q=`, `?tags=`, `?shelf_id=`, `?sort=` |
-| `GET` | `/books/{id}` | Fetch one book |
-| `GET` | `/books/{id}/cover` | The cover image, read from the EPUB |
-| `GET` | `/books/{id}/file` | Download the stored EPUB |
-| `GET` | `/shelves` | Your shelves in order, plus others' public ones |
-| `POST` | `/shelves` | Create a shelf |
-| `PATCH` | `/shelves/{id}` | Rename a shelf or publish it (owner) |
-| `DELETE` | `/shelves/{id}` | Delete it; `?reassign_to=` moves its books first |
-| `PUT` | `/shelves/order` | Reorder your shelves from a complete list |
-| `GET` | `/tags` | Global tags plus your own |
-| `POST` | `/tags` | Create a tag; `?make_global=true` is admin-only |
-| `PATCH` | `/tags/{id}` | Rename a tag |
-| `DELETE` | `/tags/{id}` | Delete it and remove it from every book |
-| `PUT` | `/books/{id}/state` | Set your own rating, progress and shelf |
-| `GET` | `/books/{id}/notes` | Your own notes on a book, newest first |
-| `POST` | `/books/{id}/notes` | Add a note or highlight |
-| `PATCH` | `/notes/{id}` | Edit a note's text or page |
-| `DELETE` | `/notes/{id}` | Delete a note |
-| `POST` | `/books/{id}/send-to-kindle` | Email the book to your own Kindle |
-| `PATCH` | `/books/{id}` | Correct a book's shared metadata (admin) |
-| `DELETE` | `/books/{id}` | Delete a book and its stored file (admin) |
+| `POST` | `/api/books/upload` | Upload an EPUB; metadata is parsed from the file |
+| `POST` | `/api/books` | Create a book row from supplied metadata |
+| `GET` | `/api/books` | Search books: `?q=`, `?tags=`, `?shelf_id=`, `?sort=` |
+| `GET` | `/api/books/{id}` | Fetch one book |
+| `GET` | `/api/books/{id}/cover` | The cover image, read from the EPUB |
+| `GET` | `/api/books/{id}/file` | Download the stored EPUB |
+| `GET` | `/api/shelves` | Your shelves in order, plus others' public ones |
+| `POST` | `/api/shelves` | Create a shelf |
+| `PATCH` | `/api/shelves/{id}` | Rename a shelf or publish it (owner) |
+| `DELETE` | `/api/shelves/{id}` | Delete it; `?reassign_to=` moves its books first |
+| `PUT` | `/api/shelves/order` | Reorder your shelves from a complete list |
+| `GET` | `/api/tags` | Global tags plus your own |
+| `POST` | `/api/tags` | Create a tag; `?make_global=true` is admin-only |
+| `PATCH` | `/api/tags/{id}` | Rename a tag |
+| `DELETE` | `/api/tags/{id}` | Delete it and remove it from every book |
+| `PUT` | `/api/books/{id}/state` | Set your own rating, progress and shelf |
+| `GET` | `/api/books/{id}/notes` | Your own notes on a book, newest first |
+| `POST` | `/api/books/{id}/notes` | Add a note or highlight |
+| `PATCH` | `/api/notes/{id}` | Edit a note's text or page |
+| `DELETE` | `/api/notes/{id}` | Delete a note |
+| `POST` | `/api/books/{id}/send-to-kindle` | Email the book to your own Kindle |
+| `PATCH` | `/api/books/{id}` | Correct a book's shared metadata (admin) |
+| `DELETE` | `/api/books/{id}` | Delete a book and its stored file (admin) |
 
-`GET /books` returns `{"items": [...], "total": N}` — an envelope rather than
+`GET /api/books` returns `{"items": [...], "total": N}` — an envelope rather than
 a bare list, so adding pagination later cannot change the shape under a
 client. Filters: `q` matches title or author case-insensitively, `tags` takes
 a comma-separated list of ids, `shelf_id` narrows to one shelf, and `sort` is
@@ -65,10 +75,10 @@ Tags come in two kinds. **Global** tags are curated by an admin and seen by
 everyone — "Sci-Fi" is a fact about the book the household should agree on.
 **Personal** tags belong to one reader and are invisible to the rest; "Read
 before the trip" is nobody else's business. Set a book's personal tags with
-`tag_ids` on `PUT /books/{id}/state`; global tags are applied by an admin
-through `/tags`, because a global assignment changes what everyone sees.
+`tag_ids` on `PUT /api/books/{id}/state`; global tags are applied by an admin
+through `/api/tags`, because a global assignment changes what everyone sees.
 
-**`GET /books/{id}/file` serves the stored EPUB as an attachment**, for
+**`GET /api/books/{id}/file` serves the stored EPUB as an attachment**, for
 reading on a Kindle, in KOReader, or wherever else you keep books. The offered
 filename is rebuilt from the book's title and author rather than echoed from
 whatever the uploader called the file: stored names are UUIDs precisely so a
@@ -89,8 +99,8 @@ others read it — including your progress on the books it holds — but never
 write to it. A book sits on at most one of *your* shelves; two people can
 file the same book differently.
 
-The catalog is shared; reading state is not. `GET /books` and
-`GET /books/{id}` return each book with the *calling user's* rating and
+The catalog is shared; reading state is not. `GET /api/books` and
+`GET /api/books/{id}` return each book with the *calling user's* rating and
 progress merged in, defaulting to unrated and unstarted for a book they have
 never opened. Two people can be at different points in the same book.
 
@@ -99,7 +109,7 @@ and left blank when it does not, rather than estimated. `schema:numberOfPages`
 is rare in practice, so `pages` is mostly a field an admin fills in via
 `PATCH`.
 
-Uploading is the primary path: `POST /books/upload` validates the EPUB, pulls
+Uploading is the primary path: `POST /api/books/upload` validates the EPUB, pulls
 title/author/language/publisher/subjects out of its OPF package document, and
 stores the file under a generated name. Missing metadata falls back to the
 filename and `"Unknown"` rather than failing the upload, and `PATCH` is there
@@ -217,7 +227,7 @@ uv run python -m app.cli create-admin --username yourname
 It prompts for a password (or reads `LIBRA_ADMIN_PASSWORD`, for scripted
 setup) and runs any pending migrations first, so it works on a fresh install
 with no database yet. That admin then creates everyone else via
-`POST /users`.
+`POST /api/users`.
 
 Logging in sets an httpOnly `SameSite=Lax` session cookie. Sessions live in
 the database, so logging out revokes them server-side rather than merely
@@ -225,13 +235,13 @@ clearing the browser's copy.
 
 | Method | Path | Purpose |
 |---|---|---|
-| `POST` | `/auth/login` | Exchange credentials for a session cookie |
-| `POST` | `/auth/logout` | Revoke the current session |
-| `GET` | `/auth/me` | The current user |
-| `GET` | `/users` | List accounts (admin) |
-| `POST` | `/users` | Create an account (admin) |
-| `PATCH` | `/users/{id}` | Update a profile; admin to change `is_admin` or edit another user |
-| `DELETE` | `/users/{id}` | Delete an account and everything private to it (admin) |
+| `POST` | `/api/auth/login` | Exchange credentials for a session cookie |
+| `POST` | `/api/auth/logout` | Revoke the current session |
+| `GET` | `/api/auth/me` | The current user |
+| `GET` | `/api/users` | List accounts (admin) |
+| `POST` | `/api/users` | Create an account (admin) |
+| `PATCH` | `/api/users/{id}` | Update a profile; admin to change `is_admin` or edit another user |
+| `DELETE` | `/api/users/{id}` | Delete an account and everything private to it (admin) |
 
 **Deleting an account keeps their books.** A shared catalog should not lose
 volumes because a household member left, so uploads survive with
@@ -339,7 +349,7 @@ Amazon accepts personal documents only from addresses on your approved list:
 > sender address is almost always the reason.
 
 Books are sent as EPUB with no conversion: Send to Kindle accepts EPUB
-directly. `GET /auth/me` returns `kindle_sender`, the address to approve, so
+directly. `GET /api/auth/me` returns `kindle_sender`, the address to approve, so
 you never have to go looking for it.
 
 Amazon's attachment ceiling (~50 MB) is lower than libra's upload ceiling
@@ -347,7 +357,7 @@ Amazon's attachment ceiling (~50 MB) is lower than libra's upload ceiling
 runs against the *encoded* size, since base64 inflates an attachment by about
 a third. A 45 MB book is roughly 60 MB on the wire.
 
-`POST /books/{id}/send-to-kindle` responds `202`, not `200`, and reports
+`POST /api/books/{id}/send-to-kindle` responds `202`, not `200`, and reports
 `attempted_at` rather than `sent_at`. Handing the message to the mail server
 is the last thing libra can observe.
 

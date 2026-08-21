@@ -65,18 +65,17 @@ def test_the_api_still_wins_over_the_mount(web_root: Path) -> None:
     assert response.json() == {"status": "ok"}
 
 
-def test_an_unknown_path_is_not_quietly_the_app(web_root: Path) -> None:
-    """No SPA fallback: returning index.html for anything unrecognised would
-    turn a mistyped API path into a 200 with a page in it.
+def test_a_mistyped_endpoint_is_not_quietly_the_app(web_root: Path) -> None:
+    """A mistyped endpoint must 404 rather than return a page, whatever the
+    mount at `/` does.
 
-    The Flutter client could route on the URL fragment, so it never asked the
-    server for a route at all. A React Router client normally uses real paths,
-    and `/books/:id` and `/shelves` would then collide with this API's own
-    `GET /books/{id}` and `GET /shelves`. That is an open question in
-    docs/specs/client-stack.md; this assertion is what will fail loudly if it
-    is answered by quietly adding a fallback."""
+    This is the assertion that survives the SPA fallback. Once there is a
+    client, `/books/5` has to return the app so a reload works, which means
+    unknown paths under `/` will start returning index.html. Endpoints live
+    under `/api`, so they keep 404ing — and that separation is the whole
+    reason the prefix exists. See docs/specs/client-stack.md."""
     with TestClient(create_app()) as client:
-        assert client.get("/not-a-real-path").status_code == 404
+        assert client.get("/api/not-a-real-path").status_code == 404
 
 
 def test_the_api_runs_without_a_client_build(no_web: None) -> None:
