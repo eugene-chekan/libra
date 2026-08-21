@@ -1,0 +1,29 @@
+/*
+ * The first-run empty library. client-design.md: centred in the content pane,
+ * 60px vertical padding, 22px serif heading, 13px textLight beneath it, and
+ * the action 20px below that.
+ */
+.empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 60px 0;
+  text-align: center;
+}
+
+.title {
+  font-family: var(--libra-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--libra-text);
+}
+
+.hint {
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--libra-text-light);
+}
+
+.action {
+  margin-top: 20px;
+}

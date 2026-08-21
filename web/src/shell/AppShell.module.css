@@ -1,0 +1,25 @@
+.shell {
+  display: flex;
+  height: 100%;
+  /* Designed for ≥1280px and degrading to 1024px. Below that the layout is
+     undefined — the handoff's desktop-only stance stands, and mobile is a
+     Phase 5 design problem — so the pane scrolls rather than collapsing into
+     something nobody drew. */
+  min-width: var(--libra-min-width);
+}
+
+.pane {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: var(--libra-pane-padding-y) var(--libra-pane-padding-x);
+  background: var(--libra-card);
+}
+
+.pageTitle {
+  font-family: var(--libra-serif);
+  font-size: 30px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  color: var(--libra-text);
+}

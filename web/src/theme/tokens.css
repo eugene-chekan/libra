@@ -1,0 +1,111 @@
+/*
+ * The design tokens from docs/specs/client-design.md, transcribed.
+ *
+ * That document is the source of truth; this file is its CSS form. Nothing
+ * here is invented, and no colour, radius or duration belongs anywhere else in
+ * the client — a raw `#8b5e3c` in a component is a token that escaped, and the
+ * next person who needs it will pick a slightly different one.
+ *
+ * Because these are custom properties in one file, that rule is checkable:
+ *   grep -rn "#[0-9a-fA-F]\{3,8\}" src --include=*.css | grep -v tokens.css
+ * should find nothing.
+ */
+
+:root {
+  /* --- colour ------------------------------------------------------------ */
+
+  /* Sidebar background, input fills, inset panels. */
+  --libra-bg: #f7f5f2;
+  /* Main content pane, modal surfaces. */
+  --libra-card: #ffffff;
+  /* All 1px borders, dividers, the empty progress track. */
+  --libra-border: #e8e4df;
+  /* Primary text, headings. */
+  --libra-text: #2a2520;
+  /* Secondary text, labels, inactive nav. */
+  --libra-text-mid: #6b6259;
+  /* Tertiary text, metadata, placeholders, icons. */
+  --libra-text-light: #a39a8e;
+  /* Primary actions, active states, progress fill, stars. */
+  --libra-accent: #8b5e3c;
+  /* Primary button hover. An independent token, never derived from the accent
+     — the prototype overwrote it with the flat accent value and lost the
+     hover shade entirely. */
+  --libra-accent-hover: #7a5030;
+  /* Active nav background, tag pill background. */
+  --libra-accent-light: #f0e8df;
+  /* Row hover background, inline edit field background. */
+  --libra-accent-lighter: #f8f3ed;
+  /* Cover placeholder fallback. */
+  --libra-cover-bg: #e8e4df;
+  /* Destructive icon hover, error accents. */
+  --libra-danger: #cc4444;
+  /* Selection highlight: the accent at 20% alpha. */
+  --libra-selection: #8b5e3c33;
+
+  /* --- type -------------------------------------------------------------- */
+
+  /* Logo, page titles, book titles on covers, shelf names, modal headings.
+     Weight 400 only; there is no other cut. */
+  --libra-serif: 'Instrument Serif', Georgia, serif;
+  /* Everything else. */
+  --libra-sans: 'DM Sans', system-ui, sans-serif;
+
+  /* --- spacing ----------------------------------------------------------- */
+
+  --libra-pane-padding-y: 28px;
+  --libra-pane-padding-x: 36px;
+  --libra-sidebar-padding-y: 28px;
+  --libra-sidebar-padding-x: 16px;
+  --libra-sidebar-width: 240px;
+  --libra-grid-gap: 28px;
+  --libra-shelf-row-gap: 20px;
+
+  /* --- radius ------------------------------------------------------------ */
+
+  --libra-radius: 8px;
+  --libra-radius-modal: 12px;
+  --libra-radius-cover: 4px;
+  --libra-radius-pill: 20px;
+
+  /* --- shadow ------------------------------------------------------------ */
+
+  --libra-shadow-cover: 2px 4px 12px rgb(0 0 0 / 12%), 0 1px 3px rgb(0 0 0 / 8%);
+  --libra-shadow-cover-hover: 3px 8px 20px rgb(0 0 0 / 18%);
+  --libra-shadow-modal: 0 24px 80px rgb(0 0 0 / 20%);
+  --libra-shadow-dropdown: 0 8px 24px rgb(0 0 0 / 12%);
+
+  /* --- motion ------------------------------------------------------------ */
+
+  --libra-t-interactive: 150ms;
+  --libra-t-row-hover: 120ms;
+  --libra-t-cover-lift: 200ms;
+  --libra-t-progress: 300ms;
+  --libra-t-chevron: 200ms;
+  --libra-t-modal-enter: 250ms;
+  --libra-t-dropdown-enter: 150ms;
+
+  /* One shared pulse, so nothing in the app breathes at its own rate. */
+  --libra-t-skeleton-pulse: 1400ms;
+
+  /* The skeleton delay and the transient-confirmation hold are not here.
+     Both are read by JavaScript (a timer, not a rule) and live in
+     src/theme/durations.ts, so each value has exactly one definition in the
+     language that consumes it. Splitting a duration across a CSS property and
+     a JS constant is how one in this project already drifted to 2600 against
+     2500ms. */
+
+  /* --- layout ------------------------------------------------------------ */
+
+  /* The width the design was drawn for, and the width it degrades to. Below
+     1024px the layout is undefined; the handoff's desktop-only stance stands
+     and mobile is a Phase 5 problem. */
+  --libra-design-width: 1280px;
+  --libra-min-width: 1024px;
+  /* Covers are ~1.45 tall relative to their width (160x232, 96x140, 200x292). */
+  --libra-cover-aspect: 1 / 1.45;
+  --libra-library-cell-min: 160px;
+  /* Prose column cap for the reader. Not from the handoff — it had no reader —
+     but 60-75 characters is the measure prose wants. */
+  --libra-reader-column-max: 680px;
+}

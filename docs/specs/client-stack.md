@@ -296,10 +296,22 @@ Two things came out of it worth keeping:
   `/api/not-a-real-path`. That is what it always meant, and it now survives the
   SPA fallback instead of blocking it.
 
-**The SPA fallback is not built yet.** Once there is a client, unknown paths
-under `/` must return `index.html` so a reload at `/books/5` shows the app.
-That is safe precisely because endpoints are under `/api`. It is not added
-while there is no client to serve.
+**The SPA fallback landed with the scaffold.** `SpaStaticFiles` in
+`backend/app/main.py` serves `index.html` for a path that matched no file, so
+a reload at `/books/5` shows the app. It is deliberately narrow: never under
+`/api`, where a missing endpoint must stay a 404, and never for a path with a
+file extension, because a missing `.js` is a broken build and has to look like
+one rather than arrive as HTML the browser then reports as a syntax error.
+
+Two things about it are worth knowing before touching it. A `StaticFiles` miss
+arrives as a *raised* `HTTPException`, not a response carrying a 404, so the
+obvious `if response.status_code == 404` never fires. And the path it hands
+over is OS-native, so on Windows `/api/nope` arrives as `api
+ope` and a check
+written against `api/` silently does not fire — that version passed on Linux
+and failed on Windows, which is the worst shape a bug can have because CI
+calls it green. The rule is now a plain function, `is_client_route`, tested
+against both separators.
 
 ## Still open
 
@@ -309,8 +321,8 @@ Neither of the next two blocks a start.
   stream of server messages, but it can only send a GET request, and the chat
   needs to POST the reader's message. `fetch` with a readable stream can do
   both. Decide in milestone 10, with the endpoint in front of us.
-- **Whether `web/` keeps its name** once `client/` is deleted. Renaming later
-  is cheap; deciding it now is not worth the argument.
+- **Whether `web/` keeps its name.** It is the client's home now. Renaming is
+  cheap and nothing depends on the name outside `scripts/run.sh` and CI.
 
 ## What we give up
 

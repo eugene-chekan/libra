@@ -1,0 +1,62 @@
+/*
+ * Reset and the handful of app-wide rules. Everything else belongs to a
+ * component's own .module.css.
+ */
+
+*,
+*::before,
+*::after {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  font-weight: 400;
+  color: var(--libra-text);
+  background: var(--libra-card);
+  -webkit-font-smoothing: antialiased;
+}
+
+::selection {
+  background: var(--libra-selection);
+}
+
+/*
+ * The focus ring, defined once for the whole application.
+ *
+ * client-design.md specifies a 2px accent outline at 2px offset, and says why:
+ * the handoff left this to the browser default, and a keyboard user needs it
+ * visible. `:focus-visible` rather than `:focus` so a mouse click on a button
+ * does not leave a ring behind it.
+ *
+ * Never remove this from a component to make it look tidier. The Flutter
+ * client's whole accessibility failure (#50) started from treating keyboard
+ * affordances as decoration.
+ */
+:focus-visible {
+  outline: 2px solid var(--libra-accent);
+  outline-offset: 2px;
+}
+
+/*
+ * Respect a reader who has asked their system for less motion. The skeleton
+ * pulse and the cover lift are the two things that would otherwise ignore it.
+ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

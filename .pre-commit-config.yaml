@@ -22,12 +22,24 @@ repos:
       - id: trailing-whitespace
         # uv.lock is generated. Rewriting its whitespace would leave this hook
         # and uv each undoing the other.
-        exclude: ^backend/uv\.lock
+        #
+        # web/public/fonts holds the OFL licence texts for the two bundled
+        # fonts. Reformatting a licence modifies the terms as distributed,
+        # however immaterial the whitespace. This exclusion existed before and
+        # was lost when the fonts moved out of the deleted Flutter client — the
+        # hook rewrote both files the very next commit.
+        exclude: ^(backend/uv\.lock|web/public/fonts/)
         stages: [pre-commit]
       - id: end-of-file-fixer
         # uv.lock is generated. Rewriting its whitespace would leave this hook
         # and uv each undoing the other.
-        exclude: ^backend/uv\.lock
+        #
+        # web/public/fonts holds the OFL licence texts for the two bundled
+        # fonts. Reformatting a licence modifies the terms as distributed,
+        # however immaterial the whitespace. This exclusion existed before and
+        # was lost when the fonts moved out of the deleted Flutter client — the
+        # hook rewrote both files the very next commit.
+        exclude: ^(backend/uv\.lock|web/public/fonts/)
         stages: [pre-commit]
       - id: check-yaml
         stages: [pre-commit]
@@ -49,6 +61,17 @@ repos:
       - id: pytest
         name: pytest (backend)
         entry: uv run --project backend pytest
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
+
+      # The client's counterpart, gated to push for the same reason. Not the
+      # end-to-end suite: that needs a browser, and a 100MB download is not
+      # something a push should wait on. CI runs it.
+      - id: vitest
+        name: vitest (client)
+        entry: npm --prefix web test
         language: system
         pass_filenames: false
         always_run: true

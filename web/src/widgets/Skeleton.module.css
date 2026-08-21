@@ -1,0 +1,45 @@
+/*
+ * One pulse for the whole application, so nothing breathes at its own rate.
+ * client-design.md: opacity 1 → .55 → 1 over 1.4s, ease-in-out, infinite.
+ */
+@keyframes libra-skeleton-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
+
+.block {
+  background: var(--libra-cover-bg);
+  border-radius: var(--libra-radius-cover);
+  animation: libra-skeleton-pulse var(--libra-t-skeleton-pulse) ease-in-out infinite;
+}
+
+/* Library grid cell: a cover block at the real aspect, then two lines at 80%
+   and 50% width. Matching the real cell geometry is the point — a skeleton
+   that is not the shape of what replaces it makes the page jump. */
+.cell {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.cover {
+  width: 100%;
+  aspect-ratio: var(--libra-cover-aspect);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--libra-library-cell-min), 1fr));
+  gap: var(--libra-grid-gap);
+}
+
+.rows {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}

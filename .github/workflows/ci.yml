@@ -45,6 +45,73 @@ jobs:
       - name: Run tests
         run: uv run pytest
 
-  # The client job returns with the first milestone of the TypeScript client:
-  # prettier --check, eslint, tsc --noEmit, vitest run. It ran Flutter until
-  # 2026-08-21 — see docs/specs/client-stack.md.
+  # Runs independently of the backend job: the client has no Python and the
+  # backend has no TypeScript, so a failure in one should not hide the other.
+  client:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      # `ci` rather than `install`: it installs exactly what the lockfile says
+      # and fails if package.json and the lockfile disagree.
+      - name: Install dependencies
+        run: npm ci
+
+      # The counterpart of `ruff format --check`, and for the same reason:
+      # hooks are not installed in a fresh clone.
+      - name: Check formatting
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build
+        run: npm run build
+
+  # Separate from the client job because it needs a browser, which costs a
+  # download the other checks should not wait on. This is the job that could
+  # not exist under Flutter: the client painted itself onto a canvas, so there
+  # was nothing in the page for a browser-driving tool to click — which is how
+  # issue #50 was found. See docs/specs/client-stack.md.
+  e2e:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Chromium alone. The app is desktop-only by design and self-hosted on a
+      # home network, so three engines would triple this job for a risk the
+      # project does not carry.
+      - name: Install Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Run end-to-end tests
+        run: npm run e2e

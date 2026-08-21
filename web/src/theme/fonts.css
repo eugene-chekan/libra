@@ -1,0 +1,65 @@
+/*
+ * Fonts are bundled and fetched from nowhere.
+ *
+ * This is not a preference. A local-first application that needs the network
+ * to render text is a contradiction that would not survive review, and the
+ * Flutter client failed it twice: its renderer came from Google (#49) and so
+ * did Roboto (#51), because the drawing engine carried its own font fallback.
+ * Nothing here reaches the network — the files are served by the same process
+ * that serves the app.
+ *
+ * The .woff2 files are the .ttf files that shipped with the Flutter client,
+ * recompressed. 241KB became 96KB, which .ttf on the web was never going to
+ * give us. Their OFL licence texts sit beside them in public/fonts/, so the
+ * licence travels with the fonts in any build that distributes them.
+ *
+ * `font-display: swap` renders in the fallback face immediately and swaps when
+ * the real one arrives. Locally that swap is imperceptible; the alternative is
+ * a blank page while a font loads from the same disk it is already on.
+ */
+
+@font-face {
+  font-family: 'Instrument Serif';
+  src: url('/fonts/InstrumentSerif-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+/*
+ * DM Sans ships here as four static cuts rather than one variable file, so
+ * `font-weight` alone selects the right face. The Flutter client made the same
+ * choice for the same reason.
+ */
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/DMSans-Regular.woff2') format('woff2');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/DMSans-Medium.woff2') format('woff2');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/DMSans-SemiBold.woff2') format('woff2');
+  font-weight: 600;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'DM Sans';
+  src: url('/fonts/DMSans-Bold.woff2') format('woff2');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}

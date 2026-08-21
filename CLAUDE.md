@@ -101,20 +101,29 @@ Docker: `docker compose -f scripts/docker-compose.yml up --build` (from repo roo
 
 ### Client
 
-**There is no client right now.** The Flutter client was deleted on
-2026-08-21 and the TypeScript client has not been built yet. `scripts/run.sh`
-serves the API alone in the meantime — `backend/app/main.py` mounts a client
-only when `backend/app/web/` exists, and logs "serving the API only" when it
-does not.
+All commands run from `web/`. TypeScript, React and Vite — the Flutter client
+was deleted on 2026-08-21, see `docs/specs/client-stack.md`.
 
-The new client will live in `web/`, built with Vite. Its commands and its CI
-job land with the first milestone. See `docs/specs/client-stack.md` for the
-stack, and for the command that recovers the fonts out of git history.
+```bash
+npm ci                # install exactly what the lockfile says
+npm run dev           # run against a backend on localhost:8000
+npm test              # component tests (Vitest)
+npm run e2e           # end-to-end tests in a real browser (Playwright)
+npm run lint          # ESLint, including the accessibility rules
+npm run typecheck     # tsc --noEmit
+npm run format        # Prettier, writing
+npm run build         # typecheck, then a production build into dist/
+```
 
-One rule survives the rewrite and will bite again on day one:
+CI runs `npm run format:check`, so format before pushing or the client job
+fails on whitespace. `npm run e2e` needs a browser once:
+`npx playwright install chromium`.
 
-**Running the client from its own dev server against a real backend needs
-`LIBRA_CORS_ORIGINS='["http://localhost:<client-port>"]'` on the backend.** It
+**`npm run dev` proxies `/api` to localhost:8000**, so the browser sees one
+origin and `LIBRA_CORS_ORIGINS` is not needed for ordinary development. It is
+only needed if you bypass the proxy and call the backend directly:
+
+`LIBRA_CORS_ORIGINS='["http://localhost:<client-port>"]'` on the backend. It
 is empty by default, credentialed requests cannot use a `*` origin, and a
 blocked preflight reaches the client as an indistinguishable network failure —
 so a misconfigured origin looks exactly like a server that is not running.
