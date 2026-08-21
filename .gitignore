@@ -27,6 +27,15 @@ venv/
 # Env
 .env
 
+# The web client. node_modules and dist are reproducible from package-lock.json
+# and the source; package-lock.json itself is tracked, because `npm ci` needs it
+# and because a build that resolves different versions than the last one is not
+# the same build.
+/web/node_modules/
+/web/dist/
+/web/playwright-report/
+/web/test-results/
+
 # Claude Code — per-machine permission grants; shared settings.json stays tracked
 .claude/settings.local.json
 .claude.local.md

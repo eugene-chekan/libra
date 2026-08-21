@@ -1,0 +1,112 @@
+/*
+ * The sidebar is a three-part vertical flex, per client-design.md: a fixed
+ * logo, a scrollable middle, and a footer that never scrolls.
+ *
+ * The footer is the reason for the structure. The handoff's sidebar was one
+ * column with `margin-top: auto` on Add Book and had no account area at all —
+ * so there was nowhere to sign out. Sign-out must be reachable without
+ * hunting, which means it cannot be at the bottom of something that scrolls.
+ */
+.sidebar {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: var(--libra-sidebar-width);
+  padding: var(--libra-sidebar-padding-y) var(--libra-sidebar-padding-x);
+  background: var(--libra-bg);
+  border-right: 1px solid var(--libra-border);
+}
+
+.logo {
+  font-family: var(--libra-serif);
+  font-size: 28px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  color: var(--libra-text);
+  text-decoration: none;
+  padding: 0 12px;
+}
+
+/* The middle scrolls; the footer below it does not. `min-height: 0` is what
+   actually allows this flex child to shrink below its content and scroll —
+   without it the footer is pushed off the bottom of the viewport. */
+.middle {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  margin-top: 28px;
+}
+
+.nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+/* 10px/12px padding, 8px radius, and the active/inactive treatment shared by
+   every row in the sidebar. */
+.navRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--libra-radius);
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--libra-text-mid);
+  text-decoration: none;
+  transition:
+    background var(--libra-t-row-hover),
+    color var(--libra-t-row-hover);
+}
+
+.navRow:hover {
+  background: var(--libra-accent-lighter);
+}
+
+.navRow[aria-current='page'] {
+  background: var(--libra-accent-light);
+  color: var(--libra-accent);
+}
+
+/* Pinned footer: 1px border top, 12px top padding. */
+.footer {
+  flex-shrink: 0;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid var(--libra-border);
+}
+
+/*
+ * The sidebar's Add Book is dashed. The one in the empty library is solid
+ * accent, and that difference is deliberate: on an empty library it is the
+ * only thing to do on the screen, and here it is one option among several.
+ */
+.addBook {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 10px 12px;
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--libra-text-mid);
+  background: none;
+  border: 1px dashed var(--libra-border);
+  border-radius: var(--libra-radius);
+  cursor: pointer;
+  transition:
+    border-color var(--libra-t-interactive),
+    color var(--libra-t-interactive),
+    background var(--libra-t-interactive);
+}
+
+.addBook:hover {
+  color: var(--libra-accent);
+  border-color: var(--libra-accent);
+  background: var(--libra-accent-lighter);
+}

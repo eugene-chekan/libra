@@ -1,0 +1,11 @@
+dist
+coverage
+node_modules
+playwright-report
+test-results
+package-lock.json
+
+# Vendored third-party files stay byte-for-byte as shipped. The OFL texts are
+# licences: reformatting one modifies the terms as distributed, however
+# immaterial the whitespace.
+public/fonts

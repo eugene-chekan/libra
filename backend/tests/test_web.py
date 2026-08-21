@@ -15,7 +15,7 @@ import pytest
 from fastapi.testclient import TestClient
 
 from app.config import get_settings
-from app.main import create_app
+from app.main import create_app, is_client_route
 
 
 @pytest.fixture(name="web_root")
@@ -66,16 +66,72 @@ def test_the_api_still_wins_over_the_mount(web_root: Path) -> None:
 
 
 def test_a_mistyped_endpoint_is_not_quietly_the_app(web_root: Path) -> None:
-    """A mistyped endpoint must 404 rather than return a page, whatever the
-    mount at `/` does.
+    """A mistyped endpoint must 404 rather than return a page.
 
-    This is the assertion that survives the SPA fallback. Once there is a
-    client, `/books/5` has to return the app so a reload works, which means
-    unknown paths under `/` will start returning index.html. Endpoints live
-    under `/api`, so they keep 404ing — and that separation is the whole
-    reason the prefix exists. See docs/specs/client-stack.md."""
+    This is the assertion the SPA fallback had to be built around. Unknown
+    paths under `/` now return index.html so a reload at `/books/5` works;
+    endpoints live under `/api` and keep 404ing, and that separation is the
+    whole reason the prefix exists. See docs/specs/client-stack.md."""
     with TestClient(create_app()) as client:
         assert client.get("/api/not-a-real-path").status_code == 404
+
+
+def test_a_client_route_survives_a_reload(web_root: Path) -> None:
+    """`/shelves` is an address a reader can reload, bookmark and share.
+
+    There is no `shelves` file on disk — the path exists only inside the
+    running app — so without the fallback a refresh loses the page."""
+    with TestClient(create_app()) as client:
+        response = client.get("/shelves")
+
+    assert response.status_code == 200
+    assert "libra" in response.text
+
+
+def test_a_nested_client_route_survives_a_reload(web_root: Path) -> None:
+    """The case that pushed the API under `/api`: before the prefix, `/books/5`
+    was an endpoint, and reloading the book screen returned JSON."""
+    with TestClient(create_app()) as client:
+        response = client.get("/books/5")
+
+    assert response.status_code == 200
+    assert "libra" in response.text
+
+
+def test_a_missing_asset_is_a_404_not_a_page(web_root: Path) -> None:
+    """A missing `.js` is a broken build, and it has to look like one.
+
+    Answering it with index.html makes the browser report a syntax error in a
+    script rather than a 404 for a missing one, which sends whoever is
+    debugging it a long way in the wrong direction."""
+    with TestClient(create_app()) as client:
+        assert client.get("/assets/index-abc123.js").status_code == 404
+        assert client.get("/fonts/DMSans-Regular.woff2").status_code == 404
+
+
+@pytest.mark.parametrize("sep", ["/", "\\"], ids=["posix", "windows"])
+@pytest.mark.parametrize(
+    ("path", "is_route"),
+    [
+        ("shelves", True),
+        ("library", True),
+        ("books{sep}5", True),
+        ("api{sep}not-a-real-path", False),
+        ("api{sep}books{sep}5", False),
+        ("assets{sep}index-abc123.js", False),
+        ("fonts{sep}DMSans-Regular.woff2", False),
+        ("favicon.svg", False),
+    ],
+)
+def test_which_paths_are_client_routes(path: str, is_route: bool, sep: str) -> None:
+    """Both separators, because `StaticFiles` hands over an OS-native path.
+
+    On Windows `/api/nope` arrives as `api\\nope`, so a check written against
+    `api/` does not fire and a mistyped endpoint quietly returns the app. That
+    version passed on Linux and failed on Windows, which is the worst shape a
+    bug can have: CI calls it green. Parametrising the separator is what stops
+    it coming back on whichever platform the author is not using today."""
+    assert is_client_route(path.format(sep=sep)) is is_route
 
 
 def test_the_api_runs_without_a_client_build(no_web: None) -> None:

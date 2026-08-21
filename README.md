@@ -141,6 +141,7 @@ file in `backend/`):
 
 ```
 libra/
+├── web/                   # the client: TypeScript, React, Vite (Phase 4)
 ├── backend/
 │   ├── app/              # FastAPI app: routes, models, config
 │   ├── rag/              # ingestion, chunking, embeddings, retrieval (Phase 2)
@@ -163,8 +164,8 @@ libra/
 
 ### Running the whole thing
 
-Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/). There is no
-client to build yet, so this serves the API alone. From the repository root:
+Requires Python 3.12+, [uv](https://docs.astral.sh/uv/) and Node 22+. From the
+repository root:
 
 ```bash
 scripts/run.sh
