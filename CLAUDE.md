@@ -18,6 +18,28 @@ and the agent, see `docs/specs/phase-4-plan.md` for why. See
 for how each phase's evaluation methodology is meant to be built alongside the
 implementation, not retrofitted after.
 
+## How to write here
+
+Use the simplest English possible, at all times. This applies everywhere:
+chat replies, commit messages, PR descriptions, specs, docs, and code
+comments.
+
+The reader is not a native English speaker, and is a beginner in web and
+mobile development. Write for that reader.
+
+- Short sentences. One idea in each sentence.
+- Plain words. No idioms and no figures of speech.
+- Explain a web, browser, or mobile term in one short line the first time it
+  appears. Do not assume knowledge of React, CSS, the DOM, HTTP, or build
+  tools.
+- **Python and backend work is the exception.** That ground is familiar, so
+  normal terms are fine there. Keep the sentences short anyway.
+- Simple does not mean vague. Keep every exact file name, line number,
+  command, and measurement. Cut the hard words, never the facts.
+
+The specs in `docs/` were written before this rule and are dense. Simplify a
+section when a change touches it, rather than in one large pass.
+
 ## Commands
 
 ### Running the whole thing
