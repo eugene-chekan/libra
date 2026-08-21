@@ -5,7 +5,7 @@ dependency, so the sweep below walks the actual route table rather than a
 hand-kept list — a new endpoint is covered the moment it is registered.
 """
 
-from collections.abc import Iterator
+import re
 
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
@@ -23,47 +23,33 @@ BOOK_PAYLOAD = {
 # The only routes reachable without a session, and why.
 PUBLIC_ROUTES = {
     ("GET", "/health"),  # liveness probes run before anyone can log in
-    ("POST", "/auth/login"),  # the way a session is obtained in the first place
+    ("POST", "/api/auth/login"),  # the way a session is obtained in the first place
 }
-
-# FastAPI's own docs endpoints, not part of the API surface.
-_DOCS_PATHS = {"/openapi.json", "/docs", "/redoc", "/docs/oauth2-redirect"}
-
-
-def _walk(routes) -> Iterator[tuple[str, str]]:
-    """Yield (method, path) for every endpoint, descending into included routers.
-
-    `include_router` does not flatten its routes into `app.routes`; it adds a
-    wrapper exposing the original router, whose own routes carry the full
-    prefixed path. Walking only the top level finds the docs endpoints and
-    nothing else — which is exactly how this test could have passed while
-    checking nothing.
-    """
-    for route in routes:
-        included = getattr(route, "original_router", None)
-        if included is not None:
-            yield from _walk(getattr(included, "routes", []))
-            continue
-
-        path, methods = getattr(route, "path", None), getattr(route, "methods", None)
-        if not path or not methods:
-            continue
-        for method in sorted(methods - {"HEAD", "OPTIONS"}):
-            yield method, path
 
 
 def _api_routes(app: FastAPI | None = None) -> list[tuple[str, str]]:
-    """Every (method, path) the app serves, minus FastAPI's own docs.
+    """Every (method, path) the app serves, read from its OpenAPI schema.
+
+    The schema is used rather than `app.routes` because it is the only place
+    the *full* path appears. `include_router` does not flatten routes into
+    `app.routes`; it adds a wrapper holding the original router, whose own
+    routes carry only the prefixes baked in when they were defined. A prefix
+    applied at inclusion — which is how every endpoint here gets its `/api` —
+    lives on the wrapper and is invisible to a walk of the tree. Reading it
+    back correctly means re-deriving FastAPI's own routing rules, and getting
+    that subtly wrong is how this test passed while checking nothing once
+    before.
+
+    FastAPI's own docs endpoints are absent from the schema, so they need no
+    exclusion. Nothing here sets `include_in_schema=False`; a route that did
+    would be invisible to this sweep, which is worth knowing before adding one.
 
     Built from `create_app()` rather than the TestClient, which does not
     expose the FastAPI instance. Routes are static, so a fresh app has the
     same table as the one under test.
     """
-    return [
-        (method, path)
-        for method, path in _walk((app or create_app()).routes)
-        if path not in _DOCS_PATHS
-    ]
+    paths = (app or create_app()).openapi()["paths"]
+    return [(method.upper(), path) for path, operations in paths.items() for method in operations]
 
 
 def test_every_route_requires_authentication(anon_client: TestClient) -> None:
@@ -73,9 +59,13 @@ def test_every_route_requires_authentication(anon_client: TestClient) -> None:
     for method, path in _api_routes():
         if (method, path) in PUBLIC_ROUTES:
             continue
-        concrete = path.replace("{book_id}", "1").replace("{user_id}", "1")
+        # Every `{...}` placeholder, not a named few: a new path parameter
+        # would otherwise be sent literally and answered 422 rather than 401.
+        concrete = re.sub(r"\{[^}]+\}", "1", path)
 
-        response = anon_client.request(method, concrete)
+        # Absolute: the walk yields full paths, already carrying `/api`, while
+        # the fixture is based there. Relative would ask for `/api/api/...`.
+        response = anon_client.request(method, f"http://testserver{concrete}")
 
         assert response.status_code == 401, f"{method} {path} returned {response.status_code}"
         checked += 1
@@ -92,7 +82,8 @@ def test_the_public_allowlist_is_not_stale() -> None:
 
 
 def test_health_is_reachable_without_a_session(anon_client: TestClient) -> None:
-    assert anon_client.get("/health").status_code == 200
+    # Absolute: health sits outside the `/api` prefix the fixture is based at.
+    assert anon_client.get("http://testserver/health").status_code == 200
 
 
 def test_an_ordinary_user_can_read_and_add_books(client: TestClient) -> None:

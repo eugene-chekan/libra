@@ -263,28 +263,45 @@ that is information, and Phase 2 and Phase 3 still get their months.
 **No new Flutter code from 2026-08-21.** Milestone 7 onward is built once, in
 the new client.
 
-## Still open
-
-**Client routes collide with API routes. Decide this before the first screen.**
+## Decided: the API moved under `/api`
 
 The Flutter client could route on the part of the URL after `#`, so the server
-never saw a client route at all. React Router normally uses real paths. With
-real paths, reloading the page at `/books/5` asks *this server* for `/books/5`
-— which is the API's own `GET /books/{id}`, and returns JSON instead of the
-app. `/shelves` collides the same way.
+never saw a client route. React Router uses real paths, and that broke two of
+them: reloading at `/shelves` asked *this server* for `/shelves` and got the
+shelf list as JSON instead of the app. `/books/5` was the same.
 
-Three ways out:
+**Every endpoint now lives under `/api`.** `/health` is the one exception and
+stays at the root, because it is a liveness check for whatever watches the
+process, not something the client calls.
 
-1. **Move the API under `/api`.** One prefix in FastAPI and the whole class of
-   collision is gone for good. Costs a mechanical edit across the test suite.
-2. **Serve `index.html` for a known list of client routes only.** No API
-   change, but the route list is then written down in two places, and
-   `backend/tests/test_web.py::test_an_unknown_path_is_not_quietly_the_app`
-   exists precisely to stop a blanket fallback being added by accident.
-3. **Keep routing on the `#` fragment.** Free, and ugly in a way a committee
-   may well ask about.
+Renaming the two colliding client routes would have worked today and left a
+rule to remember forever, while Phase 2 and Phase 3 still have endpoints to
+add. Routing on `#` would have cost nothing and left the `#` in every link. A
+prefix ends the whole class of problem instead of managing it.
 
-Every screen assumes the answer, so it cannot be deferred past milestone 1.
+It cost less than expected. The prefix is declared once in `create_app`, and
+the test suite builds its client in one place, so `TestClient` carries the
+prefix in its `base_url` and **not one test path changed**.
+
+Two things came out of it worth keeping:
+
+- `test_permissions.py` reads the route table from the **OpenAPI schema** now,
+  rather than walking `app.routes`. A prefix applied at inclusion time lives on
+  a wrapper object and never reaches the child paths, so the old walk went
+  blind to `/api` the moment it existed. The schema is the only place the full
+  path appears. Mutation-tested: an endpoint added without its auth dependency
+  makes the sweep fail.
+- The no-fallback test became
+  `test_a_mistyped_endpoint_is_not_quietly_the_app`, checking
+  `/api/not-a-real-path`. That is what it always meant, and it now survives the
+  SPA fallback instead of blocking it.
+
+**The SPA fallback is not built yet.** Once there is a client, unknown paths
+under `/` must return `index.html` so a reload at `/books/5` shows the app.
+That is safe precisely because endpoints are under `/api`. It is not added
+while there is no client to serve.
+
+## Still open
 
 Neither of the next two blocks a start.
 

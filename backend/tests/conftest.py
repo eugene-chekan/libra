@@ -125,7 +125,11 @@ def _build_client(
         # against whichever user was injected, rather than being waved past.
         app.dependency_overrides[current_user] = lambda: as_user
 
-    with TestClient(app) as client:
+    # The endpoints live under `/api`; carrying that on the client rather than
+    # on every call keeps each test reading as the path it exercises, so moving
+    # the prefix cost one line here instead of an edit per assertion.
+    # `/health` is outside the prefix and is reached with a full URL.
+    with TestClient(app, base_url="http://testserver/api") as client:
         yield client
     app.dependency_overrides.clear()
 

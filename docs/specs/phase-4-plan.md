@@ -38,6 +38,12 @@ Three reasons to spend it here:
 
 The API is **17 paths / 26 operations** as of Phase 1's close.
 
+*Paths below are written as they were at Phase 1's close. Every one of them
+moved under `/api` on 2026-08-21 — `POST /auth/login` is now
+`POST /api/auth/login`, and so on, with `/health` the only exception. The
+reason is in [client-stack.md](client-stack.md); the current list is in the
+README.*
+
 | Screen | Endpoints |
 |---|---|
 | Login, session expiry | `POST /auth/login`, `POST /auth/logout`, `GET /auth/me` |
