@@ -55,6 +55,27 @@ scripts/run.sh --scratch  # throwaway instance, wiped on every run
 PORT=9000 scripts/run.sh
 ```
 
+`scripts/run.ps1` is the same thing for PowerShell 7+, with native switches
+instead of flags. Same steps, same output, same data directories, so the two
+can be used interchangeably on one machine:
+
+```powershell
+scripts
+un.ps1                    # build client + wheel, migrate, serve
+scripts
+un.ps1 -SkipWeb           # reuse the last client build
+scripts
+un.ps1 -Scratch           # throwaway instance, wiped on every run
+scripts
+un.ps1 -Port 9000         # $env:PORT is the default
+Get-Help scripts
+un.ps1 -Full     # the full description
+```
+
+**They are twins, and twins drift.** This is the one place the repo carries
+the same policy twice — where the data lives, what `--scratch` wipes, the
+order of the steps. A change to either belongs in both, in the same commit.
+
 **Use `--scratch` for anything exploratory** — demoing, verifying a change,
 clicking through a new screen, seeding fake books. It keeps its data in
 `.run/scratch/` and empties that on every run, so a clean slate never requires
@@ -64,8 +85,9 @@ plain `scripts/run.sh` during a test is how that happens.
 
 **One process, one origin.** The API serves the built client at `/`, so both
 share an address. That is not tidiness: the client resolves its API address
-from the page it was loaded from (`Uri.base.origin`), which is what lets any
-device on the network open `http://<host>:8000` and work. Served separately,
+from the page it was loaded from — it calls `/api/...` relative to wherever it
+was served — which is what lets any device on the network open
+`http://<host>:8000` and work. Served separately,
 the client would need rebuilding for every address it might be reached at, and
 every device's origin adding to `LIBRA_CORS_ORIGINS`.
 
@@ -75,13 +97,16 @@ on someone else's machine. Data lives in `.run/data/`, untouched by rebuilds.
 It is idempotent: safe on every boot, and it creates an admin only when the
 installation has no users at all.
 
-The script ends in `exec uvicorn`, so **uvicorn replaces the shell** — killing
+`run.sh` ends in `exec uvicorn`, so **uvicorn replaces the shell** — killing
 the job that launched it leaves the server running and the port held. Stop it
-by port, not by job. `LIBRA_ADMIN_PASSWORD` seeds the admin non-interactively,
-which is what makes a scratch instance scriptable.
+by port, not by job. `run.ps1` has no `exec` to use, so uvicorn stays a child
+process and Ctrl-C reaches it normally; that difference is in its favour.
+`LIBRA_ADMIN_PASSWORD` seeds the admin non-interactively, which is what makes
+a scratch instance scriptable.
 
-The split two-origin setup is still what `flutter run` gives you, and still
-needs `LIBRA_CORS_ORIGINS`; see `client/README.md`.
+For the split two-origin setup, `npm run dev` proxies `/api` to
+localhost:8000, so `LIBRA_CORS_ORIGINS` is only needed when bypassing that
+proxy; see `web/README.md`.
 
 ### Backend
 

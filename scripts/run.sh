@@ -19,7 +19,9 @@
 # two separately would mean rebuilding the client for every address it might
 # be reached at, and listing every device's origin in LIBRA_CORS_ORIGINS.
 #
-# Runs on Linux and macOS, and on Windows under Git Bash.
+# Runs on Linux and macOS, and on Windows under Git Bash. scripts/run.ps1 is
+# the same script for PowerShell 7+, and the two are kept deliberately
+# identical in behaviour — a change to either belongs in both.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
