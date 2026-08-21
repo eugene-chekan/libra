@@ -265,7 +265,28 @@ the new client.
 
 ## Still open
 
-Neither of these blocks a start.
+**Client routes collide with API routes. Decide this before the first screen.**
+
+The Flutter client could route on the part of the URL after `#`, so the server
+never saw a client route at all. React Router normally uses real paths. With
+real paths, reloading the page at `/books/5` asks *this server* for `/books/5`
+— which is the API's own `GET /books/{id}`, and returns JSON instead of the
+app. `/shelves` collides the same way.
+
+Three ways out:
+
+1. **Move the API under `/api`.** One prefix in FastAPI and the whole class of
+   collision is gone for good. Costs a mechanical edit across the test suite.
+2. **Serve `index.html` for a known list of client routes only.** No API
+   change, but the route list is then written down in two places, and
+   `backend/tests/test_web.py::test_an_unknown_path_is_not_quietly_the_app`
+   exists precisely to stop a blanket fallback being added by accident.
+3. **Keep routing on the `#` fragment.** Free, and ugly in a way a committee
+   may well ask about.
+
+Every screen assumes the answer, so it cannot be deferred past milestone 1.
+
+Neither of the next two blocks a start.
 
 - **How the chat streams.** `EventSource` is the simple browser tool for a
   stream of server messages, but it can only send a GET request, and the chat
