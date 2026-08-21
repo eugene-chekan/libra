@@ -20,16 +20,14 @@ repos:
     rev: v6.0.0
     hooks:
       - id: trailing-whitespace
-        # Vendored third-party files are left byte-for-byte as shipped. The
-        # OFL texts are licences: reformatting one is modifying the terms as
-        # distributed, however immaterial the whitespace.
-        exclude: ^(backend/uv\.lock|client/assets/)
+        # uv.lock is generated. Rewriting its whitespace would leave this hook
+        # and uv each undoing the other.
+        exclude: ^backend/uv\.lock
         stages: [pre-commit]
       - id: end-of-file-fixer
-        # Vendored third-party files are left byte-for-byte as shipped. The
-        # OFL texts are licences: reformatting one is modifying the terms as
-        # distributed, however immaterial the whitespace.
-        exclude: ^(backend/uv\.lock|client/assets/)
+        # uv.lock is generated. Rewriting its whitespace would leave this hook
+        # and uv each undoing the other.
+        exclude: ^backend/uv\.lock
         stages: [pre-commit]
       - id: check-yaml
         stages: [pre-commit]

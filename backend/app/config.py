@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     # (e.g. a Docker volume) without invalidating existing rows.
     library_dir: Path = Path("./library")
 
-    # The built Flutter client, served at `/` so the API and the app share one
+    # The built web client, served at `/` so the API and the app share one
     # origin. That is not a packaging convenience: the client resolves its API
     # address from the page it was loaded from, so one origin is what lets a
     # phone open http://<host>:8000 and just work. Served separately, the

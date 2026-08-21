@@ -14,8 +14,10 @@ metadata extraction, Alembic migrations, multi-user accounts with password
 auth, per-user reading state, shelves, tags, search, cover art, and Kindle
 delivery over SMTP.
 
-Next: the RAG pipeline (Phase 2), the librarian agent (Phase 3), and the
-Flutter client (Phase 4). Format conversion was deferred out of Phase 1 — see
+Next: the web client (Phase 4), then the RAG pipeline (Phase 2) and the
+librarian agent (Phase 3) — the client is deliberately built first, and it is
+being written in TypeScript and React after the Flutter version was dropped on
+2026-08-21 (see [docs/specs/client-stack.md](docs/specs/client-stack.md)). Format conversion was deferred out of Phase 1 — see
 [docs/specs/phase-1-plan.md](docs/specs/phase-1-plan.md) for that decision and
 [docs/architecture.md](docs/architecture.md) for the roadmap.
 
@@ -136,7 +138,6 @@ libra/
 │   ├── tests/
 │   ├── pyproject.toml
 │   └── Dockerfile
-├── client/                # Flutter app (Phase 4+)
 ├── docs/
 │   ├── architecture.md
 │   ├── evaluation.md
@@ -152,8 +153,8 @@ libra/
 
 ### Running the whole thing
 
-Requires Python 3.12+, [uv](https://docs.astral.sh/uv/), and the Flutter SDK.
-From the repository root:
+Requires Python 3.12+ and [uv](https://docs.astral.sh/uv/). There is no
+client to build yet, so this serves the API alone. From the repository root:
 
 ```bash
 scripts/run.sh

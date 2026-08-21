@@ -12,8 +12,9 @@ venv/
 *.sqlite3
 
 # Stored ebook files. Anchored, because a bare `library/` matches any directory
-# with that name at any depth — it was silently swallowing the client's
-# `lib/library/` source folder, which is a feature, not a book store.
+# with that name at any depth — it once silently swallowed the old Flutter
+# client's `lib/library/` source folder, which was a feature, not a book
+# store. The hazard is not Flutter's; keep the anchor for the next client.
 /library/
 /backend/library/
 
@@ -26,13 +27,6 @@ venv/
 # Env
 .env
 
-# Flutter / Dart
-client/.dart_tool/
-client/.flutter-plugins
-client/.flutter-plugins-dependencies
-client/build/
-client/.packages
-
 # Claude Code — per-machine permission grants; shared settings.json stays tracked
 .claude/settings.local.json
 .claude.local.md
@@ -40,6 +34,7 @@ client/.packages
 # IDE
 .vscode/
 .idea/
+*.iml
 
 # OS
 .DS_Store

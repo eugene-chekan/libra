@@ -22,11 +22,11 @@ from app.main import create_app
 def web_root_fixture(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> Generator[Path, None, None]:
-    """A stand-in for `flutter build web` output."""
+    """A stand-in for a client build's output."""
     root = tmp_path / "web"
     root.mkdir()
     (root / "index.html").write_text("<title>libra</title>", encoding="utf-8")
-    (root / "main.dart.js").write_text("// the app", encoding="utf-8")
+    (root / "app.js").write_text("// the app", encoding="utf-8")
 
     monkeypatch.setenv("LIBRA_WEB_DIR", str(root))
     get_settings.cache_clear()
@@ -52,7 +52,7 @@ def test_the_root_serves_the_client(web_root: Path) -> None:
 
 def test_client_assets_are_served(web_root: Path) -> None:
     with TestClient(create_app()) as client:
-        assert client.get("/main.dart.js").status_code == 200
+        assert client.get("/app.js").status_code == 200
 
 
 def test_the_api_still_wins_over_the_mount(web_root: Path) -> None:
@@ -66,9 +66,15 @@ def test_the_api_still_wins_over_the_mount(web_root: Path) -> None:
 
 
 def test_an_unknown_path_is_not_quietly_the_app(web_root: Path) -> None:
-    """No SPA fallback: the client routes on the URL fragment, so it never asks
-    the server for a route. Returning index.html for anything unrecognised
-    would turn a mistyped API path into a 200 with a page in it."""
+    """No SPA fallback: returning index.html for anything unrecognised would
+    turn a mistyped API path into a 200 with a page in it.
+
+    The Flutter client could route on the URL fragment, so it never asked the
+    server for a route at all. A React Router client normally uses real paths,
+    and `/books/:id` and `/shelves` would then collide with this API's own
+    `GET /books/{id}` and `GET /shelves`. That is an open question in
+    docs/specs/client-stack.md; this assertion is what will fail loudly if it
+    is answered by quietly adding a fallback."""
     with TestClient(create_app()) as client:
         assert client.get("/not-a-real-path").status_code == 404
 

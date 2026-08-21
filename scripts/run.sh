@@ -4,7 +4,6 @@
 #
 #   scripts/run.sh              # build and serve on http://<this machine>:8000
 #   PORT=9000 scripts/run.sh    # somewhere else
-#   scripts/run.sh --skip-web   # reuse the last client build
 #   scripts/run.sh --scratch    # throwaway instance, wiped on every run
 #
 # Real data lives in .run/data and is never touched by --scratch, which uses
@@ -12,31 +11,33 @@
 # verifying a change, clicking through a new screen. Nothing that tests the
 # app should be able to damage an installation somebody actually uses.
 #
-# One process, one origin: the API serves the built client at `/`, so the app
-# and its backend always share an address. That is what lets any device on the
-# network open it and work — the client asks whichever host served the page,
-# rather than a URL fixed when it was compiled. Serving the two separately
-# would mean rebuilding the client for every address it might be reached at,
-# and listing every device's origin in LIBRA_CORS_ORIGINS.
+# There is no client right now. The Flutter client was deleted on 2026-08-21
+# and the TypeScript one that replaces it is not built yet, so this serves the
+# API alone. The backend mounts a client only when backend/app/web/ exists.
+# See docs/specs/client-stack.md.
+#
+# One process, one origin: the API serves the built client at `/` when there is
+# one, so the app and its backend always share an address. That is what lets
+# any device on the network open it and work — the client asks whichever host
+# served the page, rather than a URL fixed when it was compiled. Serving the
+# two separately would mean rebuilding the client for every address it might
+# be reached at, and listing every device's origin in LIBRA_CORS_ORIGINS.
 #
 # Runs on Linux and macOS, and on Windows under Git Bash.
 set -euo pipefail
 
 REPO="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BACKEND="$REPO/backend"
-CLIENT="$REPO/client"
 WEB_OUT="$BACKEND/app/web"
 RUNTIME="$REPO/.run"
 VENV="$RUNTIME/venv"          # shared; rebuilding it per run buys nothing
 PORT="${PORT:-8000}"
 
-SKIP_WEB=0
 SCRATCH=0
 for arg in "$@"; do
   case "$arg" in
-    --skip-web) SKIP_WEB=1 ;;
     --scratch) SCRATCH=1 ;;
-    -h|--help) sed -n '2,22p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,24p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown option: $arg" >&2; exit 2 ;;
   esac
 done
@@ -71,23 +72,16 @@ native_path() {
 command -v uv >/dev/null || die "uv is not installed — see https://docs.astral.sh/uv/"
 
 # ---------------------------------------------------------------- the client
-if [ "$SKIP_WEB" -eq 0 ]; then
-  command -v flutter >/dev/null \
-    || die "flutter is not on PATH. Add it, or pass --skip-web to reuse the last build."
-
-  step "Building the client"
-  (cd "$CLIENT" && flutter build web --release)
-
-  # Replaced wholesale rather than merged: a stale hashed asset left behind by
-  # an earlier build is served happily and is very hard to recognise later.
+# Nothing to build. A build step returns here with the first milestone of the
+# TypeScript client: a Vite build, copied into $WEB_OUT exactly as the Flutter
+# one was.
+#
+# A leftover $WEB_OUT is cleared rather than left alone. It holds the last
+# Flutter build on any machine that ran this script before 2026-08-21, and
+# serving a deleted client is worse than serving no client at all.
+if [ -d "$WEB_OUT" ]; then
+  step "Clearing the old client build"
   rm -rf "$WEB_OUT"
-  mkdir -p "$WEB_OUT"
-  cp -R "$CLIENT/build/web/." "$WEB_OUT/"
-  # Flutter's own build bookkeeping, meaningless once copied and not something
-  # to ship inside a wheel.
-  rm -f "$WEB_OUT/.last_build_id"
-elif [ ! -d "$WEB_OUT" ]; then
-  die "--skip-web was passed but $WEB_OUT does not exist; run once without it."
 fi
 
 # ------------------------------------------------------------------ the wheel
@@ -176,6 +170,9 @@ PY
 echo
 if [ "$SCRATCH" -eq 1 ]; then
   echo "    scratch        this instance is wiped on every run"
+fi
+if [ ! -d "$WEB_OUT" ]; then
+  echo "    no client      API only; docs at /docs — see docs/specs/client-stack.md"
 fi
 echo "    this machine   http://localhost:$PORT"
 if [ -n "$LAN_IP" ]; then echo "    other devices  http://$LAN_IP:$PORT"; fi
