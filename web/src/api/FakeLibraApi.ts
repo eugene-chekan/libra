@@ -1,6 +1,15 @@
 import { ApiError } from './errors'
 import type { LibraApi } from './LibraApi'
-import type { CurrentUser, User, UserPatch } from './types'
+import type {
+  Book,
+  BookList,
+  BookSearchParams,
+  CurrentUser,
+  Shelf,
+  Tag,
+  User,
+  UserPatch,
+} from './types'
 
 /**
  * A user in the fake, plus the password only the fake knows.
@@ -30,12 +39,69 @@ export function fakeUser(overrides: Partial<FakeUser> = {}): FakeUser {
   }
 }
 
+/**
+ * `BookRead` flattens shelf and tag membership to the caller's own view, so
+ * the fake does the same: `shelf_id` here is "on this shelf, as the signed-in
+ * fake user", not a column shared across every reader.
+ */
+export interface FakeBook extends Book {
+  shelf_id: number | null
+}
+
+let nextBookId = 1
+
+export function fakeBook(overrides: Partial<FakeBook> = {}): FakeBook {
+  const id = overrides.id ?? nextBookId++
+  return {
+    id,
+    title: `Book ${id}`,
+    author: 'An Author',
+    has_cover: false,
+    tag_ids: [],
+    rating: 0,
+    progress: 0,
+    shelf_id: null,
+    ...overrides,
+  }
+}
+
+let nextTagId = 1
+
+export function fakeTag(overrides: Partial<Tag> = {}): Tag {
+  const id = overrides.id ?? nextTagId++
+  return {
+    id,
+    name: `tag${id}`,
+    owner_id: null,
+    is_global: true,
+    ...overrides,
+  }
+}
+
+let nextShelfId = 1
+
+export function fakeShelf(overrides: Partial<Shelf> = {}): Shelf {
+  const id = overrides.id ?? nextShelfId++
+  return {
+    id,
+    owner_id: 1,
+    owner_username: 'reader1',
+    name: `Shelf ${id}`,
+    visibility: 'private',
+    editable: true,
+    ...overrides,
+  }
+}
+
 interface FakeOptions {
   users?: FakeUser[]
   /** Who is already signed in when the test starts. `null` means nobody. */
   signedInAs?: FakeUser | null
   /** The instance's send-from address, as `/auth/me` reports it. */
   kindleSender?: string | null
+  books?: FakeBook[]
+  tags?: Tag[]
+  shelves?: Shelf[]
 }
 
 /**
@@ -60,14 +126,27 @@ export class FakeLibraApi implements LibraApi {
   readonly kindleSender: string | null
   /** Which user the session cookie belongs to. `null` when signed out. */
   signedInId: number | null
+  readonly books: FakeBook[]
+  readonly tags: Tag[]
+  readonly shelves: Shelf[]
 
   /** Every call this fake has answered, in order. Lets a test count requests. */
   readonly calls: string[] = []
 
-  constructor({ users = [], signedInAs = null, kindleSender = null }: FakeOptions = {}) {
+  constructor({
+    users = [],
+    signedInAs = null,
+    kindleSender = null,
+    books = [],
+    tags = [],
+    shelves = [],
+  }: FakeOptions = {}) {
     this.users = users
     this.signedInId = signedInAs?.id ?? null
     this.kindleSender = kindleSender
+    this.books = books
+    this.tags = tags
+    this.shelves = shelves
   }
 
   setOnUnauthorized(handler: (() => void) | null): void {
@@ -131,6 +210,74 @@ export class FakeLibraApi implements LibraApi {
     if ('is_admin' in patch && patch.is_admin !== undefined) user.is_admin = patch.is_admin
 
     return publicUser(user)
+  }
+
+  async listBooks(params: BookSearchParams = {}): Promise<BookList> {
+    this.calls.push('listBooks')
+    const caller = this.requireSession()
+    let matches = this.books
+
+    if (params.tagIds?.length) {
+      for (const tagId of params.tagIds) this.requireVisibleTag(tagId, caller)
+      const wanted = new Set(params.tagIds)
+      matches = matches.filter((book) => book.tag_ids.some((id) => wanted.has(id)))
+    }
+
+    if (params.shelfId !== undefined) {
+      this.requireVisibleShelf(params.shelfId, caller)
+      matches = matches.filter((book) => book.shelf_id === params.shelfId)
+    }
+
+    if (params.q?.trim()) {
+      const q = params.q.trim().toLowerCase()
+      matches = matches.filter(
+        (book) => book.title.toLowerCase().includes(q) || book.author.toLowerCase().includes(q)
+      )
+    }
+
+    // 'added' order is the fake's own insertion order — there is no created_at
+    // to sort by here, and this milestone's tests only need the two orders to
+    // differ, not to pin an exact timestamp-derived one.
+    const items =
+      params.sort === 'added'
+        ? matches
+        : [...matches].sort((a, b) => a.title.localeCompare(b.title))
+
+    return { items, total: items.length }
+  }
+
+  async listTags(): Promise<Tag[]> {
+    this.calls.push('listTags')
+    const caller = this.requireSession()
+    return this.tags.filter((tag) => tag.owner_id === null || tag.owner_id === caller.id)
+  }
+
+  async listShelves(): Promise<Shelf[]> {
+    this.calls.push('listShelves')
+    const caller = this.requireSession()
+    return this.shelves.filter(
+      (shelf) => shelf.owner_id === caller.id || shelf.visibility === 'public'
+    )
+  }
+
+  coverUrl(id: number): string {
+    return `/api/books/${id}/cover`
+  }
+
+  /** Mirrors `visible_tag`: 404, not an empty result, for a tag the caller cannot see. */
+  private requireVisibleTag(tagId: number, caller: FakeUser): void {
+    const tag = this.tags.find((t) => t.id === tagId)
+    if (!tag || (tag.owner_id !== null && tag.owner_id !== caller.id)) {
+      throw new ApiError(404, 'Tag not found')
+    }
+  }
+
+  /** Mirrors `_visible_shelf`: 404, not an empty result, for a shelf the caller cannot see. */
+  private requireVisibleShelf(shelfId: number, caller: FakeUser): void {
+    const shelf = this.shelves.find((s) => s.id === shelfId)
+    if (!shelf || (shelf.owner_id !== caller.id && shelf.visibility !== 'public')) {
+      throw new ApiError(404, 'Shelf not found')
+    }
   }
 
   private requireSession(): FakeUser {

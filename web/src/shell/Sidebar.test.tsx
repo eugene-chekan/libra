@@ -1,10 +1,12 @@
+import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
 import { ApiProvider } from '../api/ApiProvider'
-import { fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
+import { fakeShelf, fakeTag, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
+import { createQueryClient } from '../queryClient'
 import { primaryNav, routes } from '../routes'
 import { SessionProvider } from '../session/SessionProvider'
 import { Sidebar } from './Sidebar'
@@ -12,11 +14,13 @@ import { Sidebar } from './Sidebar'
 function renderAt(path: string, api: FakeLibraApi = signedInApi()) {
   return render(
     <ApiProvider api={api}>
-      <SessionProvider>
-        <MemoryRouter initialEntries={[path]}>
-          <Sidebar />
-        </MemoryRouter>
-      </SessionProvider>
+      <QueryClientProvider client={createQueryClient()}>
+        <SessionProvider>
+          <MemoryRouter initialEntries={[path]}>
+            <Sidebar />
+          </MemoryRouter>
+        </SessionProvider>
+      </QueryClientProvider>
     </ApiProvider>
   )
 }
@@ -87,12 +91,17 @@ describe('Sidebar', () => {
     expect(document.activeElement).not.toBe(document.body)
   })
 
-  it('does not invent the shelves, shared and tags sections', () => {
-    // They need real data. An empty section carrying invented copy would be
-    // harder to replace than nothing at all.
+  it('does not invent the shared-with-you section, or show shelves/tags sections with nothing in them', async () => {
+    // Shared With You needs other readers' public shelves — #28, not this
+    // milestone. Shelves and Tags are real now, but a library with none of
+    // either still shows neither section rather than an empty shell of one.
     renderAt(routes.library)
 
+    await waitFor(() => expect(screen.getByText('eugene')).toBeInTheDocument())
     expect(screen.queryByText(/shared with you/i)).not.toBeInTheDocument()
+    // Not "Shelves" — that text already exists as the primary nav link.
+    // aria-expanded only exists on the SHELVES/TAGS section headers.
+    expect(screen.queryByRole('button', { name: /^shelves$/i })).not.toBeInTheDocument()
     expect(screen.queryByText(/^tags$/i)).not.toBeInTheDocument()
   })
 
@@ -100,5 +109,26 @@ describe('Sidebar', () => {
     renderAt(routes.library)
 
     await waitFor(() => expect(screen.getByText('eugene')).toBeInTheDocument())
+  })
+
+  it('shows real shelves and tags once there are some, between the primary nav and the footer', async () => {
+    const user = fakeUser({ username: 'eugene' })
+    const shelf = fakeShelf({ name: 'Currently Reading', owner_id: user.id, editable: true })
+    const tag = fakeTag({ name: 'sci-fi' })
+    const api = new FakeLibraApi({ users: [user], signedInAs: user, shelves: [shelf], tags: [tag] })
+
+    renderAt(routes.library, api)
+
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Currently Reading' })).toBeInTheDocument()
+    )
+    expect(screen.getByRole('link', { name: 'Currently Reading' })).toHaveAttribute(
+      'href',
+      `/library?shelf=${shelf.id}`
+    )
+    expect(screen.getByRole('link', { name: /sci-fi/i })).toHaveAttribute(
+      'href',
+      `/library?tags=${tag.id}`
+    )
   })
 })

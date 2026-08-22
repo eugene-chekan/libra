@@ -14,10 +14,6 @@ import styles from '../shell/AppShell.module.css'
  * code, which is the milestone that builds it.
  */
 
-export function LibraryScreen() {
-  return <PendingScreen title="Library" milestone="the library grid milestone" />
-}
-
 export function ShelvesScreen() {
   return <PendingScreen title="Shelves" milestone="the shelves milestone" />
 }

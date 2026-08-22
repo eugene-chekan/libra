@@ -1,4 +1,4 @@
-import type { CurrentUser, User, UserPatch } from './types'
+import type { BookList, BookSearchParams, CurrentUser, Shelf, Tag, User, UserPatch } from './types'
 
 /**
  * Everything the client can ask the server for.
@@ -51,4 +51,29 @@ export interface LibraApi {
 
   /** `PATCH /api/users/{id}`. Only the fields present in `patch` change. */
   updateUser(id: number, patch: UserPatch): Promise<User>
+
+  /**
+   * `GET /api/books`. Filter semantics are the server's, not the client's —
+   * `tagIds` OR each other, `shelfId` ANDs against that, `q` ANDs again as a
+   * case-insensitive substring match on title or author. A `tagIds` or
+   * `shelfId` the caller cannot see is a 404, never an empty list, so that
+   * filtering by an id someone else owns cannot be used to probe whether it
+   * exists.
+   */
+  listBooks(params?: BookSearchParams): Promise<BookList>
+
+  /** `GET /api/tags`. The caller's visible vocabulary: global tags, then their own. */
+  listTags(): Promise<Tag[]>
+
+  /** `GET /api/shelves`. The caller's own shelves, then other readers' public ones. */
+  listShelves(): Promise<Shelf[]>
+
+  /**
+   * `GET /api/books/{id}/cover`, as a URL rather than a fetch — the caller
+   * hands this straight to an `<img src>`. Not a network call itself, so
+   * `FakeLibraApi` returns the same shape without needing to fake image
+   * bytes; the fallback for a book with no cover is what `has_cover` on
+   * `Book` is for.
+   */
+  coverUrl(id: number): string
 }

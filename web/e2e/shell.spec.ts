@@ -34,8 +34,16 @@ test.describe('the app frame, in a real browser', () => {
     // The Flutter build produced a single <canvas> and nothing else. Asserting
     // the absence is worth as much as asserting the presence: it is the
     // difference this whole rewrite was for.
+    //
+    // At least 4, not exactly 4: the logo plus the three primary nav rows
+    // are always there, but SHELVES and TAGS add more real anchors as the
+    // scratch database accumulates them across a whole `playwright test`
+    // run — this only needs to prove those are real elements too, not pin
+    // how many exist right now.
     await expect(page.locator('canvas')).toHaveCount(0)
-    await expect(page.locator('nav[aria-label="Main"] a')).toHaveCount(4)
+    await expect
+      .poll(() => page.locator('nav[aria-label="Main"] a').count())
+      .toBeGreaterThanOrEqual(4)
   })
 
   test('the whole sidebar is reachable by keyboard alone', async ({ page }) => {
@@ -46,8 +54,13 @@ test.describe('the app frame, in a real browser', () => {
     await page.getByRole('navigation', { name: 'Main' }).waitFor()
     await page.keyboard.press('Tab')
 
+    // A generous bound, not an exact count: the sidebar gains rows as more
+    // milestones land — SHELVES and TAGS here, more later — and a loop sized
+    // to exactly today's row count breaks on every one of them. This only
+    // asserts that the four rows that must always be reachable still are,
+    // wherever they land in a longer tab sequence.
     const reached: string[] = []
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 15; i++) {
       const name = await page.evaluate(() => {
         const el = document.activeElement
         return el ? (el.textContent ?? '').trim() : ''

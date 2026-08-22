@@ -36,8 +36,37 @@
   --libra-accent-light: #f0e8df;
   /* Row hover background, inline edit field background. */
   --libra-accent-lighter: #f8f3ed;
-  /* Cover placeholder fallback. */
+  /* Cover placeholder fallback — the flat colour behind an unloaded skeleton. */
   --libra-cover-bg: #e8e4df;
+  /* The gradient fallback for a book with no extracted cover art: twelve
+     pairs, picked deterministically from the book's id so the same book
+     always draws the same gradient. From the handoff's own data — see
+     src/library/coverPalette.ts for the selection, which is logic and does
+     not belong here. */
+  --libra-cover-palette-0-a: #8b5e3c;
+  --libra-cover-palette-0-b: #c4956a;
+  --libra-cover-palette-1-a: #5c6b5e;
+  --libra-cover-palette-1-b: #9aab8e;
+  --libra-cover-palette-2-a: #6b5a7b;
+  --libra-cover-palette-2-b: #a492b4;
+  --libra-cover-palette-3-a: #7a5c5c;
+  --libra-cover-palette-3-b: #b89090;
+  --libra-cover-palette-4-a: #5a6878;
+  --libra-cover-palette-4-b: #8ea0b4;
+  --libra-cover-palette-5-a: #8a7a5a;
+  --libra-cover-palette-5-b: #c4b88e;
+  --libra-cover-palette-6-a: #6a5a4a;
+  --libra-cover-palette-6-b: #a8957a;
+  --libra-cover-palette-7-a: #5a7a6a;
+  --libra-cover-palette-7-b: #8eb4a0;
+  --libra-cover-palette-8-a: #7a6a5a;
+  --libra-cover-palette-8-b: #b4a08e;
+  --libra-cover-palette-9-a: #5e6a7a;
+  --libra-cover-palette-9-b: #90a0b4;
+  --libra-cover-palette-10-a: #7a5a6a;
+  --libra-cover-palette-10-b: #b490a0;
+  --libra-cover-palette-11-a: #6a7a5a;
+  --libra-cover-palette-11-b: #a0b490;
   /* Destructive icon hover, error accents. */
   --libra-danger: #cc4444;
   /* Selection highlight: the accent at 20% alpha. */

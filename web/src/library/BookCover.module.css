@@ -1,0 +1,70 @@
+.cover {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: var(--libra-cover-aspect);
+  border-radius: var(--libra-radius-cover);
+  overflow: hidden;
+  flex-shrink: 0;
+  object-fit: cover;
+  box-shadow: var(--libra-shadow-cover);
+  transition:
+    transform var(--libra-t-cover-lift),
+    box-shadow var(--libra-t-cover-lift);
+}
+
+.cover:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: var(--libra-shadow-cover-hover);
+}
+
+/* The gradient fallback's decoration: a spine down the left edge and two
+   faint rules, echoing a real book jacket without claiming to be one. */
+.spine {
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: rgb(0 0 0 / 15%);
+}
+
+.ruleTop,
+.ruleBottom {
+  position: absolute;
+  left: 18%;
+  right: 18%;
+  height: 1px;
+  background: rgb(255 255 255 / 20%);
+}
+
+.ruleTop {
+  top: 20%;
+}
+
+.ruleBottom {
+  top: 75%;
+}
+
+.titleWrap {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 14px;
+  text-align: center;
+}
+
+.title {
+  font-family: var(--libra-serif);
+  /* The handoff scales this off the cell's own pixel width (13%, clamped
+     10-16px). At the grid's 160px minimum that lands at the 16px cap, which
+     is what this fixes to directly rather than reaching for a container
+     query — no ancestor here declares `container-type`, so `cqw` would
+     silently resolve against nothing. */
+  font-size: 16px;
+  line-height: 1.25;
+  color: rgb(255 255 255 / 92%);
+  text-shadow: 0 1px 4px rgb(0 0 0 / 30%);
+}

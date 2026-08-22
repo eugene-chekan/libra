@@ -1,0 +1,28 @@
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.count {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text-light);
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(var(--libra-library-cell-min), 1fr));
+  gap: var(--libra-grid-gap);
+}
+
+/* The *search* empty state, deliberately not EmptyState: a fact about the
+   query, not a screen with a next step to offer. */
+.searchEmpty {
+  text-align: center;
+  padding: 60px 0;
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  color: var(--libra-text-light);
+}
