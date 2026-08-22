@@ -152,4 +152,43 @@ describe('HttpLibraApi', () => {
 
     expect(handler).not.toHaveBeenCalled()
   })
+
+  it('sends no query string at all for an empty filter', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { items: [], total: 0 }))
+
+    await new HttpLibraApi().listBooks()
+
+    expect(lastFetchCall()[0]).toBe('/api/books')
+  })
+
+  it('merges tag ids into one comma-separated tags param, not one per id', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { items: [], total: 0 }))
+
+    await new HttpLibraApi().listBooks({ q: 'dune', tagIds: [3, 7], shelfId: 2, sort: 'added' })
+
+    const [url] = lastFetchCall()
+    const params = new URL(url, 'http://x').searchParams
+    expect(params.get('q')).toBe('dune')
+    expect(params.get('tags')).toBe('3,7')
+    expect(params.get('shelf_id')).toBe('2')
+    expect(params.get('sort')).toBe('added')
+  })
+
+  it('lists tags and shelves from their own endpoints', async () => {
+    // A fresh Response per call — mockResolvedValue would hand back the same
+    // instance twice, and a Response body can only be read once.
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(200, [])))
+    const api = new HttpLibraApi()
+
+    await api.listTags()
+    expect(lastFetchCall()[0]).toBe('/api/tags')
+
+    await api.listShelves()
+    expect(lastFetchCall()[0]).toBe('/api/shelves')
+  })
+
+  it('builds the cover URL without making a request', () => {
+    expect(new HttpLibraApi().coverUrl(42)).toBe('/api/books/42/cover')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

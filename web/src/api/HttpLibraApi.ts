@@ -1,6 +1,6 @@
 import { ApiError } from './errors'
 import type { LibraApi } from './LibraApi'
-import type { CurrentUser, User, UserPatch } from './types'
+import type { BookList, BookSearchParams, CurrentUser, Shelf, Tag, User, UserPatch } from './types'
 
 /**
  * The prefix every endpoint sits behind.
@@ -39,6 +39,28 @@ export class HttpLibraApi implements LibraApi {
 
   async updateUser(id: number, patch: UserPatch): Promise<User> {
     return this.send<User>('PATCH', `/users/${id}`, patch)
+  }
+
+  async listBooks(params: BookSearchParams = {}): Promise<BookList> {
+    const query = new URLSearchParams()
+    if (params.q) query.set('q', params.q)
+    if (params.tagIds?.length) query.set('tags', params.tagIds.join(','))
+    if (params.shelfId !== undefined) query.set('shelf_id', String(params.shelfId))
+    if (params.sort) query.set('sort', params.sort)
+    const qs = query.toString()
+    return this.send<BookList>('GET', qs ? `/books?${qs}` : '/books')
+  }
+
+  async listTags(): Promise<Tag[]> {
+    return this.send<Tag[]>('GET', '/tags')
+  }
+
+  async listShelves(): Promise<Shelf[]> {
+    return this.send<Shelf[]>('GET', '/shelves')
+  }
+
+  coverUrl(id: number): string {
+    return `${BASE}/books/${id}/cover`
   }
 
   private async send<T>(method: string, path: string, body?: unknown): Promise<T> {

@@ -77,9 +77,10 @@ src/
 ├── theme/      tokens.css, fonts.css, base.css, durations.ts
 ├── api/        LibraApi — the typed client, its HTTP and fake implementations
 ├── session/    SessionProvider (session state) and RequireSession (route guard)
-├── shell/      AppShell, Sidebar and AccountRow — the frame every screen sits in
+├── library/    the grid: BookCard/BookCover, SearchBar, filter state, query hooks
+├── shell/      AppShell, Sidebar, AccountRow, and its SHELVES/TAGS filter sections
 ├── widgets/    Skeleton, ErrorBlock, EmptyState, Icon, KindleEmailModal
-├── screens/    the routed screens, including LoginScreen
+├── screens/    the routed screens, including LoginScreen and LibraryScreen
 ├── routes.ts   every route path, in one place
 └── App.tsx     providers and the route table
 e2e/            Playwright specs

@@ -1,0 +1,48 @@
+.notStarted {
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  font-style: italic;
+  color: var(--libra-text-light);
+}
+
+.progressRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.track {
+  flex: 1;
+  height: 5px;
+  border-radius: 5px;
+  background: var(--libra-border);
+  overflow: hidden;
+}
+
+.fill {
+  height: 100%;
+  border-radius: 5px;
+  background: var(--libra-accent);
+  transition: width var(--libra-t-progress);
+}
+
+.percent {
+  flex-shrink: 0;
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+}
+
+.stars {
+  display: flex;
+  gap: 2px;
+}
+
+.starFilled {
+  color: var(--libra-accent);
+  fill: currentColor;
+}
+
+.starEmpty {
+  color: var(--libra-border);
+}

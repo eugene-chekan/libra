@@ -6,11 +6,12 @@ import { ApiProvider } from './api/ApiProvider'
 import { HttpLibraApi } from './api/HttpLibraApi'
 import { createQueryClient } from './queryClient'
 import { routes } from './routes'
+import { LibraryScreen } from './screens/LibraryScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { RequireSession } from './session/RequireSession'
 import { SessionProvider } from './session/SessionProvider'
 import { AppShell } from './shell/AppShell'
-import { ChatScreen, LibraryScreen, NotFoundScreen, ShelvesScreen } from './screens/screens'
+import { ChatScreen, NotFoundScreen, ShelvesScreen } from './screens/screens'
 
 /**
  * The route table.
