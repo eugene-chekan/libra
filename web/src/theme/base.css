@@ -17,7 +17,33 @@ body,
   height: 100%;
 }
 
+/*
+ * Below `--libra-min-width` the layout is undefined — client-design.md is
+ * explicit that mobile is a Phase 5 design problem, and this rule is not an
+ * attempt at one. Without it, a mobile browser sees the shell's own
+ * `min-width: 1024px` overflow, and — because nothing here says how to
+ * handle that overflow — widens its whole layout viewport to fit it, then
+ * zooms the entire page out to fit the real screen. That zoom is what makes a
+ * phone load looking scrolled past the top of the sidebar: the visible
+ * screen is a physically-small window onto a much taller page once it has
+ * been shrunk to fit 1024px of width.
+ *
+ * Both rules matter, not just one. `overflow-x: hidden` on `html` is what
+ * actually pins the browser's own layout-viewport width to the real device
+ * width — measured directly: without it, `window.innerWidth` reported the
+ * shell's 1024px instead of the device's own width even with the `body` rule
+ * below in place alone. `overflow-x: auto` on `body` is what keeps the shell
+ * reachable once that viewport is pinned — `body` still scrolls internally
+ * to its own full 1024px content, confirmed by scrolling it there directly;
+ * nothing is clipped or lost, only reached by a scrollbar instead of a zoom.
+ * The result is not a design for small screens, just not a broken one.
+ */
+html {
+  overflow-x: hidden;
+}
+
 body {
+  overflow-x: auto;
   font-family: var(--libra-sans);
   font-size: 14px;
   font-weight: 400;

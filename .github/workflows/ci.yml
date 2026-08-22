@@ -113,5 +113,42 @@ jobs:
       - name: Install Chromium
         run: npx playwright install --with-deps chromium
 
+      # Login and session expiry are the first client milestone to fetch
+      # anything, so this is the first e2e run that needs a real backend
+      # behind it rather than FakeLibraApi — a real cookie, a real Argon2
+      # hash, `npm run dev`'s own proxy carrying the session across the two
+      # ports. Seeded the same non-interactive way `scripts/run.sh --scratch`
+      # seeds one, in a database this job creates and the runner discards.
+      - name: Install uv
+        uses: astral-sh/setup-uv@v9.0.0
+
+      - name: Set up Python
+        run: uv python install 3.12
+        working-directory: backend
+
+      - name: Install backend dependencies
+        run: uv sync --all-groups
+        working-directory: backend
+
+      - name: Start a scratch backend for e2e
+        working-directory: backend
+        env:
+          LIBRA_DATABASE_URL: sqlite:///./e2e-scratch/libra.db
+          LIBRA_LIBRARY_DIR: ./e2e-scratch/library
+          LIBRA_ADMIN_USERNAME: e2e-admin
+          LIBRA_ADMIN_PASSWORD: e2e-password
+        run: |
+          mkdir -p e2e-scratch/library
+          uv run python -m app.cli create-admin --username e2e-admin --if-missing
+          nohup uv run uvicorn app.main:app --port 8000 > e2e-scratch/uvicorn.log 2>&1 &
+          disown
+          for i in $(seq 1 30); do
+            curl -sf http://localhost:8000/health > /dev/null && exit 0
+            sleep 1
+          done
+          echo "backend never became healthy:" >&2
+          cat e2e-scratch/uvicorn.log >&2
+          exit 1
+
       - name: Run end-to-end tests
         run: npm run e2e

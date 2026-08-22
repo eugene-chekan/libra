@@ -1,0 +1,111 @@
+/*
+ * client-design.md, Gap 1. No sidebar: the whole viewport is `bg`, and the
+ * card floats centred on both axes with a shadow lighter than a modal's — a
+ * page with nothing behind it does not need a modal's heavier weight.
+ */
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100%;
+  background: var(--libra-bg);
+}
+
+.card {
+  width: 380px;
+  padding: 40px;
+  background: var(--libra-card);
+  border-radius: var(--libra-radius-modal);
+  box-shadow: var(--libra-shadow-dropdown);
+}
+
+.title {
+  font-family: var(--libra-serif);
+  font-size: 34px;
+  font-weight: 400;
+  letter-spacing: -0.5px;
+  color: var(--libra-text);
+  text-align: center;
+  margin-bottom: 32px;
+}
+
+.expired {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text-mid);
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.field + .field {
+  margin-top: 18px;
+}
+
+.label {
+  display: block;
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--libra-text-mid);
+  margin-bottom: 6px;
+}
+
+.input {
+  width: 100%;
+  height: 42px;
+  padding: 0 12px;
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  color: var(--libra-text);
+  background: var(--libra-bg);
+  border: 1px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  transition: border-color var(--libra-t-interactive);
+}
+
+.input:focus-visible {
+  border-color: var(--libra-accent);
+  /* The shared focus ring is drawn for elements that sit on a flat
+     background; an input's own border already carries the affordance here,
+     so the ring would double up on top of it. */
+  outline: none;
+}
+
+.error {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-danger);
+  margin-top: 12px;
+}
+
+.errorIcon {
+  flex-shrink: 0;
+}
+
+.submit {
+  width: 100%;
+  height: 42px;
+  margin-top: 24px;
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--libra-accent);
+  border: none;
+  border-radius: var(--libra-radius);
+  cursor: pointer;
+  transition: background var(--libra-t-interactive);
+}
+
+.submit:hover:not(:disabled) {
+  background: var(--libra-accent-hover);
+}
+
+.submit:disabled {
+  background: var(--libra-border);
+  color: var(--libra-text-light);
+  cursor: default;
+}

@@ -42,6 +42,8 @@ describe('Icon', () => {
       'plus',
       'rotate-cw',
       'alert-circle',
+      'chevron-up',
+      'log-out',
     ] as const) {
       const { container, unmount } = render(<Icon name={name} />)
       expect(container.querySelector('svg')?.children.length ?? 0).toBeGreaterThan(0)

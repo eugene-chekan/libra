@@ -24,6 +24,9 @@ venv/
 /backend/dist/
 /.run/
 
+# The scratch backend CI starts for web/e2e/auth.spec.ts.
+/backend/e2e-scratch/
+
 # Env
 .env
 
@@ -35,6 +38,9 @@ venv/
 /web/dist/
 /web/playwright-report/
 /web/test-results/
+# The signed-in cookie the auth setup project saves for every other e2e spec
+# to reuse. A session, even a scratch one, does not belong in the repo.
+/web/e2e/.auth/
 
 # Claude Code — per-machine permission grants; shared settings.json stays tracked
 .claude/settings.local.json

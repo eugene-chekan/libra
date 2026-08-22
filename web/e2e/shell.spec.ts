@@ -40,6 +40,10 @@ test.describe('the app frame, in a real browser', () => {
 
   test('the whole sidebar is reachable by keyboard alone', async ({ page }) => {
     await page.goto('/library')
+    // The sidebar mounts only once the session guard resolves — a real async
+    // gate now that there is a real session behind it. Tabbing before that
+    // races the sidebar's first mount instead of testing tab order.
+    await page.getByRole('navigation', { name: 'Main' }).waitFor()
     await page.keyboard.press('Tab')
 
     const reached: string[] = []

@@ -313,6 +313,56 @@ and failed on Windows, which is the worst shape a bug can have because CI
 calls it green. The rule is now a plain function, `is_client_route`, tested
 against both separators.
 
+## Decided: no `/starting` route
+
+The Flutter build of milestone 3 (session and login) needed a dedicated
+`/starting` URL for the moment before the client knows whether a session
+exists — a guarded route redirecting straight to `/login` flashed the login
+card on every refresh, even for someone who turns out to be signed in.
+`go_router`'s navigator rebuilds its whole stack on every route change, and
+letting a protected route match during that window churned it.
+
+React does not have that stack to churn. A guard component can render nothing
+in place — same URL, no navigation — while the session is unknown, then
+render the real screen once it resolves. `RequireSession`
+(`web/src/session/RequireSession.tsx`) does exactly that, and needs no route
+of its own. The underlying rule carries over — never guess at an answer that
+has not arrived — but the fix for it does not, because it was never really
+about sessions. It was `go_router`'s.
+
+## Decided: `LibraApi.onUnauthorized` is a method, not a field
+
+The client keeps one `LibraApi` instance for the app's whole lifetime, handed
+out through `useApi()`. `SessionProvider` needs to run one function every time
+the server answers 401, and the first draft did that the direct way — assign
+a callback straight onto `api.onUnauthorized`.
+
+`eslint-plugin-react-hooks`'s immutability rule fails a build on writing to a
+property of any value a hook returns, and that includes a custom hook like
+`useApi()`. The rule exists for the React Compiler, which can assume a
+hook's return value never changes underneath it — a direct assignment breaks
+that assumption even here, where nothing yet uses the compiler.
+
+The fix was a two-letter change in shape: `setOnUnauthorized(handler)`, a
+method call instead of an assignment. `HttpLibraApi` and `FakeLibraApi` both
+keep the callback in a private field now, reached only through that one
+method — which is also, on its own, the better design: nothing outside the
+class can reach in and read or clear the field by accident.
+
+## Decided: e2e workers are capped, once a real backend is behind them
+
+`web/e2e/auth.spec.ts` is the first spec to run against a real backend rather
+than `FakeLibraApi`, and Playwright's own default worker count — about half
+the machine's CPU cores, comfortably eight or more on a CI runner — sent that
+many browser tabs at one backend process at once. Every one of them that
+signed in waited on the same Argon2 password check, which is deliberately
+slow, and the backend serialised enough of that work that a login occasionally
+missed the test's assertion timeout. Nothing was wrong with the login; the
+test suite was creating load the app is never built to serve. Real use is a
+household signing in a few people at a time, never a burst of concurrent
+strangers, so `playwright.config.ts` caps `workers` at 4 rather than
+widening timeouts to tolerate a load that will not recur outside this suite.
+
 ## Still open
 
 Neither of the next two blocks a start.
