@@ -35,6 +35,26 @@ npm run build        # typecheck, then a production build into dist/
 CI runs `npm run format:check`, so format before pushing or the client job
 fails on whitespace.
 
+**`e2e/auth.spec.ts` needs a real backend**, the first e2e spec that does —
+every earlier one called no endpoint. Start one on port 8000 first, seeded
+non-interactively the same way `scripts/run.sh --scratch` seeds one:
+
+```bash
+cd ../backend
+LIBRA_DATABASE_URL=sqlite:///./e2e-scratch/libra.db \
+LIBRA_LIBRARY_DIR=./e2e-scratch/library \
+LIBRA_ADMIN_USERNAME=e2e-admin LIBRA_ADMIN_PASSWORD=e2e-password \
+  uv run python -m app.cli create-admin --username e2e-admin --if-missing
+LIBRA_DATABASE_URL=sqlite:///./e2e-scratch/libra.db \
+LIBRA_LIBRARY_DIR=./e2e-scratch/library \
+  uv run uvicorn app.main:app --port 8000
+```
+
+Then, from `web/`, `npm run e2e` as usual — `npm run dev`'s proxy carries the
+session cookie to it, so nothing else changes. Sign in with different
+credentials by setting `LIBRA_E2E_USERNAME` / `LIBRA_E2E_PASSWORD` to match
+whatever the backend was actually seeded with.
+
 ## Running against a real backend
 
 `npm run dev` serves the client on port 5173 and proxies `/api` to
@@ -55,9 +75,11 @@ serves it from the backend on one origin.
 ```
 src/
 ├── theme/      tokens.css, fonts.css, base.css, durations.ts
-├── shell/      AppShell and Sidebar — the frame every screen sits in
-├── widgets/    Skeleton, ErrorBlock, EmptyState, Icon
-├── screens/    the routed screens
+├── api/        LibraApi — the typed client, its HTTP and fake implementations
+├── session/    SessionProvider (session state) and RequireSession (route guard)
+├── shell/      AppShell, Sidebar and AccountRow — the frame every screen sits in
+├── widgets/    Skeleton, ErrorBlock, EmptyState, Icon, KindleEmailModal
+├── screens/    the routed screens, including LoginScreen
 ├── routes.ts   every route path, in one place
 └── App.tsx     providers and the route table
 e2e/            Playwright specs

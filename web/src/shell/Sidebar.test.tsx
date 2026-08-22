@@ -1,17 +1,29 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
+import { ApiProvider } from '../api/ApiProvider'
+import { fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
 import { primaryNav, routes } from '../routes'
+import { SessionProvider } from '../session/SessionProvider'
 import { Sidebar } from './Sidebar'
 
-function renderAt(path: string) {
+function renderAt(path: string, api: FakeLibraApi = signedInApi()) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Sidebar />
-    </MemoryRouter>
+    <ApiProvider api={api}>
+      <SessionProvider>
+        <MemoryRouter initialEntries={[path]}>
+          <Sidebar />
+        </MemoryRouter>
+      </SessionProvider>
+    </ApiProvider>
   )
+}
+
+function signedInApi(): FakeLibraApi {
+  const user = fakeUser({ username: 'eugene' })
+  return new FakeLibraApi({ users: [user], signedInAs: user })
 }
 
 describe('Sidebar', () => {
@@ -82,5 +94,11 @@ describe('Sidebar', () => {
 
     expect(screen.queryByText(/shared with you/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/^tags$/i)).not.toBeInTheDocument()
+  })
+
+  it('shows the signed-in account in the pinned footer, once the session resolves', async () => {
+    renderAt(routes.library)
+
+    await waitFor(() => expect(screen.getByText('eugene')).toBeInTheDocument())
   })
 })

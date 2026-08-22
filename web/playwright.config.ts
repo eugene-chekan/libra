@@ -18,6 +18,16 @@ export default defineConfig({
   // A test that only passes on a retry is a flaky test, and this suite is
   // small enough to fix rather than paper over.
   retries: 0,
+  // This milestone is the first spec to hit a real backend, and that backend
+  // is one process doing real Argon2 hashing against a single SQLite file —
+  // the same shape as the household instance this app actually ships to,
+  // which never sees more than a couple of people signing in at once. Left at
+  // Playwright's own default (half the machine's cores, easily 8+ in CI),
+  // several logins land on that one process in the same instant and Argon2's
+  // deliberately-slow hashing queues up, so a login can outrun the default
+  // assertion timeout under nothing but self-inflicted load. Capping it here
+  // matches the concurrency the app is actually built for.
+  workers: 4,
   reporter: process.env.CI ? 'github' : 'list',
 
   use: {
@@ -30,7 +40,17 @@ export default defineConfig({
     trace: 'on-first-retry',
   },
 
-  projects: [{ name: 'chromium', use: { ...devices['Desktop Chrome'] } }],
+  projects: [
+    // Signs in once and saves the cookie to e2e/.auth/user.json — see
+    // auth.setup.ts. Needs a real backend behind the proxy; every other spec
+    // depends on this one having run first.
+    { name: 'setup', testMatch: /auth\.setup\.ts/ },
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], storageState: 'e2e/.auth/user.json' },
+      dependencies: ['setup'],
+    },
+  ],
 
   // The scaffold calls no endpoints, so the backend does not need to be up.
   // The first milestone that fetches anything will need one here too.

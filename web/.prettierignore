@@ -3,6 +3,7 @@ coverage
 node_modules
 playwright-report
 test-results
+e2e/.auth
 package-lock.json
 
 # Vendored third-party files stay byte-for-byte as shipped. The OFL texts are

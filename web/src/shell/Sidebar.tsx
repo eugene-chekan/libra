@@ -2,6 +2,7 @@ import { NavLink } from 'react-router-dom'
 
 import { primaryNav, routes } from '../routes'
 import { Icon } from '../widgets/Icon'
+import { AccountRow } from './AccountRow'
 import styles from './Sidebar.module.css'
 
 /**
@@ -58,6 +59,7 @@ export function Sidebar() {
           <Icon name="plus" size={16} />
           Add Book
         </button>
+        <AccountRow />
       </div>
     </nav>
   )

@@ -11,6 +11,7 @@
  * See docs/specs/client-stack.md.
  */
 export const routes = {
+  login: '/login',
   library: '/library',
   shelves: '/shelves',
   chat: '/chat',
