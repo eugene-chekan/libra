@@ -50,8 +50,12 @@
   box-shadow: var(--libra-shadow-modal);
 }
 
+/* Absolute, not fixed: `.lightbox` above is transformed, which makes it the
+   containing block for a fixed child anyway. Saying `fixed` would describe a
+   position the browser does not actually use. It lands on the corner of the
+   enlarged cover, which is where a close button belongs. */
 .close {
-  position: fixed;
+  position: absolute;
   top: 20px;
   right: 20px;
   width: 36px;

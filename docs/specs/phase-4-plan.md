@@ -425,7 +425,7 @@ is one.
 | 2 | Scaffold | ✅ #24 | ✅ #57 | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, Riverpod, skeleton/error/empty primitives, CI analyze + test. No `ThemeExtension` — see below |
 | 3 | API client + auth | ✅ #25 | ✅ #61 | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
 | 4 | Library grid + search | ✅ #26 | ✅ #63 | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
-| 5 | Book detail | ✅ #27 | #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below |
+| 5 | Book detail | ✅ #27 | ✅ #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below. The TypeScript build dropped the progress slider (the reader supersedes it), routed `/books/:id/read` to a stand-in so the primary button leads somewhere, and found the `PATCH /books/{id}` response bug below |
 | 6 | Shelves page + shelf manager | ✅ #28 | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below |
 | 7 | Tag manager | — | #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches |
 | 8 | Add Book | — | #30 | Upload-first redesign |
@@ -526,6 +526,26 @@ Two things follow:
   `test/api/http_libra_api_test.dart` drives the real client against a mock
   transport to pin the wire format — the layer the fake, by construction,
   cannot cover.
+
+**Rebuilding milestone 5 in TypeScript found a second disagreement**, this
+time in a response rather than a request. `PATCH /books/{id}` returned the
+table row and let `response_model` turn it into a `BookRead`. Five of that
+model's fields are not columns on `Book` — `rating`, `progress`, `shelf_id`,
+`has_cover`, `tag_ids` — so FastAPI filled them from the defaults. A book the
+caller had rated five stars and read halfway came back unrated, unstarted,
+unshelved and with no cover. `POST /books` already went through
+`library.get_book` and already carried a comment warning about exactly this
+path; `PATCH` had not. Nothing inside the process could see it, because the
+response was well formed and only untrue — it took a screen reading the
+response back to find it. Fixed in the same branch, with a test that fails
+again the moment the fix is undone.
+
+Two decisions in that rebuild differ from the Flutter one on purpose. There is
+**no progress slider**, because the reader (#36) is what turns progress into
+something the application observes rather than something the reader declares;
+and `/books/:id/read` is **routed to the same stand-in the Librarian tab
+uses**, because the Flutter build pointed its most prominent button at an
+address that matched nothing.
 
 **Milestone 6 needed one backend field.** The design labels somebody else's
 public shelf "by {username}", but `ShelfRead` carried only `owner_id` and
