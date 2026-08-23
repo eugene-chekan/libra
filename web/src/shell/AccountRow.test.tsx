@@ -99,4 +99,42 @@ describe('AccountRow', () => {
 
     expect(await screen.findByRole('dialog', { name: /kindle email/i })).toBeInTheDocument()
   })
+
+  it('saves a Kindle address, closes, and keeps the new one in the session', async () => {
+    const user = userEvent.setup()
+    // The fake mutates the same object it was handed, so this is the stored
+    // record — no indexing into `api.users`, which is possibly-undefined.
+    const { user: stored } = renderSignedIn({ kindle_email: null })
+
+    await user.click(await screen.findByRole('button', { name: /eugene/i }))
+    await user.click(await screen.findByRole('menuitem', { name: /kindle email/i }))
+    await user.type(await screen.findByLabelText(/send-to-kindle address/i), 'reader@kindle.com')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
+    expect(stored.kindle_email).toBe('reader@kindle.com')
+
+    // Reopening reads the field back from the session, not from the server, so
+    // this is what proves `setUser` ran. Without it the modal would offer an
+    // empty box for an address that is already set, and the Send to Kindle
+    // button on the book screen would still believe there is none.
+    await user.click(screen.getByRole('button', { name: /eugene/i }))
+    await user.click(await screen.findByRole('menuitem', { name: /kindle email/i }))
+    expect(await screen.findByLabelText(/send-to-kindle address/i)).toHaveValue('reader@kindle.com')
+  })
+
+  it('clears the address when the box is emptied, rather than leaving it alone', async () => {
+    // `PATCH /users/{id}` reads its body with `exclude_unset`, so an absent key
+    // means "no change" and an explicit null means "clear it". The modal has to
+    // send the second, or an address could never be removed.
+    const user = userEvent.setup()
+    const { user: stored } = renderSignedIn({ kindle_email: 'old@kindle.com' })
+
+    await user.click(await screen.findByRole('button', { name: /eugene/i }))
+    await user.click(await screen.findByRole('menuitem', { name: /kindle email/i }))
+    await user.clear(await screen.findByLabelText(/send-to-kindle address/i))
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() => expect(stored.kindle_email).toBeNull())
+  })
 })
