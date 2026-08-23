@@ -1,0 +1,56 @@
+.headerRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 24px;
+}
+
+.manage {
+  padding: 9px 18px;
+  border: 1.5px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  background: var(--libra-card);
+  color: var(--libra-text-mid);
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition:
+    border-color var(--libra-t-interactive),
+    color var(--libra-t-interactive);
+}
+
+.manage:hover {
+  border-color: var(--libra-accent);
+  color: var(--libra-accent);
+}
+
+/* On the empty state this is the only thing to do on the screen, so here alone
+   it is a solid accent button rather than the outlined one above — the same
+   rule client-design.md sets for the empty library's Add Book. */
+.newShelf {
+  padding: 11px 24px;
+  border: none;
+  border-radius: var(--libra-radius);
+  background: var(--libra-accent);
+  color: #fff;
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--libra-t-interactive);
+}
+
+.newShelf:hover {
+  background: var(--libra-accent-hover);
+}
+
+.sharedLabel {
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--libra-text-light);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 28px 0 12px;
+}

@@ -1,0 +1,69 @@
+.block {
+  margin-bottom: 32px;
+}
+
+.heading {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-bottom: 12px;
+}
+
+.name {
+  font-family: var(--libra-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--libra-text);
+  text-decoration: none;
+  transition: color var(--libra-t-interactive);
+}
+
+.name:hover {
+  color: var(--libra-accent);
+}
+
+.owner,
+.count {
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+}
+
+.covers {
+  display: flex;
+  gap: 16px;
+  list-style: none;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+/* Small enough that a shelf reads as a glance. The grid's cells are 160px. */
+.cover {
+  display: block;
+  width: 96px;
+  flex-shrink: 0;
+}
+
+/* Read out, never drawn: the covers carry the titles visually, and repeating
+   each one under it would clutter a row meant to be scanned. */
+.label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+/* The dashed idiom the sidebar's Add Book button uses, for a shelf with
+   nothing on it yet. */
+.empty {
+  padding: 28px;
+  border: 1.5px dashed var(--libra-border);
+  border-radius: var(--libra-radius);
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text-light);
+  text-align: center;
+}

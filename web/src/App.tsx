@@ -8,11 +8,12 @@ import { createQueryClient } from './queryClient'
 import { routes } from './routes'
 import { BookScreen } from './screens/BookScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
+import { ShelvesScreen } from './screens/ShelvesScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { RequireSession } from './session/RequireSession'
 import { SessionProvider } from './session/SessionProvider'
 import { AppShell } from './shell/AppShell'
-import { ChatScreen, NotFoundScreen, ReaderScreen, ShelvesScreen } from './screens/screens'
+import { ChatScreen, NotFoundScreen, ReaderScreen } from './screens/screens'
 
 /**
  * The route table.

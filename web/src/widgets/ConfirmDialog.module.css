@@ -1,0 +1,76 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 40%);
+}
+
+.content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 420px;
+  max-width: 90vw;
+  padding: 28px;
+  background: var(--libra-card);
+  border-radius: var(--libra-radius-modal);
+  box-shadow: var(--libra-shadow-modal);
+}
+
+.title {
+  font-family: var(--libra-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--libra-text);
+  margin-bottom: 12px;
+}
+
+.message {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--libra-text-mid);
+  margin-bottom: 24px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.cancel,
+.confirm {
+  padding: 9px 18px;
+  border-radius: var(--libra-radius);
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    background var(--libra-t-interactive),
+    border-color var(--libra-t-interactive);
+}
+
+.cancel {
+  border: 1.5px solid var(--libra-border);
+  background: var(--libra-card);
+  color: var(--libra-text-mid);
+}
+
+.cancel:hover {
+  border-color: var(--libra-accent);
+  color: var(--libra-accent);
+}
+
+/* The destructive action is the one that carries the danger colour. It is not
+   the quiet option, and should not be dressed as one. */
+.confirm {
+  border: none;
+  background: var(--libra-danger);
+  color: #fff;
+}
+
+.confirm:hover {
+  opacity: 0.9;
+}
