@@ -273,4 +273,51 @@ describe('HttpLibraApi', () => {
     expect(new HttpLibraApi().fileUrl(42)).toBe('/api/books/42/file')
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('creates, renames and deletes a shelf on its own path', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(200, { id: 3 })))
+    const api = new HttpLibraApi()
+
+    await api.createShelf({ name: 'To Read' })
+    let [url, init] = lastFetchCall()
+    expect(url).toBe('/api/shelves')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ name: 'To Read' })
+
+    await api.updateShelf(3, { visibility: 'public' })
+    ;[url, init] = lastFetchCall()
+    expect(url).toBe('/api/shelves/3')
+    expect(init.method).toBe('PATCH')
+    expect(JSON.parse(init.body as string)).toEqual({ visibility: 'public' })
+
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })))
+    await api.deleteShelf(3)
+    ;[url, init] = lastFetchCall()
+    expect(url).toBe('/api/shelves/3')
+    expect(init.method).toBe('DELETE')
+  })
+
+  it('sends a reorder as one complete list, to the order path rather than an id', async () => {
+    // `/shelves/order` is its own route on the server, declared before
+    // `/shelves/{id}` so that "order" is never read as an id.
+    fetchMock.mockResolvedValue(jsonResponse(200, []))
+
+    await new HttpLibraApi().reorderShelves([3, 1, 2])
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/shelves/order')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body as string)).toEqual({ shelf_ids: [3, 1, 2] })
+  })
+
+  it('raises the duplicate-name sentence the server sends back', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(409, { detail: 'You already have a shelf with that name' })
+    )
+
+    await expect(new HttpLibraApi().createShelf({ name: 'To Read' })).rejects.toMatchObject({
+      status: 409,
+      message: 'You already have a shelf with that name',
+    })
+  })
 })

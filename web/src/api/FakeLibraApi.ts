@@ -11,6 +11,8 @@ import type {
   Note,
   NoteDraft,
   Shelf,
+  ShelfCreate,
+  ShelfPatch,
   Tag,
   User,
   UserPatch,
@@ -118,6 +120,7 @@ export function fakeShelf(overrides: Partial<Shelf> = {}): Shelf {
     owner_username: 'reader1',
     name: `Shelf ${id}`,
     visibility: 'private',
+    book_count: 0,
     editable: true,
     ...overrides,
   }
@@ -299,9 +302,90 @@ export class FakeLibraApi implements LibraApi {
   async listShelves(): Promise<Shelf[]> {
     this.calls.push('listShelves')
     const caller = this.requireSession()
-    return this.shelves.filter(
+    // The caller's own first, in the order this array holds them, then other
+    // readers' public ones — the order `library.list_shelves` returns, which
+    // the shelves screen trusts rather than re-sorting.
+    const visible = this.shelves.filter(
       (shelf) => shelf.owner_id === caller.id || shelf.visibility === 'public'
     )
+    return [
+      ...visible.filter((shelf) => shelf.owner_id === caller.id),
+      ...visible.filter((shelf) => shelf.owner_id !== caller.id),
+    ].map((shelf) => this.withEditable(shelf, caller))
+  }
+
+  async createShelf(shelf: ShelfCreate): Promise<Shelf> {
+    this.calls.push('createShelf')
+    const caller = this.requireSession()
+
+    const name = shelf.name.trim()
+    if (!name) throw new ApiError(422, 'Shelf name must not be empty')
+    this.requireNameFree(name, caller)
+
+    // Appended, because `create_shelf` puts a new shelf at the end of the
+    // caller's order rather than the top.
+    const created: Shelf = {
+      id: nextShelfId++,
+      owner_id: caller.id,
+      owner_username: caller.username,
+      name,
+      visibility: shelf.visibility ?? 'private',
+      book_count: 0,
+      editable: true,
+    }
+    this.shelves.push(created)
+    return created
+  }
+
+  async updateShelf(id: number, patch: ShelfPatch): Promise<Shelf> {
+    this.calls.push(`updateShelf:${id}`)
+    const caller = this.requireSession()
+    const shelf = this.requireOwnedShelf(id, caller)
+
+    if (patch.name !== undefined) {
+      const name = patch.name.trim()
+      if (!name) throw new ApiError(422, 'Shelf name must not be empty')
+      this.requireNameFree(name, caller, shelf.id)
+      // A rename moves no books: they hold the shelf's id, not its name.
+      shelf.name = name
+    }
+    if (patch.visibility !== undefined) shelf.visibility = patch.visibility
+
+    return shelf
+  }
+
+  async deleteShelf(id: number): Promise<void> {
+    this.calls.push(`deleteShelf:${id}`)
+    const caller = this.requireSession()
+    const shelf = this.requireOwnedShelf(id, caller)
+
+    // The books stay in the library and become unshelved, which is a valid
+    // state. `reassign_to` exists on the endpoint; this client never sends it.
+    for (const book of this.books) {
+      if (book.shelf_id === shelf.id) book.shelf_id = null
+    }
+    this.shelves.splice(this.shelves.indexOf(shelf), 1)
+  }
+
+  async reorderShelves(shelfIds: number[]): Promise<Shelf[]> {
+    this.calls.push('reorderShelves')
+    const caller = this.requireSession()
+
+    // Exactly the caller's own shelves, each once. Anything else is a stale
+    // client — and rejecting it is also what stops another reader's shelf id
+    // being slipped into the ordering.
+    const mine = this.shelves.filter((shelf) => shelf.owner_id === caller.id)
+    const wanted = [...shelfIds].sort((a, b) => a - b)
+    const owned = mine.map((shelf) => shelf.id).sort((a, b) => a - b)
+    if (wanted.length !== owned.length || wanted.some((id, i) => id !== owned[i])) {
+      throw new ApiError(422, 'The list must contain exactly your own shelves, each once')
+    }
+
+    const byId = new Map(mine.map((shelf) => [shelf.id, shelf]))
+    const reordered = shelfIds.map((id) => byId.get(id)).filter((shelf) => shelf !== undefined)
+    const others = this.shelves.filter((shelf) => shelf.owner_id !== caller.id)
+    this.shelves.splice(0, this.shelves.length, ...reordered, ...others)
+    return this.listShelves()
   }
 
   coverUrl(id: number): string {
@@ -466,6 +550,44 @@ export class FakeLibraApi implements LibraApi {
       throw new ApiError(404, 'Shelf not found')
     }
     return shelf
+  }
+
+  /**
+   * Mirrors `owned_shelf`, and the two-step answer matters: a shelf the caller
+   * cannot see at all is a 404, so ids cannot be walked to find other
+   * people's private shelves, while one they *can* see and do not own is an
+   * honest 403.
+   */
+  private requireOwnedShelf(shelfId: number, caller: FakeUser): Shelf {
+    const shelf = this.requireVisibleShelf(shelfId, caller)
+    if (shelf.owner_id !== caller.id) {
+      throw new ApiError(403, 'This shelf belongs to someone else')
+    }
+    return shelf
+  }
+
+  /**
+   * Mirrors `_assert_name_free`. The server's uniqueness index is
+   * `COLLATE NOCASE`, so "To Read" and "to read" are the same name to it —
+   * a fake that compared exactly would accept a pair the server refuses.
+   */
+  private requireNameFree(name: string, caller: FakeUser, exceptId?: number): void {
+    const taken = this.shelves.some(
+      (shelf) =>
+        shelf.owner_id === caller.id &&
+        shelf.id !== exceptId &&
+        shelf.name.toLowerCase() === name.toLowerCase()
+    )
+    if (taken) throw new ApiError(409, 'You already have a shelf with that name')
+  }
+
+  /**
+   * `editable` is the server's answer to "may this caller change it", not a
+   * stored column. A fake that returned the seeded value would let a test set
+   * `editable: true` on somebody else's shelf and never notice.
+   */
+  private withEditable(shelf: Shelf, caller: FakeUser): Shelf {
+    return { ...shelf, editable: shelf.owner_id === caller.id }
   }
 
   private requireSession(): FakeUser {
