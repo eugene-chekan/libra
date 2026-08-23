@@ -1,0 +1,96 @@
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.label {
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--libra-text-light);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+}
+
+.form {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin-bottom: 6px;
+}
+
+.draft {
+  flex: 1;
+  padding: 10px 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--libra-text);
+  background: var(--libra-bg);
+  border: 1px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  outline: none;
+  resize: vertical;
+  transition: border-color var(--libra-t-interactive);
+}
+
+.draft:focus {
+  border-color: var(--libra-accent);
+}
+
+.empty {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text-light);
+}
+
+/* The quote-card idiom: an inset fill with a 3px accent bar down the left.
+   The error block is the same shape recoloured — one idiom, learned once. */
+.note {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 18px;
+  background: var(--libra-bg);
+  border-left: 3px solid var(--libra-accent);
+  border-radius: var(--libra-radius);
+}
+
+.body {
+  flex: 1;
+}
+
+.text {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--libra-text);
+}
+
+.page {
+  display: block;
+  margin-top: 6px;
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+}
+
+.delete {
+  display: flex;
+  padding: 4px;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--libra-text-light);
+  cursor: pointer;
+  transition:
+    color var(--libra-t-interactive),
+    background var(--libra-t-interactive);
+}
+
+.delete:hover {
+  color: var(--libra-danger);
+  background: var(--libra-accent-lighter);
+}

@@ -1,0 +1,66 @@
+/*
+ * The same dropdown treatment as the sidebar's account menu, opening upward.
+ * Repeated rather than shared because the two are 30 lines apiece and share no
+ * decision — if a third one appears, that is the moment to lift it out.
+ */
+
+.menu {
+  min-width: 200px;
+  padding: 4px;
+  background: var(--libra-card);
+  border: 1px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  box-shadow: var(--libra-shadow-dropdown);
+  animation: dropdown-enter var(--libra-t-dropdown-enter) ease-out;
+}
+
+@keyframes dropdown-enter {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+  border-radius: 4px;
+  cursor: pointer;
+  outline: none;
+}
+
+.item:hover,
+.item[data-highlighted] {
+  background: var(--libra-accent-lighter);
+}
+
+.muted {
+  justify-content: flex-start;
+  color: var(--libra-text-light);
+}
+
+.empty {
+  padding: 8px 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-style: italic;
+  color: var(--libra-text-light);
+  outline: none;
+}
+
+.separator {
+  height: 1px;
+  margin: 4px 8px;
+  background: var(--libra-border);
+}

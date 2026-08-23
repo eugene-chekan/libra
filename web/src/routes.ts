@@ -15,7 +15,27 @@ export const routes = {
   library: '/library',
   shelves: '/shelves',
   chat: '/chat',
+  /** One book. `:id` is filled in by {@link bookPath}. */
+  book: '/books/:id',
+  /** The reader, which milestone 12 (#36) builds. Routed here so the Read button leads somewhere. */
+  reader: '/books/:id/read',
 } as const
+
+/**
+ * The address of one book's detail screen.
+ *
+ * A function rather than a template written out at each call site, for the
+ * same reason the paths above are constants: a link built by hand in a card, a
+ * test and a redirect is three copies that drift apart.
+ */
+export function bookPath(id: number): string {
+  return `/books/${id}`
+}
+
+/** Where the Read button goes. Empty until #36 fills it. */
+export function readerPath(id: number): string {
+  return `/books/${id}/read`
+}
 
 /** Primary navigation, in the order the sidebar shows it. */
 export const primaryNav = [

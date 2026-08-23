@@ -1,8 +1,8 @@
 import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 import { useState } from 'react'
 
-import { useApi } from '../api/ApiProvider'
 import { useSession } from '../session/SessionProvider'
+import { useSaveKindleEmail } from '../session/useSaveKindleEmail'
 import { Icon } from '../widgets/Icon'
 import { KindleEmailModal } from '../widgets/KindleEmailModal'
 import styles from './AccountRow.module.css'
@@ -24,8 +24,8 @@ import styles from './AccountRow.module.css'
  * #31, and a row that opened nothing would be worse than no row at all.
  */
 export function AccountRow() {
-  const api = useApi()
-  const { status, signOut, setUser } = useSession()
+  const { status, signOut } = useSession()
+  const saveKindleEmail = useSaveKindleEmail()
   const [kindleModalOpen, setKindleModalOpen] = useState(false)
 
   if (status.status !== 'signed-in') return null
@@ -75,8 +75,7 @@ export function AccountRow() {
           currentEmail={user.kindle_email}
           onClose={() => setKindleModalOpen(false)}
           onSave={async (kindle_email) => {
-            const updated = await api.updateUser(user.id, { kindle_email })
-            setUser(updated)
+            await saveKindleEmail(kindle_email)
             setKindleModalOpen(false)
           }}
         />

@@ -1,7 +1,7 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
-import { Icon } from './Icon'
+import { Icon, iconNames } from './Icon'
 
 describe('Icon', () => {
   it('is hidden from assistive technology and skipped by the keyboard', () => {
@@ -34,21 +34,9 @@ describe('Icon', () => {
   it('draws something for every name it accepts', () => {
     // Guards against a name in the union with no path behind it, which would
     // render an empty box and look like a styling bug rather than a missing
-    // icon.
-    for (const name of [
-      'grid',
-      'shelves',
-      'message-square',
-      'plus',
-      'rotate-cw',
-      'alert-circle',
-      'chevron-up',
-      'log-out',
-      'search',
-      'tag',
-      'star',
-      'chevron-down',
-    ] as const) {
+    // icon. The list is imported, not retyped, so a new icon is covered the
+    // moment it is added.
+    for (const name of iconNames) {
       const { container, unmount } = render(<Icon name={name} />)
       expect(container.querySelector('svg')?.children.length ?? 0).toBeGreaterThan(0)
       unmount()

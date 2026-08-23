@@ -2,6 +2,9 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* A link, so it has to be told not to look like one. */
+  color: inherit;
+  text-decoration: none;
 }
 
 .title {

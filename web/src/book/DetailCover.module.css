@@ -1,0 +1,70 @@
+.frame {
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.trigger {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(42 37 32 / 60%);
+  backdrop-filter: blur(12px);
+}
+
+.lightbox {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: 90vw;
+  max-height: 90vh;
+}
+
+/* The title is here for the screen reader, not the eye: the enlarged cover
+   already says which book this is to anyone who can see it. */
+.lightboxTitle {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.full {
+  max-width: 90vw;
+  max-height: 90vh;
+  object-fit: contain;
+  border-radius: var(--libra-radius-cover);
+  box-shadow: var(--libra-shadow-modal);
+}
+
+.close {
+  position: fixed;
+  top: 20px;
+  right: 20px;
+  width: 36px;
+  height: 36px;
+  border: none;
+  border-radius: 18px;
+  background: rgb(255 255 255 / 15%);
+  color: #fff;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.close:hover {
+  background: rgb(255 255 255 / 25%);
+}

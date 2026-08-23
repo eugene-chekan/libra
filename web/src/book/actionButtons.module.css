@@ -1,0 +1,105 @@
+/*
+ * The book detail action row's button treatments, defined once.
+ *
+ * Five buttons across two rows, in three components — the row itself, the
+ * Kindle button with its five states, and the Move to Shelf dropdown. Each
+ * drawing its own border and padding is how the rows end up 1px apart from
+ * each other, so the treatment lives here and the components import it.
+ *
+ * The sizes are from client-design.md gap 6: row 1 is 11px/24px with a 14px
+ * label, row 2 is 9px/18px with a 13px one.
+ */
+
+.primary,
+.outlined {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 11px 24px;
+  border-radius: var(--libra-radius);
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  white-space: nowrap;
+  transition:
+    background var(--libra-t-interactive),
+    border-color var(--libra-t-interactive),
+    color var(--libra-t-interactive);
+}
+
+.primary {
+  border: none;
+  background: var(--libra-accent);
+  color: #fff;
+}
+
+.primary:hover {
+  background: var(--libra-accent-hover);
+}
+
+.outlined {
+  border: 1.5px solid var(--libra-border);
+  background: var(--libra-card);
+  color: var(--libra-text-mid);
+  font-weight: 500;
+}
+
+.outlined:hover:not(:disabled) {
+  border-color: var(--libra-accent);
+  color: var(--libra-accent);
+}
+
+.outlined:disabled {
+  cursor: default;
+  color: var(--libra-text-light);
+}
+
+/* Row 2's smaller treatment. Applied alongside .outlined. */
+.small {
+  padding: 9px 18px;
+  font-size: 13px;
+}
+
+/* A spinner belongs inside the control that started the action — the app's
+   rule for something the reader did, as against skeletons for content that is
+   arriving on its own. */
+.spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--libra-border);
+  border-top-color: var(--libra-text-light);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.hint {
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  color: var(--libra-text-light);
+}
+
+.failure {
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  color: var(--libra-danger);
+}
+
+/* A link that is a button, because it opens a modal rather than going
+   anywhere. Styled as the sentence it sits in, not as a control. */
+.link {
+  padding: 0;
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--libra-accent);
+  text-decoration: underline;
+  cursor: pointer;
+}

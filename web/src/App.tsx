@@ -6,12 +6,13 @@ import { ApiProvider } from './api/ApiProvider'
 import { HttpLibraApi } from './api/HttpLibraApi'
 import { createQueryClient } from './queryClient'
 import { routes } from './routes'
+import { BookScreen } from './screens/BookScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
 import { LoginScreen } from './screens/LoginScreen'
 import { RequireSession } from './session/RequireSession'
 import { SessionProvider } from './session/SessionProvider'
 import { AppShell } from './shell/AppShell'
-import { ChatScreen, NotFoundScreen, ShelvesScreen } from './screens/screens'
+import { ChatScreen, NotFoundScreen, ReaderScreen, ShelvesScreen } from './screens/screens'
 
 /**
  * The route table.
@@ -34,6 +35,8 @@ export function AppRoutes() {
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to={routes.library} replace />} />
           <Route path={routes.library} element={<LibraryScreen />} />
+          <Route path={routes.book} element={<BookScreen />} />
+          <Route path={routes.reader} element={<ReaderScreen />} />
           <Route path={routes.shelves} element={<ShelvesScreen />} />
           <Route path={routes.chat} element={<ChatScreen />} />
           <Route path="*" element={<NotFoundScreen />} />
