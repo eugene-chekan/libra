@@ -1,0 +1,97 @@
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 28px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text-light);
+  text-decoration: none;
+  transition: color var(--libra-t-interactive);
+}
+
+.back:hover {
+  color: var(--libra-accent);
+}
+
+.layout {
+  display: flex;
+  gap: 40px;
+  align-items: flex-start;
+}
+
+.coverColumn {
+  flex-shrink: 0;
+  width: 200px;
+}
+
+.blurb {
+  margin-top: 14px;
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--libra-text-mid);
+  text-wrap: pretty;
+}
+
+.details {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+/* Title, author and metadata are one block: they sit closer to each other
+   than the column's own 24px gap puts between its children. */
+.heading {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.title {
+  font-family: var(--libra-serif);
+  font-size: 34px;
+  font-weight: 400;
+  line-height: 1.15;
+  letter-spacing: -0.5px;
+  color: var(--libra-text);
+}
+
+.author {
+  font-family: var(--libra-sans);
+  font-size: 16px;
+  color: var(--libra-text-mid);
+}
+
+.metadata {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text-light);
+}
+
+.tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  list-style: none;
+}
+
+.tagPill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: var(--libra-radius-pill);
+  background: var(--libra-accent-light);
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--libra-accent);
+  text-decoration: none;
+  transition: background var(--libra-t-interactive);
+}
+
+.tagPill:hover {
+  background: var(--libra-accent-lighter);
+}

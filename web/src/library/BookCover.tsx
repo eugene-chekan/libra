@@ -8,6 +8,14 @@ interface BookCoverProps {
   id: number
   title: string
   hasCover: boolean
+  /**
+   * Called when the image the server promised does not load.
+   *
+   * The fallback below happens either way; this only exists for a caller that
+   * has to know as well — the book detail screen offers "enlarge" for a real
+   * cover, and must not offer it for a gradient.
+   */
+  onError?: () => void
 }
 
 /**
@@ -18,7 +26,7 @@ interface BookCoverProps {
  * `onError` on the `<img>` is what makes an unexpected 404 fall back the same
  * way a known one does, rather than showing a broken-image icon.
  */
-export function BookCover({ id, title, hasCover }: BookCoverProps) {
+export function BookCover({ id, title, hasCover, onError }: BookCoverProps) {
   const api = useApi()
   const [broken, setBroken] = useState(false)
 
@@ -28,7 +36,10 @@ export function BookCover({ id, title, hasCover }: BookCoverProps) {
         className={styles.cover}
         src={api.coverUrl(id)}
         alt={title}
-        onError={() => setBroken(true)}
+        onError={() => {
+          setBroken(true)
+          onError?.()
+        }}
       />
     )
   }

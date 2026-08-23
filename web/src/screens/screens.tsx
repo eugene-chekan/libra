@@ -19,7 +19,19 @@ export function ShelvesScreen() {
 }
 
 export function ChatScreen() {
-  return <PendingScreen title="Librarian" milestone="the librarian chat milestone" />
+  return <PendingScreen title="Librarian" milestone="the librarian chat milestone (#32)" />
+}
+
+/**
+ * `/books/:id/read`, which milestone 12 (#36) builds.
+ *
+ * Routed now, empty now, because the book detail screen's primary button says
+ * "Start Reading" and has to lead somewhere. The Flutter client pointed the
+ * same button at an address that matched nothing, so a reader who pressed the
+ * most prominent control on the screen was told the page did not exist.
+ */
+export function ReaderScreen() {
+  return <PendingScreen title="Reader" milestone="the reader milestone (#36)" />
 }
 
 /**

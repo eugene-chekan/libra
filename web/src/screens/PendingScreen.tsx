@@ -17,9 +17,10 @@ interface PendingScreenProps {
  * pane, because it is confidently wrong. The rule is in
  * docs/specs/code-style.md and it is what this comment exists to enforce.
  *
- * It names a milestone rather than an issue number because the rewrite's
- * issues are not filed yet. Swap in the number when there is one — a
- * placeholder pointing at nothing is the same defect one step earlier.
+ * It names a milestone, and the issue number too wherever the rewrite has
+ * filed one — a placeholder pointing at nothing is the same defect one step
+ * earlier. The shelves screen has no number yet because its TypeScript issue
+ * is not open; add it when it is.
  */
 export function PendingScreen({ title, milestone }: PendingScreenProps) {
   return (

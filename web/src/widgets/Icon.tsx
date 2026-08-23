@@ -77,9 +77,52 @@ const paths = {
     <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
   ),
   'chevron-down': <path d="m6 9 6 6 6-6" />,
+  'arrow-left': (
+    <>
+      <path d="M19 12H5" />
+      <path d="m12 19-7-7 7-7" />
+    </>
+  ),
+  download: (
+    <>
+      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+      <path d="m7 10 5 5 5-5" />
+      <path d="M12 15V3" />
+    </>
+  ),
+  send: (
+    <>
+      <path d="m22 2-7 20-4-9-9-4Z" />
+      <path d="M22 2 11 13" />
+    </>
+  ),
+  check: <path d="M20 6 9 17l-5-5" />,
+  x: (
+    <>
+      <path d="M18 6 6 18" />
+      <path d="m6 6 12 12" />
+    </>
+  ),
+  trash: (
+    <>
+      <path d="M3 6h18" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+    </>
+  ),
 } as const
 
 export type IconName = keyof typeof paths
+
+/**
+ * Every name {@link Icon} accepts, as a value rather than only a type.
+ *
+ * The test iterates this to check each name draws something. It used to
+ * transcribe the list instead, which is the copy docs/specs/code-style.md
+ * warns about — a name added here and forgotten there is exactly the icon
+ * that would ship as an empty box.
+ */
+export const iconNames = Object.keys(paths) as IconName[]
 
 interface IconProps {
   name: IconName

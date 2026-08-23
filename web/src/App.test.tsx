@@ -3,11 +3,11 @@ import { render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
-import { fakeUser, FakeLibraApi } from './api/FakeLibraApi'
+import { fakeBook, fakeUser, FakeLibraApi } from './api/FakeLibraApi'
 import { ApiProvider } from './api/ApiProvider'
 import { AppRoutes } from './App'
 import { createQueryClient } from './queryClient'
-import { routes } from './routes'
+import { bookPath, readerPath, routes } from './routes'
 import { SessionProvider } from './session/SessionProvider'
 
 /**
@@ -55,6 +55,32 @@ describe('routing', () => {
     await waitFor(() => expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument())
     // Every screen keeps the frame: the nav is still there to navigate with.
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+  })
+
+  it('renders one book inside the shell too', async () => {
+    const user = fakeUser()
+    const api = new FakeLibraApi({
+      users: [user],
+      signedInAs: user,
+      books: [fakeBook({ id: 4, title: 'Dune' })],
+    })
+
+    renderAt(bookPath(4), api)
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Dune', level: 1 })).toBeInTheDocument()
+    )
+    expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+  })
+
+  it('routes the reader, so the Start Reading button does not lead to a dead address', async () => {
+    // It is a stand-in until #36 builds it. The Flutter client left this route
+    // out entirely, so the most prominent button on the book screen took a
+    // reader to "no such page".
+    renderAt(readerPath(4))
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Reader' })).toBeInTheDocument())
+    expect(screen.getByText(/arrives with the reader milestone \(#36\)/)).toBeInTheDocument()
   })
 
   it('shows the not-found screen for an address that means nothing', async () => {

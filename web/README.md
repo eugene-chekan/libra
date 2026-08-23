@@ -78,9 +78,10 @@ src/
 ├── api/        LibraApi — the typed client, its HTTP and fake implementations
 ├── session/    SessionProvider (session state) and RequireSession (route guard)
 ├── library/    the grid: BookCard/BookCover, SearchBar, filter state, query hooks
+├── book/       one book: cover and lightbox, rating, actions, edit form, notes
 ├── shell/      AppShell, Sidebar, AccountRow, and its SHELVES/TAGS filter sections
 ├── widgets/    Skeleton, ErrorBlock, EmptyState, Icon, KindleEmailModal
-├── screens/    the routed screens, including LoginScreen and LibraryScreen
+├── screens/    the routed screens: LoginScreen, LibraryScreen, BookScreen
 ├── routes.ts   every route path, in one place
 └── App.tsx     providers and the route table
 e2e/            Playwright specs
@@ -96,6 +97,17 @@ real URLs, so `/shelves` is an address a reader can reload and share. Without
 the prefix that request would reach the endpoint returning the shelf list and
 the reader would get JSON instead of the app. The backend's `SpaStaticFiles`
 serves `index.html` for client routes and keeps `/api/*` a 404.
+
+**Two kinds of write, two endpoints.** A book's rating, progress and shelf
+belong to one reader and save the moment they change, through
+`PUT /api/books/{id}/state`. Its title, author, year, pages and blurb are the
+shared catalog: they change what everyone sees, so they sit behind Save and
+Cancel and go through `PATCH /api/books/{id}`, which is admin-only. The screen
+is built around that split — see `src/screens/BookScreen.tsx`.
+
+**`PUT /state` is a PUT.** A body that leaves `rating` or `progress` out does
+not keep the old value, it sets it to zero. `BookStateWrite` makes both
+required so no call site can do that by accident.
 
 **Queries never retry.** `retry: false` in `src/queryClient.ts`, with the
 reasoning there. An automatic retry racing the visible "Try again" button

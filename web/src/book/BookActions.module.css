@@ -1,0 +1,16 @@
+.rows {
+  display: flex;
+  flex-direction: column;
+  /* 12px between the two rows, as client-design.md gap 6 sets out. */
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  /* The Kindle button carries a line under itself, so the row aligns on the
+     top of each control rather than the middle. */
+  align-items: flex-start;
+  gap: 10px;
+}

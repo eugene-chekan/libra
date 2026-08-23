@@ -1,4 +1,18 @@
-import type { BookList, BookSearchParams, CurrentUser, Shelf, Tag, User, UserPatch } from './types'
+import type {
+  Book,
+  BookList,
+  BookPatch,
+  BookSearchParams,
+  BookStateWrite,
+  CurrentUser,
+  KindleDelivery,
+  Note,
+  NoteDraft,
+  Shelf,
+  Tag,
+  User,
+  UserPatch,
+} from './types'
 
 /**
  * Everything the client can ask the server for.
@@ -13,7 +27,7 @@ import type { BookList, BookSearchParams, CurrentUser, Shelf, Tag, User, UserPat
  * layer: a method that quietly makes two requests hides the API from the code
  * that reads it, and this milestone exists to check that the API is right.
  *
- * Later milestones add books, shelves, tags and notes here.
+ * Later milestones add shelves and tags management here.
  */
 export interface LibraApi {
   /**
@@ -76,4 +90,51 @@ export interface LibraApi {
    * `Book` is for.
    */
   coverUrl(id: number): string
+
+  /** `GET /api/books/{id}`. 404 for a book that is not in this library. */
+  getBook(id: number): Promise<Book>
+
+  /**
+   * `PATCH /api/books/{id}`. The shared catalog, so **admin only** — a reader
+   * without the flag gets a 403. Only the fields present in `patch` change.
+   */
+  updateBook(id: number, patch: BookPatch): Promise<Book>
+
+  /**
+   * `PUT /api/books/{id}/state`. The caller's own rating, progress, shelf and
+   * personal tags. Always permitted: it touches nobody else's view.
+   *
+   * A PUT, so `state` is the whole row — see {@link BookStateWrite} for why
+   * `rating` and `progress` are required rather than optional.
+   */
+  setBookState(id: number, state: BookStateWrite): Promise<Book>
+
+  /**
+   * `POST /api/books/{id}/send-to-kindle`. No body: the destination is the
+   * caller's own stored address and cannot be given per request.
+   *
+   * Fails in four different ways, and the button shows a different sentence
+   * for each: 422 when the reader has set no address, 413 when the book is
+   * over Amazon's attachment limit, 503 when this instance has no mail
+   * configured, 502 when the mail server refused it.
+   */
+  sendToKindle(id: number): Promise<KindleDelivery>
+
+  /** `GET /api/books/{id}/notes`. The caller's own notes, newest first. */
+  listNotes(bookId: number): Promise<Note[]>
+
+  /** `POST /api/books/{id}/notes`. */
+  createNote(bookId: number, note: NoteDraft): Promise<Note>
+
+  /** `DELETE /api/notes/{id}`. Another reader's note is a 404, never a 403. */
+  deleteNote(noteId: number): Promise<void>
+
+  /**
+   * `GET /api/books/{id}/file`, as a URL rather than a fetch, for the same
+   * reason as {@link coverUrl}: the caller hands it to the browser — here an
+   * `<a download>` — and lets it do the transfer. The offered filename is the
+   * server's business, rebuilt from the catalog rather than echoed from
+   * whatever the uploader called the file.
+   */
+  fileUrl(id: number): string
 }

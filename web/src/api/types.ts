@@ -51,21 +51,110 @@ export interface UserPatch {
  * A book as one reader sees it, from `GET /api/books` and `GET /api/books/{id}`.
  *
  * `BookRead` on the server carries more fields than this — `file_path`,
- * `book_metadata`, `started_at`/`finished_at`/`last_sent_at` and so on. Only
- * what this milestone's grid card actually reads is named here; the rest is
- * ignored rather than rejected, same as every other type in this file.
+ * `book_metadata`, `started_at` and `finished_at`. Only what a screen actually
+ * reads is named here; the rest is ignored rather than rejected, same as every
+ * other type in this file.
+ *
+ * **Shared catalog and personal state sit side by side in this one object**,
+ * and they are not written the same way. `title` down to `blurb` describe the
+ * edition and change what every reader sees, so only an admin may write them,
+ * through `PATCH /api/books/{id}`. `shelf_id`, `rating`, `progress` and
+ * `last_sent_at` are this reader's own and nobody else's, and go through
+ * `PUT /api/books/{id}/state`. The server flattens the two together because a
+ * screen shows them together; the split still decides which call to make.
  */
 export interface Book {
   id: number
   title: string
   author: string
+  /** `epub` today. Drawn upper-case in the detail screen's metadata line. */
+  format: string
+  /** Null when the file never declared one. Never invented — blank is honest. */
+  year: number | null
+  /** The description. Null when nothing supplied one. */
+  blurb: string | null
+  /** Page count. Null for a book whose file did not say, which is most of them. */
+  pages: number | null
   /** Whether `GET /books/{id}/cover` will answer with an image. False draws the gradient fallback. */
   has_cover: boolean
   tag_ids: number[]
-  /** 0 when unrated. Read-only here — rating is set from the book detail screen, not this milestone. */
+  /** The shelf this reader put it on, or null for none. At most one, by the server's design. */
+  shelf_id: number | null
+  /** 0 when unrated. */
   rating: number
   /** 0 to 1. The status line reads this: 0 is "Not started", 1 is a star rating, otherwise a progress bar. */
   progress: number
+  /** When this reader last emailed it to their Kindle. Null when never. ISO 8601. */
+  last_sent_at: string | null
+}
+
+/**
+ * A change to the shared catalog, for `PATCH /api/books/{id}`. Admin only.
+ *
+ * Same rule as `UserPatch`: the server reads the body with `exclude_unset`, so
+ * a key that is absent means "leave it alone" and an explicit `null` means
+ * "clear it". `file_path` is deliberately absent from the server's own model —
+ * where a book is stored belongs to the storage layer, not to whoever is
+ * correcting a typo in the title.
+ */
+export interface BookPatch {
+  title?: string
+  author?: string
+  year?: number | null
+  pages?: number | null
+  blurb?: string | null
+}
+
+/**
+ * The reader's own state, for `PUT /api/books/{id}/state`.
+ *
+ * **`rating` and `progress` are required, and that is the whole point of this
+ * type.** The endpoint is a PUT: it writes the state row as a whole, so a body
+ * that leaves `rating` out does not keep the old rating, it sets it to zero.
+ * Making both required means no call site can silently wipe one while setting
+ * the other — the trap is listed in docs/specs/client-stack.md as one to carry
+ * over from the Flutter client, and this is how it is carried over.
+ *
+ * `shelf_id` behaves the other way round, because the server reads it with
+ * `exclude_unset`: leaving it out keeps the book where it is, and an explicit
+ * `null` takes it off its shelf.
+ */
+export interface BookStateWrite {
+  rating: number
+  progress: number
+  shelf_id?: number | null
+  /** Replaces this reader's personal tags on the book. Global tags are unaffected. */
+  tag_ids?: number[]
+}
+
+/** One note or highlight, from `GET /api/books/{id}/notes`. Always the caller's own. */
+export interface Note {
+  id: number
+  book_id: number
+  text: string
+  /** Optional: a reflowable EPUB has no pages to cite. */
+  page: number | null
+  created_at: string
+}
+
+/** The writable half of a note, for `POST /api/books/{id}/notes`. */
+export interface NoteDraft {
+  text: string
+  page?: number | null
+}
+
+/**
+ * What `POST /api/books/{id}/send-to-kindle` reports back.
+ *
+ * `attempted_at`, not `sent_at`, and the server answers `202` rather than
+ * `200`. Amazon throws away mail from a sender the reader has not approved and
+ * sends no bounce, so handing the message to the mail server is the last thing
+ * libra can honestly claim to know.
+ */
+export interface KindleDelivery {
+  book_id: number
+  sent_to: string
+  attempted_at: string
 }
 
 /** `GET /api/books`. An envelope rather than a bare array — see `BookList` on the server for why. */

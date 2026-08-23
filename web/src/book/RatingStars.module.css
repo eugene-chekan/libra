@@ -1,0 +1,24 @@
+.stars {
+  display: flex;
+  gap: 2px;
+}
+
+.star {
+  display: flex;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: pointer;
+  line-height: 0;
+}
+
+.on {
+  color: var(--libra-accent);
+  fill: currentColor;
+  transition: color var(--libra-t-interactive);
+}
+
+.off {
+  color: var(--libra-border);
+  transition: color var(--libra-t-interactive);
+}

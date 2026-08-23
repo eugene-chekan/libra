@@ -191,4 +191,86 @@ describe('HttpLibraApi', () => {
     expect(new HttpLibraApi().coverUrl(42)).toBe('/api/books/42/cover')
     expect(fetchMock).not.toHaveBeenCalled()
   })
+
+  it('reads one book from its own path', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 42 }))
+
+    await new HttpLibraApi().getBook(42)
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42')
+    expect(init.method).toBe('GET')
+  })
+
+  it('patches the catalog and puts the reading state, which are two different endpoints', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(200, { id: 42 })))
+    const api = new HttpLibraApi()
+
+    await api.updateBook(42, { title: 'Dune (1965)' })
+    let [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42')
+    expect(init.method).toBe('PATCH')
+    expect(JSON.parse(init.body as string)).toEqual({ title: 'Dune (1965)' })
+
+    await api.setBookState(42, { rating: 5, progress: 0.5 })
+    ;[url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42/state')
+    expect(init.method).toBe('PUT')
+    expect(JSON.parse(init.body as string)).toEqual({ rating: 5, progress: 0.5 })
+  })
+
+  it('sends a Kindle delivery request with no body and no Content-Type', async () => {
+    // The endpoint takes none. A body would put a Content-Type on a request
+    // that has no content, and the destination is never the caller's to send.
+    fetchMock.mockResolvedValue(jsonResponse(202, { book_id: 42, sent_to: 'r@kindle.com' }))
+
+    await new HttpLibraApi().sendToKindle(42)
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42/send-to-kindle')
+    expect(init.method).toBe('POST')
+    expect(init.body).toBeUndefined()
+    expect(init.headers).toEqual({})
+  })
+
+  it('raises the server sentence on a failed delivery, which the button then shows', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(502, { detail: 'the mail server refused it' }))
+
+    await expect(new HttpLibraApi().sendToKindle(42)).rejects.toMatchObject({
+      status: 502,
+      message: 'the mail server refused it',
+    })
+  })
+
+  it('addresses notes under their book to list and create, and by their own id to delete', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(200, [])))
+    const api = new HttpLibraApi()
+
+    await api.listNotes(42)
+    expect(lastFetchCall()[0]).toBe('/api/books/42/notes')
+
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(201, { id: 1 })))
+    await api.createNote(42, { text: 'A note' })
+    let [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42/notes')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ text: 'A note' })
+
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })))
+    await api.deleteNote(1)
+    ;[url, init] = lastFetchCall()
+    expect(url).toBe('/api/notes/1')
+    expect(init.method).toBe('DELETE')
+  })
+
+  it('returns nothing rather than throwing when a 204 has no body to parse', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+
+    await expect(new HttpLibraApi().deleteNote(1)).resolves.toBeUndefined()
+  })
+
+  it('builds the file URL without making a request, same as the cover URL', () => {
+    expect(new HttpLibraApi().fileUrl(42)).toBe('/api/books/42/file')
+    expect(fetchMock).not.toHaveBeenCalled()
+  })
 })

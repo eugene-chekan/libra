@@ -390,8 +390,8 @@ def update_book(
     book_id: int,
     update: BookUpdate,
     session: Session = Depends(get_session),
-    _: User = Depends(require_admin),
-) -> Book:
+    user: User = Depends(require_admin),
+) -> BookRead:
     """Correct a book's metadata, e.g. after an imperfect parse on upload.
 
     Admin only: title and author describe the shared catalog, so one
@@ -409,7 +409,14 @@ def update_book(
     session.add(book)
     session.commit()
     session.refresh(book)
-    return book
+    # Through the read model, for the same reason POST does it: rating,
+    # progress, has_cover, shelf_id and tag_ids are not columns on `Book`, so
+    # returning the row lets `response_model` fill them with defaults. This
+    # endpoint used to do exactly that, and answered "rating 0, progress 0"
+    # for a book the caller had rated and half read. Found by the client in
+    # #65 — nothing in the process could see it, because the response was
+    # well-formed and merely untrue.
+    return library.get_book(session, book_id, user)
 
 
 @router.delete("/{book_id}", status_code=204)

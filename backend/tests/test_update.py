@@ -81,3 +81,21 @@ def test_patch_fixes_a_bad_parse_after_upload(admin_client: TestClient, tmp_path
 
 def test_patch_missing_book_returns_404(admin_client: TestClient) -> None:
     assert admin_client.patch("/books/999", json={"title": "Nope"}).status_code == 404
+
+
+def test_patch_answers_with_the_callers_own_state(admin_client: TestClient) -> None:
+    """The response is a `BookRead`, so it has to carry the reader's state.
+
+    It used to return the table row and let `response_model` fill in the rest
+    from the defaults, so a book the caller had rated and half read came back
+    unrated and unstarted. Nothing in-process noticed: the response was
+    well-formed, only untrue. The client in #65 is what found it.
+    """
+    created = admin_client.post("/books", json=BOOK_PAYLOAD).json()
+    admin_client.put(f"/books/{created['id']}/state", json={"rating": 5, "progress": 0.5})
+
+    body = admin_client.patch(f"/books/{created['id']}", json={"title": "Dune (1965)"}).json()
+
+    assert body["title"] == "Dune (1965)"
+    assert body["rating"] == 5
+    assert body["progress"] == 0.5
