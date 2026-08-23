@@ -416,29 +416,32 @@ One branch per feature, as in Phase 1. Milestone 1 spans three issues because
 its three endpoint groups are unrelated to each other; every other milestone
 is one.
 
-| # | Milestone | Issue | Status | Notes |
+| # | Milestone | Flutter | TypeScript | Notes |
 |---|---|---|---|---|
-| 0 | Close the six design gaps | — | ✅ | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions |
-| 1 | Notes endpoints | #21 | ✅ | Over the table Phase 1 defined for exactly this — no migration needed, which was the point |
-| 1 | `GET /books/{id}/file` | #22 | ✅ | Filename rebuilt from the catalog by the new `app/naming.py`, shared with Kindle delivery |
-| 1 | `DELETE /users/{id}` | #23 | ✅ | Hand-written cascade; no last-admin check, because admin-only plus no self-deletion makes it unreachable |
-| 2 | Scaffold | #24 | ✅ | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, Riverpod, skeleton/error/empty primitives, CI analyze + test. No `ThemeExtension` — see below |
-| 3 | API client + auth | #25 | ✅ | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
-| 4 | Library grid + search | #26 | ✅ | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
-| 5 | Book detail | #27 | ✅ | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below |
-| 6 | Shelves page + shelf manager | #28 | ✅ | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below |
-| 7 | Tag manager | #29 | | Shared / Mine split, `editable` respected, name-hashed colour swatches |
-| 8 | Add Book | #30 | | Upload-first redesign |
-| 9 | User administration | #31 | | Admin-only modal, per-row commits, destructive delete dialog |
-| 10 | Librarian chat, stubbed | #32 | | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
-| 11 | EPUB chapters and resources | #35 | | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
-| 12 | In-browser reader | #36 | | epub.js in a sandboxed iframe over the spine, TOC, scroll position written back as progress |
+| 0 | Close the six design gaps | ✅ | carried over | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions. Design work, so the move did not repeat it |
+| 1 | Notes endpoints | ✅ #21 | backend | Over the table Phase 1 defined for exactly this — no migration needed, which was the point |
+| 1 | `GET /books/{id}/file` | ✅ #22 | backend | Filename rebuilt from the catalog by the new `app/naming.py`, shared with Kindle delivery |
+| 1 | `DELETE /users/{id}` | ✅ #23 | backend | Hand-written cascade; no last-admin check, because admin-only plus no self-deletion makes it unreachable |
+| 2 | Scaffold | ✅ #24 | ✅ #57 | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, Riverpod, skeleton/error/empty primitives, CI analyze + test. No `ThemeExtension` — see below |
+| 3 | API client + auth | ✅ #25 | ✅ #61 | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
+| 4 | Library grid + search | ✅ #26 | ✅ #63 | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
+| 5 | Book detail | ✅ #27 | #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below |
+| 6 | Shelves page + shelf manager | ✅ #28 | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below |
+| 7 | Tag manager | — | #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches |
+| 8 | Add Book | — | #30 | Upload-first redesign |
+| 9 | User administration | — | #31 | Admin-only modal, per-row commits, destructive delete dialog |
+| 10 | Librarian chat, stubbed | — | #32 | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
+| 11 | EPUB chapters and resources | — | backend #35 | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
+| 12 | In-browser reader | — | #36 | epub.js in a sandboxed iframe over the spine, TOC, scroll position written back as progress |
 
-**Milestones 0 to 6 were built in Flutter and are rewritten in TypeScript**,
-which is the three-week timebox in [client-stack.md](client-stack.md).
-Milestones 7 to 10 and 12 are built once, in the new client, and were never
-started in Flutter. Milestone 11 (#35) is backend work and is untouched by the
-move. The milestone numbers, scope and dependencies below are unchanged.
+**The two client columns are two builds of the same milestone.** Milestones 0
+to 6 were built in Flutter and are being rewritten in TypeScript, which is the
+three-week timebox in [client-stack.md](client-stack.md). The rewrite files its
+own issues — #57, #61, #63, #65 — because the Flutter ones are closed, and a
+closed issue cannot track work that is still happening. Milestones 7 to 10 and
+12 are built once, in the new client, and were never started in Flutter.
+Milestone 11 (#35) is backend work and is untouched by the move. The milestone
+numbers, scope and dependencies below are unchanged.
 
 The three milestone-1 issues and #24 are independent of everything; #25 gates
 every client milestone after it; #27 additionally waits on #21 and #22, and
