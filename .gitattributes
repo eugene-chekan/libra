@@ -1,0 +1,8 @@
+# Every text file is stored with LF, and checked out with LF on every system.
+# Without this line, Git on Windows turns LF into CRLF when it writes the file
+# out. Git then reports all those files as changed while `git diff` prints
+# nothing, because the change is only in the invisible line endings.
+* text=auto eol=lf
+
+# Fonts are binary files. Never rewrite anything inside them.
+*.woff2 binary
