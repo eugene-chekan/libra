@@ -3,8 +3,13 @@ import type { LibraApi } from './LibraApi'
 import type {
   Book,
   BookList,
+  BookPatch,
   BookSearchParams,
+  BookStateWrite,
   CurrentUser,
+  KindleDelivery,
+  Note,
+  NoteDraft,
   Shelf,
   Tag,
   User,
@@ -40,13 +45,12 @@ export function fakeUser(overrides: Partial<FakeUser> = {}): FakeUser {
 }
 
 /**
- * `BookRead` flattens shelf and tag membership to the caller's own view, so
- * the fake does the same: `shelf_id` here is "on this shelf, as the signed-in
- * fake user", not a column shared across every reader.
+ * `BookRead` flattens shelf, tag and rating into one object, so the fake keeps
+ * one object too. What it does not keep is a second reader: `shelf_id`,
+ * `rating` and `progress` here mean "as the signed-in fake user", and there is
+ * only ever one of those in a component test.
  */
-export interface FakeBook extends Book {
-  shelf_id: number | null
-}
+export type FakeBook = Book
 
 let nextBookId = 1
 
@@ -56,11 +60,37 @@ export function fakeBook(overrides: Partial<FakeBook> = {}): FakeBook {
     id,
     title: `Book ${id}`,
     author: 'An Author',
+    format: 'epub',
+    year: null,
+    blurb: null,
+    pages: null,
     has_cover: false,
     tag_ids: [],
+    shelf_id: null,
     rating: 0,
     progress: 0,
-    shelf_id: null,
+    last_sent_at: null,
+    ...overrides,
+  }
+}
+
+/** A note in the fake, plus the owner the API never publishes. */
+export interface FakeNote extends Note {
+  /** Whose note it is. `NoteRead` omits this — every note a caller can read is their own. */
+  user_id: number
+}
+
+let nextNoteId = 1
+
+export function fakeNote(overrides: Partial<FakeNote> = {}): FakeNote {
+  const id = overrides.id ?? nextNoteId++
+  return {
+    id,
+    user_id: 1,
+    book_id: 1,
+    text: `Note ${id}`,
+    page: null,
+    created_at: '2026-08-22T10:00:00Z',
     ...overrides,
   }
 }
@@ -102,6 +132,13 @@ interface FakeOptions {
   books?: FakeBook[]
   tags?: Tag[]
   shelves?: Shelf[]
+  notes?: FakeNote[]
+  /**
+   * What the mail server does with the next send. `null` accepts it; a string
+   * is the sentence a 502 comes back with, which is what the Send to Kindle
+   * button prints after "Couldn't send — ".
+   */
+  kindleFailure?: string | null
 }
 
 /**
@@ -129,6 +166,9 @@ export class FakeLibraApi implements LibraApi {
   readonly books: FakeBook[]
   readonly tags: Tag[]
   readonly shelves: Shelf[]
+  readonly notes: FakeNote[]
+  /** Settable mid-test, so one send can fail and the next succeed. */
+  kindleFailure: string | null
 
   /** Every call this fake has answered, in order. Lets a test count requests. */
   readonly calls: string[] = []
@@ -140,6 +180,8 @@ export class FakeLibraApi implements LibraApi {
     books = [],
     tags = [],
     shelves = [],
+    notes = [],
+    kindleFailure = null,
   }: FakeOptions = {}) {
     this.users = users
     this.signedInId = signedInAs?.id ?? null
@@ -147,6 +189,8 @@ export class FakeLibraApi implements LibraApi {
     this.books = books
     this.tags = tags
     this.shelves = shelves
+    this.notes = notes
+    this.kindleFailure = kindleFailure
   }
 
   setOnUnauthorized(handler: (() => void) | null): void {
@@ -264,20 +308,164 @@ export class FakeLibraApi implements LibraApi {
     return `/api/books/${id}/cover`
   }
 
+  fileUrl(id: number): string {
+    return `/api/books/${id}/file`
+  }
+
+  async getBook(id: number): Promise<Book> {
+    this.calls.push(`getBook:${id}`)
+    this.requireSession()
+    return this.requireBook(id)
+  }
+
+  async updateBook(id: number, patch: BookPatch): Promise<Book> {
+    this.calls.push(`updateBook:${id}`)
+    const caller = this.requireSession()
+
+    // `require_admin` is a dependency, so it runs before the handler ever
+    // looks the book up: a reader who is not an admin gets 403 even for an id
+    // that does not exist. Same order as `updateUser` above, same reason.
+    if (!caller.is_admin) throw new ApiError(403, 'Admin only')
+
+    const book = this.requireBook(id)
+    // Present keys only, and `null` means "clear it" — `exclude_unset=True` on
+    // the other side. Title and author are not nullable on the server, which
+    // is why the form guards them rather than sending an empty string.
+    if (patch.title !== undefined) book.title = patch.title
+    if (patch.author !== undefined) book.author = patch.author
+    if ('year' in patch) book.year = patch.year ?? null
+    if ('pages' in patch) book.pages = patch.pages ?? null
+    if ('blurb' in patch) book.blurb = patch.blurb ?? null
+    return book
+  }
+
+  async setBookState(id: number, state: BookStateWrite): Promise<Book> {
+    this.calls.push(`setBookState:${id}`)
+    const caller = this.requireSession()
+    const book = this.requireBook(id)
+
+    // Tags first, then the state row — the server's order, and it matters:
+    // a rejected tag has to leave the rating exactly as it was.
+    if (state.tag_ids !== undefined) {
+      for (const tagId of state.tag_ids) {
+        const tag = this.requireVisibleTag(tagId, caller)
+        if (tag.is_global) {
+          throw new ApiError(403, 'Global tags are managed by an admin, not per book')
+        }
+      }
+      // Personal tags are replaced wholesale; the book's global tags stay.
+      const globals = book.tag_ids.filter(
+        (tagId) => this.tags.find((tag) => tag.id === tagId)?.is_global
+      )
+      book.tag_ids = [...globals, ...state.tag_ids]
+    }
+
+    if ('shelf_id' in state) {
+      if (state.shelf_id === null) {
+        book.shelf_id = null
+      } else if (state.shelf_id !== undefined) {
+        const shelf = this.requireVisibleShelf(state.shelf_id, caller)
+        // Visible is not the same as yours. Somebody else's public shelf can
+        // be read and filtered by, and is still a 403 to put a book on.
+        if (shelf.owner_id !== caller.id) {
+          throw new ApiError(403, 'You can only place books on your own shelves')
+        }
+        book.shelf_id = shelf.id
+      }
+    }
+
+    // A PUT: both are written every time, even when the caller only meant to
+    // change one. That is the trap this fake exists to keep honest — a fake
+    // that patched instead would let a call site drop `progress` and pass.
+    book.rating = state.rating
+    book.progress = state.progress
+    return book
+  }
+
+  async sendToKindle(id: number): Promise<KindleDelivery> {
+    this.calls.push(`sendToKindle:${id}`)
+    const caller = this.requireSession()
+
+    // Checked before the book is even looked up, exactly as the endpoint does
+    // it: an instance with no mail configured cannot send anything to anyone.
+    if (this.kindleSender === null) {
+      throw new ApiError(503, 'Kindle delivery is not configured on this server')
+    }
+
+    const book = this.requireBook(id)
+    if (!caller.kindle_email) {
+      throw new ApiError(422, 'Set your Kindle address before sending')
+    }
+    if (this.kindleFailure !== null) throw new ApiError(502, this.kindleFailure)
+
+    const attempted_at = new Date().toISOString()
+    // The server records the attempt on the reader's state row, so the next
+    // read of the book carries it back as `last_sent_at`.
+    book.last_sent_at = attempted_at
+    return { book_id: id, sent_to: caller.kindle_email, attempted_at }
+  }
+
+  async listNotes(bookId: number): Promise<Note[]> {
+    this.calls.push(`listNotes:${bookId}`)
+    const caller = this.requireSession()
+    this.requireBook(bookId)
+    // Newest first, as the endpoint orders them.
+    return this.notes
+      .filter((note) => note.book_id === bookId && note.user_id === caller.id)
+      .map(publicNote)
+      .reverse()
+  }
+
+  async createNote(bookId: number, draft: NoteDraft): Promise<Note> {
+    this.calls.push(`createNote:${bookId}`)
+    const caller = this.requireSession()
+    this.requireBook(bookId)
+    if (!draft.text.trim()) throw new ApiError(422, 'A note needs some text')
+
+    const note = fakeNote({
+      user_id: caller.id,
+      book_id: bookId,
+      text: draft.text,
+      page: draft.page ?? null,
+      created_at: new Date().toISOString(),
+    })
+    this.notes.push(note)
+    return publicNote(note)
+  }
+
+  async deleteNote(noteId: number): Promise<void> {
+    this.calls.push(`deleteNote:${noteId}`)
+    const caller = this.requireSession()
+    const index = this.notes.findIndex((note) => note.id === noteId && note.user_id === caller.id)
+    // Another reader's note is a 404, never a 403. A "forbidden" would confirm
+    // the note exists, and what somebody wrote in the margin stays private —
+    // from an admin too.
+    if (index === -1) throw new ApiError(404, 'Note not found')
+    this.notes.splice(index, 1)
+  }
+
+  private requireBook(id: number): FakeBook {
+    const book = this.books.find((b) => b.id === id)
+    if (!book) throw new ApiError(404, 'Book not found')
+    return book
+  }
+
   /** Mirrors `visible_tag`: 404, not an empty result, for a tag the caller cannot see. */
-  private requireVisibleTag(tagId: number, caller: FakeUser): void {
+  private requireVisibleTag(tagId: number, caller: FakeUser): Tag {
     const tag = this.tags.find((t) => t.id === tagId)
     if (!tag || (tag.owner_id !== null && tag.owner_id !== caller.id)) {
       throw new ApiError(404, 'Tag not found')
     }
+    return tag
   }
 
   /** Mirrors `_visible_shelf`: 404, not an empty result, for a shelf the caller cannot see. */
-  private requireVisibleShelf(shelfId: number, caller: FakeUser): void {
+  private requireVisibleShelf(shelfId: number, caller: FakeUser): Shelf {
     const shelf = this.shelves.find((s) => s.id === shelfId)
     if (!shelf || (shelf.owner_id !== caller.id && shelf.visibility !== 'public')) {
       throw new ApiError(404, 'Shelf not found')
     }
+    return shelf
   }
 
   private requireSession(): FakeUser {
@@ -296,5 +484,11 @@ export class FakeLibraApi implements LibraApi {
 /** Drops the fake's own password field, which no endpoint ever returns. */
 function publicUser(user: FakeUser): User {
   const { password: _password, ...rest } = user
+  return rest
+}
+
+/** Drops `user_id`, which `NoteRead` does not carry — every note read is the caller's own. */
+function publicNote(note: FakeNote): Note {
+  const { user_id: _userId, ...rest } = note
   return rest
 }

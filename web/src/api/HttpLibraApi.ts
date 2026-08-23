@@ -1,6 +1,20 @@
 import { ApiError } from './errors'
 import type { LibraApi } from './LibraApi'
-import type { BookList, BookSearchParams, CurrentUser, Shelf, Tag, User, UserPatch } from './types'
+import type {
+  Book,
+  BookList,
+  BookPatch,
+  BookSearchParams,
+  BookStateWrite,
+  CurrentUser,
+  KindleDelivery,
+  Note,
+  NoteDraft,
+  Shelf,
+  Tag,
+  User,
+  UserPatch,
+} from './types'
 
 /**
  * The prefix every endpoint sits behind.
@@ -63,6 +77,40 @@ export class HttpLibraApi implements LibraApi {
     return `${BASE}/books/${id}/cover`
   }
 
+  async getBook(id: number): Promise<Book> {
+    return this.send<Book>('GET', `/books/${id}`)
+  }
+
+  async updateBook(id: number, patch: BookPatch): Promise<Book> {
+    return this.send<Book>('PATCH', `/books/${id}`, patch)
+  }
+
+  async setBookState(id: number, state: BookStateWrite): Promise<Book> {
+    return this.send<Book>('PUT', `/books/${id}/state`, state)
+  }
+
+  async sendToKindle(id: number): Promise<KindleDelivery> {
+    // No body at all, not even an empty object: the endpoint takes none, and
+    // sending one would put a Content-Type on a request that has no content.
+    return this.send<KindleDelivery>('POST', `/books/${id}/send-to-kindle`)
+  }
+
+  async listNotes(bookId: number): Promise<Note[]> {
+    return this.send<Note[]>('GET', `/books/${bookId}/notes`)
+  }
+
+  async createNote(bookId: number, note: NoteDraft): Promise<Note> {
+    return this.send<Note>('POST', `/books/${bookId}/notes`, note)
+  }
+
+  async deleteNote(noteId: number): Promise<void> {
+    await this.send<void>('DELETE', `/notes/${noteId}`)
+  }
+
+  fileUrl(id: number): string {
+    return `${BASE}/books/${id}/file`
+  }
+
   private async send<T>(method: string, path: string, body?: unknown): Promise<T> {
     let response: Response
     try {
@@ -90,9 +138,9 @@ export class HttpLibraApi implements LibraApi {
       throw new ApiError(response.status, await readDetail(response))
     }
 
-    // 204 has no body at all, and asking for one throws. `logout` is the only
-    // endpoint here that answers this way, but every later one that does gets
-    // it for free.
+    // 204 has no body at all, and asking for one throws. `logout` and
+    // `deleteNote` both answer this way, and every later endpoint that does
+    // gets it for free.
     if (response.status === 204) return undefined as T
     return (await response.json()) as T
   }
