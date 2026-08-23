@@ -102,7 +102,9 @@ describe('AccountRow', () => {
 
   it('saves a Kindle address, closes, and keeps the new one in the session', async () => {
     const user = userEvent.setup()
-    const { api } = renderSignedIn({ kindle_email: null })
+    // The fake mutates the same object it was handed, so this is the stored
+    // record — no indexing into `api.users`, which is possibly-undefined.
+    const { user: stored } = renderSignedIn({ kindle_email: null })
 
     await user.click(await screen.findByRole('button', { name: /eugene/i }))
     await user.click(await screen.findByRole('menuitem', { name: /kindle email/i }))
@@ -110,7 +112,7 @@ describe('AccountRow', () => {
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
     await waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument())
-    expect(api.users[0].kindle_email).toBe('reader@kindle.com')
+    expect(stored.kindle_email).toBe('reader@kindle.com')
 
     // Reopening reads the field back from the session, not from the server, so
     // this is what proves `setUser` ran. Without it the modal would offer an
@@ -126,13 +128,13 @@ describe('AccountRow', () => {
     // means "no change" and an explicit null means "clear it". The modal has to
     // send the second, or an address could never be removed.
     const user = userEvent.setup()
-    const { api } = renderSignedIn({ kindle_email: 'old@kindle.com' })
+    const { user: stored } = renderSignedIn({ kindle_email: 'old@kindle.com' })
 
     await user.click(await screen.findByRole('button', { name: /eugene/i }))
     await user.click(await screen.findByRole('menuitem', { name: /kindle email/i }))
     await user.clear(await screen.findByLabelText(/send-to-kindle address/i))
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
-    await waitFor(() => expect(api.users[0].kindle_email).toBeNull())
+    await waitFor(() => expect(stored.kindle_email).toBeNull())
   })
 })
