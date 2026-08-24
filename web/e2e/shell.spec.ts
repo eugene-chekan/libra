@@ -54,13 +54,18 @@ test.describe('the app frame, in a real browser', () => {
     await page.getByRole('navigation', { name: 'Main' }).waitFor()
     await page.keyboard.press('Tab')
 
-    // A generous bound, not an exact count: the sidebar gains rows as more
-    // milestones land — SHELVES and TAGS here, more later — and a loop sized
-    // to exactly today's row count breaks on every one of them. This only
-    // asserts that the four rows that must always be reachable still are,
-    // wherever they land in a longer tab sequence.
+    // **The loop stops when it has found what it came for, not after a set
+    // number of tabs.** The sidebar's rows grow with the library — one per
+    // shelf, one per tag, plus the two Manage rows — and other specs in this
+    // suite are creating shelves and tags while this one walks. A fixed 15
+    // was enough until they were not, and counting the rows once at the start
+    // goes stale the moment another spec adds one. The 200 is only a runaway
+    // guard: reaching it means a row really is unreachable, and the
+    // assertions below say which.
+    const wanted = ['Library', 'Shelves', 'Librarian', 'Add Book']
     const reached: string[] = []
-    for (let i = 0; i < 15; i++) {
+
+    for (let i = 0; i < 200 && !wanted.every((row) => reached.includes(row)); i++) {
       const name = await page.evaluate(() => {
         const el = document.activeElement
         return el ? (el.textContent ?? '').trim() : ''
@@ -69,10 +74,9 @@ test.describe('the app frame, in a real browser', () => {
       await page.keyboard.press('Tab')
     }
 
-    expect(reached).toContain('Library')
-    expect(reached).toContain('Shelves')
-    expect(reached).toContain('Librarian')
-    expect(reached).toContain('Add Book')
+    // Only the four that must always be reachable, wherever they land in a
+    // longer sequence.
+    for (const row of wanted) expect(reached).toContain(row)
   })
 
   test('Enter on a focused nav row navigates', async ({ page }) => {

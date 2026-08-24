@@ -1,0 +1,63 @@
+/*
+ * The shell every dialog in the application shares. Its width is the only
+ * part a dialog decides for itself, and it passes that as a prop — see
+ * Modal.tsx.
+ */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 40%);
+}
+
+.content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  /* Both ceilings belong to every dialog, not only the long ones: a fixed
+     width overflows a narrow window, and a tall dialog on a short screen
+     needs somewhere to scroll. The Kindle Email modal had neither before this
+     shell existed. */
+  max-width: 90vw;
+  max-height: 80vh;
+  padding: 28px;
+  background: var(--libra-card);
+  border-radius: var(--libra-radius-modal);
+  box-shadow: var(--libra-shadow-modal);
+}
+
+.title {
+  font-family: var(--libra-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--libra-text);
+}
+
+/* The quiet line under the title — "6 tags". A count, not a sentence, so it
+   is not the dialog's accessible description. */
+.subtitle {
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
+/* The sentence a screen reader announces after the title. */
+.description {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--libra-text-mid);
+  margin-top: 12px;
+  margin-bottom: 24px;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}

@@ -1,45 +1,6 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 40%);
-}
+/* The shell — overlay, card, title, and the count beneath it — comes
+   from Modal.module.css. */
 
-/* 440px, the width the handoff prototype drew for this dialog — narrower than
-   Manage Users' 520px because a tag row carries a name and a count, nothing
-   more. */
-.content {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  display: flex;
-  flex-direction: column;
-  width: 440px;
-  max-width: 90vw;
-  max-height: 80vh;
-  padding: 28px;
-  background: var(--libra-card);
-  border-radius: var(--libra-radius-modal);
-  box-shadow: var(--libra-shadow-modal);
-}
-
-.title {
-  font-family: var(--libra-serif);
-  font-size: 22px;
-  font-weight: 400;
-  color: var(--libra-text);
-}
-
-.count {
-  font-family: var(--libra-sans);
-  font-size: 11px;
-  color: var(--libra-text-light);
-  margin-top: 4px;
-  margin-bottom: 16px;
-}
-
-/* The two sections scroll together: the heading stays put and the New tag row
-   stays reachable however long the vocabulary grows. */
 .scroller {
   flex: 1;
   min-height: 0;
@@ -139,8 +100,6 @@
 }
 
 .footer {
-  display: flex;
-  justify-content: flex-end;
   margin-top: 20px;
 }
 

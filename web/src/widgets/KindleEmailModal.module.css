@@ -1,27 +1,10 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 40%);
-}
+/* The shell — overlay, card, title — comes from Modal.module.css.
 
-.content {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 400px;
-  padding: 28px;
-  background: var(--libra-card);
-  border-radius: var(--libra-radius-modal);
-  box-shadow: var(--libra-shadow-modal);
-}
-
-.title {
-  font-family: var(--libra-serif);
-  font-size: 22px;
-  font-weight: 400;
-  color: var(--libra-text);
-  margin-bottom: 20px;
+   `.field` is new, and was a className pointing at nothing: the 20px above it
+   used to come from the title's own bottom margin, which the shell no longer
+   carries. */
+.field {
+  margin-top: 20px;
 }
 
 .label {
@@ -59,8 +42,6 @@
 }
 
 .footer {
-  display: flex;
-  justify-content: flex-end;
   gap: 8px;
   margin-top: 24px;
 }

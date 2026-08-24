@@ -1,4 +1,3 @@
-import * as Dialog from '@radix-ui/react-dialog'
 import { useState, type FormEvent } from 'react'
 
 import { messageFor } from '../api/errors'
@@ -6,6 +5,7 @@ import type { Shelf } from '../api/types'
 import { useShelves } from '../library/useShelves'
 import { ConfirmDialog } from '../widgets/ConfirmDialog'
 import { ErrorBlock } from '../widgets/ErrorBlock'
+import { Modal, ModalFooter } from '../widgets/Modal'
 import { ShelfManagerRow } from './ShelfManagerRow'
 import { useDragReorder } from './useDragReorder'
 import { useCreateShelf, useDeleteShelf, useReorderShelves, useUpdateShelf } from './useShelfWrites'
@@ -73,64 +73,59 @@ export function ShelfManager({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
-        <Dialog.Portal>
-          <Dialog.Overlay className={styles.overlay} />
-          <Dialog.Content className={styles.content} aria-describedby={undefined}>
-            <Dialog.Title className={styles.title}>Manage Shelves</Dialog.Title>
-            <p className={styles.count}>
-              {mine.length} {mine.length === 1 ? 'shelf' : 'shelves'}
-            </p>
+      <Modal
+        title="Manage Shelves"
+        subtitle={`${mine.length} ${mine.length === 1 ? 'shelf' : 'shelves'}`}
+        width={460}
+        onClose={onClose}
+      >
+        {mine.length === 0 ? (
+          <p className={styles.empty}>No shelves yet.</p>
+        ) : (
+          <ul className={styles.list}>
+            {rows.map((shelf, index) => (
+              <ShelfManagerRow
+                key={shelf.id}
+                shelf={shelf}
+                dragging={drag.draggingId === shelf.id}
+                canMoveUp={index > 0}
+                canMoveDown={index < rows.length - 1}
+                busy={busy}
+                dragHandleProps={drag.handleProps(shelf.id)}
+                onMove={(direction) => moveBy(index, direction)}
+                onSave={(patch) => update.mutate({ id: shelf.id, patch })}
+                onDelete={() => setPendingDelete(shelf)}
+              />
+            ))}
+          </ul>
+        )}
 
-            {mine.length === 0 ? (
-              <p className={styles.empty}>No shelves yet.</p>
-            ) : (
-              <ul className={styles.list}>
-                {rows.map((shelf, index) => (
-                  <ShelfManagerRow
-                    key={shelf.id}
-                    shelf={shelf}
-                    dragging={drag.draggingId === shelf.id}
-                    canMoveUp={index > 0}
-                    canMoveDown={index < rows.length - 1}
-                    busy={busy}
-                    dragHandleProps={drag.handleProps(shelf.id)}
-                    onMove={(direction) => moveBy(index, direction)}
-                    onSave={(patch) => update.mutate({ id: shelf.id, patch })}
-                    onDelete={() => setPendingDelete(shelf)}
-                  />
-                ))}
-              </ul>
-            )}
+        <form className={styles.newRow} onSubmit={addShelf}>
+          <label className={styles.newLabel} htmlFor="new-shelf-name">
+            New shelf
+          </label>
+          <div className={styles.newControls}>
+            <input
+              id="new-shelf-name"
+              className={styles.input}
+              value={newName}
+              placeholder="Reading Now"
+              onChange={(event) => setNewName(event.target.value)}
+            />
+            <button type="submit" className={styles.add} disabled={busy}>
+              Add
+            </button>
+          </div>
+        </form>
 
-            <form className={styles.newRow} onSubmit={addShelf}>
-              <label className={styles.newLabel} htmlFor="new-shelf-name">
-                New shelf
-              </label>
-              <div className={styles.newControls}>
-                <input
-                  id="new-shelf-name"
-                  className={styles.input}
-                  value={newName}
-                  placeholder="Reading Now"
-                  onChange={(event) => setNewName(event.target.value)}
-                />
-                <button type="submit" className={styles.add} disabled={busy}>
-                  Add
-                </button>
-              </div>
-            </form>
+        {error && <ErrorBlock message={messageFor(error)} />}
 
-            {error && <ErrorBlock message={messageFor(error)} />}
-
-            <div className={styles.footer}>
-              <button type="button" className={styles.close} onClick={onClose}>
-                Close
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+        <ModalFooter className={styles.footer}>
+          <button type="button" className={styles.close} onClick={onClose}>
+            Close
+          </button>
+        </ModalFooter>
+      </Modal>
 
       {pendingDelete && (
         <ConfirmDialog
