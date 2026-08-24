@@ -14,6 +14,8 @@ import type {
   ShelfCreate,
   ShelfPatch,
   Tag,
+  TagCreate,
+  TagPatch,
   User,
   UserPatch,
 } from './types'
@@ -69,6 +71,18 @@ export class HttpLibraApi implements LibraApi {
 
   async listTags(): Promise<Tag[]> {
     return this.send<Tag[]>('GET', '/tags')
+  }
+
+  async createTag(tag: TagCreate): Promise<Tag> {
+    return this.send<Tag>('POST', '/tags', tag)
+  }
+
+  async updateTag(id: number, patch: TagPatch): Promise<Tag> {
+    return this.send<Tag>('PATCH', `/tags/${id}`, patch)
+  }
+
+  async deleteTag(id: number): Promise<void> {
+    await this.send<void>('DELETE', `/tags/${id}`)
   }
 
   async listShelves(): Promise<Shelf[]> {

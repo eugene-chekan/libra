@@ -3,13 +3,17 @@ import userEvent from '@testing-library/user-event'
 import { useState } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 
+import { fakeTag } from '../api/FakeLibraApi'
 import type { Tag } from '../api/types'
 import { SearchBar } from './SearchBar'
 
+// No spaces: `POST /tags` refuses them, because this very box splits on
+// whitespace. "Sci-Fi-Classics" still shares a prefix with "Sci-Fi", which is
+// what these tests are about.
 const TAGS: Tag[] = [
-  { id: 1, name: 'Sci-Fi', owner_id: null, is_global: true },
-  { id: 2, name: 'Sci-Fi Classics', owner_id: null, is_global: true },
-  { id: 3, name: 'Fantasy', owner_id: null, is_global: true },
+  fakeTag({ id: 1, name: 'Sci-Fi' }),
+  fakeTag({ id: 2, name: 'Sci-Fi-Classics' }),
+  fakeTag({ id: 3, name: 'Fantasy' }),
 ]
 
 /** A real controlled wrapper — `onChange` alone, unwired to state, would leave `value` frozen as the user types. */
@@ -60,7 +64,7 @@ describe('SearchBar', () => {
     await user.type(screen.getByRole('textbox'), 'dune #sci')
 
     expect(screen.getByRole('option', { name: '#Sci-Fi' })).toBeInTheDocument()
-    expect(screen.getByRole('option', { name: '#Sci-Fi Classics' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '#Sci-Fi-Classics' })).toBeInTheDocument()
     expect(screen.queryByRole('option', { name: '#Fantasy' })).not.toBeInTheDocument()
   })
 
@@ -71,7 +75,7 @@ describe('SearchBar', () => {
     await user.type(screen.getByRole('textbox'), '#sci')
 
     expect(screen.queryByRole('option', { name: '#Sci-Fi' })).not.toBeInTheDocument()
-    expect(screen.getByRole('option', { name: '#Sci-Fi Classics' })).toBeInTheDocument()
+    expect(screen.getByRole('option', { name: '#Sci-Fi-Classics' })).toBeInTheDocument()
   })
 
   it('replaces the token and appends a trailing space when a suggestion is picked', async () => {

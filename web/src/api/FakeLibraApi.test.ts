@@ -10,7 +10,7 @@ import {
   FakeLibraApi,
   type FakeBook,
 } from './FakeLibraApi'
-import type { Shelf } from './types'
+import type { Shelf, Tag } from './types'
 
 /**
  * `listBooks`/`listTags`/`listShelves` are the first fake logic complex
@@ -523,5 +523,104 @@ describe('FakeLibraApi shelf writes', () => {
     ])
 
     expect((await api.listShelves())[0]?.editable).toBe(false)
+  })
+})
+
+/**
+ * Tag writes. The rules here are the ones a screen could otherwise get wrong
+ * and never find out: a name with a space in it, a personal tag shadowing a
+ * global one, and a global tag an ordinary reader may not touch at all.
+ */
+describe('FakeLibraApi tag writes', () => {
+  function signedIn(tags: Tag[] = [], books: FakeBook[] = [], isAdmin = false) {
+    const user = fakeUser({ id: 1, username: 'reader1', is_admin: isAdmin })
+    return { user, api: new FakeLibraApi({ users: [user], signedInAs: user, tags, books }) }
+  }
+
+  it('creates a personal tag, never a global one', async () => {
+    const { api } = signedIn()
+
+    const created = await api.createTag({ name: 'favourites' })
+
+    expect(created).toMatchObject({ name: 'favourites', is_global: false, editable: true })
+    expect(created.owner_id).toBe(1)
+  })
+
+  it('refuses a name with a space, because the search box splits on whitespace', async () => {
+    const { api } = signedIn()
+
+    await expect(api.createTag({ name: 'lent out' })).rejects.toMatchObject({ status: 422 })
+    await expect(api.createTag({ name: 'lent-out' })).resolves.toMatchObject({ name: 'lent-out' })
+  })
+
+  it('refuses a blank name', async () => {
+    const { api } = signedIn()
+
+    await expect(api.createTag({ name: '   ' })).rejects.toMatchObject({ status: 422 })
+  })
+
+  it('refuses a name the reader already used, ignoring case', async () => {
+    const { api } = signedIn([fakeTag({ id: 1, owner_id: 1, is_global: false, name: 'Beach' })])
+
+    await expect(api.createTag({ name: 'beach' })).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('refuses a personal tag that would shadow a global one', async () => {
+    // Two rows reading the same in one sidebar is a bug from the reader's
+    // side, whatever the indexes permit.
+    const { api } = signedIn([fakeTag({ id: 1, name: 'Sci-Fi' })])
+
+    await expect(api.createTag({ name: 'sci-fi' })).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('renames without moving any books, because a book holds the tag id', async () => {
+    const { api } = signedIn(
+      [fakeTag({ id: 1, owner_id: 1, is_global: false, name: 'Old' })],
+      [fakeBook({ id: 5, tag_ids: [1] })]
+    )
+
+    await api.updateTag(1, { name: 'New' })
+
+    expect((await api.listTags())[0]?.name).toBe('New')
+    expect((await api.getBook(5)).tag_ids).toEqual([1])
+  })
+
+  it('403s on a global tag for an ordinary reader, and allows it for an admin', async () => {
+    const { api } = signedIn([fakeTag({ id: 1, name: 'Sci-Fi' })])
+    await expect(api.updateTag(1, { name: 'Science' })).rejects.toMatchObject({ status: 403 })
+    await expect(api.deleteTag(1)).rejects.toMatchObject({ status: 403 })
+
+    const { api: adminApi } = signedIn([fakeTag({ id: 1, name: 'Sci-Fi' })], [], true)
+    await expect(adminApi.updateTag(1, { name: 'Science' })).resolves.toMatchObject({
+      name: 'Science',
+    })
+  })
+
+  it("404s rather than 403s on another reader's tag, so ids cannot be walked", async () => {
+    const { api } = signedIn([fakeTag({ id: 1, owner_id: 2, is_global: false, name: 'Theirs' })])
+
+    await expect(api.updateTag(1, { name: 'Mine' })).rejects.toMatchObject({ status: 404 })
+    await expect(api.deleteTag(1)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('takes a deleted tag off every book it was on', async () => {
+    const { api } = signedIn(
+      [fakeTag({ id: 1, owner_id: 1, is_global: false })],
+      [fakeBook({ id: 5, tag_ids: [1] })]
+    )
+
+    await api.deleteTag(1)
+
+    expect(await api.listTags()).toEqual([])
+    expect((await api.getBook(5)).tag_ids).toEqual([])
+  })
+
+  it('answers editable and book_count from who is asking, not from what the test seeded', async () => {
+    const { api } = signedIn(
+      [fakeTag({ id: 1, name: 'Sci-Fi', editable: true, book_count: 99 })],
+      [fakeBook({ id: 5, tag_ids: [1] })]
+    )
+
+    expect(await api.listTags()).toMatchObject([{ editable: false, book_count: 1 }])
   })
 })

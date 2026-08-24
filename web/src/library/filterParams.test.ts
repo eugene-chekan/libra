@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
+import { fakeTag } from '../api/FakeLibraApi'
 import type { Tag } from '../api/types'
 import { mergedTagIds, parseSearchInput } from './filterParams'
 
@@ -59,8 +60,8 @@ describe('parseSearchInput', () => {
 
 describe('mergedTagIds', () => {
   const tags: Tag[] = [
-    { id: 1, name: 'Sci-Fi', owner_id: null, is_global: true },
-    { id: 2, name: 'Favorites', owner_id: 9, is_global: false },
+    fakeTag({ id: 1, name: 'Sci-Fi' }),
+    fakeTag({ id: 2, name: 'Favorites', owner_id: 9, is_global: false, editable: true }),
   ]
 
   it('resolves #tag names to ids, case-insensitively', () => {

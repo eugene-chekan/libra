@@ -185,6 +185,28 @@ export interface Tag {
   name: string
   owner_id: number | null
   is_global: boolean
+  /** How many books carry it. The manager shows it; the sidebar does not. */
+  book_count: number
+  /**
+   * True when the caller may rename or delete it: their own tag always, a
+   * global one only for an admin. Sent by the server rather than worked out
+   * here from `is_global` and the session — the rule lives in one place, and
+   * this is where the client reads it.
+   */
+  editable: boolean
+}
+
+/** `POST /api/tags`. A global tag is admin-only and this client never asks for one. */
+export interface TagCreate {
+  name: string
+}
+
+/**
+ * A change to a tag, for `PATCH /api/tags/{id}`. Renaming only: a tag has
+ * nothing else to change, and it moves no books, which reference it by id.
+ */
+export interface TagPatch {
+  name: string
 }
 
 /**
