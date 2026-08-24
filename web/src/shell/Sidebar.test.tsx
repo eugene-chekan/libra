@@ -91,10 +91,9 @@ describe('Sidebar', () => {
     expect(document.activeElement).not.toBe(document.body)
   })
 
-  it('does not invent the shared-with-you section, or show shelves/tags sections with nothing in them', async () => {
-    // Shared With You needs other readers' public shelves — #28, not this
-    // milestone. Shelves and Tags are real now, but a library with none of
-    // either still shows neither section rather than an empty shell of one.
+  it('does not invent the shared-with-you or shelves sections with nothing in them', async () => {
+    // Shared With You needs other readers' public shelves, and a library with
+    // no shelves shows no SHELVES section rather than an empty shell of one.
     renderAt(routes.library)
 
     await waitFor(() => expect(screen.getByText('eugene')).toBeInTheDocument())
@@ -102,7 +101,17 @@ describe('Sidebar', () => {
     // Not "Shelves" — that text already exists as the primary nav link.
     // aria-expanded only exists on the SHELVES/TAGS section headers.
     expect(screen.queryByRole('button', { name: /^shelves$/i })).not.toBeInTheDocument()
-    expect(screen.queryByText(/^tags$/i)).not.toBeInTheDocument()
+  })
+
+  it('keeps the tags section with no tags, because it holds the only way to make one', async () => {
+    // SHELVES may vanish when empty: the Shelves page offers another way to a
+    // first shelf. Tags have no second door, so hiding this section would
+    // leave a reader with no tags no way to ever create one.
+    renderAt(routes.library)
+
+    await waitFor(() => expect(screen.getByText('eugene')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: /^tags$/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /manage tags/i })).toBeInTheDocument()
   })
 
   it('shows the signed-in account in the pinned footer, once the session resolves', async () => {

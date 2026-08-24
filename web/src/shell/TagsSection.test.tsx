@@ -1,5 +1,6 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
@@ -76,5 +77,25 @@ describe('TagsSection', () => {
     await waitFor(() =>
       expect(screen.getByRole('link', { name: /sci-fi/i })).toHaveAttribute('aria-current', 'true')
     )
+  })
+
+  it('opens the tag manager from the Manage Tags row', async () => {
+    const user = userEvent.setup()
+    const api = signedInApi({ tags: [fakeTag({ name: 'sci-fi' })] })
+    renderAt('/library', api)
+    await screen.findByText('sci-fi')
+
+    await user.click(screen.getByRole('button', { name: /manage tags/i }))
+
+    expect(await screen.findByRole('dialog', { name: 'Manage Tags' })).toBeInTheDocument()
+  })
+
+  it('still offers Manage Tags when the reader has no tags at all', async () => {
+    // Otherwise the first tag could never be made: unlike shelves, there is no
+    // page with an empty state offering another way in.
+    const api = signedInApi({ tags: [] })
+    renderAt('/library', api)
+
+    expect(await screen.findByRole('button', { name: /manage tags/i })).toBeInTheDocument()
   })
 })

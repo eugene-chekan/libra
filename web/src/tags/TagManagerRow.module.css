@@ -1,0 +1,136 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 4px;
+  border-radius: var(--libra-radius);
+  list-style: none;
+}
+
+.row:hover {
+  background: var(--libra-accent-lighter);
+}
+
+/* The colour is set inline, from the tag's name — see tagColour.ts. Only its
+   size and shape belong here. */
+.dot {
+  flex-shrink: 0;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--libra-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+  margin-right: 4px;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--libra-text-light);
+  cursor: pointer;
+  transition:
+    color var(--libra-t-interactive),
+    background var(--libra-t-interactive);
+}
+
+.action:hover:not(:disabled) {
+  color: var(--libra-accent);
+  background: var(--libra-accent-light);
+}
+
+.action:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.danger:hover:not(:disabled) {
+  color: var(--libra-danger);
+  background: var(--libra-accent-lighter);
+}
+
+/* --- the edit state ---------------------------------------------------- */
+
+/* One line, unlike the shelf editor's block: a tag has only a name to change,
+   so the row does not need to grow into a panel to hold it. */
+.editor {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+
+.editorLabel {
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--libra-text-mid);
+}
+
+.input {
+  flex: 1;
+  min-width: 0;
+  height: 30px;
+  padding: 0 10px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+  background: var(--libra-accent-lighter);
+  border: 1px solid var(--libra-accent);
+  border-radius: 4px;
+  outline: none;
+}
+
+.cancel,
+.save {
+  padding: 6px 12px;
+  border-radius: var(--libra-radius);
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--libra-border);
+  background: var(--libra-card);
+  color: var(--libra-text-mid);
+}
+
+.save {
+  border: none;
+  background: var(--libra-accent);
+  color: #fff;
+}
+
+.save:hover:not(:disabled) {
+  background: var(--libra-accent-hover);
+}
+
+.save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
