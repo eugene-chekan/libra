@@ -1,4 +1,3 @@
-import * as Dialog from '@radix-ui/react-dialog'
 import { useState, type FormEvent } from 'react'
 import { useSearchParams } from 'react-router-dom'
 
@@ -7,6 +6,7 @@ import type { Tag } from '../api/types'
 import { useTags } from '../library/useTags'
 import { ConfirmDialog } from '../widgets/ConfirmDialog'
 import { ErrorBlock } from '../widgets/ErrorBlock'
+import { Modal, ModalFooter } from '../widgets/Modal'
 import { TagManagerRow } from './TagManagerRow'
 import { useCreateTag, useDeleteTag, useUpdateTag } from './useTagWrites'
 import styles from './TagManager.module.css'
@@ -76,86 +76,81 @@ export function TagManager({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
-        <Dialog.Portal>
-          <Dialog.Overlay className={styles.overlay} />
-          <Dialog.Content className={styles.content} aria-describedby={undefined}>
-            <Dialog.Title className={styles.title}>Manage Tags</Dialog.Title>
-            <p className={styles.count}>
-              {all.length} {all.length === 1 ? 'tag' : 'tags'}
-            </p>
+      <Modal
+        title="Manage Tags"
+        subtitle={`${all.length} ${all.length === 1 ? 'tag' : 'tags'}`}
+        width={440}
+        onClose={onClose}
+      >
+        <div className={styles.scroller}>
+          {shared.length > 0 && (
+            <>
+              <h3 className={styles.sectionLabel}>Shared</h3>
+              <ul className={styles.list}>
+                {shared.map((tag) => (
+                  <TagManagerRow
+                    key={tag.id}
+                    tag={tag}
+                    busy={busy}
+                    onSave={(name) => update.mutate({ id: tag.id, patch: { name } })}
+                    onDelete={() => setPendingDelete(tag)}
+                  />
+                ))}
+              </ul>
+            </>
+          )}
 
-            <div className={styles.scroller}>
-              {shared.length > 0 && (
-                <>
-                  <h3 className={styles.sectionLabel}>Shared</h3>
-                  <ul className={styles.list}>
-                    {shared.map((tag) => (
-                      <TagManagerRow
-                        key={tag.id}
-                        tag={tag}
-                        busy={busy}
-                        onSave={(name) => update.mutate({ id: tag.id, patch: { name } })}
-                        onDelete={() => setPendingDelete(tag)}
-                      />
-                    ))}
-                  </ul>
-                </>
-              )}
-
-              <h3 className={styles.sectionLabel}>Mine</h3>
-              {mine.length === 0 ? (
-                <p className={styles.empty}>No tags of your own yet.</p>
-              ) : (
-                <ul className={styles.list}>
-                  {mine.map((tag) => (
-                    <TagManagerRow
-                      key={tag.id}
-                      tag={tag}
-                      busy={busy}
-                      onSave={(name) => update.mutate({ id: tag.id, patch: { name } })}
-                      onDelete={() => setPendingDelete(tag)}
-                    />
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            <form className={styles.newRow} onSubmit={addTag}>
-              <label className={styles.newLabel} htmlFor="new-tag-name">
-                New tag
-              </label>
-              <div className={styles.newControls}>
-                <input
-                  id="new-tag-name"
-                  className={styles.input}
-                  value={newName}
-                  placeholder="lent-out"
-                  aria-describedby="new-tag-hint"
-                  onChange={(event) => setNewName(event.target.value)}
+          <h3 className={styles.sectionLabel}>Mine</h3>
+          {mine.length === 0 ? (
+            <p className={styles.empty}>No tags of your own yet.</p>
+          ) : (
+            <ul className={styles.list}>
+              {mine.map((tag) => (
+                <TagManagerRow
+                  key={tag.id}
+                  tag={tag}
+                  busy={busy}
+                  onSave={(name) => update.mutate({ id: tag.id, patch: { name } })}
+                  onDelete={() => setPendingDelete(tag)}
                 />
-                <button type="submit" className={styles.add} disabled={busy}>
-                  Add
-                </button>
-              </div>
-              {/* Said before the server has to refuse it. The search box reads
+              ))}
+            </ul>
+          )}
+        </div>
+
+        <form className={styles.newRow} onSubmit={addTag}>
+          <label className={styles.newLabel} htmlFor="new-tag-name">
+            New tag
+          </label>
+          <div className={styles.newControls}>
+            <input
+              id="new-tag-name"
+              className={styles.input}
+              value={newName}
+              placeholder="lent-out"
+              aria-describedby="new-tag-hint"
+              onChange={(event) => setNewName(event.target.value)}
+            />
+            <button type="submit" className={styles.add} disabled={busy}>
+              Add
+            </button>
+          </div>
+          {/* Said before the server has to refuse it. The search box reads
                   `#tag` and splits on spaces, so a two-word name would be a
                   tag nobody could search for. */}
-              <p className={styles.hint} id="new-tag-hint">
-                One word, with no spaces. Use a hyphen: lent-out.
-              </p>
-            </form>
+          <p className={styles.hint} id="new-tag-hint">
+            One word, with no spaces. Use a hyphen: lent-out.
+          </p>
+        </form>
 
-            {error && <ErrorBlock message={messageFor(error)} />}
+        {error && <ErrorBlock message={messageFor(error)} />}
 
-            <div className={styles.footer}>
-              <button type="button" className={styles.close} onClick={onClose}>
-                Close
-              </button>
-            </div>
-          </Dialog.Content>
-        </Dialog.Portal>
-      </Dialog.Root>
+        <ModalFooter className={styles.footer}>
+          <button type="button" className={styles.close} onClick={onClose}>
+            Close
+          </button>
+        </ModalFooter>
+      </Modal>
 
       {pendingDelete && (
         <ConfirmDialog

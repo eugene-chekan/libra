@@ -1,5 +1,4 @@
-import * as Dialog from '@radix-ui/react-dialog'
-
+import { Modal, ModalFooter } from './Modal'
 import styles from './ConfirmDialog.module.css'
 
 interface ConfirmDialogProps {
@@ -32,22 +31,15 @@ export function ConfirmDialog({
   onClose,
 }: ConfirmDialogProps) {
   return (
-    <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className={styles.overlay} />
-        <Dialog.Content className={styles.content}>
-          <Dialog.Title className={styles.title}>{title}</Dialog.Title>
-          <Dialog.Description className={styles.message}>{message}</Dialog.Description>
-          <div className={styles.footer}>
-            <button type="button" className={styles.cancel} onClick={onClose}>
-              Cancel
-            </button>
-            <button type="button" className={styles.confirm} onClick={onConfirm}>
-              {confirmLabel}
-            </button>
-          </div>
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+    <Modal title={title} description={message} width={420} onClose={onClose}>
+      <ModalFooter>
+        <button type="button" className={styles.cancel} onClick={onClose}>
+          Cancel
+        </button>
+        <button type="button" className={styles.confirm} onClick={onConfirm}>
+          {confirmLabel}
+        </button>
+      </ModalFooter>
+    </Modal>
   )
 }

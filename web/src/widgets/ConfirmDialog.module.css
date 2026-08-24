@@ -1,43 +1,5 @@
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgb(0 0 0 / 40%);
-}
-
-.content {
-  position: fixed;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  width: 420px;
-  max-width: 90vw;
-  padding: 28px;
-  background: var(--libra-card);
-  border-radius: var(--libra-radius-modal);
-  box-shadow: var(--libra-shadow-modal);
-}
-
-.title {
-  font-family: var(--libra-serif);
-  font-size: 22px;
-  font-weight: 400;
-  color: var(--libra-text);
-  margin-bottom: 12px;
-}
-
-.message {
-  font-family: var(--libra-sans);
-  font-size: 13px;
-  line-height: 1.5;
-  color: var(--libra-text-mid);
-  margin-bottom: 24px;
-}
-
-.footer {
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
-}
+/* The shell — overlay, card, title, and the message that is also this
+   dialog's accessible description — comes from Modal.module.css. */
 
 .cancel,
 .confirm {
