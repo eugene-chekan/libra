@@ -254,12 +254,16 @@ either.
 checkbox, and a "Set new password" field left blank (blank = unchanged).
 Save and Cancel at 7px/14px with 12px labels.
 
-**Writes commit per row, immediately** — unlike Manage Tags and Manage
-Shelves, which batch behind a Save Changes footer. Those batch because
-deleting a tag or shelf has to reconcile against every book; users have no
-such cross-row dependency, and a batched "grant admin to three people" that
-half-fails leaves an admin unable to tell what took effect. The footer
-therefore holds a single **Close** button.
+**Writes commit per row, immediately.** The footer therefore holds a single
+**Close** button.
+
+> Written when Manage Tags and Manage Shelves were both meant to batch behind
+> a Save Changes footer, as the handoff prototype drew them. Neither does.
+> #68 and #29 both committed per row, on the same reasoning this section gave
+> for users: a batch that half-fails — one rename refused after a delete has
+> already gone through — leaves the reader unable to tell what took effect.
+> The reconciling that was supposed to justify batching happens on the server
+> inside one transaction either way. All three managers now behave alike.
 
 **Delete** raises a destructive confirm dialog — a real dialog, never the
 native `confirm()` the prototype used. 420px, 12px radius, modal shadow.
