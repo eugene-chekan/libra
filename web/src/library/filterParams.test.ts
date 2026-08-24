@@ -29,6 +29,21 @@ describe('parseSearchInput', () => {
     })
   })
 
+  it('reads a hyphenated name as one tag, which is why the server bans spaces', () => {
+    // A tag called "lent out" would arrive here as `#lent` plus a stray word
+    // "out": a filter the reader could create in the tag manager and then
+    // never search for. `POST /tags` and `PATCH /tags/{id}` answer 422 for a
+    // name with a space in it, so every name that exists survives this split.
+    expect(parseSearchInput('#lent-out')).toEqual({
+      textQuery: '',
+      hashTagNames: ['lent-out'],
+    })
+    expect(parseSearchInput('#lent out')).toEqual({
+      textQuery: 'out',
+      hashTagNames: ['lent'],
+    })
+  })
+
   it('collapses repeated whitespace between words', () => {
     expect(parseSearchInput('dune   #sci-fi   herbert')).toEqual({
       textQuery: 'dune herbert',

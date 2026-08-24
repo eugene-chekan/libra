@@ -427,7 +427,7 @@ is one.
 | 4 | Library grid + search | ✅ #26 | ✅ #63 | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
 | 5 | Book detail | ✅ #27 | ✅ #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below. The TypeScript build dropped the progress slider (the reader supersedes it), routed `/books/:id/read` to a stand-in so the primary button leads somewhere, and found the `PATCH /books/{id}` response bug below |
 | 6 | Shelves page + shelf manager | ✅ #28 | ✅ #68 | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below. The TypeScript build hand-rolled the drag on pointer events, kept the up and down buttons beside it as the keyboard path, and put delete behind a dialog of its own rather than the browser's `confirm()` |
-| 7 | Tag manager | — | #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches |
+| 7 | Tag manager | — | #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches. Must show the no-spaces rule on the name field, and say what to use instead — the server answers `422`, and a form that only relays that is a dead end |
 | 8 | Add Book | — | #30 | Upload-first redesign |
 | 9 | User administration | — | #31 | Admin-only modal, per-row commits, destructive delete dialog |
 | 10 | Librarian chat, stubbed | — | #32 | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |

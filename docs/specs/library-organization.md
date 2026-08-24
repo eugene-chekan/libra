@@ -262,7 +262,14 @@ owner. The vocabulary a user sees in the sidebar is global ∪ own.
 
 This split is worth its complexity because the two kinds of tag genuinely
 differ: "Sci-Fi" is a fact about the book that the household should agree on,
-while "Read before the trip" is nobody else's business.
+while "read-before-the-trip" is nobody else's business.
+
+**A name may not contain whitespace** — added later, once the client existed.
+The search box reads `#tag` tokens and splits on spaces, so a two-word name
+was a tag the reader could make and then never search for. The rule lives in
+`library.clean_tag_name`, both write paths call it, and revision
+`d9731df616b0` hyphenates the names that were already stored. Shelf names keep
+their spaces: a shelf is chosen from a list, never typed into that box.
 
 **`BookTag` needs no `user_id`**, which is the neat part. A personal tag is
 only visible to its owner, so a `BookTag` row pointing at it is only visible

@@ -118,7 +118,7 @@ def test_their_personal_tags_and_the_links_to_them_go(
     exists — the same stranding `delete_tag` deletes its links to avoid."""
     user_id = user.id
     book_id = client.post("/books", json=BOOK_PAYLOAD).json()["id"]
-    tag_id = client.post("/tags", json={"name": "Beach reading"}).json()["id"]
+    tag_id = client.post("/tags", json={"name": "Beach-reading"}).json()["id"]
     client.put(f"/books/{book_id}/state", json={"tag_ids": [tag_id]})
     assert session.exec(select(BookTag).where(BookTag.tag_id == tag_id)).all() != []
 
@@ -174,7 +174,7 @@ def test_another_readers_data_is_untouched(
     and a missing one would take the roommate's shelf with it."""
     book_id = client.post("/books", json=BOOK_PAYLOAD).json()["id"]
     kept_shelf = other_client.post("/shelves", json={"name": "Theirs"}).json()["id"]
-    kept_tag = other_client.post("/tags", json={"name": "Theirs too"}).json()["id"]
+    kept_tag = other_client.post("/tags", json={"name": "Theirs-too"}).json()["id"]
     other_client.put(f"/books/{book_id}/state", json={"rating": 5, "progress": 0.2})
     other_client.post(f"/books/{book_id}/notes", json={"text": "Kept."})
 
