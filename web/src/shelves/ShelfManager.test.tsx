@@ -92,6 +92,40 @@ describe('ShelfManager', () => {
     expect(api.shelves[0]?.name).toBe('New name')
   })
 
+  it('throws away an edit when it is cancelled, and writes nothing', async () => {
+    const user = userEvent.setup()
+    const api = renderManager([mine(1, 'Old name')])
+    await screen.findByText('Old name')
+
+    await user.click(screen.getByRole('button', { name: 'Edit Old name' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Abandoned')
+    await user.click(screen.getByLabelText('Visible to other readers'))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.getByText('Old name')).toBeInTheDocument()
+    expect(screen.queryByText('Abandoned')).not.toBeInTheDocument()
+    expect(api.shelves[0]?.name).toBe('Old name')
+    expect(api.shelves[0]?.visibility).toBe('private')
+  })
+
+  it('starts a second edit from the stored name, not the abandoned one', async () => {
+    // The editor holds the typed name in its own state. Reopening has to show
+    // the shelf as it is, or a reader who cancelled once sees their discarded
+    // text waiting for them.
+    const user = userEvent.setup()
+    renderManager([mine(1, 'Old name')])
+    await screen.findByText('Old name')
+
+    await user.click(screen.getByRole('button', { name: 'Edit Old name' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Abandoned')
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+    await user.click(screen.getByRole('button', { name: 'Edit Old name' }))
+
+    expect(screen.getByLabelText('Name')).toHaveValue('Old name')
+  })
+
   it('explains what publishing does, and only when it is about to happen', async () => {
     const user = userEvent.setup()
     renderManager([mine(1, 'Reading Now')])
