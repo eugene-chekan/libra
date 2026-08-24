@@ -39,7 +39,7 @@ def _set_tags(client: TestClient, book_id: int, tag_ids: list[int]):
 
 
 def test_a_reader_creates_personal_tags(client: TestClient) -> None:
-    body = _tag(client, "Read on the train").json()
+    body = _tag(client, "Read-on-the-train").json()
 
     assert body["is_global"] is False
     assert body["owner_id"] is not None
@@ -59,7 +59,7 @@ def test_an_ordinary_reader_cannot_create_a_global_tag(client: TestClient) -> No
 
 
 def test_display_casing_is_preserved(client: TestClient) -> None:
-    assert _tag(client, "Science Fiction").json()["name"] == "Science Fiction"
+    assert _tag(client, "Science-Fiction").json()["name"] == "Science-Fiction"
 
 
 def test_duplicate_personal_names_are_rejected_case_insensitively(client: TestClient) -> None:
@@ -112,6 +112,37 @@ def test_the_database_rejects_duplicate_globals_too(session: Session) -> None:
 
 def test_an_empty_name_is_rejected(client: TestClient) -> None:
     assert _tag(client, "   ").status_code == 422
+
+
+def test_a_name_with_a_space_is_rejected(client: TestClient) -> None:
+    """The search box splits on whitespace, so "lent out" is a tag the reader
+    could create and then never find: `#lent` matches nothing and `out` becomes
+    a title search. The name has to stay one token to be reachable."""
+    response = _tag(client, "lent out")
+
+    assert response.status_code == 422
+    assert "hyphen" in response.json()["detail"]
+
+
+def test_a_hyphenated_name_is_accepted(client: TestClient) -> None:
+    assert _tag(client, "lent-out").json()["name"] == "lent-out"
+
+
+def test_a_tab_counts_as_a_space(client: TestClient) -> None:
+    """`str.strip()` removes the outer whitespace, so a name is only rejected
+    for what is left inside it — and a tab there splits the search box exactly
+    like a space does."""
+    assert _tag(client, "  lent	out  ").status_code == 422
+
+
+def test_renaming_into_a_space_is_rejected(client: TestClient) -> None:
+    """The rule lives in one place, so both write paths get it. Without this
+    test, `PATCH` could keep its own `strip()` and let the banned name in
+    through the back door."""
+    tag_id = _tag(client, "lent-out").json()["id"]
+
+    assert client.patch(f"/tags/{tag_id}", json={"name": "lent out"}).status_code == 422
+    assert client.get("/tags").json()[0]["name"] == "lent-out"
 
 
 # --- visibility -----------------------------------------------------------
@@ -179,10 +210,10 @@ def test_renaming_a_tag_does_not_orphan_its_books(client: TestClient) -> None:
 def test_an_admin_can_rename_a_global_tag(admin_client: TestClient) -> None:
     tag = _tag(admin_client, "SciFi", make_global=True).json()
 
-    renamed = admin_client.patch(f"/tags/{tag['id']}", json={"name": "Science Fiction"})
+    renamed = admin_client.patch(f"/tags/{tag['id']}", json={"name": "Science-Fiction"})
 
     assert renamed.status_code == 200
-    assert renamed.json()["name"] == "Science Fiction"
+    assert renamed.json()["name"] == "Science-Fiction"
 
 
 # --- applying to books ----------------------------------------------------

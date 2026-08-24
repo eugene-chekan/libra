@@ -1,9 +1,12 @@
-"""The data backfills in the reading-state migration.
+"""The migrations that rewrite rows rather than schema.
 
 Schema migrations are covered in test_migrations.py; these are about the rows.
-Each test seeds a database at the *previous* revision, upgrades, and inspects
-what happened to data that already existed — the case a fresh-install test
-can never reach.
+Each test seeds a database at the revision *before* the one under test,
+upgrades, and inspects what happened to data that already existed — the case a
+fresh-install test can never reach.
+
+Two migrations do this: the reading-state backfill, and the tag rename that
+follows it.
 """
 
 import json
@@ -17,6 +20,8 @@ from pathlib import Path
 import pytest
 
 PREVIOUS_REVISION = "d34d899bf315"
+# The tag table exists at this revision, and names may still hold spaces.
+BEFORE_TAG_RENAME = "9a8d5d47149e"
 BACKEND = Path(__file__).resolve().parent.parent
 
 
@@ -51,12 +56,12 @@ def _upgrade(db_path: Path) -> None:
     _alembic(db_path, "head")
 
 
-def _add_admin(db_path: Path, user_id: int = 7) -> None:
+def _add_admin(db_path: Path, user_id: int = 7, username: str = "keeper") -> None:
     with sqlite3.connect(db_path) as conn:
         conn.execute(
             "INSERT INTO user (id, username, password_hash, is_admin, created_at) "
-            "VALUES (?, 'keeper', 'x', 1, '2026-01-01')",
-            (user_id,),
+            "VALUES (?, ?, 'x', 1, '2026-01-01')",
+            (user_id, username),
         )
 
 
@@ -154,3 +159,79 @@ def test_the_migration_never_invents_an_admin(legacy_db: Path) -> None:
 
     with sqlite3.connect(legacy_db) as conn:
         assert conn.execute("SELECT count(*) FROM user").fetchone()[0] == 0
+
+
+# --- tag names without spaces ---------------------------------------------
+
+
+@pytest.fixture(name="tagged_db")
+def tagged_db_fixture(tmp_path: Path) -> Generator[Path, None, None]:
+    """A database at the last revision that still allowed a space in a tag."""
+    db_path = tmp_path / "tags.db"
+    _alembic(db_path, BEFORE_TAG_RENAME)
+    yield db_path
+
+
+def _add_tag(db_path: Path, tag_id: int, name: str, owner_id: int | None = 7) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO tag (id, owner_id, name, created_at) VALUES (?, ?, ?, '2026-01-01')",
+            (tag_id, owner_id, name),
+        )
+
+
+def _tag_names(db_path: Path) -> dict[int, str]:
+    with sqlite3.connect(db_path) as conn:
+        return {row[0]: row[1] for row in conn.execute("SELECT id, name FROM tag")}
+
+
+def test_a_space_in_a_tag_name_becomes_a_hyphen(tagged_db: Path) -> None:
+    """The name was reachable from the sidebar but never from the search box,
+    which splits `#lent out` into a tag nobody has and a stray word."""
+    _add_admin(tagged_db)
+    _add_tag(tagged_db, 1, "lent out")
+    _add_tag(tagged_db, 2, "already-fine")
+
+    _upgrade(tagged_db)
+
+    names = _tag_names(tagged_db)
+    assert names[1] == "lent-out"
+    # A name with nothing to fix is not rewritten, so its casing survives.
+    assert names[2] == "already-fine"
+
+
+def test_runs_of_whitespace_collapse_to_one_hyphen(tagged_db: Path) -> None:
+    _add_admin(tagged_db)
+    _add_tag(tagged_db, 1, "to   re-read")
+
+    _upgrade(tagged_db)
+
+    assert _tag_names(tagged_db)[1] == "to-re-read"
+
+
+def test_a_rename_that_would_collide_gets_a_suffix(tagged_db: Path) -> None:
+    """Both indexes on this table are NOCASE and unique. Hyphenating "lent
+    out" straight onto the "Lent-Out" already there would fail the upgrade
+    halfway, on somebody's real database, while their server was starting."""
+    _add_admin(tagged_db)
+    _add_tag(tagged_db, 1, "Lent-Out")
+    _add_tag(tagged_db, 2, "lent out")
+
+    _upgrade(tagged_db)
+
+    names = _tag_names(tagged_db)
+    assert names[1] == "Lent-Out"
+    assert names[2] == "lent-out-2"
+
+
+def test_two_readers_keep_their_own_copies_of_a_name(tagged_db: Path) -> None:
+    """The unique index is per owner, so one reader's "lent out" does not
+    crowd out another's — and the rename must not invent a clash across them."""
+    _add_admin(tagged_db, user_id=7, username="keeper")
+    _add_admin(tagged_db, user_id=8, username="roommate")
+    _add_tag(tagged_db, 1, "lent out", owner_id=7)
+    _add_tag(tagged_db, 2, "lent out", owner_id=8)
+
+    _upgrade(tagged_db)
+
+    assert _tag_names(tagged_db) == {1: "lent-out", 2: "lent-out"}

@@ -661,10 +661,25 @@ def _assert_tag_name_free(
             raise DuplicateTagNameError
 
 
-def create_tag(session: Session, user: User, name: str, is_global: bool) -> TagRead:
+def clean_tag_name(name: str) -> str:
+    """Strip a tag name, and refuse one with whitespace inside it.
+
+    The search box reads `#tag` tokens and splits on whitespace, so a tag
+    named "lent out" could be created but never searched for: the parser sees
+    `#lent`, which matches nothing, and a stray word "out". Keeping the name a
+    single token is what makes the tag reachable. A hyphen reads the same and
+    survives the split.
+    """
     name = name.strip()
     if not name:
         raise ValueError("Tag name must not be empty")
+    if any(char.isspace() for char in name):
+        raise ValueError("Tag names cannot contain spaces. Use a hyphen, like 'lent-out'.")
+    return name
+
+
+def create_tag(session: Session, user: User, name: str, is_global: bool) -> TagRead:
+    name = clean_tag_name(name)
     if is_global and not user.is_admin:
         raise TagNotEditableError
 
@@ -683,9 +698,7 @@ def update_tag(session: Session, tag_id: int, user: User, name: str) -> TagRead:
     if tag.owner_id is None and not user.is_admin:
         raise TagNotEditableError
 
-    name = name.strip()
-    if not name:
-        raise ValueError("Tag name must not be empty")
+    name = clean_tag_name(name)
     _assert_tag_name_free(session, user, name, tag.owner_id is None, exclude_id=tag.id)
 
     tag.name = name

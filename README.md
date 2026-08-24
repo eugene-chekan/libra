@@ -73,10 +73,17 @@ Filtering by a tag or shelf you cannot see is a `404`, not an empty list.
 
 Tags come in two kinds. **Global** tags are curated by an admin and seen by
 everyone — "Sci-Fi" is a fact about the book the household should agree on.
-**Personal** tags belong to one reader and are invisible to the rest; "Read
-before the trip" is nobody else's business. Set a book's personal tags with
-`tag_ids` on `PUT /api/books/{id}/state`; global tags are applied by an admin
-through `/api/tags`, because a global assignment changes what everyone sees.
+**Personal** tags belong to one reader and are invisible to the rest;
+"read-before-the-trip" is nobody else's business. Set a book's personal tags
+with `tag_ids` on `PUT /api/books/{id}/state`; global tags are applied by an
+admin through `/api/tags`, because a global assignment changes what everyone
+sees.
+
+**A tag name may not contain a space** (`422`). The client's search box reads
+`#tag` tokens and splits the text on spaces, so a tag called "lent out" could
+be created and then never searched for: `#lent` matches nothing, and `out`
+becomes a title search. Use a hyphen — "lent-out". Shelf names are unaffected,
+because a shelf is never typed into that box.
 
 **`GET /api/books/{id}/file` serves the stored EPUB as an attachment**, for
 reading on a Kindle, in KOReader, or wherever else you keep books. The offered
@@ -171,7 +178,8 @@ repository root:
 scripts/run.sh
 ```
 
-On PowerShell 7 or newer, `scriptsun.ps1` does the same thing with native
+On PowerShell 7 or newer, `scripts
+un.ps1` does the same thing with native
 switches — `-SkipWeb`, `-Scratch`, `-Port` — and writes to the same
 directories, so the two can be used interchangeably on one machine.
 
