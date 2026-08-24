@@ -14,6 +14,8 @@ import type {
   ShelfCreate,
   ShelfPatch,
   Tag,
+  TagCreate,
+  TagPatch,
   User,
   UserPatch,
 } from './types'
@@ -106,6 +108,8 @@ export function fakeTag(overrides: Partial<Tag> = {}): Tag {
     name: `tag${id}`,
     owner_id: null,
     is_global: true,
+    book_count: 0,
+    editable: false,
     ...overrides,
   }
 }
@@ -296,7 +300,56 @@ export class FakeLibraApi implements LibraApi {
   async listTags(): Promise<Tag[]> {
     this.calls.push('listTags')
     const caller = this.requireSession()
-    return this.tags.filter((tag) => tag.owner_id === null || tag.owner_id === caller.id)
+    // Globals first, then the caller's own — the order `list_tags` returns.
+    const visible = this.tags.filter((tag) => tag.owner_id === null || tag.owner_id === caller.id)
+    return [
+      ...visible.filter((tag) => tag.owner_id === null),
+      ...visible.filter((tag) => tag.owner_id !== null),
+    ].map((tag) => this.tagFor(tag, caller))
+  }
+
+  async createTag(tag: TagCreate): Promise<Tag> {
+    this.calls.push('createTag')
+    const caller = this.requireSession()
+
+    const name = this.cleanTagName(tag.name)
+    this.requireTagNameFree(name, caller)
+
+    const created: Tag = {
+      id: nextTagId++,
+      name,
+      owner_id: caller.id,
+      is_global: false,
+      book_count: 0,
+      editable: true,
+    }
+    this.tags.push(created)
+    return created
+  }
+
+  async updateTag(id: number, patch: TagPatch): Promise<Tag> {
+    this.calls.push(`updateTag:${id}`)
+    const caller = this.requireSession()
+    const tag = this.requireEditableTag(id, caller)
+
+    const name = this.cleanTagName(patch.name)
+    this.requireTagNameFree(name, caller, tag.id)
+    // A rename moves no books: they hold the tag's id, not its name.
+    tag.name = name
+    return this.tagFor(tag, caller)
+  }
+
+  async deleteTag(id: number): Promise<void> {
+    this.calls.push(`deleteTag:${id}`)
+    const caller = this.requireSession()
+    const tag = this.requireEditableTag(id, caller)
+
+    // `delete_tag` clears the link rows in the same transaction, so a book
+    // never keeps an id pointing at a tag that is gone.
+    for (const book of this.books) {
+      book.tag_ids = book.tag_ids.filter((tagId) => tagId !== tag.id)
+    }
+    this.tags.splice(this.tags.indexOf(tag), 1)
   }
 
   async listShelves(): Promise<Shelf[]> {
@@ -571,6 +624,69 @@ export class FakeLibraApi implements LibraApi {
    * `COLLATE NOCASE`, so "To Read" and "to read" are the same name to it —
    * a fake that compared exactly would accept a pair the server refuses.
    */
+  /**
+   * Mirrors `library.clean_tag_name`. The space rule is the surprising one and
+   * belongs here for exactly that reason: a fake that accepted "lent out"
+   * would let a screen ship a name the real server refuses.
+   */
+  private cleanTagName(raw: string): string {
+    const name = raw.trim()
+    if (!name) throw new ApiError(422, 'Tag name must not be empty')
+    if (/\s/.test(name)) {
+      throw new ApiError(422, "Tag names cannot contain spaces. Use a hyphen, like 'lent-out'.")
+    }
+    return name
+  }
+
+  /**
+   * Mirrors `_assert_tag_name_free`, including the rule a schema alone would
+   * not give: a personal tag may not shadow a global one, because two rows
+   * reading the same in one sidebar is a bug from the reader's side.
+   */
+  private requireTagNameFree(name: string, caller: FakeUser, exceptId?: number): void {
+    const shadowsGlobal = this.tags.some(
+      (tag) =>
+        tag.owner_id === null &&
+        tag.id !== exceptId &&
+        tag.name.toLowerCase() === name.toLowerCase()
+    )
+    if (shadowsGlobal) throw new ApiError(409, 'A global tag already uses that name')
+
+    const taken = this.tags.some(
+      (tag) =>
+        tag.owner_id === caller.id &&
+        tag.id !== exceptId &&
+        tag.name.toLowerCase() === name.toLowerCase()
+    )
+    if (taken) throw new ApiError(409, 'You already have a tag with that name')
+  }
+
+  /**
+   * A tag the caller cannot see is a 404 and a global one they may not touch
+   * is a 403 — the same two-step answer the shelf endpoints give, and for the
+   * same reason: ids must not be walkable to find other people's private tags.
+   */
+  private requireEditableTag(tagId: number, caller: FakeUser): Tag {
+    const tag = this.requireVisibleTag(tagId, caller)
+    if (tag.owner_id === null && !caller.is_admin) {
+      throw new ApiError(403, 'Only an admin can manage global tags')
+    }
+    return tag
+  }
+
+  /**
+   * `editable` and `book_count` are answers the server works out per request,
+   * not stored columns. A fake handing back a seeded `editable: true` would
+   * let a test claim a reader may rewrite the household's vocabulary.
+   */
+  private tagFor(tag: Tag, caller: FakeUser): Tag {
+    return {
+      ...tag,
+      editable: tag.owner_id === null ? caller.is_admin : tag.owner_id === caller.id,
+      book_count: this.books.filter((book) => book.tag_ids.includes(tag.id)).length,
+    }
+  }
+
   private requireNameFree(name: string, caller: FakeUser, exceptId?: number): void {
     const taken = this.shelves.some(
       (shelf) =>

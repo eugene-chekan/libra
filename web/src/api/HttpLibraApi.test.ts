@@ -274,6 +274,31 @@ describe('HttpLibraApi', () => {
     expect(fetchMock).not.toHaveBeenCalled()
   })
 
+  it('creates, renames and deletes a tag on its own path', async () => {
+    fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(200, { id: 4 })))
+    const api = new HttpLibraApi()
+
+    await api.createTag({ name: 'favourites' })
+    let [url, init] = lastFetchCall()
+    expect(url).toBe('/api/tags')
+    expect(init.method).toBe('POST')
+    // No `make_global`: a global tag is admin-only and this client never asks
+    // for one, so the query string stays off the URL entirely.
+    expect(JSON.parse(init.body as string)).toEqual({ name: 'favourites' })
+
+    await api.updateTag(4, { name: 'lent-out' })
+    ;[url, init] = lastFetchCall()
+    expect(url).toBe('/api/tags/4')
+    expect(init.method).toBe('PATCH')
+    expect(JSON.parse(init.body as string)).toEqual({ name: 'lent-out' })
+
+    fetchMock.mockImplementation(() => Promise.resolve(new Response(null, { status: 204 })))
+    await api.deleteTag(4)
+    ;[url, init] = lastFetchCall()
+    expect(url).toBe('/api/tags/4')
+    expect(init.method).toBe('DELETE')
+  })
+
   it('creates, renames and deletes a shelf on its own path', async () => {
     fetchMock.mockImplementation(() => Promise.resolve(jsonResponse(200, { id: 3 })))
     const api = new HttpLibraApi()

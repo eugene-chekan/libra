@@ -427,7 +427,7 @@ is one.
 | 4 | Library grid + search | ✅ #26 | ✅ #63 | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
 | 5 | Book detail | ✅ #27 | ✅ #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below. The TypeScript build dropped the progress slider (the reader supersedes it), routed `/books/:id/read` to a stand-in so the primary button leads somewhere, and found the `PATCH /books/{id}` response bug below |
 | 6 | Shelves page + shelf manager | ✅ #28 | ✅ #68 | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below. The TypeScript build hand-rolled the drag on pointer events, kept the up and down buttons beside it as the keyboard path, and put delete behind a dialog of its own rather than the browser's `confirm()` |
-| 7 | Tag manager | — | #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches. Must show the no-spaces rule on the name field, and say what to use instead — the server answers `422`, and a form that only relays that is a dead end |
+| 7 | Tag manager | — | ✅ #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches, and the no-spaces rule stated on the name field. Commits per row rather than behind the prototype's Save Changes footer — see below |
 | 8 | Add Book | — | #30 | Upload-first redesign |
 | 9 | User administration | — | #31 | Admin-only modal, per-row commits, destructive delete dialog |
 | 10 | Librarian chat, stubbed | — | #32 | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
@@ -585,6 +585,25 @@ Delete asks first, in the project's own dialog rather than the browser's
 `confirm()`. The prototype used `confirm()`, which cannot be styled, cannot
 follow the same focus rules as everything else, and leaves no room for the one
 sentence a reader is actually weighing: the books stay in the library.
+
+**Milestone 7 dropped the prototype's Save Changes footer.** The handoff drew
+Manage Tags as a batch: edits collected locally, one Save applied them all.
+Milestone 6 had already shipped Manage Shelves committing per row, so keeping
+the batch here would have made two dialogs that look alike behave differently.
+It is also the weaker design, for the reason `client-design.md` already gave
+about Manage Users: when one rename is refused after a delete has gone
+through, a batch leaves the reader unable to tell what took effect. One write,
+one row, one answer.
+
+**The tag dot's colour is hashed from the name, not taken from the row's
+position.** The list interleaves global and personal tags in the server's
+order, so an index would repaint a tag's neighbours whenever one was added.
+The twelve values are the cover palette's first stops, referenced as tokens.
+
+**The sidebar's TAGS section now stays when the reader has no tags**, holding
+just the Manage Tags row. SHELVES may disappear when empty because the Shelves
+page's empty state is another way to a first shelf; tags have no second door,
+so hiding that row would leave a reader with no tags no way to make one.
 
 **Edit Book is admin-only.** `PATCH /books/{id}` is `require_admin`, because
 title and author describe the shared catalog. The design drew the button

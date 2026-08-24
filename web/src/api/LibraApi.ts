@@ -12,6 +12,8 @@ import type {
   ShelfCreate,
   ShelfPatch,
   Tag,
+  TagCreate,
+  TagPatch,
   User,
   UserPatch,
 } from './types'
@@ -80,6 +82,37 @@ export interface LibraApi {
 
   /** `GET /api/tags`. The caller's visible vocabulary: global tags, then their own. */
   listTags(): Promise<Tag[]>
+
+  /**
+   * `POST /api/tags`. Creates a personal tag; this client never asks for a
+   * global one, which is admin-only and would change what everybody sees.
+   *
+   * 422 when the name is blank, and 422 when it contains a space — the search
+   * box reads `#tag` tokens and splits on whitespace, so a two-word name
+   * could be made and then never searched for. 409 when the caller already
+   * has that name, or when a global tag has it: two identical rows in one
+   * sidebar is a bug from the reader's side however the schema feels about it.
+   */
+  createTag(tag: TagCreate): Promise<Tag>
+
+  /**
+   * `PATCH /api/tags/{id}`. Renames it, and moves no books — they reference
+   * the tag by id.
+   *
+   * A tag the caller cannot see is a 404, never a 403: "forbidden" would
+   * confirm that somebody else's private tag exists. A global tag is a 403
+   * for anyone but an admin. The name rules are `createTag`'s.
+   */
+  updateTag(id: number, patch: TagPatch): Promise<Tag>
+
+  /**
+   * `DELETE /api/tags/{id}`. Removes it from every book it was on, in one
+   * transaction. The books themselves stay.
+   *
+   * Same visibility rules as `updateTag`: 404 for one the caller cannot see,
+   * 403 for a global tag unless they are an admin.
+   */
+  deleteTag(id: number): Promise<void>
 
   /** `GET /api/shelves`. The caller's own shelves in their order, then other readers' public ones. */
   listShelves(): Promise<Shelf[]>
