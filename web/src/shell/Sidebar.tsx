@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 import { primaryNav, routes } from '../routes'
 import { Icon } from '../widgets/Icon'
 import { AccountRow } from './AccountRow'
+import { SharedShelvesSection } from './SharedShelvesSection'
 import { ShelvesSection } from './ShelvesSection'
 import styles from './Sidebar.module.css'
 import { TagsSection } from './TagsSection'
@@ -22,11 +23,11 @@ import { TagsSection } from './TagsSection'
  * the active styling hangs off — so the visual state and the announced state
  * cannot disagree, because they are the same attribute.
  *
- * The SHARED WITH YOU section is deliberately still absent — it needs other
- * readers' public shelves, which is #28's job, not this one's. SHELVES and
- * TAGS render nothing of their own while loading or empty, which is the same
- * "no invented copy" rule the scaffold applied to all three: an empty
- * section is harder to tell from a real one than no section at all.
+ * All three list sections render nothing of their own while loading or empty.
+ * That is the same "no invented copy" rule the scaffold applied: an empty
+ * section is harder to tell from a real one than no section at all. SHARED
+ * WITH YOU goes further and starts collapsed, because it holds what other
+ * readers arranged rather than what this one did.
  */
 export function Sidebar() {
   return (
@@ -46,6 +47,7 @@ export function Sidebar() {
         </div>
 
         <ShelvesSection />
+        <SharedShelvesSection />
         <TagsSection />
       </div>
 

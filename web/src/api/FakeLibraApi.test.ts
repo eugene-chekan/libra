@@ -1,7 +1,16 @@
 import { describe, expect, it } from 'vitest'
 
 import { ApiError } from './errors'
-import { fakeBook, fakeNote, fakeShelf, fakeTag, fakeUser, FakeLibraApi } from './FakeLibraApi'
+import {
+  fakeBook,
+  fakeNote,
+  fakeShelf,
+  fakeTag,
+  fakeUser,
+  FakeLibraApi,
+  type FakeBook,
+} from './FakeLibraApi'
+import type { Shelf } from './types'
 
 /**
  * `listBooks`/`listTags`/`listShelves` are the first fake logic complex
@@ -386,5 +395,133 @@ describe('FakeLibraApi notes', () => {
 
     await expect(api.deleteNote(theirs.id)).rejects.toMatchObject({ status: 404 })
     expect(api.notes).toHaveLength(1)
+  })
+})
+
+/**
+ * Writing shelves, added in #68.
+ *
+ * Every rule here is one the client could get wrong in a way that still looks
+ * right on screen: a name that differs only by case, a shelf that is visible
+ * but not yours, an order that is one id short.
+ */
+describe('FakeLibraApi shelf writes', () => {
+  function signedIn(shelves: Shelf[] = [], books: FakeBook[] = []) {
+    const user = fakeUser({ id: 1, username: 'reader1' })
+    return { user, api: new FakeLibraApi({ users: [user], signedInAs: user, shelves, books }) }
+  }
+
+  it('adds a new shelf at the end of the order, not the top', async () => {
+    const { api } = signedIn([fakeShelf({ id: 1, owner_id: 1, name: 'First' })])
+
+    await api.createShelf({ name: 'Second' })
+
+    expect((await api.listShelves()).map((shelf) => shelf.name)).toEqual(['First', 'Second'])
+  })
+
+  it('refuses a name the reader already used, ignoring case', async () => {
+    // The server's uniqueness index is COLLATE NOCASE, so one reader cannot
+    // hold both "To Read" and "to read".
+    const { api } = signedIn([fakeShelf({ id: 1, owner_id: 1, name: 'To Read' })])
+
+    await expect(api.createShelf({ name: 'to read' })).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('refuses a blank name', async () => {
+    const { api } = signedIn()
+
+    await expect(api.createShelf({ name: '   ' })).rejects.toMatchObject({ status: 422 })
+  })
+
+  it('renames without moving any books, because a book holds the shelf id', async () => {
+    const shelf = fakeShelf({ id: 1, owner_id: 1, name: 'Old' })
+    const book = fakeBook({ shelf_id: 1 })
+    const { api } = signedIn([shelf], [book])
+
+    const renamed = await api.updateShelf(1, { name: 'New' })
+
+    expect(renamed.name).toBe('New')
+    expect(book.shelf_id).toBe(1)
+  })
+
+  it('publishes and unpublishes a shelf', async () => {
+    const { api } = signedIn([fakeShelf({ id: 1, owner_id: 1, visibility: 'private' })])
+
+    expect((await api.updateShelf(1, { visibility: 'public' })).visibility).toBe('public')
+    expect((await api.updateShelf(1, { visibility: 'private' })).visibility).toBe('private')
+  })
+
+  it("403s on somebody else's public shelf, and 404s on one that cannot be seen", async () => {
+    // The two answers are different on purpose. A 403 for an invisible shelf
+    // would confirm it exists, which is enough to walk ids and enumerate
+    // another reader's private shelves.
+    const theirPublic = fakeShelf({ id: 2, owner_id: 2, visibility: 'public' })
+    const theirPrivate = fakeShelf({ id: 3, owner_id: 2, visibility: 'private' })
+    const { api } = signedIn([theirPublic, theirPrivate])
+
+    await expect(api.updateShelf(2, { name: 'Mine now' })).rejects.toMatchObject({ status: 403 })
+    await expect(api.updateShelf(3, { name: 'Mine now' })).rejects.toMatchObject({ status: 404 })
+    await expect(api.deleteShelf(2)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('leaves the books unshelved when their shelf is deleted', async () => {
+    // They stay in the library. Moving them somewhere nobody chose would be
+    // worse than leaving them loose.
+    const shelf = fakeShelf({ id: 1, owner_id: 1 })
+    const book = fakeBook({ shelf_id: 1 })
+    const { api } = signedIn([shelf], [book])
+
+    await api.deleteShelf(1)
+
+    expect(book.shelf_id).toBeNull()
+    expect(await api.listShelves()).toHaveLength(0)
+  })
+
+  it('rewrites the whole order from the list it is given', async () => {
+    const { api } = signedIn([
+      fakeShelf({ id: 1, owner_id: 1, name: 'A' }),
+      fakeShelf({ id: 2, owner_id: 1, name: 'B' }),
+      fakeShelf({ id: 3, owner_id: 1, name: 'C' }),
+    ])
+
+    const reordered = await api.reorderShelves([3, 1, 2])
+
+    expect(reordered.map((shelf) => shelf.name)).toEqual(['C', 'A', 'B'])
+    expect((await api.listShelves()).map((shelf) => shelf.name)).toEqual(['C', 'A', 'B'])
+  })
+
+  it('refuses an order that is not exactly the reader’s own shelves', async () => {
+    const mine = fakeShelf({ id: 1, owner_id: 1 })
+    const theirs = fakeShelf({ id: 2, owner_id: 2, visibility: 'public' })
+    const { api } = signedIn([mine, theirs])
+
+    // One short, one repeated, and one that belongs to somebody else — a
+    // stale client in the first two cases, and an attempt to order another
+    // reader's shelf in the third.
+    await expect(api.reorderShelves([])).rejects.toMatchObject({ status: 422 })
+    await expect(api.reorderShelves([1, 1])).rejects.toMatchObject({ status: 422 })
+    await expect(api.reorderShelves([1, 2])).rejects.toMatchObject({ status: 422 })
+  })
+
+  it('lists the caller’s own shelves first, then other readers’ public ones', async () => {
+    const { api } = signedIn([
+      fakeShelf({ id: 2, owner_id: 2, owner_username: 'someone', visibility: 'public' }),
+      fakeShelf({ id: 1, owner_id: 1, name: 'Mine' }),
+    ])
+
+    const shelves = await api.listShelves()
+
+    expect(shelves.map((shelf) => shelf.id)).toEqual([1, 2])
+    expect(shelves.map((shelf) => shelf.editable)).toEqual([true, false])
+  })
+
+  it('answers editable from who is asking, not from what the test seeded', async () => {
+    // Otherwise a test could hand itself an editable shelf belonging to
+    // somebody else, and every ownership rule above would pass by accident.
+    const { api } = signedIn([
+      fakeShelf({ id: 2, owner_id: 2, visibility: 'public', editable: true }),
+    ])
+
+    expect((await api.listShelves())[0]?.editable).toBe(false)
   })
 })

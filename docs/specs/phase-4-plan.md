@@ -426,7 +426,7 @@ is one.
 | 3 | API client + auth | ✅ #25 | ✅ #61 | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
 | 4 | Library grid + search | ✅ #26 | ✅ #63 | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
 | 5 | Book detail | ✅ #27 | ✅ #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below. The TypeScript build dropped the progress slider (the reader supersedes it), routed `/books/:id/read` to a stand-in so the primary button leads somewhere, and found the `PATCH /books/{id}` response bug below |
-| 6 | Shelves page + shelf manager | ✅ #28 | | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below |
+| 6 | Shelves page + shelf manager | ✅ #28 | ✅ #68 | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below. The TypeScript build hand-rolled the drag on pointer events, kept the up and down buttons beside it as the keyboard path, and put delete behind a dialog of its own rather than the browser's `confirm()` |
 | 7 | Tag manager | — | #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches |
 | 8 | Add Book | — | #30 | Upload-first redesign |
 | 9 | User administration | — | #31 | Admin-only modal, per-row commits, destructive delete dialog |
@@ -563,6 +563,29 @@ ended, while an expiry on the library carried no `next` and said nothing at
 all. The session now records the one moment a live session ends, and the screen
 reads that.
 
+**Rebuilding milestone 6 in TypeScript needed no new backend field**, because
+the Flutter build had already added it. What it had to answer was the drag.
+`useDragReorder` is about forty lines over pointer events, with no drag
+library: the list is one short column, and a dependency is a cost that stays
+long after the screen is done. Nothing is written until the pointer is
+released, and only when the order really changed — a write per row crossed
+would be one request per pixel of travel. The up and down buttons beside each
+row are not a fallback for the drag. A drag cannot be done from a keyboard at
+all, so the buttons are the real control and the drag is the quick way.
+
+That split is visible in the tests. jsdom — the fake browser the component
+tests run in — does not answer the question the drag asks it, which row is
+under the pointer, so the component tests cover the buttons and
+`web/e2e/shelves.spec.ts` covers the mouse. That file is also the first spec
+here to run **serial** rather than in parallel. `PUT /shelves/order` rewrites
+the whole list, so two tests reordering at the same moment each undo the
+other's arrangement.
+
+Delete asks first, in the project's own dialog rather than the browser's
+`confirm()`. The prototype used `confirm()`, which cannot be styled, cannot
+follow the same focus rules as everything else, and leaves no room for the one
+sentence a reader is actually weighing: the books stay in the library.
+
 **Edit Book is admin-only.** `PATCH /books/{id}` is `require_admin`, because
 title and author describe the shared catalog. The design drew the button
 unconditionally; showing it to a reader would open a form whose Save is
@@ -575,9 +598,9 @@ courtesy, the endpoint is the guard.
 None blocking. Milestone 0 settled the outstanding design questions; what
 remains is implementation detail:
 
-- **Drag-to-reorder implementation.** The handoff advertises it and the
-  prototype never built it. `PUT /shelves/order` exists and takes the full
-  order, so this is a client question only.
+- ~~**Drag-to-reorder implementation.**~~ Answered by milestone 6: pointer
+  events, no library, committing the full order once on release, with the up
+  and down buttons beside it. See above.
 - **Whether `POST /books/upload` should stream progress.** A large EPUB over
   a household LAN is fast, but the Add Book modal has no progress affordance
   and the upload is the one place a reader waits on bytes. Decide in

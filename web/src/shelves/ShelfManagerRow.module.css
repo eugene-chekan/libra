@@ -1,0 +1,183 @@
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 4px;
+  border-radius: var(--libra-radius);
+  list-style: none;
+}
+
+.row:hover {
+  background: var(--libra-accent-lighter);
+}
+
+/* The row being carried. Lifted off the list so it is obvious which one moves
+   when the pointer does. */
+.dragging {
+  background: var(--libra-bg);
+  box-shadow: var(--libra-shadow-dropdown);
+  opacity: 0.9;
+}
+
+.handle {
+  display: flex;
+  color: var(--libra-text-light);
+  cursor: grab;
+  /* The pointer must reach this element rather than any text inside it, and a
+     drag should never start a selection. */
+  touch-action: none;
+  user-select: none;
+}
+
+.handle:active {
+  cursor: grabbing;
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.count {
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+  margin-right: 4px;
+}
+
+.action {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 4px;
+  background: none;
+  color: var(--libra-text-light);
+  cursor: pointer;
+  transition:
+    color var(--libra-t-interactive),
+    background var(--libra-t-interactive);
+}
+
+.action:hover:not(:disabled) {
+  color: var(--libra-accent);
+  background: var(--libra-accent-light);
+}
+
+.action:disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
+.danger:hover:not(:disabled) {
+  color: var(--libra-danger);
+  background: var(--libra-accent-lighter);
+}
+
+/* --- the edit state ---------------------------------------------------- */
+
+.editor {
+  width: 100%;
+  padding: 14px;
+  background: var(--libra-bg);
+  border-radius: var(--libra-radius);
+}
+
+.label {
+  display: block;
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--libra-text-mid);
+  margin-bottom: 4px;
+}
+
+.input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+  background: var(--libra-card);
+  border: 1px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  outline: none;
+  transition: border-color var(--libra-t-interactive);
+}
+
+.input:focus {
+  border-color: var(--libra-accent);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+}
+
+.checkboxRow input {
+  accent-color: var(--libra-accent);
+  width: 15px;
+  height: 15px;
+}
+
+.explanation {
+  margin-top: 6px;
+  margin-left: 23px;
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--libra-text-light);
+}
+
+.editorFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cancel,
+.save {
+  padding: 7px 14px;
+  border-radius: var(--libra-radius);
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--libra-border);
+  background: var(--libra-card);
+  color: var(--libra-text-mid);
+}
+
+.save {
+  border: none;
+  background: var(--libra-accent);
+  color: #fff;
+}
+
+.save:hover:not(:disabled) {
+  background: var(--libra-accent-hover);
+}
+
+.save:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

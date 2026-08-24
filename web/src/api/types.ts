@@ -188,16 +188,49 @@ export interface Tag {
 }
 
 /**
- * `GET /api/shelves`. Carries every shelf the caller may see: their own plus
- * other readers' public ones — this milestone's sidebar only shows the
- * caller's own (`editable`), leaving the rest for #28's "Shared with you".
+ * `GET /api/shelves`. Carries every shelf the caller may see: their own, in
+ * the order they arranged them, then other readers' public ones.
+ *
+ * **That order is the server's and is never re-sorted here.** It is the one
+ * thing about the shelves screen the reader controls, and sorting a list
+ * client-side is how it would quietly be thrown away.
  */
 export interface Shelf {
   id: number
   owner_id: number
+  /**
+   * Whose shelf this is, by name. Only useful for somebody else's public
+   * shelf, which is labelled "by {username}" — and only available here,
+   * because listing users is admin-only and a reader still has to be able to
+   * tell one shared shelf from another.
+   */
   owner_username: string
   name: string
-  visibility: 'private' | 'public'
-  /** True when the caller may modify it, which is also how the sidebar tells "mine" from "shared". */
+  /** `public` means every reader can see it. None of them can change it. */
+  visibility: ShelfVisibility
+  /** How many books are on it, as this caller sees it. */
+  book_count: number
+  /** True when the caller may modify it, which is also how "mine" is told from "shared". */
   editable: boolean
+}
+
+export type ShelfVisibility = 'private' | 'public'
+
+/** The body of `POST /api/shelves`. A new shelf is private unless it says otherwise. */
+export interface ShelfCreate {
+  name: string
+  visibility?: ShelfVisibility
+}
+
+/**
+ * A change to a shelf, for `PATCH /api/shelves/{id}`. Owner only.
+ *
+ * Same `exclude_unset` rule as everywhere else: an absent key means "leave it
+ * alone". `position` is deliberately not here — reordering goes through
+ * `PUT /api/shelves/order` as one complete list, so it is a single decision
+ * rather than a race between rows.
+ */
+export interface ShelfPatch {
+  name?: string
+  visibility?: ShelfVisibility
 }

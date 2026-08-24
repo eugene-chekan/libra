@@ -6,17 +6,14 @@ import { PendingScreen } from './PendingScreen'
 import styles from '../shell/AppShell.module.css'
 
 /**
- * The routed screens, as stand-ins.
+ * The routed screens that are still stand-ins.
  *
- * Each one is routed and reachable so the frame can be navigated and tested;
- * none of them has content yet. They are gathered in one file because that is
- * all they are — each moves to its own file when it grows a screen's worth of
- * code, which is the milestone that builds it.
+ * Each is routed and reachable so the frame can be navigated and tested; none
+ * has content yet. They are gathered in one file because that is all they are
+ * — each moves to its own file when it grows a screen's worth of code, which
+ * is the milestone that builds it. Login, Library, Book and Shelves have all
+ * left this file that way.
  */
-
-export function ShelvesScreen() {
-  return <PendingScreen title="Shelves" milestone="the shelves milestone" />
-}
 
 export function ChatScreen() {
   return <PendingScreen title="Librarian" milestone="the librarian chat milestone (#32)" />

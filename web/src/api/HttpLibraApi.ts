@@ -11,6 +11,8 @@ import type {
   Note,
   NoteDraft,
   Shelf,
+  ShelfCreate,
+  ShelfPatch,
   Tag,
   User,
   UserPatch,
@@ -71,6 +73,24 @@ export class HttpLibraApi implements LibraApi {
 
   async listShelves(): Promise<Shelf[]> {
     return this.send<Shelf[]>('GET', '/shelves')
+  }
+
+  async createShelf(shelf: ShelfCreate): Promise<Shelf> {
+    return this.send<Shelf>('POST', '/shelves', shelf)
+  }
+
+  async updateShelf(id: number, patch: ShelfPatch): Promise<Shelf> {
+    return this.send<Shelf>('PATCH', `/shelves/${id}`, patch)
+  }
+
+  async deleteShelf(id: number): Promise<void> {
+    await this.send<void>('DELETE', `/shelves/${id}`)
+  }
+
+  async reorderShelves(shelfIds: number[]): Promise<Shelf[]> {
+    // `/shelves/order` is declared before `/shelves/{id}` on the server, so
+    // "order" is a path of its own rather than an id that fails to parse.
+    return this.send<Shelf[]>('PUT', '/shelves/order', { shelf_ids: shelfIds })
   }
 
   coverUrl(id: number): string {

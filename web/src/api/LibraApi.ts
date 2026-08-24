@@ -9,6 +9,8 @@ import type {
   Note,
   NoteDraft,
   Shelf,
+  ShelfCreate,
+  ShelfPatch,
   Tag,
   User,
   UserPatch,
@@ -27,7 +29,7 @@ import type {
  * layer: a method that quietly makes two requests hides the API from the code
  * that reads it, and this milestone exists to check that the API is right.
  *
- * Later milestones add shelves and tags management here.
+ * Later milestones add tag management here.
  */
 export interface LibraApi {
   /**
@@ -79,8 +81,48 @@ export interface LibraApi {
   /** `GET /api/tags`. The caller's visible vocabulary: global tags, then their own. */
   listTags(): Promise<Tag[]>
 
-  /** `GET /api/shelves`. The caller's own shelves, then other readers' public ones. */
+  /** `GET /api/shelves`. The caller's own shelves in their order, then other readers' public ones. */
   listShelves(): Promise<Shelf[]>
+
+  /**
+   * `POST /api/shelves`. Lands at the end of the caller's order.
+   *
+   * 409 when they already have a shelf with that name — the server compares
+   * without case, so "To Read" and "to read" are the same name. 422 when the
+   * name is blank.
+   */
+  createShelf(shelf: ShelfCreate): Promise<Shelf>
+
+  /**
+   * `PATCH /api/shelves/{id}`. Rename, or publish and unpublish. Owner only:
+   * a shelf the caller cannot see is a 404, and one they can see but do not
+   * own is a 403.
+   *
+   * A rename moves no books. They reference the shelf by id, which is the
+   * whole reason shelves are rows rather than matched names.
+   */
+  updateShelf(id: number, patch: ShelfPatch): Promise<Shelf>
+
+  /**
+   * `DELETE /api/shelves/{id}`. The books on it stay in the library and
+   * become unshelved.
+   *
+   * The endpoint also takes `reassign_to`, to move them onto another shelf in
+   * the same transaction. This client does not use it: moving somebody's
+   * books somewhere they did not choose is worse than leaving them loose.
+   */
+  deleteShelf(id: number): Promise<void>
+
+  /**
+   * `PUT /api/shelves/order`. The caller's complete shelf list, in the order
+   * they want it.
+   *
+   * The whole list, not one moved row: it is atomic, it matches what the
+   * manage dialog is doing, and it cannot produce the duplicate or gapped
+   * positions that racing single-row updates would. Anything that is not
+   * exactly the caller's own shelves, each once, is a 422.
+   */
+  reorderShelves(shelfIds: number[]): Promise<Shelf[]>
 
   /**
    * `GET /api/books/{id}/cover`, as a URL rather than a fetch — the caller

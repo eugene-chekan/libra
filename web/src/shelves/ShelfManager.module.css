@@ -1,0 +1,138 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 40%);
+}
+
+.content {
+  position: fixed;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  width: 460px;
+  max-width: 90vw;
+  max-height: 80vh;
+  padding: 28px;
+  background: var(--libra-card);
+  border-radius: var(--libra-radius-modal);
+  box-shadow: var(--libra-shadow-modal);
+}
+
+.title {
+  font-family: var(--libra-serif);
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--libra-text);
+}
+
+.count {
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+  margin-top: 4px;
+  margin-bottom: 16px;
+}
+
+/* The list is the part that scrolls: the heading stays put and the New shelf
+   row stays reachable however many shelves there are. */
+.list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  list-style: none;
+}
+
+.empty {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text-light);
+  padding: 8px 0;
+}
+
+.newRow {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--libra-border);
+}
+
+.newLabel {
+  display: block;
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--libra-text-mid);
+  margin-bottom: 6px;
+}
+
+.newControls {
+  display: flex;
+  gap: 10px;
+}
+
+.input {
+  flex: 1;
+  height: 38px;
+  padding: 0 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+  background: var(--libra-bg);
+  border: 1px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  outline: none;
+  transition: border-color var(--libra-t-interactive);
+}
+
+.input:focus {
+  border-color: var(--libra-accent);
+}
+
+.add {
+  padding: 0 20px;
+  border: none;
+  border-radius: var(--libra-radius);
+  background: var(--libra-accent);
+  color: #fff;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--libra-t-interactive);
+}
+
+.add:hover:not(:disabled) {
+  background: var(--libra-accent-hover);
+}
+
+.add:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.footer {
+  display: flex;
+  justify-content: flex-end;
+  margin-top: 20px;
+}
+
+.close {
+  padding: 9px 18px;
+  border: 1.5px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  background: var(--libra-card);
+  color: var(--libra-text-mid);
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition:
+    border-color var(--libra-t-interactive),
+    color var(--libra-t-interactive);
+}
+
+.close:hover {
+  border-color: var(--libra-accent);
+  color: var(--libra-accent);
+}
