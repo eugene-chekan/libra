@@ -84,8 +84,10 @@ export interface LibraApi {
   listTags(): Promise<Tag[]>
 
   /**
-   * `POST /api/tags`. Creates a personal tag; this client never asks for a
-   * global one, which is admin-only and would change what everybody sees.
+   * `POST /api/tags`. Creates a personal tag, or a global one with
+   * `makeGlobal` — which is `?make_global=true` on the wire and admin-only:
+   * an ordinary reader asking for one is a 403, since a global tag changes
+   * what the whole household sees.
    *
    * 422 when the name is blank, and 422 when it contains a space — the search
    * box reads `#tag` tokens and splits on whitespace, so a two-word name
@@ -93,7 +95,7 @@ export interface LibraApi {
    * has that name, or when a global tag has it: two identical rows in one
    * sidebar is a bug from the reader's side however the schema feels about it.
    */
-  createTag(tag: TagCreate): Promise<Tag>
+  createTag(tag: TagCreate, makeGlobal?: boolean): Promise<Tag>
 
   /**
    * `PATCH /api/tags/{id}`. Renames it, and moves no books — they reference

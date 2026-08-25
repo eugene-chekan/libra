@@ -70,6 +70,31 @@
   border-color: var(--libra-accent);
 }
 
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+}
+
+.checkboxRow input {
+  accent-color: var(--libra-accent);
+  width: 15px;
+  height: 15px;
+}
+
+.explanation {
+  margin-top: 6px;
+  margin-left: 23px;
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  line-height: 1.4;
+  color: var(--libra-text-light);
+}
+
 .hint {
   margin-top: 6px;
   font-family: var(--libra-sans);
