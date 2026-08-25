@@ -145,11 +145,12 @@ def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = 
     A missing state row is not an error — rows are created lazily, so most
     books have none for most users, and the defaults on `BookRead` are the
     correct answer for "never touched this book".
+
+    `has_cover` is derived from what the parse recorded, which costs no extra
+    query and cannot disagree with what the cover endpoint would serve.
     """
     view = BookRead.model_validate(book, from_attributes=True)
     view.tag_ids = tag_ids or []
-    # Derived from what the parse recorded, so it costs no extra query and
-    # cannot disagree with what the cover endpoint would actually serve.
     view.has_cover = bool(
         book.book_metadata.get("cover_href")
         and book.book_metadata.get("cover_media_type") in COVER_MEDIA_TYPES
@@ -206,8 +207,6 @@ def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, 
     except (epub.InvalidEpubError, FileNotFoundError) as exc:
         raise NoCoverError from exc
 
-    # Free and stable: the file's hash already identifies its contents, and
-    # the href distinguishes covers within one archive.
     etag = f'"{book.book_metadata.get("sha256", book.id)}-{href}"'
     return data, media_type, etag
 
@@ -250,6 +249,25 @@ def search_books(
     downstream: **tag filters OR each other** (a book matches if it carries
     any one of them), and **the text query ANDs against that result**, matching
     case-insensitively against title or author.
+
+    **Visibility is checked before filtering, never after.** Filtering by a tag
+    the caller cannot see raises rather than returning an empty list: an empty
+    result would confirm the tag exists, and let someone enumerate another
+    reader's private vocabulary by walking ids. A shelf works the same way, so
+    a private one cannot be probed through this endpoint either.
+
+    The tag subquery below carries no visibility filter of its own, on purpose.
+    The loop above has already rejected every id the caller cannot see, so
+    repeating the check would change no behaviour and no test could tell it
+    from its absence — security code nothing can distinguish from nothing is
+    worse than none, because it reads as protection.
+
+    The count is exact because nothing is paginated yet. Pagination would make
+    it a separate COUNT, which is why the response is an envelope now rather
+    than a bare list every client would later have to re-learn. `added` sorts
+    by primary key: there is no `created_at` on `Book`, and for an append-only
+    catalog insertion order is the same thing. The default sort is NOCASE, so
+    "a book" and "A Book" sort together instead of in two ASCII blocks.
     """
     statement = select(Book, UserBookState).outerjoin(
         UserBookState,
@@ -257,25 +275,14 @@ def search_books(
     )
 
     if tag_ids:
-        # Visibility first: filtering by a tag the caller cannot see must not
-        # quietly return an empty list, because an empty result would confirm
-        # the tag exists and let someone enumerate another reader's private
-        # vocabulary by walking ids.
         for tag_id in tag_ids:
             visible_tag(session, tag_id, user)
 
-        # No visibility filter on this subquery: the loop above has already
-        # rejected any id the caller cannot see, so every id reaching here is
-        # one of theirs. Repeating the check would be untestable — removing it
-        # changes no behaviour — and security code no test can distinguish
-        # from its absence is worse than none, because it reads as protection.
         statement = statement.where(
             col(Book.id).in_(select(BookTag.book_id).where(col(BookTag.tag_id).in_(tag_ids)))
         )
 
     if shelf_id is not None:
-        # Raises if the shelf is not visible, so a private shelf cannot be
-        # probed through the search endpoint either.
         _visible_shelf(session, shelf_id, user)
         statement = statement.where(
             col(Book.id).in_(
@@ -294,19 +301,12 @@ def search_books(
     rows = session.exec(statement).all()
     tags_by_book = _tags_by_book(session, user)
     items = [_merge(book, state, tags_by_book.get(book.id, [])) for book, state in rows]
-    # Exact, because nothing is paginated yet. Pagination would make this a
-    # separate COUNT — which is the reason the response is an envelope now
-    # rather than a bare list a client would have to re-learn later.
     return items, len(items)
 
 
 def _sort_clause(sort: str):
     if sort == SORT_ADDED:
-        # No created_at on Book; the primary key is insertion order, which is
-        # the same thing for an append-only catalog.
         return (col(Book.id).desc(),)
-    # Default. NOCASE so "a book" and "A Book" sort together rather than in
-    # two ASCII blocks.
     return (col(Book.title).collate("NOCASE").asc(), col(Book.id).asc())
 
 
@@ -339,7 +339,21 @@ def set_reading_state(
     them could claim to have finished a book last year.
 
     `set_shelf` distinguishes an omitted `shelf_id` (leave the placement
-    alone) from an explicit null (take the book off its shelf).
+    alone) from an explicit null (take the book off its shelf). The shelf must
+    belong to `user`, which is the rule no foreign key expresses: the column's
+    FK would accept somebody else's id, and with SQLite's foreign keys off by
+    default it would accept a nonexistent one too.
+
+    `started_at` is set once, on the first evidence of reading, and never
+    cleared — a re-read does not change when this reader first opened the book.
+    `finished_at` is the other way about: re-finishing does not move it, and
+    dropping back below 1 clears it, because "finished at some point" is not
+    what any view means by finished.
+
+    The response is built **with** the tag ids. `_merge` defaults them to
+    empty, so leaving the argument out made every answer report a book with no
+    tags — including the request that had just set some. `PATCH /books/{id}`
+    carried the same omission, fixed in #65.
     """
     state = session.get(UserBookState, (user.id, book.id))
     if state is None:
@@ -347,29 +361,18 @@ def set_reading_state(
 
     if set_shelf:
         if shelf_id is not None:
-            # The rule no foreign key expresses: a reader may only place books
-            # on their *own* shelves. The column's FK would happily accept
-            # somebody else's id — and with SQLite's foreign keys off by
-            # default, it would accept a nonexistent one too.
             owned_shelf(session, shelf_id, user)
         state.shelf_id = shelf_id
 
     now = utcnow()
 
-    # Set once, on the first evidence of reading, and never cleared: a re-read
-    # does not change when this reader first opened the book.
     if progress > 0 and state.started_at is None:
         state.started_at = now
 
     if progress >= 1:
-        # Re-finishing does not move the date; the first completion is the one
-        # worth remembering.
         if state.finished_at is None:
             state.finished_at = now
     else:
-        # Dropping back below 1 means it is being read again, so the book is
-        # no longer finished. Leaving the stamp would make "finished" mean
-        # "finished at some point", which no view wants.
         state.finished_at = None
 
     state.rating = rating
@@ -379,13 +382,6 @@ def set_reading_state(
     session.add(state)
     session.commit()
     session.refresh(state)
-    # With the tag ids, not without them. `_merge` defaults them to empty, so
-    # leaving the argument out made every response to this endpoint report a
-    # book with no tags — including the request that had just set some. The
-    # same omission was fixed in `PATCH /books/{id}` in #65; this is its
-    # sibling, and it matters more here because `tag_ids` is written *through*
-    # this endpoint. Nothing caught it because the client re-reads the book
-    # after a write, so the untrue response was never the one on screen.
     return _merge(book, state, book_tag_ids(session, book.id, user))
 
 
@@ -557,7 +553,8 @@ def delete_shelf(
     `reassign_to` omitted means those books become unshelved, which is a
     valid state. The prototype's fallback of reassigning to the first
     remaining shelf is deliberately not reproduced: it moves a reader's books
-    somewhere they did not ask for.
+    somewhere they did not ask for. Reassignment and deletion land together or
+    not at all.
     """
     shelf = owned_shelf(session, shelf_id, user)
 
@@ -573,7 +570,6 @@ def delete_shelf(
         session.add(state)
 
     session.delete(shelf)
-    # Reassignment and deletion land together or not at all.
     session.commit()
 
 
@@ -635,7 +631,6 @@ def _tag_to_read(tag: Tag, user: User, counts: dict[int, int]) -> TagRead:
         owner_id=tag.owner_id,
         is_global=tag.owner_id is None,
         book_count=counts.get(tag.id, 0),
-        # Global tags are curated by admins; personal ones by their owner.
         editable=user.is_admin if tag.owner_id is None else tag.owner_id == user.id,
     )
 
@@ -746,6 +741,12 @@ def set_book_tags(session: Session, book: Book, user: User, tag_ids: list[int]) 
     ("managed by an admin, not per book") while refusing admins as well, and
     no other endpoint assigned tags. A global tag could be created and then
     never used.
+
+    **What a write replaces has to match what it may add.** This is a PUT, so a
+    tag left out of the list is meant to come off; if an admin could add a
+    global tag while only their personal links were cleared, a global tag would
+    go onto a book and never come off it again. Another reader's personal tags
+    are never in scope either way — they are not this caller's to remove.
     """
     requested = []
     for tag_id in dict.fromkeys(tag_ids):
@@ -754,11 +755,6 @@ def set_book_tags(session: Session, book: Book, user: User, tag_ids: list[int]) 
             raise TagNotEditableError
         requested.append(tag)
 
-    # What a write replaces has to match what it may add. This is a PUT, so a
-    # tag left out of the list is meant to come off — and if an admin could
-    # add a global tag while only their personal links were cleared, a global
-    # tag could go onto a book and never come off it again. Another reader's
-    # personal tags are never in scope: they are not this caller's to remove.
     replaceable = col(Tag.owner_id) == user.id
     if user.is_admin:
         replaceable = replaceable | col(Tag.owner_id).is_(None)
@@ -808,7 +804,6 @@ def send_to_kindle(
     if not user.kindle_email:
         raise NoKindleAddressError
 
-    # Reuses the existing traversal guard rather than adding a second one.
     path: Path = storage.resolve(book.file_path, settings.library_dir)
     content = path.read_bytes()
 
@@ -884,13 +879,14 @@ def list_notes(session: Session, book_id: int, user: User) -> list[NoteRead]:
     already a valid answer here — a book nobody has annotated — so the two
     cases have to be distinguishable or a typo in a book id reads as "no notes
     yet".
+
+    Id breaks ties in the ordering: notes made in the same request share a
+    timestamp, and an unstable order would make the list jump between reloads.
     """
     _require_book(session, book_id)
     notes = session.exec(
         select(Note)
         .where(Note.user_id == user.id, Note.book_id == book_id)
-        # id breaks ties: notes made in the same request share a timestamp,
-        # and an unstable order would make the list jump between reloads.
         .order_by(col(Note.created_at).desc(), col(Note.id).desc())
     ).all()
     return [_note_to_read(note) for note in notes]
@@ -970,12 +966,8 @@ def delete_user(session: Session, user_id: int, caller: User) -> None:
         raise UserNotFoundError
 
     if user.id == caller.id:
-        # Also what makes the last-admin case above impossible.
         raise SelfDeletionError
 
-    # Order matters if foreign keys are ever enforced: children before
-    # parents. Link rows before tags, reading state before the shelves it
-    # points at.
     own_tag_ids = [tag.id for tag in session.exec(select(Tag).where(Tag.owner_id == user.id)).all()]
     if own_tag_ids:
         for link in session.exec(select(BookTag).where(col(BookTag.tag_id).in_(own_tag_ids))).all():
@@ -991,7 +983,6 @@ def delete_user(session: Session, user_id: int, caller: User) -> None:
         for row in session.exec(select(model).where(column == user.id)).all():
             session.delete(row)
 
-    # Nulled rather than deleted — the whole point of the exercise.
     for book in session.exec(select(Book).where(Book.uploaded_by == user.id)).all():
         book.uploaded_by = None
         session.add(book)
