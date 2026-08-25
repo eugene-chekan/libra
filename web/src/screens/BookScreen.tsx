@@ -2,16 +2,16 @@ import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
 import { ApiError, messageFor } from '../api/errors'
-import type { Book, Tag } from '../api/types'
+import type { Book } from '../api/types'
 import { BookActions } from '../book/BookActions'
 import { BookEditForm } from '../book/BookEditForm'
+import { BookTags } from '../book/BookTags'
 import { DetailCover } from '../book/DetailCover'
 import { NotesPanel } from '../book/NotesPanel'
 import { ProgressPanel } from '../book/ProgressPanel'
 import { RatingStars } from '../book/RatingStars'
 import { useBook, useSendToKindle, useSetBookState, useUpdateBook } from '../book/useBook'
 import { useShelves } from '../library/useShelves'
-import { useTags } from '../library/useTags'
 import { routes } from '../routes'
 import { useSession } from '../session/SessionProvider'
 import { useSaveKindleEmail } from '../session/useSaveKindleEmail'
@@ -123,7 +123,6 @@ function BackLink() {
 function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
   const { status } = useSession()
   const shelves = useShelves().data ?? []
-  const tags = useTags().data ?? []
   const setState = useSetBookState(book.id)
   const sendToKindle = useSendToKindle(book.id)
   const saveKindleEmail = useSaveKindleEmail()
@@ -131,7 +130,6 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
 
   const user = status.status === 'signed-in' ? status.user : null
   const shelf = shelves.find((candidate) => candidate.id === book.shelf_id) ?? null
-  const bookTags = tags.filter((tag) => book.tag_ids.includes(tag.id))
 
   return (
     <>
@@ -149,15 +147,7 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
         onRate={(rating) => setState.mutate({ rating, progress: book.progress })}
       />
 
-      {bookTags.length > 0 && (
-        <ul className={styles.tags}>
-          {bookTags.map((tag) => (
-            <li key={tag.id}>
-              <TagPill tag={tag} />
-            </li>
-          ))}
-        </ul>
-      )}
+      <BookTags book={book} />
 
       <ProgressPanel progress={book.progress} pages={book.pages} />
 
@@ -200,15 +190,6 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
 function EditMode({ book, onDone }: { book: Book; onDone: () => void }) {
   const update = useUpdateBook(book.id)
   return <BookEditForm book={book} onSave={(patch) => update.mutateAsync(patch)} onDone={onDone} />
-}
-
-/** A tag is a filter, here as in the sidebar: clicking one asks "what else is like this?". */
-function TagPill({ tag }: { tag: Tag }) {
-  return (
-    <Link className={styles.tagPill} to={`${routes.library}?tags=${tag.id}`}>
-      {tag.name}
-    </Link>
-  )
 }
 
 /**
