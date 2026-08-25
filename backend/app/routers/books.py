@@ -40,13 +40,17 @@ def create_book(
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> BookRead:
+    """Add a book from caller-supplied metadata, for CLI and import paths.
+
+    The response is built through the read model rather than by letting
+    `response_model` serialize the row: `has_cover` and `tag_ids` are not
+    columns on `Book`, so that path drops them silently and the answer
+    disagrees with `GET /books/{id}`.
+    """
     db_book = Book.model_validate(book)
     session.add(db_book)
     session.commit()
     session.refresh(db_book)
-    # Through the read model, not by letting `response_model` serialize the
-    # row: has_cover and tag_ids are not columns on Book, so that path drops
-    # them silently and the response disagrees with GET /books/{id}.
     return library.get_book(session, db_book.id, user)
 
 
@@ -58,6 +62,16 @@ def upload_book(
     user: User = Depends(current_user),
 ) -> BookRead:
     """Create a book from an uploaded EPUB, deriving metadata from the file.
+
+    The cover's location is recorded at parse time so serving one never
+    re-parses the OPF, and is absent when the file declares none. The file's
+    sha256 is kept so Phase 2 can tell whether it has already been ingested
+    into the vector store without reading it again.
+
+    A failed insert removes the file: it is committed to the library by then,
+    so it has to go back out or become an orphan nothing references. That is
+    logged, because the request is about to fail with a 500 whose traceback
+    says nothing about a file that was written and removed.
 
     Ordering matters: we stage the bytes to a temp file, validate and parse
     them, and only then promote the file and insert the row. That way a
@@ -97,8 +111,6 @@ def upload_book(
             **metadata.extra,
             "original_filename": original_name,
             "size_bytes": staged.size_bytes,
-            # Recorded at parse time so serving a cover never re-parses the
-            # OPF. Absent when the file declares none.
             **(
                 {
                     "cover_href": metadata.cover_href,
@@ -107,8 +119,6 @@ def upload_book(
                 if metadata.cover_href
                 else {}
             ),
-            # Kept so Phase 2 can tell whether a file has already been
-            # ingested into the vector store without re-reading it.
             "sha256": staged.sha256,
         },
     )
@@ -117,10 +127,6 @@ def upload_book(
         session.commit()
     except BaseException:
         session.rollback()
-        # The file is already committed to the library at this point, so it
-        # has to go back out or it is an orphan nothing references. Logged
-        # because the request is about to fail with a 500 whose traceback
-        # says nothing about the file that was written and removed.
         log.exception("Insert failed after storing %s; removing the orphaned file", stored_name)
         storage.delete(stored_name, settings.library_dir)
         raise
@@ -138,6 +144,10 @@ def list_books(
     user: User = Depends(current_user),
 ) -> BookList:
     """The shared catalog, filtered, each book carrying the caller's own state.
+
+    A tag or shelf the caller cannot see is a 404 rather than an empty result:
+    an empty list would confirm it exists, which is enough to enumerate
+    another reader's private vocabulary by walking ids.
 
     `tags` is a comma-separated list of ids. Tag filters **OR** each other — a
     book matches if it carries any one of them — and `q` **ANDs** against that
@@ -157,8 +167,6 @@ def list_books(
             session, user, query=q, tag_ids=tag_ids, shelf_id=shelf_id, sort=sort
         )
     except library.TagNotVisibleError as exc:
-        # 404 rather than an empty result: an empty list would confirm the tag
-        # exists, which is enough to enumerate a private vocabulary by id.
         raise HTTPException(status_code=404, detail="Tag not found") from exc
     except library.ShelfNotVisibleError as exc:
         raise HTTPException(status_code=404, detail="Shelf not found") from exc
@@ -193,6 +201,11 @@ def get_cover(
 ) -> Response:
     """The book's cover image, read straight out of the EPUB.
 
+    `nosniff` because the media type is allowlisted and a browser must not
+    decide for itself that the allowlist was wrong. `private` because every
+    response here required a session, so a shared cache must never hand one
+    household member's request to another.
+
     `404` when the file declares no cover, when the image is missing from the
     archive, or when the declared media type is not an image. A caller cannot
     act on the difference — there is nothing to show either way — and the
@@ -211,11 +224,7 @@ def get_cover(
         content=data,
         media_type=media_type,
         headers={
-            # The media type is allowlisted, but nosniff stops a browser
-            # deciding for itself that the allowlist was wrong.
             "X-Content-Type-Options": "nosniff",
-            # `private` specifically: responses require a session, so a shared
-            # cache must never hand one household member's request to another.
             "Cache-Control": "private, max-age=86400",
             "ETag": etag,
         },
@@ -230,6 +239,17 @@ def download_book(
     _: User = Depends(current_user),
 ) -> FileResponse:
     """The stored EPUB itself, as an attachment.
+
+    A missing file is logged and answered 500: the row outlived its file — an
+    unmounted volume, or a file removed by hand — which means the installation
+    is inconsistent, not that the caller did anything wrong. A stored path that
+    escapes the library is only reachable through `POST /books` and its
+    caller-supplied `file_path`; reaching that branch means `storage.resolve()`
+    did its job.
+
+    The headers are `nosniff` and `private` for the same reasons the cover's
+    are, and more sharply: these bytes are a user-uploaded file served from an
+    origin that carries a session cookie.
 
     There is no in-browser reader in any phase — the Kindle, or whatever the
     reader already uses, is the reader — so the design's "Start Reading"
@@ -246,15 +266,9 @@ def download_book(
     try:
         path, filename = library.file_for(session, book, settings)
     except library.BookFileMissingError as exc:
-        # The row outlived its file — an unmounted volume, or a file removed
-        # by hand. Logged because it means the installation is inconsistent,
-        # not that the caller did anything wrong.
         log.warning("book %s has no file at %s", book_id, book.file_path)
         raise HTTPException(status_code=404, detail="This book's file is missing") from exc
     except ValueError as exc:
-        # A stored path that escapes the library. Only reachable through
-        # POST /books, which takes a caller-supplied file_path; getting here
-        # means storage.resolve() did its job.
         log.warning("book %s has a file_path outside the library", book_id)
         raise HTTPException(status_code=404, detail="This book's file is missing") from exc
 
@@ -263,12 +277,7 @@ def download_book(
         media_type="application/epub+zip",
         filename=filename,
         headers={
-            # The bytes are a user-uploaded file served from an origin that
-            # carries a session cookie, so the browser must not be left to
-            # decide the type for itself.
             "X-Content-Type-Options": "nosniff",
-            # `private`: every response here required a session, so a shared
-            # cache must never hand one household member's book to another.
             "Cache-Control": "private, max-age=86400",
         },
     )
@@ -292,6 +301,10 @@ def set_reading_state(
     PUT rather than PATCH because the row is small enough that a full
     representation is honest, and the designed edit form commits every field
     at once anyway.
+
+    `tag_ids` replaces the tags this caller may set — see `library.set_book_tags`
+    for which those are. An omitted `shelf_id` leaves the placement alone and
+    an explicit null clears it, which is what `exclude_unset` distinguishes.
     """
     book = session.get(Book, book_id)
     if book is None:
@@ -300,8 +313,6 @@ def set_reading_state(
     fields = state.model_dump(exclude_unset=True)
     try:
         if "tag_ids" in fields:
-            # Replaces the caller's personal tags on this book. Global tags
-            # are curated through /tags and are not the reader's to set here.
             library.set_book_tags(session, book, user, state.tag_ids or [])
 
         return library.set_reading_state(
@@ -311,7 +322,6 @@ def set_reading_state(
             rating=state.rating,
             progress=state.progress,
             shelf_id=state.shelf_id,
-            # Omitted leaves the placement alone; an explicit null clears it.
             set_shelf="shelf_id" in fields,
         )
     except library.ShelfNotVisibleError as exc:
@@ -347,6 +357,12 @@ def send_to_kindle(
     recipient has not approved — no bounce, no status API — so handing the
     message to the mail server is the last thing this process can observe.
     Claiming delivery would be claiming more than we know.
+
+    A missing file is a 500, not a 4xx: a row pointing at nothing on disk is
+    an integrity bug rather than something the caller did. A send failure
+    reports `str(exc)`, which is written to be safe to show — the mail
+    server's own response text stays in the log, because it quotes the
+    username.
     """
     if not settings.kindle_delivery_configured:
         raise HTTPException(
@@ -369,8 +385,6 @@ def send_to_kindle(
             detail=f"This book is too large to email; the limit is {exc.limit_bytes} bytes",
         ) from exc
     except FileNotFoundError as exc:
-        # A row pointing at a file that is not on disk is an integrity bug,
-        # not something the caller did wrong.
         log.error("Book %s references a missing file: %s", book_id, book.file_path)
         raise HTTPException(status_code=500, detail="The stored file is missing") from exc
     except SmtpNotConfiguredError as exc:
@@ -378,8 +392,6 @@ def send_to_kindle(
             status_code=503, detail="Kindle delivery is not configured on this server"
         ) from exc
     except SendFailedError as exc:
-        # str(exc) is written to be safe to show; the SMTP server's own
-        # response text stays in the log, because it quotes the username.
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
     return KindleDeliveryRead(book_id=book_id, sent_to=user.kindle_email, attempted_at=attempted_at)
@@ -396,26 +408,27 @@ def update_book(
 
     Admin only: title and author describe the shared catalog, so one
     person's correction changes what everyone sees.
+
+    `exclude_unset` keeps an omitted field distinct from one explicitly sent,
+    which is what makes this a PATCH rather than a partial overwrite.
+
+    The response goes through the read model, for the reason `POST /books`
+    does: `rating`, `progress`, `has_cover`, `shelf_id` and `tag_ids` are not
+    columns on `Book`, so returning the row lets `response_model` fill them
+    with defaults. This endpoint did exactly that until #65, and answered
+    "rating 0, progress 0" for a book the caller had rated and half read —
+    well-formed, and untrue.
     """
     book = session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    # exclude_unset keeps an omitted field distinct from one explicitly sent,
-    # which is what makes this a PATCH rather than a partial overwrite.
     for key, value in update.model_dump(exclude_unset=True).items():
         setattr(book, key, value)
 
     session.add(book)
     session.commit()
     session.refresh(book)
-    # Through the read model, for the same reason POST does it: rating,
-    # progress, has_cover, shelf_id and tag_ids are not columns on `Book`, so
-    # returning the row lets `response_model` fill them with defaults. This
-    # endpoint used to do exactly that, and answered "rating 0, progress 0"
-    # for a book the caller had rated and half read. Found by the client in
-    # #65 — nothing in the process could see it, because the response was
-    # well-formed and merely untrue.
     return library.get_book(session, book_id, user)
 
 
@@ -426,7 +439,10 @@ def delete_book(
     settings: Settings = Depends(get_settings),
     _: User = Depends(require_admin),
 ) -> None:
-    """Remove a book and its file.
+    """Remove a book and its file, in that order.
+
+    The file goes after the row, so a failed unlink cannot leave a book that is
+    listed but unreadable. A leftover file is the safer of the two states.
 
     Admin only. Uploading is additive and reversible; deleting destroys a
     file the whole household shares, and later a row every user has reading
@@ -439,6 +455,4 @@ def delete_book(
     file_path = book.file_path
     session.delete(book)
     session.commit()
-    # After the row is gone, so a failed unlink can't leave a book that is
-    # listed but unreadable. A leftover file is the safer of the two states.
     storage.delete(file_path, settings.library_dir)
