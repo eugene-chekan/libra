@@ -36,6 +36,19 @@ interface Session {
   setUser: (user: User) => void
 }
 
+/**
+ * Every 401 the client sees reaches `setOnUnauthorized`, including a wrong
+ * password on the login screen and the cold probe. Only one of those ended a
+ * *live* session, which is why the handler below transitions from `signed-in`
+ * and leaves every other state alone.
+ *
+ * `EXPIRED` and the other two are module constants rather than fresh literals,
+ * and that is what makes an expiry fire once under concurrency: two in-flight
+ * requests both discovering a 401 both call the handler, the first moves
+ * `signed-in` to `EXPIRED`, and the second hands back the identical object.
+ * React skips a state update when the value is unchanged by reference, so the
+ * second produces no re-render and no second redirect.
+ */
 const SessionContext = createContext<Session | null>(null)
 
 const STARTING: SessionStatus = { status: 'starting' }
@@ -62,19 +75,6 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, [api])
 
   useEffect(() => {
-    // Every 401 reaches here, including a wrong password on the login screen
-    // and the cold probe above — LibraApi.onUnauthorized fires for all of
-    // them. This is the one place that can tell which of those actually ended
-    // a *live* session: only a 401 that lands while `status` is `signed-in`
-    // counts.
-    //
-    // Returning the same `EXPIRED` object every time, rather than a fresh
-    // literal, is what makes this fire once under concurrency. Two 401s
-    // discovered by two in-flight requests both call this; the first
-    // transitions `signed-in` to `EXPIRED`, and the second sees `prev.status`
-    // already `'signed-out'` and hands the identical object back. React skips
-    // a state update when the value is unchanged by reference, so the second
-    // call produces no re-render and no second redirect.
     api.setOnUnauthorized(() => {
       setStatus((prev) => (prev.status === 'signed-in' ? EXPIRED : prev))
     })
@@ -92,8 +92,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     try {
       await api.logout()
     } catch {
-      // The server already considers the session gone. The client's job here
-      // is to match that, not to report it.
+      // The server already considers the session gone; matching it is the job.
     }
     setStatus(SIGNED_OUT)
   }

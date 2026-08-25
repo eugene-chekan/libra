@@ -31,6 +31,10 @@ interface BookEditFormProps {
  * arrive filled in, so emptying one is a deliberate act and is treated as one.
  * Title and author are the exception: the server does not accept them empty,
  * so the form refuses before sending rather than turning a typo into a 422.
+ *
+ * A save can still be refused for an admin, because the flag can be taken away
+ * while the form is open: the server is the authority and the hidden button
+ * was only ever a courtesy.
  */
 export function BookEditForm({ book, onSave, onDone }: BookEditFormProps) {
   const [title, setTitle] = useState(book.title)
@@ -63,8 +67,6 @@ export function BookEditForm({ book, onSave, onDone }: BookEditFormProps) {
       })
       onDone()
     } catch (caught) {
-      // Reachable even for an admin — the flag can be taken away while this
-      // form is open. The server is the authority; the button was a courtesy.
       setError(messageFor(caught))
     } finally {
       setSaving(false)
@@ -145,7 +147,12 @@ export function BookEditForm({ book, onSave, onDone }: BookEditFormProps) {
   )
 }
 
-/** The one sentence to show, or null when the form is fit to send. */
+/**
+ * The one sentence to show, or null when the form is fit to send.
+ *
+ * The page bound repeats the server's own `ge=1`, which turns a confusing 422
+ * into a sentence beside the box that caused it.
+ */
 function check({
   title,
   author,
@@ -162,19 +169,20 @@ function check({
   if (year.trim() !== '' && numberOrNull(year) === null) return 'The year has to be a number.'
   if (pages.trim() !== '') {
     const value = numberOrNull(pages)
-    // The server's own bound is `ge=1`. Checking it here turns a confusing
-    // 422 into a sentence next to the box that caused it.
     if (value === null || value < 1) return 'Pages has to be a whole number, 1 or more.'
   }
   return null
 }
 
-/** A blank box means "no value", which the server stores as null. */
+/**
+ * A blank box means "no value", which the server stores as null.
+ *
+ * `Number` rather than `parseInt`: the latter reads "19x5" as 19 and would
+ * save a year the reader never typed.
+ */
 function numberOrNull(raw: string): number | null {
   const trimmed = raw.trim()
   if (trimmed === '') return null
-  // `Number` rather than `parseInt`, which reads "19x5" as 19 and would save a
-  // year the reader never typed.
   const value = Number(trimmed)
   return Number.isInteger(value) ? value : null
 }

@@ -26,6 +26,10 @@ import styles from './ShelfManager.module.css'
  * There are two ways to reorder and both are real: a mouse drag on the handle,
  * and the up/down buttons. The buttons are not a fallback — a drag cannot be
  * done from a keyboard at all, and reordering is not an optional flourish.
+ *
+ * One `busy` flag disables every control at once, because a list mid-write is
+ * not one to drag rows around in. The new-shelf box is cleared only once the
+ * server has the name, so a refused one is still there to correct.
  */
 export function ShelfManager({ onClose }: { onClose: () => void }) {
   const shelves = useShelves()
@@ -42,13 +46,9 @@ export function ShelfManager({ onClose }: { onClose: () => void }) {
   const ids = mine.map((shelf) => shelf.id)
   const drag = useDragReorder(ids, (next) => reorder.mutate(next))
 
-  // One flag for every control in the dialog. A half-written list is a list
-  // nobody should be dragging rows around in.
   const busy = create.isPending || update.isPending || remove.isPending || reorder.isPending
   const error = create.error ?? update.error ?? remove.error ?? reorder.error
 
-  // Drawn in the drag's live order, which is the stored order until a row is
-  // actually being carried.
   const byId = new Map(mine.map((shelf) => [shelf.id, shelf]))
   const rows = drag.order.map((id) => byId.get(id)).filter((shelf) => shelf !== undefined)
 
@@ -56,8 +56,6 @@ export function ShelfManager({ onClose }: { onClose: () => void }) {
     event.preventDefault()
     const name = newName.trim()
     if (name === '' || busy) return
-    // Cleared only once the server has it, so a refused name is still in the
-    // box to correct rather than gone.
     create.mutate({ name }, { onSuccess: () => setNewName('') })
   }
 

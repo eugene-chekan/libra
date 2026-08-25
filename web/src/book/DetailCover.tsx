@@ -17,12 +17,13 @@ import styles from './DetailCover.module.css'
  * **Only a real cover opens.** A gradient has no detail to enlarge, so it is
  * plain decoration and not a button — offering the click would promise
  * something the enlarged view cannot deliver.
+ *
+ * `has_cover` is what the catalog believed when it was read, not a promise. If
+ * the image 404s anyway, `BookCover` falls back to the gradient and says so
+ * here, so the lightbox never opens onto a broken image.
  */
 export function DetailCover({ book }: { book: Book }) {
   const api = useApi()
-  // `has_cover` is the server's belief when the catalog was read, not a
-  // promise. If the image 404s anyway, `BookCover` draws the gradient and
-  // this hears about it, so the lightbox does not open onto a broken image.
   const [broken, setBroken] = useState(false)
   const enlargeable = book.has_cover && !broken
 

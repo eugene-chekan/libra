@@ -47,11 +47,13 @@ export function AppRoutes() {
   )
 }
 
+/**
+ * Both clients are held in state so React creates each exactly once. Built
+ * during render, the query client would throw its cache away every time and
+ * the API client would drop `onUnauthorized`, since a new instance never
+ * carries SessionProvider's listener.
+ */
 export function App() {
-  // Held in state so React creates each once. Built during render, either
-  // would be rebuilt every render — the query client would throw its cache
-  // away each time, and the API client would drop `onUnauthorized` between
-  // renders since a new instance never has SessionProvider's listener on it.
   const [queryClient] = useState(createQueryClient)
   const [api] = useState(() => new HttpLibraApi())
 

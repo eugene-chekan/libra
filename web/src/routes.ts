@@ -41,7 +41,5 @@ export function readerPath(id: number): string {
 export const primaryNav = [
   { to: routes.library, label: 'Library', icon: 'grid' },
   { to: routes.shelves, label: 'Shelves', icon: 'shelves' },
-  // Added by client-design.md: the handoff's sidebar had no way to reach the
-  // librarian, because it was drawn before the agent had a surface.
   { to: routes.chat, label: 'Librarian', icon: 'message-square' },
 ] as const

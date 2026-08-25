@@ -43,9 +43,6 @@ export function TagManager({ onClose }: { onClose: () => void }) {
   const [newIsShared, setNewIsShared] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Tag | null>(null)
 
-  // Only an admin may create shared vocabulary, so only an admin is offered
-  // it: the server answers anybody else with a 403, and a control that exists
-  // only to be refused is worse than no control.
   const session = useSession()
   const isAdmin = session.status.status === 'signed-in' && session.status.user.is_admin
 
@@ -53,8 +50,6 @@ export function TagManager({ onClose }: { onClose: () => void }) {
   const shared = all.filter((tag) => tag.is_global)
   const mine = all.filter((tag) => !tag.is_global)
 
-  // One flag for every control in the dialog: a list mid-write is not one to
-  // start a second write in.
   const busy = create.isPending || update.isPending || remove.isPending
   const error = create.error ?? update.error ?? remove.error
 
@@ -62,8 +57,6 @@ export function TagManager({ onClose }: { onClose: () => void }) {
     event.preventDefault()
     const name = newName.trim()
     if (name === '' || busy) return
-    // Cleared only once the server has it, so a refused name is still in the
-    // box to be corrected rather than gone.
     create.mutate(
       { tag: { name }, makeGlobal: newIsShared },
       {

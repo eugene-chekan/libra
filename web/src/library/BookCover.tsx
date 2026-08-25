@@ -25,6 +25,10 @@ interface BookCoverProps {
  * catalog-read time, not a guarantee — a file can change between the two.
  * `onError` on the `<img>` is what makes an unexpected 404 fall back the same
  * way a known one does, rather than showing a broken-image icon.
+ *
+ * The fallback is `aria-hidden`: the title drawn on it is decoration, and
+ * `BookCard` prints the same title as real text beneath, which is what a
+ * screen reader should announce once rather than twice.
  */
 export function BookCover({ id, title, hasCover, onError }: BookCoverProps) {
   const api = useApi()
@@ -44,9 +48,6 @@ export function BookCover({ id, title, hasCover, onError }: BookCoverProps) {
     )
   }
 
-  // aria-hidden: the title drawn here is decoration. BookCard prints the
-  // same title as real text beneath the cover, which is what a screen
-  // reader should announce once, not twice.
   return (
     <div className={styles.cover} style={{ background: coverGradient(id) }} aria-hidden="true">
       <span className={styles.spine} />

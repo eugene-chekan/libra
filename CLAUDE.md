@@ -203,6 +203,12 @@ automatically, so it has to be read.
   `firstOrNull` beside the real one.
 - **Tests import constants, never transcribe them.** A copied duration had
   already drifted 2600 vs 2500ms.
+- **Prefer no comment at all.** A comment inside a function is the last
+  resort. Ask in order: can the code say it (rename, extract), does it belong
+  in the **docstring** (rationale, rules being followed, what was rejected),
+  does it belong in `docs/specs/` (anything spanning more than one file)? What
+  survives is rare — a real surprise the reader cannot deduce. Docstrings and
+  the specs carry the reasoning; the body carries the work.
 - **A comment is a claim.** Two comments here described behaviour the code
   did not have. Comments above changed code are part of the diff.
 - **A placeholder names a live issue and dies when it ships** — closing an
