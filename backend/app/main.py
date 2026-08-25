@@ -86,17 +86,36 @@ class SpaStaticFiles(StaticFiles):
 
 
 def create_app() -> FastAPI:
+    """Build the application: middleware, routes, and the client in front.
+
+    Logging is configured before anything else, so a failure during startup —
+    migrations in particular — is reported rather than swallowed.
+
+    `allow_credentials` is required for the session cookie to travel
+    cross-origin, and the CORS spec forbids pairing it with a `*` origin, so
+    `cors_origins` is always an explicit list and empty by default.
+
+    **`/health` stays at the root and everything the client calls lives under
+    `/api`.** The health check is for whatever watches the process, and probes
+    expect that path. The prefix is what keeps client routes and endpoints
+    apart: the client uses real URLs, so reloading at `/shelves` asks this
+    server for `/shelves`, which before the prefix was the endpoint returning
+    the shelf list — and the reader got JSON instead of the app. Renaming the
+    colliding client routes would have worked once and left a rule to remember
+    forever, with Phases 2 and 3 still to add endpoints of their own. See
+    docs/specs/client-stack.md.
+
+    The client is mounted **last**: Starlette matches routes in order, so the
+    API keeps every path it declares and the single-page app catches what is
+    left. Mounted earlier it would shadow the whole API. A missing build is not
+    an error — the API is usable on its own, and that is the normal state of a
+    checkout that has never run `scripts/run.sh`.
+    """
     settings = get_settings()
-    # Before anything else, so a failure during startup — migrations in
-    # particular — is reported rather than swallowed.
     configure_logging(settings.log_level)
 
     app = FastAPI(title="libra", lifespan=lifespan)
 
-    # allow_credentials is required for the session cookie to be sent
-    # cross-origin, and the CORS spec forbids combining it with a "*"
-    # origin — browsers reject the response outright. So origins are always
-    # an explicit list, empty by default.
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins,
@@ -105,21 +124,8 @@ def create_app() -> FastAPI:
         allow_headers=["*"],
     )
 
-    # `/health` stays at the root. It is a liveness check for whatever is
-    # watching the process, not something the client calls, and probes expect
-    # to find it at `/health`.
     app.include_router(health.router)
 
-    # Everything the client calls lives under `/api`, and the prefix is written
-    # here once rather than on each of the six `include_router` calls.
-    #
-    # This exists to keep client routes and endpoints apart. The client uses
-    # real URLs, so reloading the page at `/shelves` asks *this server* for
-    # `/shelves` — which, before this prefix, was the endpoint returning the
-    # shelf list, and the reader got JSON instead of the app. `/books/5` was
-    # the same. Renaming the two colliding client routes would have worked
-    # today and left a rule to remember forever, while Phase 2 and Phase 3 are
-    # still to add endpoints of their own. A prefix ends the whole class.
     api = APIRouter(prefix="/api")
     api.include_router(auth.router)
     api.include_router(users.router)
@@ -129,9 +135,6 @@ def create_app() -> FastAPI:
     api.include_router(notes.router)
     app.include_router(api)
 
-    # Mounted last, and only last: Starlette matches routes in order, so the
-    # API keeps every path it declares and this catches what is left. Mounting
-    # it earlier would shadow the whole API with the single-page app.
     if settings.web_dir.is_dir():
         app.mount(
             "/",
@@ -140,8 +143,6 @@ def create_app() -> FastAPI:
         )
         log.info("Serving the client from %s", settings.web_dir)
     else:
-        # Not an error: the API is perfectly usable on its own, and this is the
-        # normal state of a checkout that has never run scripts/run.sh.
         log.info("No client build at %s; serving the API only", settings.web_dir)
 
     return app
