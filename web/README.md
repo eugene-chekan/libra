@@ -78,9 +78,10 @@ src/
 ├── api/        LibraApi — the typed client, its HTTP and fake implementations
 ├── session/    SessionProvider (session state) and RequireSession (route guard)
 ├── library/    the grid: BookCard/BookCover, SearchBar, filter state, query hooks
-├── book/       one book: cover and lightbox, rating, actions, edit form, notes
+├── book/       one book: cover and lightbox, rating, tags, actions, edit form, notes
 ├── shell/      AppShell, Sidebar, AccountRow, and its SHELVES/TAGS filter sections
-├── widgets/    Skeleton, ErrorBlock, EmptyState, Icon, KindleEmailModal
+├── widgets/    Skeleton, ErrorBlock, EmptyState, Modal, ConfirmDialog, Icon
+│            plus dropdownMenu.module.css — the one menu style, for every menu
 ├── screens/    the routed screens: LoginScreen, LibraryScreen, BookScreen
 ├── routes.ts   every route path, in one place
 └── App.tsx     providers and the route table
@@ -108,6 +109,17 @@ is built around that split — see `src/screens/BookScreen.tsx`.
 **`PUT /state` is a PUT.** A body that leaves `rating` or `progress` out does
 not keep the old value, it sets it to zero. `BookStateWrite` makes both
 required so no call site can do that by accident.
+
+**A tag goes onto a book from the book screen, not from the edit form.** The
+design drew it in the form; the form is admin-only, and personal tags are not.
+See gap 8 in client-design.md. `src/book/BookTags.tsx` is the only place in the
+app that writes `tag_ids`.
+
+**A tag write must name exactly what the caller may set, and no more.**
+`PUT /api/books/{id}/state` replaces what it is sent. A reader sends only their
+own personal tags, so the book's shared tags are left alone; an admin sends
+everything, because their write replaces shared tags too and anything left out
+comes off. Getting this wrong does not fail loudly — it quietly drops a tag.
 
 **Queries never retry.** `retry: false` in `src/queryClient.ts`, with the
 reasoning there. An automatic retry racing the visible "Try again" button
