@@ -38,13 +38,17 @@ def utcnow() -> datetime:
 
 
 class BookBase(SQLModel):
+    """What every view of a book has in common.
+
+    `year`, `blurb` and `pages` are properties of the edition rather than of a
+    reader, and all three are nullable and never invented: a book whose file
+    declares no year or page count shows blank until somebody corrects it.
+    """
+
     title: str
     author: str
     format: str
     file_path: str
-    # Shared catalog fields: properties of the edition, not of a reader. All
-    # three are nullable and never invented — a book whose file declares no
-    # year or page count shows blank until somebody corrects it.
     year: int | None = Field(default=None)
     blurb: str | None = Field(default=None)
     pages: int | None = Field(default=None)
@@ -52,10 +56,14 @@ class BookBase(SQLModel):
 
 
 class Book(BookBase, table=True):
+    """A book in the catalog.
+
+    `uploaded_by` is provenance, not ownership: it records who added the book
+    and grants no rights over it. Nullable, so removing a user does not force a
+    decision about the books they contributed to a shared library.
+    """
+
     id: int | None = Field(default=None, primary_key=True)
-    # Provenance, not ownership: it records who added the book and grants no
-    # rights over it. Nullable so that removing a user does not require
-    # deciding what happens to the books they contributed to a shared library.
     uploaded_by: int | None = Field(default=None, foreign_key="user.id")
 
 
@@ -75,16 +83,17 @@ class BookRead(BookBase):
     Built by `app.library`, never by letting `response_model` serialize a
     `Book`: these fields are not columns on `Book`, so that path silently
     drops them.
+
+    `has_cover` is here so a grid of covers does not fire one request per book
+    that 404s on first paint — the gradient fallback is drawn client-side and
+    needs no round trip to decide on. `tag_ids` carries the global tags plus
+    the caller's own, never another reader's.
     """
 
     id: int
     uploaded_by: int | None = None
-    # So a grid of covers does not fire one request per book that 404s on
-    # first paint. The design's gradient fallback is rendered client-side and
-    # needs no round trip to decide on.
     has_cover: bool = False
     shelf_id: int | None = None
-    # Global tags plus the caller's own. Never another reader's.
     tag_ids: list[int] = []
     rating: int = 0
     progress: float = 0.0
@@ -152,6 +161,10 @@ class User(SQLModel, table=True):
 class UserSession(SQLModel, table=True):
     """A logged-in session, keyed by the hash of its cookie token.
 
+    `kind` is "browser" today. "device" is reserved for the long-lived
+    per-device tokens Phase 5's native clients will need, so that arrives as a
+    row rather than a schema change.
+
     Named `UserSession` rather than `Session` because `sqlmodel.Session` is
     already all over this codebase and two things called Session in the same
     module is a bug waiting to happen.
@@ -165,9 +178,6 @@ class UserSession(SQLModel, table=True):
 
     token_hash: str = Field(primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
-    # "browser" today; "device" is reserved for the long-lived per-device
-    # tokens Phase 5's native clients will need, so that lands as a row
-    # rather than a schema change.
     kind: str = Field(default="browser")
     expires_at: datetime
     created_at: datetime = Field(default_factory=utcnow)
@@ -185,23 +195,25 @@ class Shelf(SQLModel, table=True):
     writable. Viewing one necessarily exposes the owner's progress on those
     books, since the design draws a progress bar under each cover; that is an
     intended consequence of publishing a shelf rather than a leak.
+
+    Names are unique per owner and case-insensitive, so one reader cannot hold
+    both "To Read" and "to read". That is `COLLATE NOCASE` on the column rather
+    than a normalised shadow column or an index over `lower(name)`: shelf names
+    are display text and must keep their casing, and an expression index
+    renders badly enough in autogenerate to leave `alembic check` permanently
+    red. SQLite's NOCASE folds ASCII only, so "Café" and "CAFÉ" would both be
+    accepted; a Postgres move would want citext.
+
+    `position` is contiguous from 0 within an owner. The Shelves page renders
+    blocks in that order and the manage dialog rewrites it.
     """
 
     __tablename__ = "shelf"
-    # Unique per owner and case-insensitive, so one reader cannot hold both
-    # "To Read" and "to read". Enforced by COLLATE NOCASE on the column rather
-    # than a normalised shadow column or an index over lower(name): shelf
-    # names are display text and must keep their casing, and an expression
-    # index renders badly enough in autogenerate to leave `alembic check`
-    # permanently red. Caveat: SQLite's NOCASE folds ASCII only, so "Café" and
-    # "CAFÉ" would both be accepted. A Postgres move would want citext.
     __table_args__ = (Index("ix_shelf_owner_name", "owner_id", "name", unique=True),)
 
     id: int | None = Field(default=None, primary_key=True)
     owner_id: int = Field(foreign_key="user.id", index=True)
     name: str = Field(sa_column=Column("name", String(collation="NOCASE"), nullable=False))
-    # Contiguous from 0 within an owner. The Shelves page renders blocks in
-    # this order and the manage dialog reorders them.
     position: int = Field(default=0)
     visibility: str = Field(default=SHELF_PRIVATE)
     created_at: datetime = Field(default_factory=utcnow)
@@ -222,20 +234,24 @@ class ShelfUpdate(SQLModel):
 
 
 class ShelfRead(SQLModel):
+    """A shelf as one caller sees it.
+
+    `owner_username` is only useful for somebody else's public shelf, which the
+    client labels "by {username}", and is only available here: listing users is
+    admin-only, and a reader still has to tell one shared shelf from another.
+    Publishing a shelf is a deliberate act that already discloses its owner.
+
+    `editable` is true when this caller may modify it, which saves every client
+    re-deriving the rule from `owner_id` and keeps the answer in one place.
+    """
+
     id: int
     owner_id: int
-    # Whose shelf this is, by name. Only useful for somebody else's public
-    # shelf, which the client labels "by {username}" — and only reachable
-    # here, since listing users is admin-only and a reader must still be able
-    # to tell one shared shelf from another. Publishing a shelf is a
-    # deliberate act that already discloses its owner to every reader.
     owner_username: str = ""
     name: str
     position: int
     visibility: str
     book_count: int = 0
-    # True when the caller may modify it. Saves the client re-deriving the
-    # rule from owner_id, and keeps the answer in one place.
     editable: bool = False
 
 
@@ -248,6 +264,17 @@ class ShelfOrder(SQLModel):
 class Tag(SQLModel, table=True):
     """A label on a book. Either curated for everyone, or private to a reader.
 
+    Two indexes, because they guard different things. Personal names are unique
+    per owner, case-insensitively, through NOCASE — the same reasoning as
+    shelves: tag names are display text and must keep their casing, so
+    lowercasing them the way usernames are lowercased is not an option, and the
+    folding is ASCII-only. Global names need an index of their own, because
+    NULL never equals NULL in SQLite and the composite index would otherwise
+    let any number of global "Sci-Fi" rows coexist — verified, not assumed. A
+    partial index over the globals closes that, and unlike the
+    `coalesce(owner_id, 0)` expression index the spec proposed, autogenerate
+    renders it cleanly and `alembic check` stays quiet.
+
     `owner_id IS NULL` means a **global** tag, maintained by an admin and
     visible to everyone. A non-null owner means a **personal** tag, visible
     only to them. The vocabulary a reader sees is global ∪ own.
@@ -259,14 +286,7 @@ class Tag(SQLModel, table=True):
 
     __tablename__ = "tag"
     __table_args__ = (
-        # Personal tags: unique per owner, case-insensitive via NOCASE.
         Index("ix_tag_owner_name", "owner_id", "name", unique=True),
-        # Global tags need their own index. NULL never equals NULL in SQLite,
-        # so the composite index above lets an unlimited number of global
-        # "Sci-Fi" rows coexist — verified, not assumed. A partial index over
-        # just the globals closes that, and unlike the `coalesce(owner_id, 0)`
-        # expression index the spec proposed, autogenerate renders it cleanly
-        # and `alembic check` stays quiet.
         Index(
             "ix_tag_global_name",
             "name",
@@ -277,9 +297,6 @@ class Tag(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     owner_id: int | None = Field(default=None, foreign_key="user.id", index=True)
-    # NOCASE for the same reason as shelves: tag names are display text and
-    # must keep their casing, so lowercasing them the way usernames are
-    # lowercased is not an option. ASCII-only folding.
     name: str = Field(sa_column=Column("name", String(collation="NOCASE"), nullable=False))
     created_at: datetime = Field(default_factory=utcnow)
 
@@ -308,11 +325,15 @@ class TagUpdate(SQLModel):
 
 
 class TagRead(SQLModel):
+    """A tag as one caller sees it.
+
+    `owner_id` is null for a global tag, and is published rather than a bare
+    `is_global` flag so a client can tell "mine" from "someone else's" — though
+    the latter never appears, since personal tags are only ever the caller's.
+    """
+
     id: int
     name: str
-    # Null for a global tag. Present rather than a bare `is_global` flag so a
-    # client can tell "mine" from "someone else's" — though the latter is
-    # never returned, since personal tags are only ever the caller's own.
     owner_id: int | None = None
     is_global: bool = False
     book_count: int = 0
@@ -337,26 +358,26 @@ class UserBookState(SQLModel, table=True):
     Note the bounds on rating and progress live on `UserBookStateWrite`, not
     here: SQLModel skips validation on `table=True` classes, so `ge`/`le`
     written here would be silently inert.
+
+    A null `shelf_id` means "on no shelf", which is the default and a perfectly
+    valid state; the composite key is what makes "at most one shelf per user
+    per book" structural rather than a rule to enforce. No foreign key
+    expresses the rule that matters — that the shelf belongs to `user_id` — so
+    `library.set_reading_state` checks it, and it needs its own test.
+
+    `last_sent_at` was reserved here rather than in #6: kindle-delivery.md asks
+    for it, and it is why reading state was sequenced ahead of Kindle delivery.
     """
 
     __tablename__ = "user_book_state"
 
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     book_id: int = Field(foreign_key="book.id", primary_key=True)
-    # Null means "on no shelf", which is the default and a perfectly valid
-    # state. The composite key above is what makes "at most one shelf per
-    # user per book" structural rather than a constraint to enforce.
-    #
-    # No foreign key expresses the rule that actually matters — that the shelf
-    # belongs to `user_id` — so it is checked in `library.set_reading_state`,
-    # and therefore needs its own test.
     shelf_id: int | None = Field(default=None, foreign_key="shelf.id")
     rating: int = Field(default=0)  # 0 = unrated
     progress: float = Field(default=0.0)
     started_at: datetime | None = Field(default=None)
     finished_at: datetime | None = Field(default=None)
-    # Reserved here rather than in #6 on purpose: kindle-delivery.md asks for
-    # it, and it is why reading state was sequenced ahead of Kindle delivery.
     last_sent_at: datetime | None = Field(default=None)
     updated_at: datetime = Field(default_factory=utcnow)
 
@@ -367,18 +388,19 @@ class UserBookStateWrite(SQLModel):
     Separate from the table model because SQLModel does not validate
     `table=True` classes — `UserBookState(rating=99)` is accepted in silence.
     The bounds only bite here, which makes this the model the endpoint takes.
+
+    An omitted `shelf_id` leaves the placement alone and an explicit null takes
+    the book off its shelf; `exclude_unset` in the router tells them apart.
+
+    An omitted `tag_ids` leaves tags alone. Supplied, it replaces the tags this
+    caller may set, wholesale: for a reader their own personal ones, with the
+    book's global tags untouched; for an admin the global ones too, since what
+    a write may add it may also take away.
     """
 
     rating: int = Field(default=0, ge=0, le=5)
     progress: float = Field(default=0.0, ge=0, le=1)
-    # Omitted leaves the current placement alone; explicit null takes the book
-    # off its shelf. `exclude_unset` in the router is what tells them apart.
     shelf_id: int | None = None
-    # Omitted leaves tags alone; supplied replaces the tags this caller may
-    # set on this book, wholesale. For a reader that is their own personal
-    # tags, and the book's global ones are untouched. An admin may set global
-    # tags here too, and theirs are replaced as well — what a write may add,
-    # it may also take away.
     tag_ids: list[int] | None = None
 
 
