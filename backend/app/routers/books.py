@@ -324,7 +324,7 @@ def set_reading_state(
         raise HTTPException(status_code=404, detail="Tag not found") from exc
     except library.TagNotEditableError as exc:
         raise HTTPException(
-            status_code=403, detail="Global tags are managed by an admin, not per book"
+            status_code=403, detail="Only an admin can put a global tag on a book"
         ) from exc
 
 

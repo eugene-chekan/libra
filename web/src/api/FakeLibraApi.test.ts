@@ -546,6 +546,41 @@ describe('FakeLibraApi tag writes', () => {
     expect(created.owner_id).toBe(1)
   })
 
+  it('403s a reader asking for a global tag, before it looks at the name', async () => {
+    // The order matters: whether this caller may mint shared vocabulary does
+    // not depend on what they wanted to call it.
+    const { api } = signedIn()
+
+    await expect(api.createTag({ name: 'lent out' }, true)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('lets an admin create a global tag, owned by nobody', async () => {
+    const { api } = signedIn([], [], true)
+
+    const created = await api.createTag({ name: 'sci-fi' }, true)
+
+    expect(created).toMatchObject({ name: 'sci-fi', is_global: true, editable: true })
+    expect(created.owner_id).toBeNull()
+  })
+
+  it('refuses a global name another global already holds', async () => {
+    const { api } = signedIn([fakeTag({ id: 1, name: 'Sci-Fi' })], [], true)
+
+    await expect(api.createTag({ name: 'sci-fi' }, true)).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('lets a global tag take a name a reader holds privately', async () => {
+    // No clash to report: the personal one is that reader's own, and the
+    // uniqueness rules are per owner. The server allows it, so the fake must.
+    const { api } = signedIn(
+      [fakeTag({ id: 1, owner_id: 1, is_global: false, name: 'beach' })],
+      [],
+      true
+    )
+
+    await expect(api.createTag({ name: 'beach' }, true)).resolves.toMatchObject({ is_global: true })
+  })
+
   it('refuses a name with a space, because the search box splits on whitespace', async () => {
     const { api } = signedIn()
 
@@ -601,6 +636,82 @@ describe('FakeLibraApi tag writes', () => {
 
     await expect(api.updateTag(1, { name: 'Mine' })).rejects.toMatchObject({ status: 404 })
     await expect(api.deleteTag(1)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it('lets an admin put a global tag on a book, and a reader not', async () => {
+    // Curating a shared vocabulary means being able to use it. The server
+    // refused everybody until this, so the fake refused everybody too.
+    const { api: adminApi } = signedIn(
+      [fakeTag({ id: 1, name: 'sci-fi' })],
+      [fakeBook({ id: 5, tag_ids: [] })],
+      true
+    )
+    await expect(
+      adminApi.setBookState(5, { rating: 0, progress: 0, tag_ids: [1] })
+    ).resolves.toBeDefined()
+
+    const { api: readerApi } = signedIn(
+      [fakeTag({ id: 1, name: 'sci-fi' })],
+      [fakeBook({ id: 5, tag_ids: [] })]
+    )
+    await expect(
+      readerApi.setBookState(5, { rating: 0, progress: 0, tag_ids: [1] })
+    ).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('lets an admin take a global tag off a book again', async () => {
+    // The guard and the replacement have to agree. The fake used to let an
+    // admin add a global tag while only clearing their personal links, so a
+    // global tag went onto a book and could never come off — a client written
+    // against that fake would have looked correct and been wrong.
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const shared = fakeTag({ id: 10, name: 'sci-fi', owner_id: null, is_global: true })
+    const book = fakeBook({ id: 1, tag_ids: [10] })
+    const api = new FakeLibraApi({
+      users: [admin],
+      signedInAs: admin,
+      tags: [shared],
+      books: [book],
+    })
+
+    await api.setBookState(1, { rating: 0, progress: 0, tag_ids: [] })
+
+    expect(book.tag_ids).toEqual([])
+  })
+
+  it('keeps a global tag on the book when an ordinary reader writes their own', async () => {
+    // The other half of the same rule: a reader may not remove what they may
+    // not add, so the shared vocabulary survives their write untouched.
+    const reader = fakeUser({ id: 1, is_admin: false })
+    const shared = fakeTag({ id: 10, name: 'sci-fi', owner_id: null, is_global: true })
+    const mine = fakeTag({ id: 11, name: 'lent-out', owner_id: 1, is_global: false })
+    const book = fakeBook({ id: 1, tag_ids: [10] })
+    const api = new FakeLibraApi({
+      users: [reader],
+      signedInAs: reader,
+      tags: [shared, mine],
+      books: [book],
+    })
+
+    await api.setBookState(1, { rating: 0, progress: 0, tag_ids: [11] })
+
+    expect(book.tag_ids).toEqual([10, 11])
+  })
+
+  it('counts an id listed twice as one tag, the way the server does', async () => {
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const shared = fakeTag({ id: 10, name: 'sci-fi', owner_id: null, is_global: true })
+    const book = fakeBook({ id: 1, tag_ids: [10] })
+    const api = new FakeLibraApi({
+      users: [admin],
+      signedInAs: admin,
+      tags: [shared],
+      books: [book],
+    })
+
+    await api.setBookState(1, { rating: 0, progress: 0, tag_ids: [10, 10] })
+
+    expect(book.tag_ids).toEqual([10])
   })
 
   it('takes a deleted tag off every book it was on', async () => {
