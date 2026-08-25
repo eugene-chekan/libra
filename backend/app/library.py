@@ -379,7 +379,14 @@ def set_reading_state(
     session.add(state)
     session.commit()
     session.refresh(state)
-    return _merge(book, state)
+    # With the tag ids, not without them. `_merge` defaults them to empty, so
+    # leaving the argument out made every response to this endpoint report a
+    # book with no tags — including the request that had just set some. The
+    # same omission was fixed in `PATCH /books/{id}` in #65; this is its
+    # sibling, and it matters more here because `tag_ids` is written *through*
+    # this endpoint. Nothing caught it because the client re-reads the book
+    # after a write, so the untrue response was never the one on screen.
+    return _merge(book, state, book_tag_ids(session, book.id, user))
 
 
 # --- shelves --------------------------------------------------------------

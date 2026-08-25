@@ -364,3 +364,23 @@ def test_deleting_a_tag_removes_it_from_every_book(client: TestClient, session: 
 
     assert session.exec(select(BookTag)).all() == []
     assert client.get("/tags").json() == []
+
+
+def test_state_response_carries_the_tags_it_just_set(admin_client: TestClient) -> None:
+    """The response to a tag write has to show the tags.
+
+    `_merge` defaults `tag_ids` to empty, so leaving the argument out made
+    every `PUT /books/{id}/state` answer with a book that had no tags — the
+    request that had just set some included. Nothing noticed because the
+    client re-reads the book afterwards, so the untrue response never reached
+    a screen. The same omission was fixed in `PATCH /books/{id}` in #65.
+    """
+    book = admin_client.post("/books", json=BOOK_PAYLOAD).json()
+    tag = admin_client.post("/tags", json={"name": "sci-fi"}).json()
+
+    body = admin_client.put(
+        f"/books/{book['id']}/state", json={"rating": 0, "progress": 0, "tag_ids": [tag["id"]]}
+    ).json()
+
+    assert body["tag_ids"] == [tag["id"]]
+    assert admin_client.get(f"/books/{book['id']}").json()["tag_ids"] == [tag["id"]]
