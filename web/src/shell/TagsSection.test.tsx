@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 import { ApiProvider } from '../api/ApiProvider'
 import { fakeTag, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
 import { createQueryClient } from '../queryClient'
+import { SessionProvider } from '../session/SessionProvider'
 import { TagsSection } from './TagsSection'
 
 function renderAt(path: string, api: FakeLibraApi) {
@@ -14,9 +15,13 @@ function renderAt(path: string, api: FakeLibraApi) {
     <ApiProvider api={api}>
       <QueryClientProvider client={createQueryClient()}>
         <MemoryRouter initialEntries={[path]}>
-          <Routes>
-            <Route path="*" element={<TagsSection />} />
-          </Routes>
+          {/* The manager this section opens asks the session whether the
+              reader is an admin, so the real provider has to be here. */}
+          <SessionProvider>
+            <Routes>
+              <Route path="*" element={<TagsSection />} />
+            </Routes>
+          </SessionProvider>
         </MemoryRouter>
       </QueryClientProvider>
     </ApiProvider>

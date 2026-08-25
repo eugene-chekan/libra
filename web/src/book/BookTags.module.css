@@ -1,0 +1,59 @@
+.tags {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.pills {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  list-style: none;
+}
+
+.pill {
+  display: inline-block;
+  padding: 5px 12px;
+  border-radius: var(--libra-radius-pill);
+  background: var(--libra-accent-light);
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--libra-accent);
+  text-decoration: none;
+  transition: background var(--libra-t-interactive);
+}
+
+.pill:hover {
+  background: var(--libra-accent-lighter);
+}
+
+/* Dashed, like the sidebar's Add Book button: the same idiom for "this one is
+   not a thing yet, it is the way to add one". */
+.add {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 12px;
+  border: 1.5px dashed var(--libra-border);
+  border-radius: var(--libra-radius-pill);
+  background: none;
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--libra-text-light);
+  cursor: pointer;
+  transition:
+    border-color var(--libra-t-interactive),
+    color var(--libra-t-interactive);
+}
+
+.add:hover:not(:disabled) {
+  border-color: var(--libra-accent);
+  color: var(--libra-accent);
+}
+
+.add:disabled {
+  cursor: default;
+}

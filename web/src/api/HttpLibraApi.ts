@@ -73,8 +73,10 @@ export class HttpLibraApi implements LibraApi {
     return this.send<Tag[]>('GET', '/tags')
   }
 
-  async createTag(tag: TagCreate): Promise<Tag> {
-    return this.send<Tag>('POST', '/tags', tag)
+  async createTag(tag: TagCreate, makeGlobal = false): Promise<Tag> {
+    // Off the URL entirely when false, rather than `?make_global=false`: the
+    // endpoint's default is what an ordinary create means.
+    return this.send<Tag>('POST', makeGlobal ? '/tags?make_global=true' : '/tags', tag)
   }
 
   async updateTag(id: number, patch: TagPatch): Promise<Tag> {

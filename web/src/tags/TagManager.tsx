@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom'
 import { messageFor } from '../api/errors'
 import type { Tag } from '../api/types'
 import { useTags } from '../library/useTags'
+import { useSession } from '../session/SessionProvider'
 import { ConfirmDialog } from '../widgets/ConfirmDialog'
 import { ErrorBlock } from '../widgets/ErrorBlock'
 import { Modal, ModalFooter } from '../widgets/Modal'
@@ -39,7 +40,14 @@ export function TagManager({ onClose }: { onClose: () => void }) {
   const remove = useDeleteTag()
 
   const [newName, setNewName] = useState('')
+  const [newIsShared, setNewIsShared] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Tag | null>(null)
+
+  // Only an admin may create shared vocabulary, so only an admin is offered
+  // it: the server answers anybody else with a 403, and a control that exists
+  // only to be refused is worse than no control.
+  const session = useSession()
+  const isAdmin = session.status.status === 'signed-in' && session.status.user.is_admin
 
   const all = tags.data ?? []
   const shared = all.filter((tag) => tag.is_global)
@@ -56,7 +64,15 @@ export function TagManager({ onClose }: { onClose: () => void }) {
     if (name === '' || busy) return
     // Cleared only once the server has it, so a refused name is still in the
     // box to be corrected rather than gone.
-    create.mutate({ name }, { onSuccess: () => setNewName('') })
+    create.mutate(
+      { tag: { name }, makeGlobal: newIsShared },
+      {
+        onSuccess: () => {
+          setNewName('')
+          setNewIsShared(false)
+        },
+      }
+    )
   }
 
   function deleteTag(tag: Tag) {
@@ -141,6 +157,29 @@ export function TagManager({ onClose }: { onClose: () => void }) {
           <p className={styles.hint} id="new-tag-hint">
             One word, with no spaces. Use a hyphen: lent-out.
           </p>
+
+          {isAdmin && (
+            <>
+              <div className={styles.checkboxRow}>
+                <input
+                  id="new-tag-shared"
+                  type="checkbox"
+                  checked={newIsShared}
+                  onChange={(event) => setNewIsShared(event.target.checked)}
+                />
+                <label htmlFor="new-tag-shared">Shared with everyone</label>
+              </div>
+              {/* Said only when it is about to happen, the way publishing a
+                  shelf is. A shared tag is the one kind that stops being the
+                  maker's own the moment it exists. */}
+              {newIsShared && (
+                <p className={styles.explanation}>
+                  Everyone on this instance sees this tag. Only an admin can rename it, delete it,
+                  or put it on a book.
+                </p>
+              )}
+            </>
+          )}
         </form>
 
         {error && <ErrorBlock message={messageFor(error)} />}

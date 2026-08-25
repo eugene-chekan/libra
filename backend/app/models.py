@@ -374,9 +374,11 @@ class UserBookStateWrite(SQLModel):
     # Omitted leaves the current placement alone; explicit null takes the book
     # off its shelf. `exclude_unset` in the router is what tells them apart.
     shelf_id: int | None = None
-    # Omitted leaves tags alone; supplied replaces the caller's *personal*
-    # tags on this book wholesale. Global tags are unaffected — they are
-    # curated through the tag endpoints, not per book by whoever is reading.
+    # Omitted leaves tags alone; supplied replaces the tags this caller may
+    # set on this book, wholesale. For a reader that is their own personal
+    # tags, and the book's global ones are untouched. An admin may set global
+    # tags here too, and theirs are replaced as well — what a write may add,
+    # it may also take away.
     tag_ids: list[int] | None = None
 
 

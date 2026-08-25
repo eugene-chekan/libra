@@ -540,6 +540,38 @@ is the question a reader actually has.
 
 ---
 
+## Gap 8 — Where a tag goes onto a book
+
+Found late, by using the app: the prototype draws a row of tag pills inside
+the **edit form**, and clicking one puts it on the book. That cannot work here,
+for a reason the prototype had no way to know — it has no permissions.
+
+`PATCH /books/{id}` writes the shared catalog and is **admin-only**, so the
+edit form is only ever shown to an admin. A personal tag is the opposite: it
+belongs to whoever is reading and is invisible to everyone else. Putting the
+tag control inside that form would mean an ordinary reader could never tag a
+book at all.
+
+**Tags therefore sit in view mode, beside the pills**, with the rating and Move
+to Shelf — the reader's own state, which this screen already writes the moment
+it changes. The control is a dashed **+ Add Tag** pill at the end of the row,
+matching the sidebar's dashed Add Book. It opens the same dropdown treatment
+the account menu and Move to Shelf use, listing the tags this caller may set,
+with a check against the ones already on the book. Picking one writes
+`PUT /books/{id}/state` at once; picking it again takes it off.
+
+**Who sees which tags follows the server exactly.** A reader is offered their
+own personal tags only, because a global tag on a book is refused for them
+(`403`) and a row that exists to be refused is worse than no row. An admin is
+offered both, since curating a shared vocabulary means being able to use it.
+
+**The menu closes on each pick**, though tagging a book is often tagging it
+twice. Adding a pill widens the row and pushes the trigger to the right, so a
+menu that stayed open would slide out from under the pointer. That was tried
+first, in a running build, and it is why it is not what shipped.
+
+---
+
 ## Gap 7 — The reader
 
 Nothing drew this screen because nothing planned a reader. It is specified

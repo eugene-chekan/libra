@@ -8,6 +8,7 @@ import { ApiProvider } from '../api/ApiProvider'
 import { fakeBook, fakeTag, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
 import type { Tag } from '../api/types'
 import { createQueryClient } from '../queryClient'
+import { SessionProvider } from '../session/SessionProvider'
 import { TagManager } from './TagManager'
 
 /**
@@ -23,8 +24,13 @@ function renderManager(tags: Tag[], { admin = false, url = '/library' } = {}) {
     <MemoryRouter initialEntries={[url]}>
       <ApiProvider api={api}>
         <QueryClientProvider client={createQueryClient()}>
-          <TagManager onClose={vi.fn()} />
-          <CurrentQuery />
+          {/* The real providers, in the real order: the dialog asks the
+              session whether this reader is an admin, which decides whether
+              the shared-tag checkbox is there at all. */}
+          <SessionProvider>
+            <TagManager onClose={vi.fn()} />
+            <CurrentQuery />
+          </SessionProvider>
         </QueryClientProvider>
       </ApiProvider>
     </MemoryRouter>
@@ -81,6 +87,59 @@ describe('TagManager', () => {
     expect(await screen.findByText('favourites')).toBeInTheDocument()
     expect(screen.getByLabelText('New tag')).toHaveValue('')
     expect(api.tags.map((tag) => tag.name)).toEqual(['favourites'])
+  })
+
+  it('offers no shared-tag checkbox to an ordinary reader', async () => {
+    // The server answers a reader asking for a global tag with a 403, so the
+    // box is not there to tick rather than there and refused.
+    renderManager([])
+    await screen.findByText('Mine')
+
+    expect(screen.queryByLabelText('Shared with everyone')).not.toBeInTheDocument()
+  })
+
+  it('creates a shared tag when an admin ticks the box', async () => {
+    const user = userEvent.setup()
+    const api = renderManager([], { admin: true })
+    await screen.findByText('Mine')
+
+    await user.type(screen.getByLabelText('New tag'), 'sci-fi')
+    await user.click(screen.getByLabelText('Shared with everyone'))
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByText('Shared')).toBeInTheDocument()
+    expect(api.tags[0]).toMatchObject({ name: 'sci-fi', is_global: true, owner_id: null })
+  })
+
+  it('says what sharing does, and only when it is about to happen', async () => {
+    const user = userEvent.setup()
+    renderManager([], { admin: true })
+    await screen.findByText('Mine')
+
+    expect(screen.queryByText(/Everyone on this instance sees/)).not.toBeInTheDocument()
+
+    await user.click(screen.getByLabelText('Shared with everyone'))
+
+    expect(screen.getByText(/Everyone on this instance sees this tag/)).toBeInTheDocument()
+  })
+
+  it('unticks the box after a shared tag is made, so the next one is not shared by accident', async () => {
+    const user = userEvent.setup()
+    const api = renderManager([], { admin: true })
+    await screen.findByText('Mine')
+
+    await user.type(screen.getByLabelText('New tag'), 'sci-fi')
+    await user.click(screen.getByLabelText('Shared with everyone'))
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    await screen.findByText('Shared')
+
+    expect(screen.getByLabelText('Shared with everyone')).not.toBeChecked()
+
+    await user.type(screen.getByLabelText('New tag'), 'mine-only')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    await waitFor(() => expect(api.tags).toHaveLength(2))
+    expect(api.tags[1]).toMatchObject({ name: 'mine-only', is_global: false })
   })
 
   it('says the no-spaces rule before the server has to refuse it', async () => {

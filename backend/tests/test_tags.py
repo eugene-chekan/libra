@@ -254,6 +254,68 @@ def test_a_reader_cannot_apply_a_global_tag(admin_client: TestClient, client: Te
     assert _set_tags(client, book_id, [tag["id"]]).status_code == 403
 
 
+def test_an_admin_can_apply_a_global_tag(admin_client: TestClient) -> None:
+    """Curating a shared vocabulary means being able to put it on a book.
+
+    Nobody could, before: the refusal named an admin as the person who does
+    this while refusing admins too, and no other endpoint assigns tags. A
+    global tag could be created and then never used for anything.
+    """
+    tag = _tag(admin_client, "Sci-Fi", make_global=True).json()
+    book_id = _book(admin_client)
+
+    assert _set_tags(admin_client, book_id, [tag["id"]]).status_code == 200
+    assert admin_client.get(f"/books/{book_id}").json()["tag_ids"] == [tag["id"]]
+    listed = next(t for t in admin_client.get("/tags").json() if t["id"] == tag["id"])
+    assert listed["book_count"] == 1
+
+
+def test_an_admin_can_take_a_global_tag_off_again(admin_client: TestClient) -> None:
+    """The half that makes the other half safe. This is a PUT: a tag left out
+    of the list comes off. If the write could add a global tag while clearing
+    only personal links, it would go on and never come off."""
+    tag = _tag(admin_client, "Sci-Fi", make_global=True).json()
+    book_id = _book(admin_client)
+    _set_tags(admin_client, book_id, [tag["id"]])
+
+    assert _set_tags(admin_client, book_id, []).status_code == 200
+    assert admin_client.get(f"/books/{book_id}").json()["tag_ids"] == []
+
+
+def test_a_global_tag_survives_a_readers_own_write(
+    admin_client: TestClient, client: TestClient
+) -> None:
+    """A reader replaces their own tags and nothing else. The global tag on
+    the book is not theirs to remove, and a PUT that omits it must leave it."""
+    globaltag = _tag(admin_client, "Sci-Fi", make_global=True).json()
+    book_id = _book(admin_client)
+    _set_tags(admin_client, book_id, [globaltag["id"]])
+    mine = _tag(client, "Mine").json()
+
+    assert _set_tags(client, book_id, [mine["id"]]).status_code == 200
+
+    assert client.get(f"/books/{book_id}").json()["tag_ids"] == sorted(
+        [globaltag["id"], mine["id"]]
+    )
+
+
+def test_an_admins_write_leaves_another_readers_tags_alone(
+    admin_client: TestClient, client: TestClient
+) -> None:
+    """The wider scope is global tags, not everybody's. An admin curating the
+    shared vocabulary must not quietly strip a reader's private labels."""
+    globaltag = _tag(admin_client, "Sci-Fi", make_global=True).json()
+    book_id = _book(admin_client)
+    theirs = _tag(client, "Beach").json()
+    _set_tags(client, book_id, [theirs["id"]])
+
+    _set_tags(admin_client, book_id, [globaltag["id"]])
+
+    assert client.get(f"/books/{book_id}").json()["tag_ids"] == sorted(
+        [globaltag["id"], theirs["id"]]
+    )
+
+
 def test_a_reader_cannot_apply_someone_elses_tag(
     client: TestClient, other_client: TestClient
 ) -> None:
@@ -302,3 +364,23 @@ def test_deleting_a_tag_removes_it_from_every_book(client: TestClient, session: 
 
     assert session.exec(select(BookTag)).all() == []
     assert client.get("/tags").json() == []
+
+
+def test_state_response_carries_the_tags_it_just_set(admin_client: TestClient) -> None:
+    """The response to a tag write has to show the tags.
+
+    `_merge` defaults `tag_ids` to empty, so leaving the argument out made
+    every `PUT /books/{id}/state` answer with a book that had no tags — the
+    request that had just set some included. Nothing noticed because the
+    client re-reads the book afterwards, so the untrue response never reached
+    a screen. The same omission was fixed in `PATCH /books/{id}` in #65.
+    """
+    book = admin_client.post("/books", json=BOOK_PAYLOAD).json()
+    tag = admin_client.post("/tags", json={"name": "sci-fi"}).json()
+
+    body = admin_client.put(
+        f"/books/{book['id']}/state", json={"rating": 0, "progress": 0, "tag_ids": [tag["id"]]}
+    ).json()
+
+    assert body["tag_ids"] == [tag["id"]]
+    assert admin_client.get(f"/books/{book['id']}").json()["tag_ids"] == [tag["id"]]

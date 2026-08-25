@@ -308,23 +308,30 @@ export class FakeLibraApi implements LibraApi {
     ].map((tag) => this.tagFor(tag, caller))
   }
 
-  async createTag(tag: TagCreate): Promise<Tag> {
-    this.calls.push('createTag')
+  async createTag(tag: TagCreate, makeGlobal = false): Promise<Tag> {
+    this.calls.push(makeGlobal ? 'createTag:global' : 'createTag')
     const caller = this.requireSession()
 
+    // Checked before the name is looked at, exactly as `create_tag` does:
+    // whether this caller may mint shared vocabulary at all does not depend
+    // on what they wanted to call it.
+    if (makeGlobal && !caller.is_admin) {
+      throw new ApiError(403, 'Only an admin can manage global tags')
+    }
+
     const name = this.cleanTagName(tag.name)
-    this.requireTagNameFree(name, caller)
+    this.requireTagNameFree(name, caller, undefined, makeGlobal)
 
     const created: Tag = {
       id: nextTagId++,
       name,
-      owner_id: caller.id,
-      is_global: false,
+      owner_id: makeGlobal ? null : caller.id,
+      is_global: makeGlobal,
       book_count: 0,
       editable: true,
     }
     this.tags.push(created)
-    return created
+    return this.tagFor(created, caller)
   }
 
   async updateTag(id: number, patch: TagPatch): Promise<Tag> {
@@ -486,15 +493,23 @@ export class FakeLibraApi implements LibraApi {
     if (state.tag_ids !== undefined) {
       for (const tagId of state.tag_ids) {
         const tag = this.requireVisibleTag(tagId, caller)
-        if (tag.is_global) {
-          throw new ApiError(403, 'Global tags are managed by an admin, not per book')
+        // An admin may, because curating a shared vocabulary means being able
+        // to put it on a book. Anyone else is refused: a global tag describes
+        // the book for the whole household.
+        if (tag.is_global && !caller.is_admin) {
+          throw new ApiError(403, 'Only an admin can put a global tag on a book')
         }
       }
-      // Personal tags are replaced wholesale; the book's global tags stay.
-      const globals = book.tag_ids.filter(
-        (tagId) => this.tags.find((tag) => tag.id === tagId)?.is_global
-      )
-      book.tag_ids = [...globals, ...state.tag_ids]
+      // What a write replaces has to match what it may add, which is the
+      // server's own rule. A reader replaces their personal tags and the
+      // book's global ones stay; an admin, who may add a global tag, replaces
+      // those too — otherwise a global tag could go onto a book and never come
+      // off it again. The `Set` is the server's `dict.fromkeys`: an id listed
+      // twice is still one tag.
+      const kept = caller.is_admin
+        ? []
+        : book.tag_ids.filter((tagId) => this.tags.find((tag) => tag.id === tagId)?.is_global)
+      book.tag_ids = [...new Set([...kept, ...state.tag_ids])]
     }
 
     if ('shelf_id' in state) {
@@ -643,14 +658,22 @@ export class FakeLibraApi implements LibraApi {
    * not give: a personal tag may not shadow a global one, because two rows
    * reading the same in one sidebar is a bug from the reader's side.
    */
-  private requireTagNameFree(name: string, caller: FakeUser, exceptId?: number): void {
-    const shadowsGlobal = this.tags.some(
+  private requireTagNameFree(
+    name: string,
+    caller: FakeUser,
+    exceptId?: number,
+    isGlobal = false
+  ): void {
+    const clashesWithGlobal = this.tags.some(
       (tag) =>
         tag.owner_id === null &&
         tag.id !== exceptId &&
         tag.name.toLowerCase() === name.toLowerCase()
     )
-    if (shadowsGlobal) throw new ApiError(409, 'A global tag already uses that name')
+    if (clashesWithGlobal) throw new ApiError(409, 'A global tag already uses that name')
+    // A global tag has no owner, so there is no second, per-reader clash to
+    // check — and a name another reader holds privately does not block it.
+    if (isGlobal) return
 
     const taken = this.tags.some(
       (tag) =>

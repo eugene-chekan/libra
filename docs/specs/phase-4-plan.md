@@ -612,6 +612,29 @@ guaranteed to 403, so it is hidden instead. The form still handles a 403 for
 the case of an admin demoted while it is open — the hidden button is a
 courtesy, the endpoint is the guard.
 
+**Milestones 5 and 7 together left a hole that only using the app found.** The
+tag manager curates the vocabulary — create, rename, delete — and milestone 5
+had drawn a book's tags as pills that filter the library. Neither built the
+control that puts a tag *on* a book: #65's issue said tag editing belonged to
+the tag manager, and #29's scope was the vocabulary. So the app could make a
+tag and show a tag and never attach one, and the only way to do it was to call
+the API by hand.
+
+The fix is [gap 8](client-design.md) — a **+ Add Tag** pill beside the others,
+writing `PUT /books/{id}/state` at once, in view mode rather than the
+admin-only edit form the prototype drew it in. It is worth naming the shape of
+the mistake: both milestones pointed at each other, and neither issue's
+checklist had a line that would have failed. A scope written as "what this
+screen shows" cannot catch a verb nobody owns.
+
+Two defects came out of the same work, both invisible until something read a
+response. `PUT /books/{id}/state` built its answer without the tag ids, so
+every write reported a book with no tags — the same omission fixed in
+`PATCH /books/{id}` during milestone 5, in the sibling endpoint. And
+`FakeLibraApi` let an admin add a global tag while never letting one be
+removed, so it disagreed with the server it exists to imitate, which is the
+one thing a fake must never do.
+
 ## Open questions
 
 None blocking. Milestone 0 settled the outstanding design questions; what

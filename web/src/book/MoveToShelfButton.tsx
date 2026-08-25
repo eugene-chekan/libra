@@ -2,8 +2,8 @@ import * as DropdownMenu from '@radix-ui/react-dropdown-menu'
 
 import type { Shelf } from '../api/types'
 import { Icon } from '../widgets/Icon'
+import menu from '../widgets/dropdownMenu.module.css'
 import buttons from './actionButtons.module.css'
-import styles from './MoveToShelfButton.module.css'
 
 interface MoveToShelfButtonProps {
   /** Every shelf the reader can see. Only their own are offered — see below. */
@@ -39,14 +39,14 @@ export function MoveToShelfButton({ shelves, currentShelfId, onSelect }: MoveToS
 
       <DropdownMenu.Portal>
         <DropdownMenu.Content
-          className={styles.menu}
+          className={menu.menu}
           side="top"
           align="start"
           sideOffset={6}
           collisionPadding={8}
         >
           {mine.length === 0 && (
-            <DropdownMenu.Item className={styles.empty} disabled>
+            <DropdownMenu.Item className={menu.empty} disabled>
               No shelves yet
             </DropdownMenu.Item>
           )}
@@ -54,7 +54,7 @@ export function MoveToShelfButton({ shelves, currentShelfId, onSelect }: MoveToS
           {mine.map((shelf) => (
             <DropdownMenu.Item
               key={shelf.id}
-              className={styles.item}
+              className={`${menu.item} ${menu.spread}`}
               onSelect={() => onSelect(shelf.id)}
             >
               {shelf.name}
@@ -66,9 +66,9 @@ export function MoveToShelfButton({ shelves, currentShelfId, onSelect }: MoveToS
               row that cannot do anything. */}
           {currentShelfId !== null && (
             <>
-              <DropdownMenu.Separator className={styles.separator} />
+              <DropdownMenu.Separator className={menu.separator} />
               <DropdownMenu.Item
-                className={`${styles.item} ${styles.muted}`}
+                className={`${menu.item} ${menu.muted}`}
                 onSelect={() => onSelect(null)}
               >
                 <Icon name="x" size={12} />

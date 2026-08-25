@@ -286,6 +286,12 @@ describe('HttpLibraApi', () => {
     // for one, so the query string stays off the URL entirely.
     expect(JSON.parse(init.body as string)).toEqual({ name: 'favourites' })
 
+    await api.createTag({ name: 'sci-fi' }, true)
+    ;[url, init] = lastFetchCall()
+    // The flag is a query parameter, not part of the body.
+    expect(url).toBe('/api/tags?make_global=true')
+    expect(JSON.parse(init.body as string)).toEqual({ name: 'sci-fi' })
+
     await api.updateTag(4, { name: 'lent-out' })
     ;[url, init] = lastFetchCall()
     expect(url).toBe('/api/tags/4')

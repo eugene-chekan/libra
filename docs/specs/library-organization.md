@@ -482,10 +482,16 @@ different owners and different permissions, so they need different endpoints:
 
 `PUT` rather than `PATCH` on state because the design's edit form commits
 every field at once on Save, and the row is small enough that a full
-representation is honest. `tag_ids` supplied means **replace the caller's
-personal tag set wholesale**, consistent with how `book_metadata` already
-behaves; global tags are unaffected by it and are managed through the tag
-endpoints.
+representation is honest. `tag_ids` supplied means **replace the tags this
+caller may set, wholesale**, consistent with how `book_metadata` already
+behaves.
+
+Which tags those are depends on who is asking. A reader replaces their own
+personal tags and leaves the book's global ones alone. An admin may put a
+global tag on a book — curating a shared vocabulary means being able to use it
+— and their write replaces global tags as well. The two halves have to match:
+if an admin could add a global tag while only personal links were cleared, a
+global tag could go onto a book and never come off it again.
 
 *Alternative considered:* keeping one `PATCH` and routing fields by
 permission internally. Rejected — an endpoint whose authorization depends on

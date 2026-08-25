@@ -5,6 +5,7 @@ import { useSession } from '../session/SessionProvider'
 import { useSaveKindleEmail } from '../session/useSaveKindleEmail'
 import { Icon } from '../widgets/Icon'
 import { KindleEmailModal } from '../widgets/KindleEmailModal'
+import menu from '../widgets/dropdownMenu.module.css'
 import styles from './AccountRow.module.css'
 
 /**
@@ -47,18 +48,18 @@ export function AccountRow() {
 
         <DropdownMenu.Portal>
           <DropdownMenu.Content
-            className={styles.menu}
+            className={menu.menu}
             side="top"
             align="start"
             sideOffset={6}
             collisionPadding={8}
           >
-            <DropdownMenu.Item className={styles.item} onSelect={() => setKindleModalOpen(true)}>
+            <DropdownMenu.Item className={menu.item} onSelect={() => setKindleModalOpen(true)}>
               Kindle Email…
             </DropdownMenu.Item>
-            <DropdownMenu.Separator className={styles.separator} />
+            <DropdownMenu.Separator className={menu.separator} />
             <DropdownMenu.Item
-              className={styles.item}
+              className={`${menu.item} ${menu.muted}`}
               onSelect={() => {
                 void signOut()
               }}

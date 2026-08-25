@@ -74,10 +74,15 @@ Filtering by a tag or shelf you cannot see is a `404`, not an empty list.
 Tags come in two kinds. **Global** tags are curated by an admin and seen by
 everyone — "Sci-Fi" is a fact about the book the household should agree on.
 **Personal** tags belong to one reader and are invisible to the rest;
-"read-before-the-trip" is nobody else's business. Set a book's personal tags
-with `tag_ids` on `PUT /api/books/{id}/state`; global tags are applied by an
-admin through `/api/tags`, because a global assignment changes what everyone
-sees.
+"read-before-the-trip" is nobody else's business. Both go on a book through
+`tag_ids` on `PUT /api/books/{id}/state`, and who may set what differs: a
+reader sets their own personal tags, and an admin may set global ones as well,
+because curating the shared vocabulary is what makes a global tag worth having.
+A reader who names a global tag is refused (`403`).
+
+**That write replaces exactly what the caller may set.** A reader's write
+leaves the book's global tags alone; an admin's replaces those too, so a global
+tag can come off a book as well as go on.
 
 **A tag name may not contain a space** (`422`). The client's search box reads
 `#tag` tokens and splits the text on spaces, so a tag called "lent out" could

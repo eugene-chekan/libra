@@ -24,17 +24,22 @@ function useTagRefresh(): () => void {
 }
 
 /**
- * `POST /api/tags`. Always a personal tag: a global one is admin-only and
- * changes what the whole household sees.
+ * `POST /api/tags`. Personal by default; `makeGlobal` asks for one the whole
+ * household sees, which the server allows only for an admin.
  *
  * 422 for a blank name, and 422 for a name with a space in it. 409 when the
  * caller already has that name or a global tag holds it, ignoring case.
  */
-export function useCreateTag(): UseMutationResult<Tag, Error, TagCreate> {
+export function useCreateTag(): UseMutationResult<
+  Tag,
+  Error,
+  { tag: TagCreate; makeGlobal?: boolean }
+> {
   const api = useApi()
   const refresh = useTagRefresh()
   return useMutation({
-    mutationFn: (tag: TagCreate) => api.createTag(tag),
+    mutationFn: ({ tag, makeGlobal }: { tag: TagCreate; makeGlobal?: boolean }) =>
+      api.createTag(tag, makeGlobal),
     onSuccess: refresh,
   })
 }

@@ -379,7 +379,14 @@ def set_reading_state(
     session.add(state)
     session.commit()
     session.refresh(state)
-    return _merge(book, state)
+    # With the tag ids, not without them. `_merge` defaults them to empty, so
+    # leaving the argument out made every response to this endpoint report a
+    # book with no tags — including the request that had just set some. The
+    # same omission was fixed in `PATCH /books/{id}` in #65; this is its
+    # sibling, and it matters more here because `tag_ids` is written *through*
+    # this endpoint. Nothing caught it because the client re-reads the book
+    # after a write, so the untrue response was never the one on screen.
+    return _merge(book, state, book_tag_ids(session, book.id, user))
 
 
 # --- shelves --------------------------------------------------------------
@@ -726,26 +733,42 @@ def delete_tag(session: Session, tag_id: int, user: User) -> None:
 
 
 def set_book_tags(session: Session, book: Book, user: User, tag_ids: list[int]) -> None:
-    """Replace the caller's *personal* tags on a book.
+    """Replace the tags this caller may set on a book.
 
-    Global tags are left alone: they describe the book for the whole
-    household and are curated through the tag endpoints, not by whoever
-    happens to be reading. A caller who lists a global id is therefore
-    asking for something they cannot grant, and gets told so.
+    For a reader that means their own personal tags. A global tag describes
+    the book for the whole household and is not theirs to hang on it, so a
+    reader who lists a global id is asking for something they cannot grant and
+    is told so.
+
+    **An admin may set global tags here too**, which is what curating a shared
+    vocabulary actually requires. Until this, no caller could put a global tag
+    on a book at all: the refusal named an admin as the person who does it
+    ("managed by an admin, not per book") while refusing admins as well, and
+    no other endpoint assigned tags. A global tag could be created and then
+    never used.
     """
     requested = []
     for tag_id in dict.fromkeys(tag_ids):
         tag = visible_tag(session, tag_id, user)
-        if tag.owner_id is None:
+        if tag.owner_id is None and not user.is_admin:
             raise TagNotEditableError
         requested.append(tag)
 
-    personal_links = session.exec(
+    # What a write replaces has to match what it may add. This is a PUT, so a
+    # tag left out of the list is meant to come off — and if an admin could
+    # add a global tag while only their personal links were cleared, a global
+    # tag could go onto a book and never come off it again. Another reader's
+    # personal tags are never in scope: they are not this caller's to remove.
+    replaceable = col(Tag.owner_id) == user.id
+    if user.is_admin:
+        replaceable = replaceable | col(Tag.owner_id).is_(None)
+
+    replaced_links = session.exec(
         select(BookTag)
         .join(Tag, Tag.id == BookTag.tag_id)
-        .where(BookTag.book_id == book.id, Tag.owner_id == user.id)
+        .where(BookTag.book_id == book.id, replaceable)
     ).all()
-    for link in personal_links:
+    for link in replaced_links:
         session.delete(link)
 
     for tag in requested:
