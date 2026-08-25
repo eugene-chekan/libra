@@ -12,25 +12,7 @@ import { TagManagerRow } from './TagManagerRow'
 import { useCreateTag, useDeleteTag, useUpdateTag } from './useTagWrites'
 import styles from './TagManager.module.css'
 
-/**
- * Manage Tags: create, rename and delete.
- *
- * **Two sections, because there are two kinds of tag and only one of them is
- * yours.** SHARED holds the household's global vocabulary — "Sci-Fi" is a
- * fact about a book everyone should agree on — and an ordinary reader sees it
- * without any controls, because the server would refuse the write. MINE holds
- * personal tags, invisible to everybody else. An admin may edit both, and the
- * server says which through `editable` rather than this screen working it out.
- *
- * **Every change commits on its own, like Manage Shelves.** The prototype
- * batched them behind Save Changes; that means a half-applied batch when one
- * rename is refused and a delete has already gone through, and no way for the
- * reader to tell which. One write, one row, one answer.
- *
- * Deleting a tag also takes it out of the filter in the address bar. It would
- * otherwise leave the grid filtered by an id that no longer exists, which
- * reads as an empty library.
- */
+/** Manage Tags: create, rename and delete. */
 export function TagManager({ onClose }: { onClose: () => void }) {
   const tags = useTags()
   const [searchParams, setSearchParams] = useSearchParams()

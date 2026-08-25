@@ -5,8 +5,10 @@
   gap: 8px;
 }
 
-/* The confirmation state keeps the accent while disabled, which the ordinary
-   disabled treatment would grey out. */
+/*
+ The confirmation state keeps the accent while disabled, which the ordinary disabled treatment
+   would grey out.
+ */
 .sent,
 .sent:disabled {
   border-color: var(--libra-accent);

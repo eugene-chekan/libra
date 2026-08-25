@@ -1,12 +1,4 @@
-"""Administrative commands.
-
-The only way an account comes into existence without an existing admin. An
-open registration endpoint on a self-hosted ebook server means the first
-stranger to find it owns the library, so account creation lives here, behind
-shell access to the host, and everything else goes through `POST /users`.
-
-    uv run python -m app.cli create-admin --username eugene
-"""
+"""Administrative commands."""
 
 import argparse
 import getpass
@@ -21,18 +13,7 @@ from app.models import User
 
 
 def _read_password(username: str) -> str:
-    """Take the password from the environment, or prompt for it.
-
-    `LIBRA_ADMIN_PASSWORD` exists for container entrypoints and scripted
-    setup. There is deliberately no `--password` flag: an argument lands in
-    shell history and in the process list, where anyone on the box can read
-    it.
-
-    The prompt names the account. A bare "Password:" during a start script that
-    also builds and migrates gives no clue *which* account is being created,
-    which is exactly how someone ends up with a running server they cannot log
-    in to.
-    """
+    """Take the password from the environment, or prompt for it."""
     from_env = os.environ.get("LIBRA_ADMIN_PASSWORD")
     if from_env:
         return from_env

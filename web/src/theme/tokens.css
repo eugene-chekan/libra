@@ -1,15 +1,4 @@
-/*
- * The design tokens from docs/specs/client-design.md, transcribed.
- *
- * That document is the source of truth; this file is its CSS form. Nothing
- * here is invented, and no colour, radius or duration belongs anywhere else in
- * the client — a raw `#8b5e3c` in a component is a token that escaped, and the
- * next person who needs it will pick a slightly different one.
- *
- * Because these are custom properties in one file, that rule is checkable:
- *   grep -rn "#[0-9a-fA-F]\{3,8\}" src --include=*.css | grep -v tokens.css
- * should find nothing.
- */
+/* The design tokens from docs/specs/client-design.md, transcribed. */
 
 :root {
   /* --- colour ------------------------------------------------------------ */
@@ -28,9 +17,7 @@
   --libra-text-light: #a39a8e;
   /* Primary actions, active states, progress fill, stars. */
   --libra-accent: #8b5e3c;
-  /* Primary button hover. An independent token, never derived from the accent
-     — the prototype overwrote it with the flat accent value and lost the
-     hover shade entirely. */
+  /* Primary button hover. */
   --libra-accent-hover: #7a5030;
   /* Active nav background, tag pill background. */
   --libra-accent-light: #f0e8df;
@@ -38,11 +25,10 @@
   --libra-accent-lighter: #f8f3ed;
   /* Cover placeholder fallback — the flat colour behind an unloaded skeleton. */
   --libra-cover-bg: #e8e4df;
-  /* The gradient fallback for a book with no extracted cover art: twelve
-     pairs, picked deterministically from the book's id so the same book
-     always draws the same gradient. From the handoff's own data — see
-     src/library/coverPalette.ts for the selection, which is logic and does
-     not belong here. */
+  /*
+   The gradient fallback for a book with no extracted cover art: twelve pairs, picked
+     deterministically from the book's id so the same book always draws the same gradient.
+   */
   --libra-cover-palette-0-a: #8b5e3c;
   --libra-cover-palette-0-b: #c4956a;
   --libra-cover-palette-1-a: #5c6b5e;
@@ -74,8 +60,7 @@
 
   /* --- type -------------------------------------------------------------- */
 
-  /* Logo, page titles, book titles on covers, shelf names, modal headings.
-     Weight 400 only; there is no other cut. */
+  /* Logo, page titles, book titles on covers, shelf names, modal headings. */
   --libra-serif: 'Instrument Serif', Georgia, serif;
   /* Everything else. */
   --libra-sans: 'DM Sans', system-ui, sans-serif;
@@ -117,24 +102,16 @@
   /* One shared pulse, so nothing in the app breathes at its own rate. */
   --libra-t-skeleton-pulse: 1400ms;
 
-  /* The skeleton delay and the transient-confirmation hold are not here.
-     Both are read by JavaScript (a timer, not a rule) and live in
-     src/theme/durations.ts, so each value has exactly one definition in the
-     language that consumes it. Splitting a duration across a CSS property and
-     a JS constant is how one in this project already drifted to 2600 against
-     2500ms. */
+  /* The skeleton delay and the transient-confirmation hold are not here. */
 
   /* --- layout ------------------------------------------------------------ */
 
-  /* The width the design was drawn for, and the width it degrades to. Below
-     1024px the layout is undefined; the handoff's desktop-only stance stands
-     and mobile is a Phase 5 problem. */
+  /* The width the design was drawn for, and the width it degrades to. */
   --libra-design-width: 1280px;
   --libra-min-width: 1024px;
   /* Covers are ~1.45 tall relative to their width (160x232, 96x140, 200x292). */
   --libra-cover-aspect: 1 / 1.45;
   --libra-library-cell-min: 160px;
-  /* Prose column cap for the reader. Not from the handoff — it had no reader —
-     but 60-75 characters is the measure prose wants. */
+  /* Prose column cap for the reader. */
   --libra-reader-column-max: 680px;
 }

@@ -45,32 +45,43 @@ comment was not even true of the suite it lived in.
 Import the constant. If importing it feels wrong, that is a signal the
 constant is in the wrong place, not that the test should copy it.
 
-### Prefer no comment at all
+### One line, and the parameters
 
-**A comment inside a function is the last resort, not the first.** Reach for a
-name, a smaller function, or a docstring before reaching for a `//`.
+**A docstring is one line.** It says what the thing is or does, and stops.
+Making it longer needs a reason you could defend out loud, not a feeling that
+the reader might like the background.
 
-Three questions, in order:
+**In Python, document the parameters too** — an `Args:` section, one short
+phrase each, plus `Returns:` and `Raises:` where either is worth knowing. That
+is interface documentation: it tells a caller what to pass. Route handlers are
+the exception, because their parameters are framework wiring (`Depends(...)`)
+and the real interface is the request and response models, which are typed.
 
-1. **Can the code say it?** A comment explaining what a line does means the
-   line is unclear. Rename the variable, pull the condition into a named
-   function, and delete the comment.
-2. **Is it about the whole thing?** Rationale — why this shape, which rule of
-   the server's it follows, what was tried and rejected — belongs in the
-   **docstring** at the top of the function, class or module, where somebody
-   reading the signature will find it.
-3. **Is it bigger than one file?** A decision that spans screens or endpoints
-   belongs in `docs/specs/`, with the code pointing at it in one line.
+**In TypeScript, the types already document the parameters.** A one-line
+summary, and a short line per field on an exported interface where the name
+does not carry it. Nothing else.
 
-What survives all three is rare: a genuine surprise the reader cannot deduce
-and the code cannot express. A browser quirk. An endpoint that behaves unlike
-its siblings. Write those, and write them tightly.
+**A comment inside a function is the last resort.** Ask whether the code can
+say it — a rename, an extracted function — before writing one. What survives is
+a genuine surprise the reader cannot deduce: a browser quirk, an endpoint that
+behaves unlike its siblings.
 
-This is a correction to how this codebase was written up to Phase 4. Whole
-files carried a paragraph above every second statement, which reads as noise
-and hides the two comments that were load-bearing. Prose is not free: it goes
-stale, it has to be reviewed, and a wall of it trains the reader to skip the
-lot — including the one line that mattered.
+Everything else is garbage, and this codebase carried a great deal of it:
+
+- **Narrative history.** "This used to return the row", "found by the client in
+  #65", "the prototype drew it in the edit form". Git holds that, and the specs
+  hold the parts worth keeping.
+- **Alternatives considered.** "Renaming the routes would have worked and left
+  a rule to remember forever." A design decision belongs in `docs/specs/`, once,
+  where somebody looking for design decisions will find it.
+- **Reassurance.** "Verified, not assumed." "That is deliberate rather than
+  tolerated." The reader cannot check any of it, and it makes a file longer for
+  nothing.
+
+Prose is not free. It goes stale, it has to be reviewed, and a wall of it
+trains the reader to skip the lot — including the line that mattered. Before
+Phase 4 closed, a third of every source file here was prose. That is the
+defect this rule exists to stop.
 
 ### A comment is a claim, and claims must stay true
 

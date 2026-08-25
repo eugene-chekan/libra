@@ -20,14 +20,7 @@ import type {
   UserPatch,
 } from './types'
 
-/**
- * A user in the fake, plus the password only the fake knows.
- *
- * The real server stores an Argon2 hash and never sends it anywhere. The fake
- * keeps the plain password because something has to decide whether a login
- * succeeds, and hashing here would test the hash library rather than the
- * client.
- */
+/** A user in the fake, plus the password only the fake knows. */
 export interface FakeUser extends User {
   password: string
 }
@@ -48,12 +41,7 @@ export function fakeUser(overrides: Partial<FakeUser> = {}): FakeUser {
   }
 }
 
-/**
- * `BookRead` flattens shelf, tag and rating into one object, so the fake keeps
- * one object too. What it does not keep is a second reader: `shelf_id`,
- * `rating` and `progress` here mean "as the signed-in fake user", and there is
- * only ever one of those in a component test.
- */
+/** `BookRead` flattens shelf, tag and rating into one object, so the fake keeps one object too. */
 export type FakeBook = Book
 
 let nextBookId = 1
@@ -80,7 +68,7 @@ export function fakeBook(overrides: Partial<FakeBook> = {}): FakeBook {
 
 /** A note in the fake, plus the owner the API never publishes. */
 export interface FakeNote extends Note {
-  /** Whose note it is. `NoteRead` omits this — every note a caller can read is their own. */
+  /** Whose note it is. */
   user_id: number
 }
 
@@ -132,7 +120,7 @@ export function fakeShelf(overrides: Partial<Shelf> = {}): Shelf {
 
 interface FakeOptions {
   users?: FakeUser[]
-  /** Who is already signed in when the test starts. `null` means nobody. */
+  /** Who is already signed in when the test starts. */
   signedInAs?: FakeUser | null
   /** The instance's send-from address, as `/auth/me` reports it. */
   kindleSender?: string | null
@@ -140,36 +128,17 @@ interface FakeOptions {
   tags?: Tag[]
   shelves?: Shelf[]
   notes?: FakeNote[]
-  /**
-   * What the mail server does with the next send. `null` accepts it; a string
-   * is the sentence a 502 comes back with, which is what the Send to Kindle
-   * button prints after "Couldn't send — ".
-   */
+  /** What the mail server does with the next send. */
   kindleFailure?: string | null
 }
 
-/**
- * The in-memory server.
- *
- * **It enforces the server's rules, including the surprising ones.** That is a
- * rule from docs/specs/code-style.md, and it was written after a fake that
- * shared the client's misunderstanding turned an integration bug into a
- * passing suite. So this class refuses a login the same way, refuses to let one
- * reader edit another the same way, and treats an absent field in a patch as
- * "leave it alone" rather than "set it to null" — because that is what
- * `exclude_unset=True` does on the other side.
- *
- * What it does not model is the wire: headers, status codes on the way out,
- * JSON encoding. `HttpLibraApi.test.ts` covers that layer, because a fake
- * cannot. Nor does it model time: `sort: 'added'` is this array's insertion
- * order, since there is no `created_at` here to sort by.
- */
+/** The in-memory server. It enforces the real one's rules, including the surprising ones. */
 export class FakeLibraApi implements LibraApi {
   private handler: (() => void) | null = null
 
   readonly users: FakeUser[]
   readonly kindleSender: string | null
-  /** Which user the session cookie belongs to. `null` when signed out. */
+  /** Which user the session cookie belongs to. */
   signedInId: number | null
   readonly books: FakeBook[]
   readonly tags: Tag[]
@@ -178,7 +147,7 @@ export class FakeLibraApi implements LibraApi {
   /** Settable mid-test, so one send can fail and the next succeed. */
   kindleFailure: string | null
 
-  /** Every call this fake has answered, in order. Lets a test count requests. */
+  /** Every call this fake has answered, in order. */
   readonly calls: string[] = []
 
   constructor({
@@ -230,12 +199,9 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * Ownership is checked before existence, which is the server's order: a
-   * reader who is not an admin gets 403 even for an id that does not exist,
-   * so the endpoint cannot be used to find out which accounts are real.
-   *
-   * Only the keys present in `patch` change — `kindle_email: null` clears it,
-   * an absent key leaves it alone.
+   * Ownership is checked before existence, which is the server's order: a reader who is not an
+   * admin gets 403 even for an id that does not exist, so the endpoint cannot be used to find
+   * out which accounts are real.
    */
   async updateUser(id: number, patch: UserPatch): Promise<User> {
     this.calls.push(`updateUser:${id}`)
@@ -304,9 +270,8 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * Whether the caller may mint shared vocabulary is checked before the name
-   * is looked at, as `create_tag` does: the refusal does not depend on what
-   * they wanted to call it.
+   * Whether the caller may mint shared vocabulary is checked before the name is looked at, as
+   * `create_tag` does: the refusal does not depend on what they wanted to call it.
    */
   async createTag(tag: TagCreate, makeGlobal = false): Promise<Tag> {
     this.calls.push(makeGlobal ? 'createTag:global' : 'createTag')
@@ -355,9 +320,8 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * The caller's own first, in this array's order, then other readers' public
-   * ones — what `library.list_shelves` returns, and what the shelves screen
-   * trusts rather than re-sorting.
+   * The caller's own first, in this array's order, then other readers' public ones — what
+   * `library.list_shelves` returns, and what the shelves screen trusts rather than re-sorting.
    */
   async listShelves(): Promise<Shelf[]> {
     this.calls.push('listShelves')
@@ -409,10 +373,7 @@ export class FakeLibraApi implements LibraApi {
     return shelf
   }
 
-  /**
-   * The books stay in the library and become unshelved, which is a valid
-   * state. `reassign_to` exists on the endpoint; this client never sends it.
-   */
+  /** The books stay in the library and become unshelved, which is a valid state. */
   async deleteShelf(id: number): Promise<void> {
     this.calls.push(`deleteShelf:${id}`)
     const caller = this.requireSession()
@@ -424,11 +385,7 @@ export class FakeLibraApi implements LibraApi {
     this.shelves.splice(this.shelves.indexOf(shelf), 1)
   }
 
-  /**
-   * The list must be exactly the caller's own shelves, each once. Anything
-   * else is a stale client, and rejecting it is what stops another reader's
-   * shelf id being slipped into the ordering.
-   */
+  /** The list must be exactly the caller's own shelves, each once. */
   async reorderShelves(shelfIds: number[]): Promise<Shelf[]> {
     this.calls.push('reorderShelves')
     const caller = this.requireSession()
@@ -462,10 +419,8 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * Admin-only, and refused before the book is looked up — `require_admin` is
-   * a dependency on the server, so a reader gets 403 even for an id that does
-   * not exist. Present keys only, `null` meaning "clear it"; title and author
-   * are not nullable there, which is why the form guards them.
+   * Admin-only, and refused before the book is looked up — `require_admin` is a dependency on
+   * the server, so a reader gets 403 even for an id that does not exist.
    */
   async updateBook(id: number, patch: BookPatch): Promise<Book> {
     this.calls.push(`updateBook:${id}`)
@@ -483,21 +438,8 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * Tags are written before the state row, the server's order, so a rejected
-   * tag leaves the rating exactly as it was.
-   *
-   * **A write replaces exactly what the caller may add.** A reader replaces
-   * their personal tags and the book's global ones stay; an admin may add a
-   * global tag, so theirs are replaced too — otherwise one could go onto a
-   * book and never come off. An id listed twice is one tag, as
-   * `dict.fromkeys` makes it.
-   *
-   * **`rating` and `progress` are written every time**, because this is a PUT.
-   * A fake that patched instead would let a call site drop `progress` and
-   * still pass, which is the trap this class exists to keep honest.
-   *
-   * A shelf that is visible is not thereby yours: somebody else's public shelf
-   * can be read and filtered by, and is still a 403 to put a book on.
+   * Tags are written before the state row, the server's order, so a rejected tag leaves the
+   * rating exactly as it was.
    */
   async setBookState(id: number, state: BookStateWrite): Promise<Book> {
     this.calls.push(`setBookState:${id}`)
@@ -535,9 +477,8 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * A missing mail configuration is refused before the book is looked up, as
-   * the endpoint does it: an instance with no mail cannot send to anyone. A
-   * success records the attempt, which comes back as `last_sent_at`.
+   * A missing mail configuration is refused before the book is looked up, as the endpoint does
+   * it: an instance with no mail cannot send to anyone.
    */
   async sendToKindle(id: number): Promise<KindleDelivery> {
     this.calls.push(`sendToKindle:${id}`)
@@ -587,9 +528,8 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * Another reader's note is a 404, never a 403: "forbidden" would confirm it
-   * exists, and what somebody wrote in the margin stays private from an admin
-   * too.
+   * Another reader's note is a 404, never a 403: "forbidden" would confirm it exists, and what
+   * somebody wrote in the margin stays private from an admin too.
    */
   async deleteNote(noteId: number): Promise<void> {
     this.calls.push(`deleteNote:${noteId}`)
@@ -624,10 +564,9 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * Mirrors `owned_shelf`, and the two-step answer matters: a shelf the caller
-   * cannot see at all is a 404, so ids cannot be walked to find other
-   * people's private shelves, while one they *can* see and do not own is an
-   * honest 403.
+   * Mirrors `owned_shelf`, and the two-step answer matters: a shelf the caller cannot see at
+   * all is a 404, so ids cannot be walked to find other people's private shelves, while one
+   * they *can* see and do not own is an honest 403.
    */
   private requireOwnedShelf(shelfId: number, caller: FakeUser): Shelf {
     const shelf = this.requireVisibleShelf(shelfId, caller)
@@ -637,16 +576,8 @@ export class FakeLibraApi implements LibraApi {
     return shelf
   }
 
-  /**
-   * Mirrors `_assert_name_free`. The server's uniqueness index is
-   * `COLLATE NOCASE`, so "To Read" and "to read" are the same name to it —
-   * a fake that compared exactly would accept a pair the server refuses.
-   */
-  /**
-   * Mirrors `library.clean_tag_name`. The space rule is the surprising one and
-   * belongs here for exactly that reason: a fake that accepted "lent out"
-   * would let a screen ship a name the real server refuses.
-   */
+  /** Mirrors `_assert_name_free`. */
+  /** Mirrors `library.clean_tag_name`. */
   private cleanTagName(raw: string): string {
     const name = raw.trim()
     if (!name) throw new ApiError(422, 'Tag name must not be empty')
@@ -657,9 +588,9 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * Mirrors `_assert_tag_name_free`, including the rule a schema alone would
-   * not give: a personal tag may not shadow a global one, because two rows
-   * reading the same in one sidebar is a bug from the reader's side.
+   * Mirrors `_assert_tag_name_free`, including the rule a schema alone would not give: a
+   * personal tag may not shadow a global one, because two rows reading the same in one sidebar
+   * is a bug from the reader's side.
    */
   private requireTagNameFree(
     name: string,
@@ -686,9 +617,9 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * A tag the caller cannot see is a 404 and a global one they may not touch
-   * is a 403 — the same two-step answer the shelf endpoints give, and for the
-   * same reason: ids must not be walkable to find other people's private tags.
+   * A tag the caller cannot see is a 404 and a global one they may not touch is a 403 — the
+   * same two-step answer the shelf endpoints give, and for the same reason: ids must not be
+   * walkable to find other people's private tags.
    */
   private requireEditableTag(tagId: number, caller: FakeUser): Tag {
     const tag = this.requireVisibleTag(tagId, caller)
@@ -699,9 +630,8 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
-   * `editable` and `book_count` are answers the server works out per request,
-   * not stored columns. A fake handing back a seeded `editable: true` would
-   * let a test claim a reader may rewrite the household's vocabulary.
+   * `editable` and `book_count` are answers the server works out per request, not stored
+   * columns.
    */
   private tagFor(tag: Tag, caller: FakeUser): Tag {
     return {
@@ -721,11 +651,7 @@ export class FakeLibraApi implements LibraApi {
     if (taken) throw new ApiError(409, 'You already have a shelf with that name')
   }
 
-  /**
-   * `editable` is the server's answer to "may this caller change it", not a
-   * stored column. A fake that returned the seeded value would let a test set
-   * `editable: true` on somebody else's shelf and never notice.
-   */
+  /** `editable` is the server's answer to "may this caller change it", not a stored column. */
   private withEditable(shelf: Shelf, caller: FakeUser): Shelf {
     return { ...shelf, editable: shelf.owner_id === caller.id }
   }

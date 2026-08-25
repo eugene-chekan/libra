@@ -25,9 +25,11 @@
   color: var(--libra-accent);
 }
 
-/* On the empty state this is the only thing to do on the screen, so here alone
-   it is a solid accent button rather than the outlined one above — the same
-   rule client-design.md sets for the empty library's Add Book. */
+/*
+ On the empty state this is the only thing to do on the screen, so here alone it is a solid
+   accent button rather than the outlined one above — the same rule client-design.md sets for
+   the empty library's Add Book.
+ */
 .newShelf {
   padding: 11px 24px;
   border: none;

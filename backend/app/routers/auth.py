@@ -24,12 +24,7 @@ def login(
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
 ) -> User:
-    """Exchange credentials for a session cookie.
-
-    A wrong username and a wrong password produce the same 401 with the same
-    message, and cost the same time — telling them apart would turn this
-    endpoint into a way to enumerate who has an account here.
-    """
+    """Exchange credentials for a session cookie."""
     user = authenticate(session, credentials.username, credentials.password)
     if user is None:
         raise HTTPException(status_code=401, detail="Invalid username or password")
@@ -46,11 +41,7 @@ def logout(
     session: Session = Depends(get_session),
     _: User = Depends(current_user),
 ) -> None:
-    """Revoke the caller's session, server-side as well as in the browser.
-
-    Deleting the row is the point: clearing the cookie alone would leave a
-    token that still works for anyone who captured it.
-    """
+    """Revoke the caller's session, server-side as well as in the browser."""
     raw_token = request.cookies.get(SESSION_COOKIE)
     if raw_token is not None:
         revoke_session(session, raw_token)
@@ -62,14 +53,7 @@ def read_current_user(
     user: User = Depends(current_user),
     settings: Settings = Depends(get_settings),
 ) -> CurrentUserRead:
-    """The caller, plus the one piece of server config they need.
-
-    `kindle_sender` is the address every user must add to their own Amazon
-    approved-sender list before delivery works. It is not a secret — it is
-    precisely the string they have to copy — and handing it out here lets the
-    client show the real value instead of a placeholder. Credentials never
-    leave the server.
-    """
+    """The caller, plus the one piece of server config they need."""
     return CurrentUserRead(
         **user.model_dump(include=set(UserRead.model_fields)),
         kindle_sender=settings.smtp_from,

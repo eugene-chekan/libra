@@ -1,14 +1,4 @@
-/*
- * The book detail action row's button treatments, defined once.
- *
- * Five buttons across two rows, in three components — the row itself, the
- * Kindle button with its five states, and the Move to Shelf dropdown. Each
- * drawing its own border and padding is how the rows end up 1px apart from
- * each other, so the treatment lives here and the components import it.
- *
- * The sizes are from client-design.md gap 6: row 1 is 11px/24px with a 14px
- * label, row 2 is 9px/18px with a 13px one.
- */
+/* The book detail action row's button treatments, defined once. */
 
 .primary,
 .outlined {
@@ -62,9 +52,10 @@
   font-size: 13px;
 }
 
-/* A spinner belongs inside the control that started the action — the app's
-   rule for something the reader did, as against skeletons for content that is
-   arriving on its own. */
+/*
+ A spinner belongs inside the control that started the action — the app's rule for something the
+   reader did, as against skeletons for content that is arriving on its own.
+ */
 .spinner {
   width: 14px;
   height: 14px;
@@ -92,8 +83,7 @@
   color: var(--libra-danger);
 }
 
-/* A link that is a button, because it opens a modal rather than going
-   anywhere. Styled as the sentence it sits in, not as a control. */
+/* A link that is a button, because it opens a modal rather than going anywhere. */
 .link {
   padding: 0;
   border: none;

@@ -1,8 +1,4 @@
-/*
- * The first-run empty library. client-design.md: centred in the content pane,
- * 60px vertical padding, 22px serif heading, 13px textLight beneath it, and
- * the action 20px below that.
- */
+/* The first-run empty library. */
 .empty {
   display: flex;
   flex-direction: column;

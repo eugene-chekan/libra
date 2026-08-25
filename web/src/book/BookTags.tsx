@@ -12,20 +12,7 @@ import menu from '../widgets/dropdownMenu.module.css'
 import { useSetBookState } from './useBook'
 import styles from './BookTags.module.css'
 
-/**
- * A book's tags, and the one place in the app that puts them there.
- *
- * The pills are links: clicking one filters the library, as a tag click does
- * in the sidebar. Add Tag beside them writes the moment a tag is switched on
- * or off, because tags are the reader's own state like the rating and the
- * shelf — nothing to confirm, so no Save. They are deliberately not in the
- * Edit Book form, which writes the shared catalog and is admin-only; see gap 8
- * in docs/specs/client-design.md.
- *
- * The menu closes on each pick: adding a pill widens the row and pushes the
- * trigger right, so one that stayed open would slide out from under the
- * pointer.
- */
+/** A book's tags, and the one place in the app that puts them there. */
 export function BookTags({ book }: { book: Book }) {
   const { status } = useSession()
   const tags = useTags().data ?? []
@@ -36,16 +23,7 @@ export function BookTags({ book }: { book: Book }) {
   const settableIds = new Set(settable.map((tag) => tag.id))
   const onBook = tags.filter((tag) => book.tag_ids.includes(tag.id))
 
-  /**
-   * Switches one tag on or off, and writes the result.
-   *
-   * The list sent names exactly the tags this caller may set, and no more:
-   * `PUT /books/{id}/state` replaces what it is given. A reader sends their
-   * personal tags, so the book's global ones are left out and stay; an admin
-   * sends everything, because their write replaces global tags too and
-   * anything omitted comes off. `rating` and `progress` go every time — the
-   * endpoint is a PUT, so a field left out is set to zero.
-   */
+  /** Switches one tag on or off, and writes the result. */
   function toggle(tag: Tag) {
     const mine = book.tag_ids.filter((id) => settableIds.has(id))
     const next = mine.includes(tag.id) ? mine.filter((id) => id !== tag.id) : [...mine, tag.id]

@@ -8,27 +8,7 @@ import { ShelvesSection } from './ShelvesSection'
 import styles from './Sidebar.module.css'
 import { TagsSection } from './TagsSection'
 
-/**
- * The application frame's left column.
- *
- * Every row here is a real element — `NavLink` renders an `<a href>`, and Add
- * Book is a `<button>`. That is the whole point of the rewrite. The Flutter
- * client wrapped each of these in `Semantics(button: true)` and measured, on a
- * running build, that not one of them reached the page: nine nodes existed in
- * the framework and a screen reader found nothing (#50). Here the keyboard and
- * the accessibility tree come from the elements themselves, and there is no
- * layer in between that can drop them.
- *
- * `NavLink` also sets `aria-current="page"` on the active row, which is what
- * the active styling hangs off — so the visual state and the announced state
- * cannot disagree, because they are the same attribute.
- *
- * All three list sections render nothing of their own while loading or empty.
- * That is the same "no invented copy" rule the scaffold applied: an empty
- * section is harder to tell from a real one than no section at all. SHARED
- * WITH YOU goes further and starts collapsed, because it holds what other
- * readers arranged rather than what this one did.
- */
+/** The application frame's left column. */
 export function Sidebar() {
   return (
     <nav className={styles.sidebar} aria-label="Main">

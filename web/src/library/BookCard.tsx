@@ -6,14 +6,7 @@ import { BookCover } from './BookCover'
 import { BookStatusLine } from './BookStatusLine'
 import styles from './BookCard.module.css'
 
-/**
- * One cell of the library grid: cover, title, author, status line.
- *
- * The whole cell is one link to the book, rather than the title alone. The
- * cover is the thing a reader aims at, and a link that covers what it looks
- * like it covers needs no explaining. It is a real `<a>`, so the address can
- * be opened in a new tab, copied, or bookmarked.
- */
+/** One cell of the library grid: cover, title, author, status line. */
 export function BookCard({ book }: { book: Book }) {
   return (
     <Link className={styles.cell} to={bookPath(book.id)}>

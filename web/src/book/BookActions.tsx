@@ -12,11 +12,7 @@ import styles from './BookActions.module.css'
 interface BookActionsProps {
   book: Book
   shelves: Shelf[]
-  /**
-   * Whether this reader may edit the shared catalog. `PATCH /books/{id}` is
-   * admin-only, so a reader without it is shown no Edit Book button rather
-   * than a form whose Save is certain to be refused.
-   */
+  /** Whether this reader may edit the shared catalog. */
   canEdit: boolean
   hasKindleAddress: boolean
   onEdit: () => void
@@ -25,23 +21,7 @@ interface BookActionsProps {
   onSetUpKindle: () => void
 }
 
-/**
- * The action row — two rows, split on meaning.
- *
- * The design drew three buttons. There are five, and they do not fit one row
- * at 1024px. Rather than letting them wrap into whatever shape the viewport
- * dictates, they split where the meaning already divides: **what you do with
- * the book**, then **how you file it**. That reads as a decision rather than a
- * reflow, and it is what makes the screen survive its minimum width.
- *
- * The three-state label belongs to the Read button, not to Download. It was
- * very nearly attached to Download, which would have been a small lie — a
- * reader clicking "Start Reading" and finding a file in their downloads
- * folder. It is also the reason the reader (#36) exists at all.
- *
- * The API is read here rather than handed down: this is the only thing on the
- * screen that needs the download address.
- */
+/** The action row — two rows, split on meaning. */
 export function BookActions({
   book,
   shelves,

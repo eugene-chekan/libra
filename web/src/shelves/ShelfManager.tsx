@@ -11,26 +11,7 @@ import { useDragReorder } from './useDragReorder'
 import { useCreateShelf, useDeleteShelf, useReorderShelves, useUpdateShelf } from './useShelfWrites'
 import styles from './ShelfManager.module.css'
 
-/**
- * Manage Shelves: create, rename, reorder, publish, delete.
- *
- * **Only the reader's own shelves are here.** `GET /shelves` also returns
- * other readers' public ones, and there is nothing on this screen that could
- * be done to those — the server refuses every write, so listing them would be
- * listing rows whose every control is a refusal.
- *
- * **Reordering commits through `PUT /shelves/order`**, which takes the whole
- * list in one call. That makes a reorder one atomic decision rather than a
- * race between rows settling in whatever sequence they arrive.
- *
- * There are two ways to reorder and both are real: a mouse drag on the handle,
- * and the up/down buttons. The buttons are not a fallback — a drag cannot be
- * done from a keyboard at all, and reordering is not an optional flourish.
- *
- * One `busy` flag disables every control at once, because a list mid-write is
- * not one to drag rows around in. The new-shelf box is cleared only once the
- * server has the name, so a refused one is still there to correct.
- */
+/** Manage Shelves: create, rename, reorder, publish, delete. */
 export function ShelfManager({ onClose }: { onClose: () => void }) {
   const shelves = useShelves()
   const mine = (shelves.data ?? []).filter((shelf) => shelf.editable)

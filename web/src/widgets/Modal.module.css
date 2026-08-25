@@ -1,8 +1,4 @@
-/*
- * The shell every dialog in the application shares. Its width is the only
- * part a dialog decides for itself, and it passes that as a prop — see
- * Modal.tsx.
- */
+/* The shell every dialog in the application shares. */
 
 .overlay {
   position: fixed;
@@ -17,10 +13,10 @@
   transform: translate(-50%, -50%);
   display: flex;
   flex-direction: column;
-  /* Both ceilings belong to every dialog, not only the long ones: a fixed
-     width overflows a narrow window, and a tall dialog on a short screen
-     needs somewhere to scroll. The Kindle Email modal had neither before this
-     shell existed. */
+  /*
+   Both ceilings belong to every dialog, not only the long ones: a fixed width overflows a
+     narrow window, and a tall dialog on a short screen needs somewhere to scroll.
+   */
   max-width: 90vw;
   max-height: 80vh;
   padding: 28px;
@@ -36,8 +32,7 @@
   color: var(--libra-text);
 }
 
-/* The quiet line under the title — "6 tags". A count, not a sentence, so it
-   is not the dialog's accessible description. */
+/* The quiet line under the title — "6 tags". */
 .subtitle {
   font-family: var(--libra-sans);
   font-size: 11px;

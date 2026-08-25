@@ -22,23 +22,7 @@ import { Skeleton, SkeletonDelay } from '../widgets/Skeleton'
 import { NotFoundScreen } from './screens'
 import styles from './BookScreen.module.css'
 
-/**
- * `/books/:id` — one book: what it is, where you are in it, and what you can
- * do with it.
- *
- * **Two kinds of write live on this screen, and they behave differently on
- * purpose.** Rating and shelf placement are the reader's own state — nobody
- * else sees them, so they commit the moment they change and there is nothing
- * to confirm. Title, author, year, pages and blurb are the shared catalog: one
- * correction changes what everyone sees, so they sit behind an explicit edit
- * mode with Save and Cancel. The endpoints split the same way, and
- * `PATCH /books/{id}` is admin-only, which is why Edit Book appears only for an
- * admin rather than opening a form that cannot be saved.
- *
- * A non-numeric id is a typed URL rather than a bug, so it gets the not-found
- * page every other address that names nothing gets — not a request for
- * `/api/books/NaN`.
- */
+/** `/books/:id` — one book: what it is, where you are in it, and what you can do with it. */
 export function BookScreen() {
   const { id } = useParams()
   const bookId = Number(id)
@@ -113,22 +97,7 @@ function BackLink() {
   )
 }
 
-/**
- * Everything about the book that is not the cover.
- *
- * It reads the shelves and the signed-in reader itself rather than being
- * handed them, which is the prop-drilling rule in docs/specs/code-style.md.
- *
- * Rating and shelf writes are immediate, because they are nobody's business
- * but this reader's, and both send `rating` and `progress` together — the
- * endpoint is a PUT, so sending one alone resets the other. `canEdit` gates
- * Edit Book on `is_admin` because `PATCH /books/{id}` is admin-only, and a
- * form whose Save is certain to be refused is worse than no button.
- *
- * `onSendToKindle` hands the Kindle button the raw promise on purpose: that
- * button owns the failure and prints the reason itself, so the rejection has
- * to reach it rather than being caught into the page-level error.
- */
+/** Everything about the book that is not the cover. */
 function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
   const { status } = useSession()
   const shelves = useShelves().data ?? []
@@ -193,13 +162,7 @@ function EditMode({ book, onDone }: { book: Book; onDone: () => void }) {
   return <BookEditForm book={book} onSave={(patch) => update.mutateAsync(patch)} onDone={onDone} />
 }
 
-/**
- * Only what the file actually declared, joined by dots.
- *
- * A book whose EPUB carries no year or page count shows neither, rather than
- * an invented one — the same rule the server follows in leaving those columns
- * null.
- */
+/** Only what the file actually declared, joined by dots. */
 function metadataLine(book: Book, shelfName: string | null): string {
   return [
     book.format.toUpperCase(),

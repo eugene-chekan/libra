@@ -8,28 +8,11 @@ interface BookCoverProps {
   id: number
   title: string
   hasCover: boolean
-  /**
-   * Called when the image the server promised does not load.
-   *
-   * The fallback below happens either way; this only exists for a caller that
-   * has to know as well — the book detail screen offers "enlarge" for a real
-   * cover, and must not offer it for a gradient.
-   */
+  /** Called when the image the server promised does not load. */
   onError?: () => void
 }
 
-/**
- * A book's cover, or the procedural gradient standing in for one.
- *
- * `hasCover` decides which to try first, but it is the server's belief at
- * catalog-read time, not a guarantee — a file can change between the two.
- * `onError` on the `<img>` is what makes an unexpected 404 fall back the same
- * way a known one does, rather than showing a broken-image icon.
- *
- * The fallback is `aria-hidden`: the title drawn on it is decoration, and
- * `BookCard` prints the same title as real text beneath, which is what a
- * screen reader should announce once rather than twice.
- */
+/** A book's cover, or the procedural gradient standing in for one. */
 export function BookCover({ id, title, hasCover, onError }: BookCoverProps) {
   const api = useApi()
   const [broken, setBroken] = useState(false)

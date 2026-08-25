@@ -3,19 +3,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import { useApi } from '../api/ApiProvider'
 import type { Shelf, ShelfCreate, ShelfPatch } from '../api/types'
 
-/**
- * Creating, changing, deleting and reordering shelves.
- *
- * **Every write here invalidates the shelf list and the library grid**, for
- * the same reason the book screen's writes do: a shelf is a filter over that
- * grid, so renaming one changes the filter pill's text, deleting one unshelves
- * its books, and both change what the sidebar shows. One helper rather than
- * the same two calls copied into four mutations.
- *
- * Reads stay in `useShelves`, which the sidebar and the library screen already
- * share. Nothing here fetches — a write invalidates and lets that one query
- * refetch, so there is still exactly one place the shelf list comes from.
- */
+/** Creating, changing, deleting and reordering shelves. */
 function useShelfRefresh(): () => void {
   const queryClient = useQueryClient()
   return () => {
@@ -24,7 +12,7 @@ function useShelfRefresh(): () => void {
   }
 }
 
-/** `POST /api/shelves`. 409 when the reader already has that name, ignoring case. */
+/** `POST /api/shelves`. */
 export function useCreateShelf(): UseMutationResult<Shelf, Error, ShelfCreate> {
   const api = useApi()
   const refresh = useShelfRefresh()
@@ -48,7 +36,7 @@ export function useUpdateShelf(): UseMutationResult<
   })
 }
 
-/** `DELETE /api/shelves/{id}`. The books on it stay in the library, unshelved. */
+/** `DELETE /api/shelves/{id}`. */
 export function useDeleteShelf(): UseMutationResult<void, Error, number> {
   const api = useApi()
   const refresh = useShelfRefresh()

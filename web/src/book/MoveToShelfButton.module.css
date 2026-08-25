@@ -1,6 +1,4 @@
 /*
- * Nothing of its own any more: the menu itself is
- * `src/widgets/dropdownMenu.module.css`, shared with the account menu and the
- * book's tag picker. Kept as a file only for what is genuinely this button's,
- * which is currently nothing — delete it if that stays true.
+ Nothing of its own any more: the menu itself is `src/widgets/dropdownMenu.module.css`, shared
+   with the account menu and the book's tag picker.
  */

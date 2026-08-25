@@ -9,17 +9,7 @@ import { SkeletonRows } from '../widgets/Skeleton'
 import { CollapsibleSection } from './CollapsibleSection'
 import styles from './FilterSection.module.css'
 
-/**
- * The sidebar's TAGS list. Unlike the shelf filter, tags OR each other, so
- * clicking one adds it to the set already in the URL rather than replacing
- * it — and clicking an already-active one removes just that one, leaving
- * the rest.
- *
- * **This section stays even when the reader has no tags**, holding just the
- * Manage Tags row. SHELVES disappears when it is empty because the Shelves
- * page offers another way to a first shelf; tags have no such second door, so
- * hiding the row would leave a reader with no tags no way to ever make one.
- */
+/** The sidebar's TAGS list. */
 export function TagsSection() {
   const tagsQuery = useTags()
   const [searchParams] = useSearchParams()

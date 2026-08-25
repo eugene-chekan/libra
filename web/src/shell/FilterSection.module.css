@@ -42,9 +42,7 @@
   background: var(--libra-accent);
 }
 
-/* The way into the Manage Shelves dialog, at the foot of the SHELVES list.
-   Accent text rather than the muted rows above it: it does something, where
-   they only filter. */
+/* The way into the Manage Shelves dialog, at the foot of the SHELVES list. */
 .manageRow {
   display: flex;
   align-items: center;

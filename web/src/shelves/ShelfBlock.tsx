@@ -7,17 +7,7 @@ import { bookPath, routes } from '../routes'
 import { PublicPill } from './PublicPill'
 import styles from './ShelfBlock.module.css'
 
-/**
- * One shelf on the Shelves page: its name, how many books, and a row of them.
- *
- * The covers are smaller than the library grid's and scroll sideways, because
- * a shelf here is a glance rather than a browse — the full browse is one click
- * away, on the name, which goes to the library filtered by this shelf.
- *
- * It fetches its own books through the same `useBooks` the library screen
- * uses, with the same filter shape, so two shelves showing the same book share
- * one cache entry and the grid behind them does too.
- */
+/** One shelf on the Shelves page: its name, how many books, and a row of them. */
 export function ShelfBlock({ shelf }: { shelf: Shelf }) {
   const books = useBooks({ shelfId: shelf.id })
   const filtered = `${routes.library}?shelf=${shelf.id}`

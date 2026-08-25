@@ -8,28 +8,7 @@ import { useCreateNote, useDeleteNote, useNotes } from './useNotes'
 import buttons from './actionButtons.module.css'
 import styles from './NotesPanel.module.css'
 
-/**
- * Notes and highlights, against the real endpoints.
- *
- * Every note here belongs to the reader looking at it — the API returns no
- * others and accepts no others, not even for an admin — so there is no author
- * line and nothing to share. The panel is deliberately plain: a note is
- * something you wrote to yourself, and decorating it would be the wrong
- * emphasis.
- *
- * **No page box on the form.** `page` is optional on the endpoint and a
- * reflowable EPUB has no pages to cite, so there is nothing honest to put in
- * it until the reader (#36) can say where the note was made. A stored page is
- * still shown, because an import or a later milestone may supply one.
- *
- * Reads its own data from `bookId` rather than being handed a list, for the
- * same reason the account row reads the session itself: nothing above it uses
- * notes, so passing them down would make the page depend on something it does
- * not draw.
- *
- * The box is cleared only once the server has the note: clearing on submit
- * would lose what somebody wrote if the request then failed.
- */
+/** Notes and highlights, against the real endpoints. */
 export function NotesPanel({ bookId }: { bookId: number }) {
   const notes = useNotes(bookId)
   const create = useCreateNote(bookId)

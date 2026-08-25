@@ -17,8 +17,10 @@
   gap: var(--libra-grid-gap);
 }
 
-/* The *search* empty state, deliberately not EmptyState: a fact about the
-   query, not a screen with a next step to offer. */
+/*
+ The *search* empty state, deliberately not EmptyState: a fact about the query, not a screen
+   with a next step to offer.
+ */
 .searchEmpty {
   text-align: center;
   padding: 60px 0;

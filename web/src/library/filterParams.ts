@@ -8,13 +8,7 @@ export interface ParsedSearchInput {
   hashTagNames: string[]
 }
 
-/**
- * Splits raw search box text into its two token types.
- *
- * A bare `#` with nothing after it is not a token — `#` alone would resolve
- * to an empty tag name that matches nothing, which is a worse failure mode
- * than just leaving it out of both lists.
- */
+/** Splits raw search box text into its two token types. */
 export function parseSearchInput(raw: string): ParsedSearchInput {
   const words = raw.trim().split(/\s+/).filter(Boolean)
   const textWords: string[] = []
@@ -38,11 +32,8 @@ interface MergedTagIdsParams {
 }
 
 /**
- * Resolves typed `#tag` names to ids and merges them with the sidebar's own
- * selection into the one id list `GET /books` takes. A name matching nothing
- * — a typo, a since-renamed tag — is dropped rather than erroring: the
- * endpoint 404s on an unrecognised *id*, never on free text, so there is
- * nothing to look up on the server's side either.
+ * Resolves typed `#tag` names to ids and merges them with the sidebar's own selection into the
+ * one id list `GET /books` takes.
  */
 export function mergedTagIds({
   hashTagNames,
