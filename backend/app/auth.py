@@ -1,9 +1,4 @@
-"""Password hashing, session issue/verification, and the auth dependencies.
-
-Session cookies rather than JWTs: there is one server with a SQLite database
-sitting next to it, so statelessness buys nothing and costs the ability to
-revoke. A row can be deleted; a signed token cannot be un-signed.
-"""
+"""Password hashing, session issue/verification, and the auth dependencies."""
 
 import hashlib
 import secrets
@@ -60,20 +55,21 @@ def needs_rehash(password_hash: str) -> bool:
 
 
 def _token_hash(raw_token: str) -> str:
-    """Hash a session token for storage.
-
-    A plain SHA-256 rather than Argon2: the token is 32 bytes of `secrets`
-    randomness, so there is no low-entropy guess to slow down, and this runs
-    on every authenticated request.
-    """
+    """Hash a session token for storage."""
     return hashlib.sha256(raw_token.encode()).hexdigest()
 
 
 def issue_session(session: Session, user: User, settings: Settings, kind: str = "browser") -> str:
     """Create a session row and return the raw token for the cookie.
 
-    The raw token is returned and never persisted — only its hash is stored,
-    so a database dump yields nothing a caller could present.
+    Args:
+        session: Open database session.
+        user: Who is signing in.
+        settings: Supplies the session lifetime.
+        kind: `browser` today; `device` is reserved for native clients.
+
+    Returns:
+        The raw token to put in the cookie. Only its hash is stored.
     """
     raw_token = secrets.token_urlsafe(32)
     session.add(
@@ -98,9 +94,12 @@ def revoke_session(session: Session, raw_token: str) -> None:
 def resolve_session(session: Session, raw_token: str) -> User | None:
     """Return the user this token authenticates, or None.
 
-    An expired row is deleted on the way past. That keeps the table bounded
-    without a scheduled job, and means an expired token cannot be
-    resurrected by moving the clock back.
+    Args:
+        session: Open database session.
+        raw_token: The token from the cookie.
+
+    Returns:
+        The signed-in user, or None if the token is unknown or expired.
     """
     stored = session.get(UserSession, _token_hash(raw_token))
     if stored is None:
@@ -121,8 +120,13 @@ def get_user_by_username(session: Session, username: str) -> User | None:
 def authenticate(session: Session, username: str, password: str) -> User | None:
     """Check a username/password pair, in constant-ish time.
 
-    An unknown username still pays for one Argon2 verification against a
-    dummy hash, so the failure is indistinguishable from a wrong password.
+    Args:
+        session: Open database session.
+        username: As typed.
+        password: As typed.
+
+    Returns:
+        The user, or None for a wrong name or a wrong password alike.
     """
     user = get_user_by_username(session, username)
     if user is None:
@@ -151,12 +155,7 @@ def current_user(
     request: Request,
     session: Session = Depends(get_session),
 ) -> User:
-    """The authenticated caller, or a 401.
-
-    Every endpoint depends on this, directly or through `require_admin`.
-    Tests override it the same way `get_session` and `get_settings` are
-    already overridden.
-    """
+    """The authenticated caller, or a 401."""
     raw_token = request.cookies.get(SESSION_COOKIE)
     if raw_token is None:
         raise HTTPException(status_code=401, detail="Not authenticated")

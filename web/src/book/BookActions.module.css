@@ -9,8 +9,10 @@
 .row {
   display: flex;
   flex-wrap: wrap;
-  /* The Kindle button carries a line under itself, so the row aligns on the
-     top of each control rather than the middle. */
+  /*
+   The Kindle button carries a line under itself, so the row aligns on the top of each control
+     rather than the middle.
+   */
   align-items: flex-start;
   gap: 10px;
 }

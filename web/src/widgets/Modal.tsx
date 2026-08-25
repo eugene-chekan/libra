@@ -4,44 +4,21 @@ import type { ReactNode } from 'react'
 import styles from './Modal.module.css'
 
 interface ModalProps {
-  /** Names the dialog. Announced first, and the heading on screen. */
+  /** Names the dialog. */
   title: string
-  /**
-   * A quiet line under the title — "6 tags". A count, not a sentence, so it
-   * is deliberately not the accessible description.
-   */
+  /** A quiet line under the title — "6 tags". */
   subtitle?: string
-  /**
-   * One sentence saying what the dialog is for, announced after the title.
-   * Omit it when the body speaks for itself.
-   */
+  /** One sentence saying what the dialog is for, announced after the title. */
   description?: string
-  /** The dialog's width in pixels. The one measurement each dialog owns. */
+  /** The dialog's width in pixels. */
   width: number
   onClose: () => void
   children: ReactNode
 }
 
 /**
- * The shell every dialog here shares: the overlay, the centred card, the
- * title, and the rules about how it closes.
- *
- * It exists because four dialogs had written all of that out separately, and
- * the copies had already drifted: the Kindle Email modal had no `max-width`,
- * so a narrow window pushed it off the side, and its `.field` className named
- * a rule that did not exist. Neither was visible while the shell was four
- * files saying almost the same thing.
- *
- * **The description is a real slot, not a prop passed through.** Radix sets
- * `aria-describedby` only when a `Dialog.Description` is actually rendered
- * (`descriptionPresent` in react-dialog 1.1.23), so a dialog either supplies
- * that sentence and has it announced, or supplies nothing and the attribute
- * stays off. Two of these dialogs used to carry `aria-describedby={undefined}`
- * to opt out of a warning that this version does not raise; that is gone.
- *
- * Closing is Radix's own: Escape, a click on the overlay, and the focus trap
- * that comes with it. Each dialog supplies its own visible Close or Cancel
- * button in `children`, because the words on that button belong to the dialog.
+ * The shell every dialog here shares: the overlay, the centred card, the title, and the rules
+ * about how it closes.
  */
 export function Modal({ title, subtitle, description, width, onClose, children }: ModalProps) {
   return (
@@ -61,17 +38,7 @@ export function Modal({ title, subtitle, description, width, onClose, children }
   )
 }
 
-/**
- * The row a dialog's buttons sit in: pushed right, evenly spaced.
- *
- * A component rather than a class the stylesheets `composes` from. Both put
- * the rule in one place, but composition across CSS Module files makes
- * PostCSS resolve an import during tests and warn on every run, and a warning
- * nobody can act on is how real ones get ignored.
- *
- * `className` is for a dialog's own spacing above the row, which differs with
- * what sits over it.
- */
+/** The row a dialog's buttons sit in: pushed right, evenly spaced. */
 export function ModalFooter({ className, children }: { className?: string; children: ReactNode }) {
   return (
     <div className={className ? `${styles.footer} ${className}` : styles.footer}>{children}</div>

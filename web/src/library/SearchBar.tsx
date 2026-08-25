@@ -12,11 +12,7 @@ interface SearchBarProps {
   activeHashTagNames: string[]
 }
 
-/**
- * One field, two token types — bare words and `#tag` tokens — per
- * client-design.md. Parsing them into a search query is `filterParams.ts`'s
- * job; this component only owns typing and the autocomplete dropdown.
- */
+/** One field, two token types — bare words and `#tag` tokens — per client-design.md. */
 export function SearchBar({ value, onChange, tags, activeHashTagNames }: SearchBarProps) {
   const [focused, setFocused] = useState(false)
 

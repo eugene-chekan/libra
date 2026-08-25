@@ -1,14 +1,4 @@
-/*
- * The one dropdown-menu treatment, for every Radix menu in the app.
- *
- * Lifted out when the third one appeared, which is what the note in
- * MoveToShelfButton.module.css said to do. Before this the sidebar's account
- * menu and the Move to Shelf menu each carried their own copy of the same
- * thirty lines, and a third copy is the point where they start to drift.
- *
- * The menus differ only in which side they open on, and that is a prop on the
- * Radix component rather than a style.
- */
+/* The one dropdown-menu treatment, for every Radix menu in the app. */
 
 .menu {
   min-width: 200px;
@@ -50,9 +40,7 @@
   background: var(--libra-accent-lighter);
 }
 
-/* A row that is present but quieter than the rest: Sign Out, Remove from
-   shelf. Applied by name rather than by position — `:last-child` used to do
-   this, and would have muted the wrong row the moment one was added. */
+/* A row that is present but quieter than the rest: Sign Out, Remove from shelf. */
 .muted {
   color: var(--libra-text-light);
 }

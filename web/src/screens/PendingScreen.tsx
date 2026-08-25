@@ -7,20 +7,7 @@ interface PendingScreenProps {
   milestone: string
 }
 
-/**
- * A stand-in for a screen that is routed but not built.
- *
- * **Delete each use of this the moment its screen ships.** The Flutter client
- * left `PendingScreen(title: 'Book', issue: '#27')` in place after #27 merged,
- * so the app told readers the book screen was unbuilt while they were using
- * it. A stand-in that outlives what it stood in for is worse than a blank
- * pane, because it is confidently wrong. The rule is in
- * docs/specs/code-style.md and it is what this comment exists to enforce.
- *
- * It names a milestone and the issue number that will build it — a
- * placeholder pointing at nothing is the same defect one step earlier. Both
- * remaining uses carry one.
- */
+/** A stand-in for a screen that is routed but not built. */
 export function PendingScreen({ title, milestone }: PendingScreenProps) {
   return (
     <>

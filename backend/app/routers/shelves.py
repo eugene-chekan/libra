@@ -13,11 +13,7 @@ router = APIRouter(prefix="/shelves", tags=["shelves"])
 
 
 def _visible_or_404(exc: Exception) -> HTTPException:
-    """`404`, never `403`, for a shelf the caller cannot see.
-
-    A `403` would confirm the shelf exists, which is enough to enumerate
-    another reader's private shelves by walking ids.
-    """
+    """`404`, never `403`, for a shelf the caller cannot see."""
     return HTTPException(status_code=404, detail="Shelf not found")
 
 
@@ -52,10 +48,7 @@ def reorder_shelves(
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> list[ShelfRead]:
-    """Rewrite the caller's shelf order from a complete list.
-
-    Declared before `/{shelf_id}` so that "order" is not matched as an id.
-    """
+    """Rewrite the caller's shelf order from a complete list."""
     try:
         return library.reorder_shelves(session, user, order.shelf_ids)
     except library.InvalidShelfOrderError as exc:
@@ -84,11 +77,7 @@ def update_shelf(
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> ShelfRead:
-    """Rename a shelf or publish it. Owner only.
-
-    Renaming moves no books: they reference the shelf by id, which is the
-    whole point of shelves being entities rather than matched names.
-    """
+    """Rename a shelf or publish it."""
     try:
         return library.update_shelf(session, shelf_id, user, update.model_dump(exclude_unset=True))
     except library.ShelfNotVisibleError as exc:
@@ -110,12 +99,7 @@ def delete_shelf(
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> None:
-    """Delete a shelf, optionally moving its books to another of yours first.
-
-    Omitting `reassign_to` leaves those books unshelved, which is a valid
-    state — rather than silently moving them somewhere the reader did not
-    choose.
-    """
+    """Delete a shelf, optionally moving its books to another of yours first."""
     try:
         library.delete_shelf(session, shelf_id, user, reassign_to=reassign_to)
     except library.ShelfNotVisibleError as exc:

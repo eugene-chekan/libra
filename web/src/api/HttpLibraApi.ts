@@ -20,22 +20,10 @@ import type {
   UserPatch,
 } from './types'
 
-/**
- * The prefix every endpoint sits behind.
- *
- * Relative, with no host in it, and that is the whole local-first story in one
- * line: the client asks whichever machine served the page. Open the app at
- * `http://kitchen-pi:8000` and it calls `http://kitchen-pi:8000/api/...`
- * without being rebuilt. A host compiled in here would have to be.
- *
- * The `/api` part is not decoration either. Routing is on real paths, so
- * `/shelves` is a page; without the prefix it would also be an endpoint, and
- * reloading the page would hand the reader raw JSON. See
- * docs/specs/client-stack.md.
- */
+/** The prefix every endpoint sits behind. */
 const BASE = '/api'
 
-/** The real client. One instance for the whole application. */
+/** The real client. */
 export class HttpLibraApi implements LibraApi {
   private handler: (() => void) | null = null
 
@@ -73,7 +61,10 @@ export class HttpLibraApi implements LibraApi {
     return this.send<Tag[]>('GET', '/tags')
   }
 
-  /** `make_global` is off the URL entirely when false: the endpoint's default is an ordinary create. */
+  /**
+   * `make_global` is off the URL entirely when false: the endpoint's default is an ordinary
+   * create.
+   */
   async createTag(tag: TagCreate, makeGlobal = false): Promise<Tag> {
     return this.send<Tag>('POST', makeGlobal ? '/tags?make_global=true' : '/tags', tag)
   }
@@ -103,8 +94,8 @@ export class HttpLibraApi implements LibraApi {
   }
 
   /**
-   * `/shelves/order` is a path of its own — declared before `/shelves/{id}` on
-   * the server, so "order" is never read as an id that fails to parse.
+   * `/shelves/order` is a path of its own — declared before `/shelves/{id}` on the server, so
+   * "order" is never read as an id that fails to parse.
    */
   async reorderShelves(shelfIds: number[]): Promise<Shelf[]> {
     return this.send<Shelf[]>('PUT', '/shelves/order', { shelf_ids: shelfIds })
@@ -127,8 +118,8 @@ export class HttpLibraApi implements LibraApi {
   }
 
   /**
-   * No body at all, not even an empty object: the endpoint takes none, and
-   * sending one would put a Content-Type on a request with no content.
+   * No body at all, not even an empty object: the endpoint takes none, and sending one would
+   * put a Content-Type on a request with no content.
    */
   async sendToKindle(id: number): Promise<KindleDelivery> {
     return this.send<KindleDelivery>('POST', `/books/${id}/send-to-kindle`)
@@ -150,22 +141,7 @@ export class HttpLibraApi implements LibraApi {
     return `${BASE}/books/${id}/file`
   }
 
-  /**
-   * Every request goes through here.
-   *
-   * `credentials: 'include'` rather than `'same-origin'` because the app can
-   * also be served from Vite's own port in development, where the browser
-   * counts the backend as a different origin and would drop the session
-   * cookie.
-   *
-   * A `fetch` rejection means the request never got an answer at all — the
-   * server is down, the network is gone, or a CORS preflight was blocked. The
-   * three are indistinguishable from here, which is why the CORS setting is
-   * documented in web/README.md.
-   *
-   * A 204 has no body, and asking for one throws: `logout` and `deleteNote`
-   * answer this way today, and every later endpoint that does gets it free.
-   */
+  /** Every request goes through here. */
   private async send<T>(method: string, path: string, body?: unknown): Promise<T> {
     let response: Response
     try {
@@ -190,15 +166,7 @@ export class HttpLibraApi implements LibraApi {
   }
 }
 
-/**
- * Pulls the sentence out of a FastAPI error body.
- *
- * FastAPI answers `{"detail": "..."}` for the errors this client raises by
- * hand, and `{"detail": [ ...field errors... ]}` for a body it could not
- * validate. Only the first is worth showing, so the second falls back to the
- * status. Anything that is not JSON at all — a proxy's own error page, say —
- * falls back the same way.
- */
+/** Pulls the sentence out of a FastAPI error body. */
 async function readDetail(response: Response): Promise<string> {
   try {
     const body: unknown = await response.json()

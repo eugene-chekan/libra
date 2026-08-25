@@ -6,11 +6,8 @@ interface FilterSummaryProps {
 }
 
 /**
- * "Filtered by:" — the shelf pill first, then tag pills, matching the order
- * they apply in: the shelf ANDs against everything, the tags OR each other.
- * Styled differently for the same reason: identical-looking pills that
- * behave differently would be worse than no pills, per the issue this
- * builds.
+ * "Filtered by:" — the shelf pill first, then tag pills, matching the order they apply in: the
+ * shelf ANDs against everything, the tags OR each other.
  */
 export function FilterSummary({ shelf, tags }: FilterSummaryProps) {
   if (!shelf && tags.length === 0) return null

@@ -1,11 +1,4 @@
-/*
- * One error shape, everywhere. client-design.md: `bg` fill, 8px radius, 3px
- * `danger` left border, 14px/18px padding.
- *
- * Placed where the content would have been, never as a toast. A toast that
- * vanishes is no use for something the reader may need to act on, and this
- * application has no notification region to put one in.
- */
+/* One error shape, everywhere. */
 .block {
   display: flex;
   flex-direction: column;
@@ -32,9 +25,7 @@
   color: var(--libra-danger);
 }
 
-/* "Try again": 12px sans 600 accent, with a 12px rotate-cw icon.
-   A real <button>, so it is focusable and answers the keyboard without a
-   single line of code from us. */
+/* "Try again": 12px sans 600 accent, with a 12px rotate-cw icon. */
 .retry {
   display: inline-flex;
   align-items: center;

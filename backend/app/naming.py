@@ -1,19 +1,4 @@
-"""Human-readable filenames rebuilt from catalog metadata.
-
-Stored files carry generated UUID names, deliberately, so that a
-client-supplied filename never touches the filesystem. That protection has to
-stop at the point where a file leaves the server: a Kindle listing
-`9f2c1a….epub`, or a browser saving it under that name, is a bad outcome.
-
-So the readable name is reconstructed here from the catalog fields rather than
-recovered from `book_metadata["original_filename"]` — which is the name the
-uploader chose and is therefore exactly the untrusted string this module
-exists to avoid handling.
-
-Both callers put the result into a header a client parses: `Content-Type` /
-`Content-Disposition` for a download, a MIME part header for mail. Same class
-of problem, same sanitising, one implementation.
-"""
+"""Human-readable filenames rebuilt from catalog metadata."""
 
 import re
 import unicodedata
@@ -31,10 +16,10 @@ MAX_FILENAME_STEM = 120
 def book_filename(title: str, author: str, suffix: str = ".epub") -> str:
     """A safe, readable filename for one book.
 
-    Non-ASCII is kept rather than stripped — `EmailMessage.add_attachment`
-    handles RFC 2231 encoding, and `FileResponse` handles RFC 5987 — so a
-    title in Cyrillic or with an accent survives instead of being mangled into
-    ASCII soup.
+    Args:
+        title: Book title, from the catalog rather than the uploader.
+        author: Book author, likewise.
+        suffix: File extension, including the dot.
     """
     stem = f"{title} - {author}".strip(" -")
     # Normalise first: a combining sequence can otherwise survive the filter

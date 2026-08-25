@@ -29,8 +29,10 @@
   background: var(--libra-accent-lighter);
 }
 
-/* Dashed, like the sidebar's Add Book button: the same idiom for "this one is
-   not a thing yet, it is the way to add one". */
+/*
+ Dashed, like the sidebar's Add Book button: the same idiom for "this one is not a thing yet, it
+   is the way to add one".
+ */
 .add {
   display: inline-flex;
   align-items: center;

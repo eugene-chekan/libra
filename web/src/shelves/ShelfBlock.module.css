@@ -45,8 +45,10 @@
   flex-shrink: 0;
 }
 
-/* Read out, never drawn: the covers carry the titles visually, and repeating
-   each one under it would clutter a row meant to be scanned. */
+/*
+ Read out, never drawn: the covers carry the titles visually, and repeating each one under it
+   would clutter a row meant to be scanned.
+ */
 .label {
   position: absolute;
   width: 1px;
@@ -56,8 +58,7 @@
   white-space: nowrap;
 }
 
-/* The dashed idiom the sidebar's Add Book button uses, for a shelf with
-   nothing on it yet. */
+/* The dashed idiom the sidebar's Add Book button uses, for a shelf with nothing on it yet. */
 .empty {
   padding: 28px;
   border: 1.5px dashed var(--libra-border);

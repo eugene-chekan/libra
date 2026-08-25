@@ -10,18 +10,7 @@ import { ErrorBlock } from '../widgets/ErrorBlock'
 import { SkeletonDelay, SkeletonRows } from '../widgets/Skeleton'
 import styles from './ShelvesScreen.module.css'
 
-/**
- * `/shelves` — the browse view of what the sidebar filters by.
- *
- * **The order `GET /shelves` returns is trusted and never re-sorted here.** It
- * is the reader's own arrangement, which is the one thing about this screen
- * they control; sorting client-side is exactly how that would be thrown away
- * without anybody noticing.
- *
- * Shelves belonging to somebody else carry no edit affordances anywhere — not
- * a disabled pencil, not a greyed row. The server refuses those writes, and a
- * control that exists only to be refused is worse than no control.
- */
+/** `/shelves` — the browse view of what the sidebar filters by. */
 export function ShelvesScreen() {
   const shelves = useShelves()
   const [managing, setManaging] = useState(false)

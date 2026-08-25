@@ -1,25 +1,4 @@
-"""Application logging.
-
-Deliberately small. One process serving one household, read through
-`docker logs` or journald — so this configures levels and a format and
-nothing else. No file handlers, no rotation, no JSON: those solve problems
-that come with fleets and log aggregators, and here they would be machinery
-with no reader.
-
-What logging is *for* in this codebase is narrower than "observability". It
-covers the handful of places where the code deliberately keeps going after
-something went wrong, and would otherwise never tell anyone:
-
-- a stored file that could not be deleted, leaving a stray file on disk
-- the same-filesystem assumption breaking, turning a rename into a copy
-- an orphaned file cleaned up after a failed insert
-- a rejected login
-- a schema that moved underneath a running deployment
-
-Plus the "details server-side only" promise that the Kindle delivery and
-format conversion specs both make: the client gets a generic message, the
-operator gets the real one.
-"""
+"""Application logging."""
 
 import logging
 
@@ -34,27 +13,13 @@ _FOREIGN_LOGGERS = ("uvicorn", "uvicorn.access", "uvicorn.error")
 
 
 def get_logger(name: str) -> logging.Logger:
-    """A logger under the app's namespace.
-
-    Call as `get_logger(__name__)`; `app.storage` becomes `libra.storage`,
-    so one level setting governs the whole application and nothing else.
-    """
+    """A logger under the app's namespace."""
     suffix = name.removeprefix("app.")
     return logging.getLogger(f"{LOGGER_NAMESPACE}.{suffix}")
 
 
 def configure_logging(level: str) -> None:
-    """Attach a handler to the app's namespace only.
-
-    Configuring the *root* logger would be the obvious move and is wrong
-    here: uvicorn has already set up its own handlers by the time the app is
-    created, so adding another to root duplicates every access line. Owning
-    exactly one logger — `libra` — leaves everyone else's output as it was.
-
-    Idempotent, because `create_app()` runs per-test as well as once per
-    process, and re-running it must not stack up handlers that multiply
-    every message.
-    """
+    """Attach a handler to the app's namespace only."""
     logger = logging.getLogger(LOGGER_NAMESPACE)
     logger.setLevel(level.upper())
 

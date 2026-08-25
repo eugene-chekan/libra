@@ -1,8 +1,4 @@
-/*
- * client-design.md, Gap 1. No sidebar: the whole viewport is `bg`, and the
- * card floats centred on both axes with a shadow lighter than a modal's — a
- * page with nothing behind it does not need a modal's heavier weight.
- */
+/* client-design.md, Gap 1. */
 .page {
   display: flex;
   align-items: center;
@@ -65,9 +61,10 @@
 
 .input:focus-visible {
   border-color: var(--libra-accent);
-  /* The shared focus ring is drawn for elements that sit on a flat
-     background; an input's own border already carries the affordance here,
-     so the ring would double up on top of it. */
+  /*
+   The shared focus ring is drawn for elements that sit on a flat background; an input's own
+     border already carries the affordance here, so the ring would double up on top of it.
+   */
   outline: none;
 }
 

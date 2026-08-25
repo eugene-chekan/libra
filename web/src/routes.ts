@@ -1,38 +1,21 @@
-/**
- * Every route path in the client, in one place.
- *
- * Imported rather than transcribed. A path typed out again in a test or a link
- * is a second copy that will drift, and the rule in docs/specs/code-style.md
- * is explicit: tests import constants, they never transcribe them.
- *
- * These are real paths, not `#` fragments. That is why every endpoint lives
- * under `/api` — without the prefix, reloading at `/shelves` would ask the
- * server for `/shelves` and get the shelf list as JSON instead of the app.
- * See docs/specs/client-stack.md.
- */
+/** Every route path in the client, in one place. */
 export const routes = {
   login: '/login',
   library: '/library',
   shelves: '/shelves',
   chat: '/chat',
-  /** One book. `:id` is filled in by {@link bookPath}. */
+  /** One book. */
   book: '/books/:id',
-  /** The reader, which milestone 12 (#36) builds. Routed here so the Read button leads somewhere. */
+  /** The reader, which milestone 12 (#36) builds. */
   reader: '/books/:id/read',
 } as const
 
-/**
- * The address of one book's detail screen.
- *
- * A function rather than a template written out at each call site, for the
- * same reason the paths above are constants: a link built by hand in a card, a
- * test and a redirect is three copies that drift apart.
- */
+/** The address of one book's detail screen. */
 export function bookPath(id: number): string {
   return `/books/${id}`
 }
 
-/** Where the Read button goes. Empty until #36 fills it. */
+/** Where the Read button goes. */
 export function readerPath(id: number): string {
   return `/books/${id}/read`
 }

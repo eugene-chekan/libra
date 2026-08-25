@@ -6,22 +6,7 @@ import type { Book } from '../api/types'
 import { BookCover } from '../library/BookCover'
 import styles from './DetailCover.module.css'
 
-/**
- * The detail screen's cover, and the lightbox behind it.
- *
- * Reuses the grid's {@link BookCover} rather than drawing a second one. A book
- * with no cover art should look like the same book here as it does in the
- * library, and two hash-to-colour functions would eventually disagree about
- * which gradient belongs to which book.
- *
- * **Only a real cover opens.** A gradient has no detail to enlarge, so it is
- * plain decoration and not a button — offering the click would promise
- * something the enlarged view cannot deliver.
- *
- * `has_cover` is what the catalog believed when it was read, not a promise. If
- * the image 404s anyway, `BookCover` falls back to the gradient and says so
- * here, so the lightbox never opens onto a broken image.
- */
+/** The detail screen's cover, and the lightbox behind it. */
 export function DetailCover({ book }: { book: Book }) {
   const api = useApi()
   const [broken, setBroken] = useState(false)

@@ -6,20 +6,18 @@ import styles from './CollapsibleSection.module.css'
 interface CollapsibleSectionProps {
   label: string
   children: ReactNode
-  /** Shelves and Tags use slightly different top margins (32px vs 28px) — everything else about the two is identical. Defaults to 32px. */
-  topMargin?: string
   /**
-   * Whether the section starts open. Shelves and Tags do; SHARED WITH YOU
-   * does not, because it is secondary — it lists what other people made, not
-   * what this reader arranged.
+   * Shelves and Tags use slightly different top margins (32px vs 28px) — everything else about
+   * the two is identical.
    */
+  topMargin?: string
+  /** Whether the section starts open. */
   defaultOpen?: boolean
 }
 
 /**
- * The SHELVES/TAGS sidebar pattern: a section label with a chevron that
- * rotates when collapsed, open by default. Shared because both sections use
- * the exact same mechanics — only what they list differs.
+ * The SHELVES/TAGS sidebar pattern: a section label with a chevron that rotates when collapsed,
+ * open by default.
  */
 export function CollapsibleSection({
   label,

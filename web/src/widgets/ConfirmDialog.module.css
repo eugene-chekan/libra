@@ -1,5 +1,7 @@
-/* The shell — overlay, card, title, and the message that is also this
-   dialog's accessible description — comes from Modal.module.css. */
+/*
+ The shell — overlay, card, title, and the message that is also this dialog's accessible
+   description — comes from Modal.module.css.
+ */
 
 .cancel,
 .confirm {
@@ -25,8 +27,7 @@
   color: var(--libra-accent);
 }
 
-/* The destructive action is the one that carries the danger colour. It is not
-   the quiet option, and should not be dressed as one. */
+/* The destructive action is the one that carries the danger colour. */
 .confirm {
   border: none;
   background: var(--libra-danger);

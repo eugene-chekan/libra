@@ -1,16 +1,4 @@
-"""Library operations, independent of HTTP.
-
-The first module written under docs/specs/layering.md. It exists because
-Phase 3's agent needs `get_book_metadata` and `search_library` to return
-exactly what the REST API returns, including the rules about what the calling
-user may see. Logic that lives in a route handler can only be reached by the
-agent through duplication or a self-directed HTTP call, and duplication means
-two implementations of the scoping rules.
-
-Nothing here raises `HTTPException`. Domain functions return domain values;
-routers map them to status codes. A service that raised HTTP would force the
-agent to catch HTTP exceptions in order to read a book.
-"""
+"""Library operations, independent of HTTP."""
 
 from collections.abc import Callable
 from datetime import datetime
@@ -47,11 +35,7 @@ class NoKindleAddressError(Exception):
 
 
 class ShelfNotVisibleError(Exception):
-    """No such shelf, or none this caller is allowed to know about.
-
-    One error for both cases on purpose. Distinguishing them would let a
-    caller enumerate other people's private shelves by walking ids.
-    """
+    """No such shelf, or none this caller is allowed to know about."""
 
 
 class ShelfNotOwnedError(Exception):
@@ -67,12 +51,7 @@ class InvalidShelfOrderError(Exception):
 
 
 class TagNotVisibleError(Exception):
-    """No such tag, or one belonging to another reader.
-
-    Deliberately indistinguishable, for the same reason as shelves: telling
-    them apart lets a caller enumerate someone else's private vocabulary by
-    walking ids.
-    """
+    """No such tag, or one belonging to another reader."""
 
 
 class TagNotEditableError(Exception):
@@ -84,51 +63,23 @@ class DuplicateTagNameError(Exception):
 
 
 class ShadowsGlobalTagError(Exception):
-    """A personal tag may not take the name of a global one.
-
-    Two rows both rendering as "Sci-Fi" in one sidebar is a bug from the
-    reader's side however defensible it is in the schema.
-    """
+    """A personal tag may not take the name of a global one."""
 
 
 class BookNotFoundError(Exception):
-    """No such book.
-
-    Unlike shelves and tags there is nothing to conceal — the catalog is
-    shared, so every reader already knows which books exist and existence is
-    the only question a lookup can answer.
-    """
+    """No such book."""
 
 
 class NoteNotFoundError(Exception):
-    """No such note, or one belonging to another reader.
-
-    One error for both, as with shelves and tags. A reader's marginalia is
-    private even though the book it hangs off is not, so distinguishing the
-    cases would let a caller confirm someone else's notes exist by walking
-    ids.
-    """
+    """No such note, or one belonging to another reader."""
 
 
 class BookFileMissingError(Exception):
-    """The row is there but the file it points at is not.
-
-    Distinct from `BookNotFoundError`: one is a bad id, the other is a library
-    that has drifted from its database — a volume unmounted, a file removed by
-    hand. Worth telling apart in a log even though a caller sees the same 404,
-    because only one of them means something is wrong with the installation.
-    """
+    """The row is there but the file it points at is not."""
 
 
 class NoCoverError(Exception):
-    """This book has no usable cover.
-
-    Covers a file that declares none, one whose image is missing from the
-    archive, and one whose declared media type is not an image. All three are
-    the same thing to a caller — there is nothing to show — and the last is
-    deliberately not distinguished, since "this book's cover is the wrong
-    type" is server-side detail.
-    """
+    """This book has no usable cover."""
 
 
 class AttachmentTooLargeError(Exception):
@@ -140,15 +91,7 @@ class AttachmentTooLargeError(Exception):
 
 
 def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = None) -> BookRead:
-    """Combine a shared catalog row with one reader's state.
-
-    A missing state row is not an error — rows are created lazily, so most
-    books have none for most users, and the defaults on `BookRead` are the
-    correct answer for "never touched this book".
-
-    `has_cover` is derived from what the parse recorded, which costs no extra
-    query and cannot disagree with what the cover endpoint would serve.
-    """
+    """Combine a shared catalog row with one reader's state."""
     view = BookRead.model_validate(book, from_attributes=True)
     view.tag_ids = tag_ids or []
     view.has_cover = bool(
@@ -166,7 +109,13 @@ def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = 
 
 
 def get_book(session: Session, book_id: int, user: User) -> BookRead | None:
-    """One book as `user` sees it, or None if there is no such book."""
+    """One book as `user` sees it, or None if there is no such book.
+
+    Args:
+        session: Open database session.
+        book_id: Id of the book to read.
+        user: Whose state is merged into the result.
+    """
     book = session.get(Book, book_id)
     if book is None:
         return None
@@ -178,7 +127,12 @@ def get_book(session: Session, book_id: int, user: User) -> BookRead | None:
 
 
 def list_books(session: Session, user: User) -> list[BookRead]:
-    """Every book, each carrying `user`'s own state. Unfiltered `search_books`."""
+    """Every book, each carrying `user`'s own state. Unfiltered `search_books`.
+
+    Args:
+        session: Open database session.
+        user: Whose state is merged into each book.
+    """
     items, _ = search_books(session, user)
     return items
 
@@ -186,15 +140,16 @@ def list_books(session: Session, user: User) -> list[BookRead]:
 def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, str, str]:
     """A book's cover image, its media type, and an ETag.
 
-    Read from the archive on demand rather than extracted to disk at upload:
-    that keeps exactly one file per book on disk, so `DELETE /books/{id}` has
-    one artifact to clean up rather than two.
+    Args:
+        session: Open database session.
+        book: The book whose cover to read.
+        settings: Supplies `library_dir` and the cover size cap.
 
-    The bytes come from a file a user uploaded and are served from the API's
-    own origin — which now carries a session cookie — so the media type is
-    checked against an allowlist rather than trusted. A book archive that
-    declares its "cover" as text/html would otherwise be stored XSS with a
-    session to steal.
+    Returns:
+        The image bytes, its media type, and an ETag.
+
+    Raises:
+        NoCoverError: The book declares no usable cover.
     """
     href = book.book_metadata.get("cover_href")
     media_type = book.book_metadata.get("cover_media_type")
@@ -214,14 +169,16 @@ def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, 
 def file_for(session: Session, book: Book, settings: Settings) -> tuple[Path, str]:
     """The stored EPUB and the name to offer it under.
 
-    Returns a path rather than bytes, unlike `cover_for`: a cover is a handful
-    of kilobytes and gets an ETag computed from it, while a book is megabytes
-    and should stream off disk rather than through memory.
+    Args:
+        session: Open database session.
+        book: The book whose file to serve.
+        settings: Supplies `library_dir`.
 
-    The offered filename is rebuilt from the catalog by `naming.book_filename`
-    and never taken from `book_metadata["original_filename"]`, which is the
-    string the uploader supplied and so exactly what should not be echoed into
-    a response header.
+    Returns:
+        The path on disk, and the filename to offer it under.
+
+    Raises:
+        FileNotFoundError: The row points at a file that is not there.
     """
     path = storage.resolve(book.file_path, settings.library_dir)
     if not path.is_file():
@@ -238,36 +195,22 @@ def search_books(
     shelf_id: int | None = None,
     sort: str = SORT_TITLE,
 ) -> tuple[list[BookRead], int]:
-    """Find books, as `user` sees them. Returns the matches and their count.
+    """Find books, as `user` sees them.
 
-    This is Phase 3's `search_library`. It lives here rather than in the route
-    handler precisely so the agent and the REST API share one implementation
-    of the scoping rules — two copies would be two chances to disagree about
-    what a reader is allowed to see.
+    Args:
+        session: Open database session.
+        user: Whose visibility and state apply.
+        query: Matched case-insensitively against title and author.
+        tag_ids: Tags to match, ORed with each other.
+        shelf_id: Shelf to match, ANDed against the rest.
+        sort: `title` or `added`.
 
-    Semantics come straight from the UI design and are not negotiable
-    downstream: **tag filters OR each other** (a book matches if it carries
-    any one of them), and **the text query ANDs against that result**, matching
-    case-insensitively against title or author.
+    Returns:
+        The matching books and how many there are.
 
-    **Visibility is checked before filtering, never after.** Filtering by a tag
-    the caller cannot see raises rather than returning an empty list: an empty
-    result would confirm the tag exists, and let someone enumerate another
-    reader's private vocabulary by walking ids. A shelf works the same way, so
-    a private one cannot be probed through this endpoint either.
-
-    The tag subquery below carries no visibility filter of its own, on purpose.
-    The loop above has already rejected every id the caller cannot see, so
-    repeating the check would change no behaviour and no test could tell it
-    from its absence — security code nothing can distinguish from nothing is
-    worse than none, because it reads as protection.
-
-    The count is exact because nothing is paginated yet. Pagination would make
-    it a separate COUNT, which is why the response is an envelope now rather
-    than a bare list every client would later have to re-learn. `added` sorts
-    by primary key: there is no `created_at` on `Book`, and for an append-only
-    catalog insertion order is the same thing. The default sort is NOCASE, so
-    "a book" and "A Book" sort together instead of in two ASCII blocks.
+    Raises:
+        TagNotVisibleError: A tag id this caller may not see.
+        ShelfNotVisibleError: A shelf id this caller may not see.
     """
     statement = select(Book, UserBookState).outerjoin(
         UserBookState,
@@ -334,26 +277,18 @@ def set_reading_state(
 ) -> BookRead:
     """Write `user`'s state for `book`, creating the row if it is the first touch.
 
-    Timestamps are derived here rather than accepted from the client: they
-    describe when the server observed a change, and a client that could set
-    them could claim to have finished a book last year.
+    Args:
+        session: Open database session.
+        book: The book being written about.
+        user: Whose state row this is.
+        rating: 0 to 5, where 0 means unrated.
+        progress: 0 to 1.
+        shelf_id: Shelf to place the book on, or None to take it off.
+        set_shelf: Whether `shelf_id` was supplied at all.
 
-    `set_shelf` distinguishes an omitted `shelf_id` (leave the placement
-    alone) from an explicit null (take the book off its shelf). The shelf must
-    belong to `user`, which is the rule no foreign key expresses: the column's
-    FK would accept somebody else's id, and with SQLite's foreign keys off by
-    default it would accept a nonexistent one too.
-
-    `started_at` is set once, on the first evidence of reading, and never
-    cleared — a re-read does not change when this reader first opened the book.
-    `finished_at` is the other way about: re-finishing does not move it, and
-    dropping back below 1 clears it, because "finished at some point" is not
-    what any view means by finished.
-
-    The response is built **with** the tag ids. `_merge` defaults them to
-    empty, so leaving the argument out made every answer report a book with no
-    tags — including the request that had just set some. `PATCH /books/{id}`
-    carried the same omission, fixed in #65.
+    Raises:
+        ShelfNotVisibleError: The shelf does not exist for this caller.
+        ShelfNotOwnedError: The shelf belongs to somebody else.
     """
     state = session.get(UserBookState, (user.id, book.id))
     if state is None:
@@ -389,13 +324,7 @@ def set_reading_state(
 
 
 def _visible_shelf(session: Session, shelf_id: int, user: User) -> Shelf:
-    """A shelf the caller is allowed to see, or `ShelfNotVisibleError`.
-
-    Admins get no special access here. Admin is a curation role over shared
-    things — the catalog, the global tag vocabulary — not a way to read what
-    a household member marked private. "Private except from the admin" would
-    make the setting worthless.
-    """
+    """A shelf the caller is allowed to see, or `ShelfNotVisibleError`."""
     shelf = session.get(Shelf, shelf_id)
     if shelf is None:
         raise ShelfNotVisibleError
@@ -407,10 +336,14 @@ def _visible_shelf(session: Session, shelf_id: int, user: User) -> Shelf:
 def owned_shelf(session: Session, shelf_id: int, user: User) -> Shelf:
     """A shelf the caller may modify.
 
-    Public shelves are readable by everyone and writable by nobody but their
-    owner, so visibility is resolved first: a caller who cannot see a shelf
-    is told it does not exist, and one who can see it but does not own it is
-    told they may not touch it.
+    Args:
+        session: Open database session.
+        shelf_id: Id of the shelf.
+        user: Who must own it.
+
+    Raises:
+        ShelfNotVisibleError: No such shelf for this caller.
+        ShelfNotOwnedError: Visible, but not theirs.
     """
     shelf = _visible_shelf(session, shelf_id, user)
     if shelf.owner_id != user.id:
@@ -421,11 +354,7 @@ def owned_shelf(session: Session, shelf_id: int, user: User) -> Shelf:
 def _assert_name_free(
     session: Session, user: User, name: str, exclude_id: int | None = None
 ) -> None:
-    """Reject a duplicate before the database does.
-
-    The unique index is the real guarantee; this exists to turn an
-    IntegrityError into a 409 with a sentence a person can act on.
-    """
+    """Reject a duplicate before the database does."""
     query = select(Shelf).where(Shelf.owner_id == user.id, Shelf.name == name)
     existing = session.exec(query).first()
     if existing is not None and existing.id != exclude_id:
@@ -433,11 +362,7 @@ def _assert_name_free(
 
 
 def _book_counts(session: Session, shelf_ids: list[int]) -> dict[int, int]:
-    """How many books sit on each shelf, in one grouped query.
-
-    Counting per shelf in a loop is the same N+1 the book listing avoids, and
-    the Shelves page renders a count against every shelf at once.
-    """
+    """How many books sit on each shelf, in one grouped query."""
     if not shelf_ids:
         return {}
     rows = session.exec(
@@ -475,7 +400,12 @@ def _owner_names(session: Session, owner_ids: list[int]) -> dict[int, str]:
 
 
 def list_shelves(session: Session, user: User) -> list[ShelfRead]:
-    """The caller's own shelves in their chosen order, then others' public ones."""
+    """The caller's own shelves in their chosen order, then others' public ones.
+
+    Args:
+        session: Open database session.
+        user: Whose own shelves come first.
+    """
     shelves = session.exec(
         select(Shelf)
         .where((Shelf.owner_id == user.id) | (Shelf.visibility == SHELF_PUBLIC))
@@ -497,7 +427,17 @@ def get_shelf(session: Session, shelf_id: int, user: User) -> ShelfRead:
 
 
 def create_shelf(session: Session, user: User, name: str, visibility: str) -> ShelfRead:
-    """Append a shelf at the end of the caller's order."""
+    """Append a shelf at the end of the caller's order.
+
+    Args:
+        session: Open database session.
+        user: Who will own it.
+        name: Display name, unique per owner without regard to case.
+        visibility: `private` or `public`.
+
+    Raises:
+        DuplicateShelfNameError: The owner already uses that name.
+    """
     name = name.strip()
     _assert_name_free(session, user, name)
 
@@ -517,9 +457,14 @@ def create_shelf(session: Session, user: User, name: str, visibility: str) -> Sh
 def update_shelf(session: Session, shelf_id: int, user: User, fields: dict) -> ShelfRead:
     """Rename a shelf or change its visibility.
 
-    A rename moves nothing: books reference the shelf by id, which is the
-    whole reason shelves are entities rather than the design prototype's
-    name-matched strings.
+    Args:
+        session: Open database session.
+        shelf_id: Id of the shelf.
+        user: Who must own it.
+        fields: Only the keys present are written.
+
+    Raises:
+        DuplicateShelfNameError: The new name is already taken.
     """
     shelf = owned_shelf(session, shelf_id, user)
 
@@ -544,17 +489,12 @@ def delete_shelf(
 ) -> None:
     """Delete a shelf, moving its books somewhere first if asked.
 
-    One transaction, because the modal asks one question — "move N books to X
-    and delete this shelf?". A client issuing a delete plus N placement
-    updates can fail halfway and leave books pointing at a shelf that no
-    longer exists, which is exactly the orphaning that stable ids were
-    introduced to prevent.
-
-    `reassign_to` omitted means those books become unshelved, which is a
-    valid state. The prototype's fallback of reassigning to the first
-    remaining shelf is deliberately not reproduced: it moves a reader's books
-    somewhere they did not ask for. Reassignment and deletion land together or
-    not at all.
+    Args:
+        session: Open database session.
+        shelf_id: Id of the shelf.
+        user: Who must own it.
+        reassign_to: Another of their shelves to move the books to; None leaves
+            them unshelved.
     """
     shelf = owned_shelf(session, shelf_id, user)
 
@@ -576,13 +516,13 @@ def delete_shelf(
 def reorder_shelves(session: Session, user: User, shelf_ids: list[int]) -> list[ShelfRead]:
     """Rewrite every position from one ordered list.
 
-    Bulk rather than per-row: it matches the manage dialog's commit-on-save
-    behaviour, it is atomic, and it cannot produce the duplicate or gapped
-    positions that concurrent single-row updates race into.
+    Args:
+        session: Open database session.
+        user: Whose shelves are being ordered.
+        shelf_ids: Exactly their own shelves, each once, in the order wanted.
 
-    The list must be exactly the caller's current shelves. Anything else is a
-    stale client, and rejecting it also stops another user's shelf id being
-    slipped into the ordering.
+    Raises:
+        InvalidShelfOrderError: The list is not that.
     """
     owned = session.exec(select(Shelf).where(Shelf.owner_id == user.id)).all()
     if sorted(shelf_ids) != sorted(shelf.id for shelf in owned):
@@ -648,11 +588,7 @@ def list_tags(session: Session, user: User) -> list[TagRead]:
 def _assert_tag_name_free(
     session: Session, user: User, name: str, is_global: bool, exclude_id: int | None = None
 ) -> None:
-    """Reject a clash before the database does, and refuse to shadow a global.
-
-    A personal tag sharing a global tag's name would render as two identical
-    rows in one sidebar, so it is rejected even though the indexes permit it.
-    """
+    """Reject a clash before the database does, and refuse to shadow a global."""
     global_match = session.exec(select(Tag).where(Tag.owner_id.is_(None), Tag.name == name)).first()
     if global_match is not None and global_match.id != exclude_id:
         raise ShadowsGlobalTagError if not is_global else DuplicateTagNameError
@@ -666,11 +602,11 @@ def _assert_tag_name_free(
 def clean_tag_name(name: str) -> str:
     """Strip a tag name, and refuse one with whitespace inside it.
 
-    The search box reads `#tag` tokens and splits on whitespace, so a tag
-    named "lent out" could be created but never searched for: the parser sees
-    `#lent`, which matches nothing, and a stray word "out". Keeping the name a
-    single token is what makes the tag reachable. A hyphen reads the same and
-    survives the split.
+    Args:
+        name: Raw name from the caller.
+
+    Raises:
+        ValueError: Empty, or containing a space.
     """
     name = name.strip()
     if not name:
@@ -695,7 +631,18 @@ def create_tag(session: Session, user: User, name: str, is_global: bool) -> TagR
 
 
 def update_tag(session: Session, tag_id: int, user: User, name: str) -> TagRead:
-    """Rename a tag. Moves nothing: books reference it by id."""
+    """Rename a tag. Moves nothing: books reference it by id.
+
+    Args:
+        session: Open database session.
+        tag_id: Id of the tag.
+        user: Must own it, or be an admin for a global one.
+        name: The new name.
+
+    Raises:
+        TagNotEditableError: A non-admin renaming a global tag.
+        DuplicateTagNameError: The name is taken in that scope.
+    """
     tag = visible_tag(session, tag_id, user)
     if tag.owner_id is None and not user.is_admin:
         raise TagNotEditableError
@@ -713,9 +660,10 @@ def update_tag(session: Session, tag_id: int, user: User, name: str) -> TagRead:
 def delete_tag(session: Session, tag_id: int, user: User) -> None:
     """Delete a tag and remove it from every book, in one transaction.
 
-    There is no foreign-key cascade to rely on: SQLite has enforcement off by
-    default, so the link rows are deleted explicitly. Leaving them would
-    strand `book_tag` rows pointing at a tag that no longer exists.
+    Args:
+        session: Open database session.
+        tag_id: Id of the tag.
+        user: Must own it, or be an admin for a global one.
     """
     tag = visible_tag(session, tag_id, user)
     if tag.owner_id is None and not user.is_admin:
@@ -730,23 +678,16 @@ def delete_tag(session: Session, tag_id: int, user: User) -> None:
 def set_book_tags(session: Session, book: Book, user: User, tag_ids: list[int]) -> None:
     """Replace the tags this caller may set on a book.
 
-    For a reader that means their own personal tags. A global tag describes
-    the book for the whole household and is not theirs to hang on it, so a
-    reader who lists a global id is asking for something they cannot grant and
-    is told so.
+    Args:
+        session: Open database session.
+        book: The book being tagged.
+        user: Whose tags are replaced — plus the global ones when they are an
+            admin, since what a write may add it may also remove.
+        tag_ids: The complete set this caller wants on the book.
 
-    **An admin may set global tags here too**, which is what curating a shared
-    vocabulary actually requires. Until this, no caller could put a global tag
-    on a book at all: the refusal named an admin as the person who does it
-    ("managed by an admin, not per book") while refusing admins as well, and
-    no other endpoint assigned tags. A global tag could be created and then
-    never used.
-
-    **What a write replaces has to match what it may add.** This is a PUT, so a
-    tag left out of the list is meant to come off; if an admin could add a
-    global tag while only their personal links were cleared, a global tag would
-    go onto a book and never come off it again. Another reader's personal tags
-    are never in scope either way — they are not this caller's to remove.
+    Raises:
+        TagNotVisibleError: A tag id this caller may not see.
+        TagNotEditableError: A global tag, and the caller is not an admin.
     """
     requested = []
     for tag_id in dict.fromkeys(tag_ids):
@@ -792,14 +733,20 @@ def send_to_kindle(
 ) -> datetime:
     """Mail `book` to `user`'s Kindle address; returns when it was attempted.
 
-    "Attempted" is the strongest word available. Amazon silently discards mail
-    from an address that is not on the recipient's approved-sender list — no
-    bounce, no status API — so SMTP acceptance is the only observable signal
-    and nothing here can promise the book arrived.
+    Args:
+        session: Open database session.
+        book: The book to send.
+        user: Whose Kindle address it goes to.
+        settings: SMTP configuration and the attachment ceiling.
+        send: Callable that hands the built message to the mail server.
 
-    Everything checkable is checked before anything with a side effect, and
-    `last_sent_at` is written only after the mail server accepts: a failed
-    send must not leave a record claiming the book went out.
+    Returns:
+        When the attempt was made — not when it arrived, which is unknowable.
+
+    Raises:
+        NoKindleAddressError: The reader has set no address.
+        AttachmentTooLargeError: The encoded message is over the ceiling.
+        FileNotFoundError: The row points at a file that is not there.
     """
     if not user.kindle_email:
         raise NoKindleAddressError
@@ -874,14 +821,13 @@ def _clean_note_text(text: str | None) -> str:
 def list_notes(session: Session, book_id: int, user: User) -> list[NoteRead]:
     """The caller's own notes on one book, newest first.
 
-    Raises when the book is missing rather than returning an empty list, which
-    is where this differs from `get_book` returning `None`. An empty list is
-    already a valid answer here — a book nobody has annotated — so the two
-    cases have to be distinguishable or a typo in a book id reads as "no notes
-    yet".
+    Args:
+        session: Open database session.
+        book_id: Id of the book.
+        user: Whose own notes are returned; never anybody else's.
 
-    Id breaks ties in the ordering: notes made in the same request share a
-    timestamp, and an unstable order would make the list jump between reloads.
+    Raises:
+        BookNotFoundError: No such book.
     """
     _require_book(session, book_id)
     notes = session.exec(
@@ -906,9 +852,14 @@ def create_note(
 def update_note(session: Session, note_id: int, user: User, fields: dict) -> NoteRead:
     """Apply only the keys the caller actually sent.
 
-    Takes a dict rather than a `NoteUpdate` because the distinction that
-    matters — `page: null` to clear it versus `page` omitted to leave it —
-    survives `model_dump(exclude_unset=True)` and not the model itself.
+    Args:
+        session: Open database session.
+        note_id: Id of the note.
+        user: Must own it.
+        fields: Only the keys present are written; an explicit None clears `page`.
+
+    Raises:
+        NoteNotFoundError: No such note for this caller.
     """
     note = _owned_note(session, note_id, user)
 
@@ -947,19 +898,10 @@ class SelfDeletionError(Exception):
 def delete_user(session: Session, user_id: int, caller: User) -> None:
     """Remove a reader and everything private to them, in one transaction.
 
-    Books survive with `uploaded_by` nulled: a shared catalog should not lose
-    volumes because a household member left. Their public shelves do vanish
-    for everyone else, which is the visible consequence and is accepted.
-
-    Every dependent row is deleted by hand. SQLite has foreign-key enforcement
-    off by default, so there is no database cascade to lean on — the same
-    reason `delete_tag` removes its own link rows.
-
-    **There is deliberately no last-admin check.** It would be unreachable:
-    the endpoint is admin-only and self-deletion raises below, so the caller
-    is an administrator who is not the target and therefore survives. A guard
-    no test can distinguish from its absence reads as protection while
-    providing none, which is worse than not having it.
+    Args:
+        session: Open database session.
+        user_id: Who to remove.
+        caller: The admin doing it, who may not remove themselves.
     """
     user = session.get(User, user_id)
     if user is None:

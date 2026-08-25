@@ -6,25 +6,14 @@ import menu from '../widgets/dropdownMenu.module.css'
 import buttons from './actionButtons.module.css'
 
 interface MoveToShelfButtonProps {
-  /** Every shelf the reader can see. Only their own are offered — see below. */
+  /** Every shelf the reader can see. */
   shelves: Shelf[]
   currentShelfId: number | null
   /** Called with the shelf to move to, or null to take the book off its shelf. */
   onSelect: (shelfId: number | null) => void
 }
 
-/**
- * Move to Shelf, with its upward dropdown.
- *
- * **Only the reader's own shelves are listed.** `GET /shelves` also returns
- * other readers' public ones, because the library can be filtered by them —
- * but putting a book on one is a 403, so offering it would be offering a
- * control that cannot work.
- *
- * It opens upward because it sits near the bottom of a scrolled page, which is
- * where the design put it. Radix flips it to the other side by itself when
- * there is no room above.
- */
+/** Move to Shelf, with its upward dropdown. */
 export function MoveToShelfButton({ shelves, currentShelfId, onSelect }: MoveToShelfButtonProps) {
   const mine = shelves.filter((shelf) => shelf.editable)
 

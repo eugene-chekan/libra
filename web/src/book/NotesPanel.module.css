@@ -46,8 +46,7 @@
   color: var(--libra-text-light);
 }
 
-/* The quote-card idiom: an inset fill with a 3px accent bar down the left.
-   The error block is the same shape recoloured — one idiom, learned once. */
+/* The quote-card idiom: an inset fill with a 3px accent bar down the left. */
 .note {
   display: flex;
   align-items: flex-start;

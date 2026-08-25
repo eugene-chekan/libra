@@ -12,7 +12,7 @@ interface KindleButtonProps {
   hasAddress: boolean
   /** When this reader last sent this book, or null. */
   lastSentAt: string | null
-  /** Sends the book. Rejects with the reason, which is printed under the row. */
+  /** Sends the book. */
   onSend: () => Promise<unknown>
   /** Opens the Kindle Email modal, which is where an address is set. */
   onSetUpAddress: () => void
@@ -20,26 +20,7 @@ interface KindleButtonProps {
 
 type State = 'idle' | 'sending' | 'sent' | 'failed'
 
-/**
- * Send to Kindle, and its five states.
- *
- * The only long-running action in the app, and the one most likely to fail for
- * reasons outside it: an address never set, an Amazon approval never granted,
- * a mail server that will not talk today. Each of those wants a different
- * sentence, so this has five states rather than a spinner and a shrug.
- *
- * **The failure reason comes from the server, word for word.** That is safe by
- * construction rather than by hope: the backend raises `SendFailedError` with a
- * message written to be shown, and keeps the mail server's own reply — which
- * quotes the username — in the log instead.
- *
- * "Sent" holds for a moment and then returns to idle: it is a confirmation,
- * not a resting state, and leaving it up would make the next send look as
- * though it had already happened. A failure returns to idle too, so the button
- * is usable straight away, with the reason under the row. When nothing else is
- * showing, "Last sent" answers the question a reader standing here actually
- * has — did I already send this?
- */
+/** Send to Kindle, and its five states. */
 export function KindleButton({
   hasAddress,
   lastSentAt,

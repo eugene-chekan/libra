@@ -11,8 +11,7 @@
   background: var(--libra-accent-lighter);
 }
 
-/* The colour is set inline, from the tag's name — see tagColour.ts. Only its
-   size and shape belong here. */
+/* The colour is set inline, from the tag's name — see tagColour.ts. */
 .dot {
   flex-shrink: 0;
   width: 10px;
@@ -73,8 +72,10 @@
 
 /* --- the edit state ---------------------------------------------------- */
 
-/* One line, unlike the shelf editor's block: a tag has only a name to change,
-   so the row does not need to grow into a panel to hold it. */
+/*
+ One line, unlike the shelf editor's block: a tag has only a name to change, so the row does not
+   need to grow into a panel to hold it.
+ */
 .editor {
   display: flex;
   align-items: center;

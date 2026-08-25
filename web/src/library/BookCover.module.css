@@ -18,8 +18,10 @@
   box-shadow: var(--libra-shadow-cover-hover);
 }
 
-/* The gradient fallback's decoration: a spine down the left edge and two
-   faint rules, echoing a real book jacket without claiming to be one. */
+/*
+ The gradient fallback's decoration: a spine down the left edge and two faint rules, echoing a
+   real book jacket without claiming to be one.
+ */
 .spine {
   position: absolute;
   left: 0;
@@ -58,11 +60,7 @@
 
 .title {
   font-family: var(--libra-serif);
-  /* The handoff scales this off the cell's own pixel width (13%, clamped
-     10-16px). At the grid's 160px minimum that lands at the 16px cap, which
-     is what this fixes to directly rather than reaching for a container
-     query — no ancestor here declares `container-type`, so `cqw` would
-     silently resolve against nothing. */
+  /* The handoff scales this off the cell's own pixel width (13%, clamped 10-16px). */
   font-size: 16px;
   line-height: 1.25;
   color: rgb(255 255 255 / 92%);

@@ -14,13 +14,8 @@ interface TagManagerRowProps {
 }
 
 /**
- * One row of Manage Tags: the colour dot, the name, how many books carry it,
- * and what this reader may do to it.
- *
- * **A row the caller cannot edit carries no pencil and no trash at all** —
- * not a greyed one. The server would refuse the write, and a control that
- * exists only to be refused is worse than no control. `editable` comes from
- * the server; it is not re-derived here from `is_global` and the session.
+ * One row of Manage Tags: the colour dot, the name, how many books carry it, and what this
+ * reader may do to it.
  */
 export function TagManagerRow({ tag, busy, onSave, onDelete }: TagManagerRowProps) {
   const [editing, setEditing] = useState(false)
@@ -73,10 +68,7 @@ export function TagManagerRow({ tag, busy, onSave, onDelete }: TagManagerRowProp
   )
 }
 
-/**
- * The row's edit state. A form, so Enter saves — renaming one word should not
- * require reaching for the mouse.
- */
+/** The row's edit state. */
 function TagEditor({
   tag,
   onSave,

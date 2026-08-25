@@ -9,19 +9,9 @@ import {
 import { useApi } from '../api/ApiProvider'
 import type { Note, NoteDraft } from '../api/types'
 
-/**
- * Notes and highlights for one book.
- *
- * Their own query key rather than a field on the book: notes are read and
- * written far more often than the catalog row, and a note added should not
- * make the screen refetch the cover, the tags and the reading state as well.
- *
- * Nothing here invalidates the library grid or the shelves, which is the
- * difference from {@link useBook}'s writes. A note changes nothing anybody
- * else can see, and nothing this reader can see anywhere else either.
- */
+/** Notes and highlights for one book. */
 
-/** `GET /api/books/{id}/notes`. The caller's own notes, newest first. */
+/** `GET /api/books/{id}/notes`. */
 export function useNotes(bookId: number): UseQueryResult<Note[]> {
   const api = useApi()
   return useQuery({
@@ -42,7 +32,7 @@ export function useCreateNote(bookId: number): UseMutationResult<Note, Error, No
   })
 }
 
-/** `DELETE /api/notes/{id}`. Takes the note's own id, not the book's. */
+/** `DELETE /api/notes/{id}`. */
 export function useDeleteNote(bookId: number): UseMutationResult<void, Error, number> {
   const api = useApi()
   const queryClient = useQueryClient()

@@ -3,24 +3,7 @@ import { createContext, useContext, useEffect, useState, type ReactNode } from '
 import { useApi } from '../api/ApiProvider'
 import type { User } from '../api/types'
 
-/**
- * Where the client stands with the server, as one value.
- *
- * `starting` is the cold-load window: the client has asked `GET /auth/me` but
- * does not have an answer yet. A route guard renders nothing rather than
- * either the login screen or a protected screen during this window, because
- * both would be a guess at an answer nobody has yet.
- *
- * `signed-out` carries a `reason`. `null` means there was never a session to
- * lose — the cold probe found nothing, or the reader chose to sign out.
- * `'expired'` means a session was live and a request just found out it is
- * not, which is the one case the login screen explains. Reading the reason
- * off this value rather than off the `?next=` query string is deliberate: the
- * Flutter build of this milestone inferred it from `next` and got it wrong in
- * both directions — a shared link carried `next` and falsely claimed a
- * session had ended, and an expiry with nowhere to redirect back to carried
- * no `next` and said nothing at all.
- */
+/** Where the client stands with the server, as one value. */
 export type SessionStatus =
   | { status: 'starting' }
   | { status: 'signed-out'; reason: 'expired' | null }
@@ -28,7 +11,7 @@ export type SessionStatus =
 
 interface Session {
   status: SessionStatus
-  /** `POST /api/auth/login`, then signed-in on success. Throws on failure. */
+  /** `POST /api/auth/login`, then signed-in on success. */
   login: (username: string, password: string) => Promise<void>
   /** `POST /api/auth/logout`, then signed-out with no reason either way. */
   signOut: () => Promise<void>
@@ -37,17 +20,8 @@ interface Session {
 }
 
 /**
- * Every 401 the client sees reaches `setOnUnauthorized`, including a wrong
- * password on the login screen and the cold probe. Only one of those ended a
- * *live* session, which is why the handler below transitions from `signed-in`
- * and leaves every other state alone.
- *
- * `EXPIRED` and the other two are module constants rather than fresh literals,
- * and that is what makes an expiry fire once under concurrency: two in-flight
- * requests both discovering a 401 both call the handler, the first moves
- * `signed-in` to `EXPIRED`, and the second hands back the identical object.
- * React skips a state update when the value is unchanged by reference, so the
- * second produces no re-render and no second redirect.
+ * Every 401 the client sees reaches `setOnUnauthorized`, including a wrong password on the
+ * login screen and the cold probe.
  */
 const SessionContext = createContext<Session | null>(null)
 

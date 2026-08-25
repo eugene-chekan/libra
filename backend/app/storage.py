@@ -1,13 +1,4 @@
-"""Local filesystem storage for ebook files.
-
-Stored names are generated UUIDs, never the client-supplied filename: that
-sidesteps path traversal, collisions, and unicode/case oddities across
-platforms in one move. The original name is kept in the book's metadata for
-display purposes only.
-
-`Book.file_path` holds the name *relative* to `settings.library_dir`, so the
-library can be remounted at a different absolute path without rewriting rows.
-"""
+"""Local filesystem storage for ebook files."""
 
 import hashlib
 import os
@@ -44,11 +35,15 @@ class StagedUpload:
 def stage_upload(source: BinaryIO, library_dir: Path, max_bytes: int) -> StagedUpload:
     """Stream `source` to a temp file inside `library_dir`, hashing as we go.
 
-    Staging in the destination directory keeps the later commit on the same
-    filesystem, so promoting it is an atomic rename rather than a copy.
+    Args:
+        source: The incoming stream.
+        library_dir: Where the temporary file is written, so committing is a
+            rename rather than a copy.
+        max_bytes: Ceiling, counted on the stream rather than trusted from a
+            header.
 
-    We count bytes as they arrive instead of trusting Content-Length, which a
-    client controls, and abort mid-stream once the ceiling is crossed.
+    Raises:
+        UploadTooLargeError: The stream went over the ceiling.
     """
     library_dir.mkdir(parents=True, exist_ok=True)
     digest = hashlib.sha256()
@@ -72,7 +67,16 @@ def stage_upload(source: BinaryIO, library_dir: Path, max_bytes: int) -> StagedU
 
 
 def commit(staged: StagedUpload, library_dir: Path, suffix: str = ".epub") -> str:
-    """Promote a staged upload to its permanent name; returns the relative path."""
+    """Promote a staged upload to its permanent name; returns the relative path.
+
+    Args:
+        staged: What `stage_upload` produced.
+        library_dir: The library root.
+        suffix: File extension to store it under.
+
+    Returns:
+        The stored name, relative to `library_dir`.
+    """
     stored_name = f"{uuid.uuid4().hex}{suffix}"
     destination = library_dir / stored_name
     # Same-filesystem rename by construction (see stage_upload), but fall back
@@ -98,9 +102,12 @@ def commit(staged: StagedUpload, library_dir: Path, suffix: str = ".epub") -> st
 def resolve(relative_path: str, library_dir: Path) -> Path:
     """Map a stored relative path back to an absolute one.
 
-    Rejects anything that escapes `library_dir`. Values we wrote are always
-    safe, but `POST /books` accepts a caller-supplied `file_path`, so this is
-    the chokepoint that keeps such a value from reaching an arbitrary file.
+    Args:
+        relative_path: A path as stored on a `Book` row.
+        library_dir: The library root.
+
+    Raises:
+        PathTraversalError: The path escapes the library.
     """
     root = library_dir.resolve()
     candidate = (root / relative_path).resolve()
@@ -110,12 +117,14 @@ def resolve(relative_path: str, library_dir: Path) -> Path:
 
 
 def delete(relative_path: str, library_dir: Path) -> bool:
-    """Remove a stored file. Returns False if it was absent or out of bounds.
+    """Remove a stored file.
 
-    Both failure modes are logged rather than merely returned, because every
-    caller ignores the return value on purpose: deletion is best-effort by
-    design, so that a book row is never left listed but unreadable. The
-    consequence is that a stray file is invisible unless it says so here.
+    Args:
+        relative_path: A path as stored on a `Book` row.
+        library_dir: The library root.
+
+    Returns:
+        Whether a file was actually removed.
     """
     try:
         target = resolve(relative_path, library_dir)

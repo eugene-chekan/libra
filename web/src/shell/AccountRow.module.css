@@ -1,5 +1,7 @@
-/* client-design.md: 10px/12px padding, 8px radius, accentLighter on hover,
-   full width, 10px gap — the same row treatment as the primary nav rows. */
+/*
+ client-design.md: 10px/12px padding, 8px radius, accentLighter on hover, full width, 10px gap —
+   the same row treatment as the primary nav rows.
+ */
 .row {
   display: flex;
   align-items: center;

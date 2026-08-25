@@ -32,27 +32,9 @@ async def lifespan(app: FastAPI):
 def is_client_route(path: str) -> bool:
     """Whether a path that matched no file should be answered with the app.
 
-    Separated from the response handling so it can be tested directly on any
-    platform, which matters more than it looks — see the separator note below.
-
-    Narrow on purpose, because the broad version is a trap:
-
-    - **Never under `/api`.** An endpoint that does not exist must stay a 404.
-      Returning a page there turns a typo in a caller's URL into a 200 full of
-      HTML, which is the most confusing possible way to find out.
-    - **Never for a path with a file extension.** A missing `.js` or `.woff2`
-      is a broken build and has to look like one. Answering it with HTML makes
-      the browser report a syntax error in a script instead of a 404 for a
-      missing one, and sends whoever is debugging a long way in the wrong
-      direction.
-
-    Anything else carrying no extension is a client route.
-
-    **The separator is normalised first, and that is not defensive tidiness.**
-    `StaticFiles` hands over an OS-native path, so on Windows this arrives as
-    `api\\not-a-real-path` and a check for `api/` silently does not fire. That
-    version of this function passed on Linux and failed on Windows — the worst
-    shape a bug can have, because CI would have called it green.
+    Args:
+        path: As `StaticFiles` gives it, which on Windows uses backslashes —
+            hence the normalisation, without which the `api/` check never fires.
     """
     url_path = path.replace("\\", "/").lstrip("/")
     if url_path.startswith("api/"):
@@ -61,20 +43,7 @@ def is_client_route(path: str) -> bool:
 
 
 class SpaStaticFiles(StaticFiles):
-    """Serves the built client, and serves it again for client-side routes.
-
-    The client routes on real URLs, so `/shelves` and `/books/5` are addresses
-    a reader can reload, bookmark and share. Those paths exist only inside the
-    running app — there is no `shelves` file on disk — so a plain static mount
-    404s on the reload, and the reader loses the page by refreshing it.
-
-    Which paths get that treatment is {@link is_client_route}'s decision.
-
-    Note that a miss arrives as a *raised* `HTTPException`, not as a response
-    carrying a 404. Inspecting `response.status_code` therefore never fires,
-    and the first version of this class did exactly that: it read correctly and
-    every client route 404ed.
-    """
+    """Serves the built client, and serves it again for client-side routes."""
 
     async def get_response(self, path: str, scope: Scope) -> Response:
         try:
@@ -86,31 +55,7 @@ class SpaStaticFiles(StaticFiles):
 
 
 def create_app() -> FastAPI:
-    """Build the application: middleware, routes, and the client in front.
-
-    Logging is configured before anything else, so a failure during startup —
-    migrations in particular — is reported rather than swallowed.
-
-    `allow_credentials` is required for the session cookie to travel
-    cross-origin, and the CORS spec forbids pairing it with a `*` origin, so
-    `cors_origins` is always an explicit list and empty by default.
-
-    **`/health` stays at the root and everything the client calls lives under
-    `/api`.** The health check is for whatever watches the process, and probes
-    expect that path. The prefix is what keeps client routes and endpoints
-    apart: the client uses real URLs, so reloading at `/shelves` asks this
-    server for `/shelves`, which before the prefix was the endpoint returning
-    the shelf list — and the reader got JSON instead of the app. Renaming the
-    colliding client routes would have worked once and left a rule to remember
-    forever, with Phases 2 and 3 still to add endpoints of their own. See
-    docs/specs/client-stack.md.
-
-    The client is mounted **last**: Starlette matches routes in order, so the
-    API keeps every path it declares and the single-page app catches what is
-    left. Mounted earlier it would shadow the whole API. A missing build is not
-    an error — the API is usable on its own, and that is the normal state of a
-    checkout that has never run `scripts/run.sh`.
-    """
+    """Build the application: middleware, routes, and the client in front."""
     settings = get_settings()
     configure_logging(settings.log_level)
 

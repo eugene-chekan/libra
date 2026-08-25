@@ -6,17 +6,7 @@ import { useSession } from '../session/SessionProvider'
 import { Icon } from '../widgets/Icon'
 import styles from './LoginScreen.module.css'
 
-/**
- * Route `/login`. No sidebar — reached both before any session exists and
- * after one just ended, so it cannot assume the frame around it is safe to
- * show.
- *
- * The error copy is fixed and never says which field was wrong. That is not
- * vagueness: the backend's `auth.authenticate` checks an unknown username
- * against a dummy password hash specifically so the response takes the same
- * time either way, and a screen that says "no such user" would hand back
- * exactly what that effort is spent concealing.
- */
+/** Route `/login`. */
 export function LoginScreen() {
   const { status, login } = useSession()
   const navigate = useNavigate()

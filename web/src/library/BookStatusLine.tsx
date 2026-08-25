@@ -4,15 +4,13 @@ import styles from './BookStatusLine.module.css'
 interface BookStatusLineProps {
   /** 0 to 1. */
   progress: number
-  /** 0 to 5. Read-only — set from the book detail screen, not here. */
+  /** 0 to 5. */
   rating: number
 }
 
 /**
- * The library card's one status line, in the three states client-design.md
- * names: unstarted, partway through, or finished. Never more than one shows
- * at once — a book cannot be both 40% read and rated, because a rating
- * belongs to a book the reader has finished.
+ * The library card's one status line, in the three states client-design.md names: unstarted,
+ * partway through, or finished.
  */
 export function BookStatusLine({ progress, rating }: BookStatusLineProps) {
   if (progress >= 1) {

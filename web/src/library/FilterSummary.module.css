@@ -24,8 +24,10 @@
   background: var(--libra-accent);
 }
 
-/* Outlined rather than filled — the shelf ANDs while tags OR each other, and
-   an identical-looking pill that behaves differently is worse than none. */
+/*
+ Outlined rather than filled — the shelf ANDs while tags OR each other, and an identical-looking
+   pill that behaves differently is worse than none.
+ */
 .shelfPill {
   display: inline-flex;
   align-items: center;

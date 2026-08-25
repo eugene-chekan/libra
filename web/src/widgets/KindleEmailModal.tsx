@@ -4,24 +4,14 @@ import { Modal, ModalFooter } from './Modal'
 import styles from './KindleEmailModal.module.css'
 
 interface KindleEmailModalProps {
-  /** `kindle_email` off the signed-in user. `null` when none is set yet. */
+  /** `kindle_email` off the signed-in user. */
   currentEmail: string | null
   /** Called with the new value on Save — `null` when the field was cleared. */
   onSave: (email: string | null) => Promise<void>
   onClose: () => void
 }
 
-/**
- * `client-design.md`'s Kindle Email modal. Writes `PATCH /api/users/{self}`
- * through whichever caller owns the session — this component only asks for
- * the value and hands it back, so it does not need to know about `LibraApi`
- * or the signed-in user beyond the one field it edits.
- *
- * The helper line under the field is not decoration. Amazon rejects mail from
- * a sender that is not on the reader's own Approved Personal Document E-mail
- * list, which is the single most common reason a delivery silently fails —
- * learned the hard way during Phase 1.
- */
+/** `client-design.md`'s Kindle Email modal. */
 export function KindleEmailModal({ currentEmail, onSave, onClose }: KindleEmailModalProps) {
   const [email, setEmail] = useState(currentEmail ?? '')
   const [saving, setSaving] = useState(false)
