@@ -14,13 +14,10 @@ first-class concerns — this needs to hold up to committee scrutiny, not just
 **Phase 1 (backend core)** is done bar format conversion, and **Phase 4 (the
 web client)** is underway — it was deliberately reordered ahead of RAG and the
 agent, see `docs/specs/phase-4-plan.md` for why. **The client moved from
-Flutter to TypeScript and React on 2026-08-21**, because Flutter's web build
-paints the page onto a single canvas instead of building real page elements —
-see `docs/specs/client-stack.md` for the reasons, the cost, and the new
-stack. See
-`docs/architecture.md` for the full 5-phase roadmap and `docs/evaluation.md`
-for how each phase's evaluation methodology is meant to be built alongside the
-implementation, not retrofitted after.
+Flutter to TypeScript and React on 2026-08-21** — see
+`docs/specs/client-stack.md` for the reasons. See `docs/architecture.md` for
+the full 5-phase roadmap and `docs/evaluation.md` for how each phase's
+evaluation methodology is built alongside the implementation.
 
 ## How to write here
 
@@ -56,57 +53,36 @@ PORT=9000 scripts/run.sh
 ```
 
 `scripts/run.ps1` is the same thing for PowerShell 7+, with native switches
-instead of flags. Same steps, same output, same data directories, so the two
-can be used interchangeably on one machine:
+instead of flags — same steps, same output, same data directories, so the two
+can be used interchangeably on one machine. **They are twins, and twins
+drift**: a change to either belongs in both, in the same commit.
 
 ```powershell
-scripts
-un.ps1                    # build client + wheel, migrate, serve
-scripts
-un.ps1 -SkipWeb           # reuse the last client build
-scripts
-un.ps1 -Scratch           # throwaway instance, wiped on every run
-scripts
-un.ps1 -Port 9000         # $env:PORT is the default
-Get-Help scripts
-un.ps1 -Full     # the full description
+scripts\run.ps1                    # build client + wheel, migrate, serve
+scripts\run.ps1 -SkipWeb           # reuse the last client build
+scripts\run.ps1 -Scratch           # throwaway instance, wiped on every run
+scripts\run.ps1 -Port 9000         # $env:PORT is the default
 ```
 
-**They are twins, and twins drift.** This is the one place the repo carries
-the same policy twice — where the data lives, what `--scratch` wipes, the
-order of the steps. A change to either belongs in both, in the same commit.
+**Use `--scratch`/`-Scratch` for anything exploratory** — demoing, verifying
+a change, clicking through a new screen, seeding fake books. `.run/data/` is
+somebody's real installation: their account, their books. Nothing that tests
+the app should be able to damage it.
 
-**Use `--scratch` for anything exploratory** — demoing, verifying a change,
-clicking through a new screen, seeding fake books. It keeps its data in
-`.run/scratch/` and empties that on every run, so a clean slate never requires
-deleting anything. `.run/data/` is somebody's real installation: their account,
-their books. Nothing that tests the app should be able to damage it, and a
-plain `scripts/run.sh` during a test is how that happens.
+The script installs the wheel into a throwaway venv at `.run/` and runs
+*that*, not the source tree — so anything missing from the wheel fails here
+rather than on someone else's machine. It is idempotent, and creates an admin
+only when the installation has no users at all. `LIBRA_ADMIN_PASSWORD` seeds
+that admin non-interactively, which is what makes a scratch instance
+scriptable.
 
-**One process, one origin.** The API serves the built client at `/`, so both
-share an address. That is not tidiness: the client resolves its API address
-from the page it was loaded from — it calls `/api/...` relative to wherever it
-was served — which is what lets any device on the network open
-`http://<host>:8000` and work. Served separately,
-the client would need rebuilding for every address it might be reached at, and
-every device's origin adding to `LIBRA_CORS_ORIGINS`.
-
-The script installs the wheel into a throwaway venv at `.run/` and runs *that*,
-not the source tree — so anything missing from the wheel fails here rather than
-on someone else's machine. Data lives in `.run/data/`, untouched by rebuilds.
-It is idempotent: safe on every boot, and it creates an admin only when the
-installation has no users at all.
-
-`run.sh` ends in `exec uvicorn`, so **uvicorn replaces the shell** — killing
-the job that launched it leaves the server running and the port held. Stop it
-by port, not by job. `run.ps1` has no `exec` to use, so uvicorn stays a child
-process and Ctrl-C reaches it normally; that difference is in its favour.
-`LIBRA_ADMIN_PASSWORD` seeds the admin non-interactively, which is what makes
-a scratch instance scriptable.
+`run.sh` ends in `exec uvicorn`, so uvicorn replaces the shell — stop it by
+port, not by killing the launching job. `run.ps1` has no `exec`, so Ctrl-C
+reaches uvicorn normally.
 
 For the split two-origin setup, `npm run dev` proxies `/api` to
 localhost:8000, so `LIBRA_CORS_ORIGINS` is only needed when bypassing that
-proxy; see `web/README.md`.
+proxy — see `web/README.md`.
 
 ### Backend
 
@@ -127,31 +103,24 @@ Docker: `docker compose -f scripts/docker-compose.yml up --build` (from repo roo
 ### Client
 
 All commands run from `web/`. TypeScript, React and Vite — the Flutter client
-was deleted on 2026-08-21, see `docs/specs/client-stack.md`.
+was deleted on 2026-08-21, see `docs/specs/client-stack.md`. Full command
+list, the e2e-against-a-real-backend setup, and the dev-proxy details are in
+[`web/README.md`](web/README.md); the essentials:
 
 ```bash
-npm ci                # install exactly what the lockfile says
-npm run dev           # run against a backend on localhost:8000
-npm test              # component tests (Vitest)
-npm run e2e           # end-to-end tests in a real browser (Playwright)
-npm run lint          # ESLint, including the accessibility rules
-npm run typecheck     # tsc --noEmit
-npm run format        # Prettier, writing
-npm run build         # typecheck, then a production build into dist/
+npm ci             # install exactly what the lockfile says
+npm run dev        # run against a backend on localhost:8000
+npm test           # component tests (Vitest)
+npm run e2e        # end-to-end tests in a real browser (Playwright)
+npm run lint       # ESLint, including the accessibility rules
+npm run typecheck  # tsc --noEmit
+npm run format     # Prettier, writing
+npm run build      # typecheck, then a production build into dist/
 ```
 
 CI runs `npm run format:check`, so format before pushing or the client job
 fails on whitespace. `npm run e2e` needs a browser once:
 `npx playwright install chromium`.
-
-**`npm run dev` proxies `/api` to localhost:8000**, so the browser sees one
-origin and `LIBRA_CORS_ORIGINS` is not needed for ordinary development. It is
-only needed if you bypass the proxy and call the backend directly:
-
-`LIBRA_CORS_ORIGINS='["http://localhost:<client-port>"]'` on the backend. It
-is empty by default, credentialed requests cannot use a `*` origin, and a
-blocked preflight reaches the client as an indistinguishable network failure —
-so a misconfigured origin looks exactly like a server that is not running.
 
 ### Git hooks
 
@@ -163,9 +132,9 @@ pre-commit --hook-type pre-push`. Run everything on demand with `pre-commit
 run --all-files`.
 
 **CI only triggers on pushes to `main` and PRs targeting `main`** — a feature
-branch gets zero CI feedback until its PR is opened, which makes the local
-pre-push pytest gate the only safety net on a branch. Run tests locally
-before pushing rather than relying on CI to catch a broken branch.
+branch gets zero CI feedback until its PR is opened, so the local pre-push
+pytest gate is the only safety net on a branch. Run tests locally before
+pushing rather than relying on CI to catch a broken branch.
 
 ## Workflow conventions
 
@@ -186,134 +155,78 @@ before pushing rather than relying on CI to catch a broken branch.
 
 ## Code style and architecture rules
 
-Written against the Flutter client. The rules are about the defects, not the
-framework, so they carry over to the TypeScript client — "widget" reads as
-"component", and the a11y rule is now enforced by `eslint-plugin-jsx-a11y` in
-CI rather than only by reading. The last rule in the list is what ended
-Flutter here; see [`docs/specs/client-stack.md`](docs/specs/client-stack.md).
+Full reasoning, with the defect behind each rule, is in
+[`docs/specs/code-style.md`](docs/specs/code-style.md) — every rule there
+cites the bug that produced it, which is what makes it worth following.
+Written against the Flutter client, so the rules are about the defects, not
+the framework: "widget" reads as "component", and the a11y rule is now
+enforced by `eslint-plugin-jsx-a11y` in CI rather than only by reading. See
+[`docs/specs/client-stack.md`](docs/specs/client-stack.md) for why Flutter
+left. None of this is caught by lint or format — that's why it has to be
+read, not just run.
 
-Full reasoning, with the defect behind each rule, in
-[`docs/specs/code-style.md`](docs/specs/code-style.md). Every one of those
-defects passed lint, format and CI — none of this is enforceable
-automatically, so it has to be read.
-
-- **One decision, one place.** Duplicated policy drifts; move it up, not
-  sideways.
-- **Check the SDK before writing a helper** — the codebase hand-rolled
-  `firstOrNull` beside the real one.
-- **Tests import constants, never transcribe them.** A copied duration had
-  already drifted 2600 vs 2500ms.
-- **A docstring is one line**, unless there is a reason you could defend out
-  loud for making it longer. In Python, document the parameters too — `Args:`,
-  and `Returns:`/`Raises:` where they matter — except on route handlers, whose
-  parameters are framework wiring. In TypeScript the types do that job, so a
-  summary line and a short line per interface field is the whole of it.
-- **A comment inside a function is the last resort.** Ask whether the code can
-  say it — a rename, an extracted function — first. What survives is a genuine
-  surprise the reader cannot deduce.
-- **Narrative history, alternatives considered and reassurance are garbage.**
-  "This used to…", "found in #65", "verified, not assumed" — git holds the
-  first, `docs/specs/` holds the second, and nothing needs the third. A third
-  of every source file here was prose before this rule; that is the defect it
-  exists to stop.
-- **A comment is a claim.** Two comments here described behaviour the code
-  did not have. Comments above changed code are part of the diff.
-- **A placeholder names a live issue and dies when it ships** — closing an
-  issue includes grepping for its number.
-- **A widget reads what it uses**; don't thread dependencies through a parent
+- One decision, one place — duplicated policy drifts; move it up, not sideways.
+- Check the SDK before writing a helper.
+- Tests import constants, never transcribe them.
+- A docstring is one line, plus documented params in Python (`Args:`,
+  `Returns:`/`Raises:` where they matter, route handlers excepted). In
+  TypeScript, types do that job — a summary line and nothing else.
+- A comment inside a function is the last resort — only a genuine surprise
+  the reader cannot deduce; narrative history, alternatives considered, and
+  reassurance belong in git and `docs/specs/`, not the source.
+- A comment is a claim: when you change behaviour, the comments above it are
+  part of the diff.
+- A placeholder names a live issue and dies when it ships — closing an issue
+  includes grepping for its number.
+- A widget reads what it uses; don't thread dependencies through a parent
   that only forwards them.
-- **Never key a widget by state its own output changes** — it discards the
-  `State` and makes `didUpdateWidget` unreachable.
-- **The fake enforces the server's rules, including surprising ones.** A fake
-  that shares the client's misunderstanding tests nothing.
-- **Every widget gets at least one test.** Both bugs found in the #28 review
-  were in code the suite never touched — start any review by listing what has
-  no coverage.
-- **Assert what is on screen, not that nothing threw.**
-- **Probe before you fix**: a throwaway test that *prints* actual behaviour,
-  deleted once the real test exists.
-- **Verify a11y claims against a running build** — `flutter test` reads the
-  framework's semantics, not the rendered DOM, and the two disagree here.
+- Never key a widget by state its own output changes.
+- The fake enforces the server's rules, including surprising ones.
+- Every widget gets at least one test; assert what's on screen, not that
+  nothing threw; mutation-test every guard by hand (break it, confirm the
+  test fails, restore it); probe with a throwaway print before you fix; verify
+  a11y claims against a running build, not the framework's own semantics tree.
 
 ## Architecture
 
-### Settings and the lazy engine (`app/config.py`, `app/db.py`)
+See [`docs/architecture.md`](docs/architecture.md) for the phased roadmap and
+tech stack, and [`docs/specs/layering.md`](docs/specs/layering.md) for where
+orchestration logic belongs (routers vs. `app/library.py`) and why. What
+follows is what isn't written down anywhere else — the gotchas you'd only
+find by reading the code.
 
-`Settings` (pydantic-settings, `LIBRA_` env prefix) is read via a cached
-`get_settings()`. The SQLAlchemy engine is built lazily in `get_engine()`
-(also `lru_cache`d) rather than at import time — this matters because a
-module-level engine would resolve real settings (and create a real
-`libra.db`) as soon as anything imported `app.db`, before tests get a chance
-to override settings. Tests override both `get_settings` and `get_session`
-as FastAPI dependencies (see `tests/conftest.py`), plus a session-scoped
-autouse fixture that points the *process-wide* settings at a temp dir (via
-env vars + cache-clearing) so `app.main`'s `lifespan` — which calls
-`init_db()` against the real engine on startup — never touches the repo.
+**Settings and the lazy engine** (`app/config.py`, `app/db.py`): the
+SQLAlchemy engine is built lazily in `get_engine()` (`lru_cache`d) rather than
+at import time, because a module-level engine would resolve real settings —
+and create a real `libra.db` — the moment anything imported `app.db`, before
+tests get a chance to override settings. Tests override both `get_settings`
+and `get_session` as FastAPI dependencies (see `tests/conftest.py`), plus a
+session-scoped autouse fixture that repoints the *process-wide* settings at a
+temp dir so `app.main`'s `lifespan` — which calls `init_db()` on startup —
+never touches the repo.
 
-### Upload pipeline (`app/routers/books.py`, `app/epub.py`, `app/storage.py`)
+**Upload pipeline** (`app/routers/books.py`, `app/epub.py`, `app/storage.py`):
+`POST /books/upload` derives the book record from the file itself rather than
+asking the caller to describe it. The three modules split cleanly —
+`storage.py` is filesystem mechanics with no book knowledge, `epub.py` is
+EPUB/OPF parsing with no storage knowledge, `routers/books.py` orchestrates
+both in a fixed order: stage → validate → parse → commit → insert. Full
+pipeline detail (storage layout, the untrusted-XML guards, the sha256 hash)
+is in
+[`docs/architecture.md`](docs/architecture.md#upload-and-metadata-extraction).
 
-`POST /books/upload` is the primary ingestion path: it takes only the file
-and derives the book record from it, rather than asking the caller to
-describe a book the server can read for itself. The three modules split
-cleanly by responsibility:
+**Data model** (`app/models.py`): `BookCreate`/`BookRead`/`BookUpdate` are
+separate `SQLModel` classes rather than one model with optional fields —
+`BookUpdate` is hand-defined specifically to omit `file_path`, so a client can
+correct metadata but never storage-owned fields.
 
-- **`app/storage.py`** — filesystem mechanics only, no knowledge of books or
-  HTTP. `stage_upload()` streams to a temp file inside the library dir
-  (same-filesystem, so commit is a rename not a copy), counting bytes against
-  the configured ceiling and hashing as it goes — bytes are counted on the
-  stream, never trusted from `Content-Length`. `commit()` promotes to a
-  generated UUID filename. `resolve()` is the **single chokepoint** that
-  rejects any relative path escaping `library_dir`; this matters because
-  `POST /books` (the manual-metadata endpoint) still accepts a
-  caller-supplied `file_path`, so it's the thing standing between that field
-  and arbitrary file access.
-- **`app/epub.py`** — EPUB structural validation and OPF metadata parsing via
-  stdlib `zipfile` + `ElementTree`, deliberately *not* Calibre's `ebook-meta`
-  (shelling out per upload is slower and would make the test suite depend on
-  Calibre being installed in CI). Strict about structure (bad zip, missing
-  `container.xml`/OPF, doctype/entity declarations — rejected to close off
-  billion-laughs-style expansion — all raise `InvalidEpubError`), lenient
-  about content (missing `dc:title` falls back to the filename, missing
-  `dc:creator` to `"Unknown"` — real-world libraries are full of imperfectly
-  tagged files).
-- **`app/routers/books.py`** — orchestrates the two in a fixed order: *stage
-  → validate → parse → commit → insert*. A malformed upload never lands in
-  the library (rejected before `commit()`), and a failed DB insert deletes
-  the just-committed file rather than orphaning it. `DELETE` removes the row
-  first, file second (a failed unlink leaves a stray file, never a listed but
-  unreadable book). `PATCH` can correct title/author/format/`book_metadata`
-  but never `file_path` — metadata is user-owned, file locations are
-  storage-owned.
-
-A `sha256` of every uploaded file lands in `book_metadata`, computed for free
-while streaming, so a later phase can tell whether a file's already been
-ingested into the vector store without re-reading it.
-
-### Data model (`app/models.py`)
-
-`Book` is a `SQLModel` table with `title`, `author`, `format`, `file_path`
-(relative to `library_dir`, never absolute — so the library can be remounted
-without rewriting rows), and a free-form `book_metadata` JSON column for
-extensibility (series, tags, ISBN, parsed OPF fields, upload provenance)
-without schema migrations per new field. `BookCreate`/`BookRead`/`BookUpdate`
-are separate SQLModel classes rather than one model with optional fields —
-`BookUpdate` in particular is hand-defined (not derived from `BookBase`)
-specifically to omit `file_path` from what a client can set.
-
-### Test fixtures (`tests/conftest.py`, `tests/epub_factory.py`)
-
+**Test fixtures** (`tests/conftest.py`, `tests/epub_factory.py`):
 `epub_factory.build_epub()` generates minimal-but-spec-valid EPUBs
-programmatically (rather than committing binary fixtures) so malformed
-variants — bad mimetype, missing container, no metadata, entity-bomb OPF —
-are each one keyword argument away from the happy path. Tests that need to
-prove a guard is real (e.g. the path-traversal check in `storage.resolve()`)
-are expected to be mutation-tested by hand when written: temporarily break
-the guard, confirm the test fails, then restore it — a passing test alone
-doesn't prove it exercises the code path.
+programmatically, rather than committing binary fixtures, so a malformed
+variant (bad mimetype, missing container, entity-bomb OPF) is one keyword
+argument away from the happy path.
 
-### Phase boundaries worth respecting
-
-`rag/` and `agent/` exist as empty placeholder packages for Phase 2/3 — don't
-build ahead of the current phase's scope. Calibre-backed format conversion
-and Kindle email delivery are the remaining *Phase 1* items (not yet built);
+**Phase boundaries**: `rag/` and `agent/` exist as empty placeholder packages
+for Phase 2/3 — don't build ahead of the current phase's scope. Calibre-backed
+format conversion and Kindle email delivery are the remaining *Phase 1* items;
 RAG ingestion, the vector store, and the librarian agent are Phase 2/3.
