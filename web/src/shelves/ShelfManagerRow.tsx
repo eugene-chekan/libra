@@ -27,6 +27,9 @@ interface ShelfManagerRowProps {
  * The name and the visibility are one decision — "this shelf, called this,
  * seen by these people" — and splitting them across two surfaces would make a
  * rename and a publish feel like unrelated acts.
+ *
+ * `data-drag-id` is what the drag reads: it asks the document which row is
+ * under the pointer.
  */
 export function ShelfManagerRow({
   shelf,
@@ -59,7 +62,6 @@ export function ShelfManagerRow({
   return (
     <li
       className={dragging ? `${styles.row} ${styles.dragging}` : styles.row}
-      // Read by the drag: it asks the document what row is under the pointer.
       data-drag-id={shelf.id}
     >
       {/* Not a button. It starts a drag rather than doing something, and the

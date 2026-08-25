@@ -45,6 +45,33 @@ comment was not even true of the suite it lived in.
 Import the constant. If importing it feels wrong, that is a signal the
 constant is in the wrong place, not that the test should copy it.
 
+### Prefer no comment at all
+
+**A comment inside a function is the last resort, not the first.** Reach for a
+name, a smaller function, or a docstring before reaching for a `//`.
+
+Three questions, in order:
+
+1. **Can the code say it?** A comment explaining what a line does means the
+   line is unclear. Rename the variable, pull the condition into a named
+   function, and delete the comment.
+2. **Is it about the whole thing?** Rationale — why this shape, which rule of
+   the server's it follows, what was tried and rejected — belongs in the
+   **docstring** at the top of the function, class or module, where somebody
+   reading the signature will find it.
+3. **Is it bigger than one file?** A decision that spans screens or endpoints
+   belongs in `docs/specs/`, with the code pointing at it in one line.
+
+What survives all three is rare: a genuine surprise the reader cannot deduce
+and the code cannot express. A browser quirk. An endpoint that behaves unlike
+its siblings. Write those, and write them tightly.
+
+This is a correction to how this codebase was written up to Phase 4. Whole
+files carried a paragraph above every second statement, which reads as noise
+and hides the two comments that were load-bearing. Prose is not free: it goes
+stale, it has to be reviewed, and a wall of it trains the reader to skip the
+lot — including the one line that mattered.
+
 ### A comment is a claim, and claims must stay true
 
 Two comments in this codebase asserted behaviour the code did not have:

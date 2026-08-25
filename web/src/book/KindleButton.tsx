@@ -32,6 +32,13 @@ type State = 'idle' | 'sending' | 'sent' | 'failed'
  * construction rather than by hope: the backend raises `SendFailedError` with a
  * message written to be shown, and keeps the mail server's own reply — which
  * quotes the username — in the log instead.
+ *
+ * "Sent" holds for a moment and then returns to idle: it is a confirmation,
+ * not a resting state, and leaving it up would make the next send look as
+ * though it had already happened. A failure returns to idle too, so the button
+ * is usable straight away, with the reason under the row. When nothing else is
+ * showing, "Last sent" answers the question a reader standing here actually
+ * has — did I already send this?
  */
 export function KindleButton({
   hasAddress,
@@ -55,12 +62,8 @@ export function KindleButton({
     try {
       await onSend()
       setState('sent')
-      // "Sent" is a confirmation, not a resting state. Left up, it would make
-      // the next send look as though it had already happened.
       settle.current = setTimeout(() => setState('idle'), TRANSIENT_CONFIRMATION_MS)
     } catch (error) {
-      // Back to idle rather than stuck on failed: the button is usable again
-      // straight away, and the reason sits under the row where it can be read.
       setState('failed')
       setFailure(messageFor(error))
     }
@@ -117,8 +120,6 @@ export function KindleButton({
       </p>
     )
   } else if (state === 'idle' && lastSentAt) {
-    // The answer to "did I already send this?", which is the question a reader
-    // standing here actually has.
     note = <p className={buttons.hint}>Last sent {relativeTime(lastSentAt)}</p>
   }
 

@@ -24,13 +24,14 @@ const STARS = [1, 2, 3, 4, 5]
  * **Clicking the star you already gave clears the rating.** Without that, four
  * stars is a decision that cannot be taken back — there is no other control
  * for "actually, no opinion".
+ *
+ * Hovering previews what a click would set, and only the drawing follows it:
+ * `aria-pressed` stays on the real rating, because a screen reader should be
+ * told what is true rather than what the mouse is over.
  */
 export function RatingStars({ rating, onRate, size = 20 }: RatingStarsProps) {
   const [hovered, setHovered] = useState<number | null>(null)
 
-  // Hovering previews what a click would set. Only the drawing follows it:
-  // `aria-pressed` below stays on the real rating, because a screen reader
-  // should be told what is true rather than what the mouse is over.
   const shown = hovered ?? rating
 
   return (

@@ -20,6 +20,9 @@ import sharedStyles from './SharedShelvesSection.module.css'
  * Clicking one filters the library by it, exactly like the reader's own
  * shelves. That is the point of seeing a shared shelf at all — reading what
  * is on it.
+ *
+ * There is no skeleton while it loads: a section that appears and then
+ * vanishes is worse than one that arrives a moment late.
  */
 export function SharedShelvesSection() {
   const shelves = useShelves()
@@ -28,8 +31,6 @@ export function SharedShelvesSection() {
 
   const shared = (shelves.data ?? []).filter((shelf) => !shelf.editable)
 
-  // No skeleton while loading either: a section that appears and then vanishes
-  // is worse than one that arrives a moment late.
   if (shared.length === 0) return null
 
   return (

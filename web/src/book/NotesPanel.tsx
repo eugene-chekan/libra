@@ -26,6 +26,9 @@ import styles from './NotesPanel.module.css'
  * same reason the account row reads the session itself: nothing above it uses
  * notes, so passing them down would make the page depend on something it does
  * not draw.
+ *
+ * The box is cleared only once the server has the note: clearing on submit
+ * would lose what somebody wrote if the request then failed.
  */
 export function NotesPanel({ bookId }: { bookId: number }) {
   const notes = useNotes(bookId)
@@ -40,8 +43,6 @@ export function NotesPanel({ bookId }: { bookId: number }) {
     create.mutate(
       { text },
       {
-        // Cleared only once the server has it. Clearing on submit would lose
-        // what somebody wrote if the request then failed.
         onSuccess: () => setDraft(''),
       }
     )

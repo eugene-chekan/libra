@@ -44,8 +44,6 @@ interface ModalProps {
  * button in `children`, because the words on that button belong to the dialog.
  */
 export function Modal({ title, subtitle, description, width, onClose, children }: ModalProps) {
-  // Spread rather than passed: with a description present, Radix's own
-  // generated id has to survive, so the prop must be absent — not undefined.
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>

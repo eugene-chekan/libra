@@ -26,9 +26,6 @@ export function LoginScreen() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Read off the session, not off `?next=`. A shared link can carry `next`
-  // while the reader never had a session to lose, and an expiry with nowhere
-  // to return to carries no `next` at all — the two do not agree on this.
   const expired = status.status === 'signed-out' && status.reason === 'expired'
 
   async function handleSubmit(event: FormEvent) {
@@ -64,9 +61,8 @@ export function LoginScreen() {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               autoComplete="username"
-              // client-design.md specifies this: the field is the only reason
-              // this page exists, so starting focus here skips nothing a
-              // reader would otherwise land on first.
+              // The field is the only reason this page exists, so focus
+              // here skips nothing the reader would otherwise land on.
               // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />

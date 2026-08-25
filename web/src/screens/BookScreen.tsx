@@ -34,14 +34,15 @@ import styles from './BookScreen.module.css'
  * mode with Save and Cancel. The endpoints split the same way, and
  * `PATCH /books/{id}` is admin-only, which is why Edit Book appears only for an
  * admin rather than opening a form that cannot be saved.
+ *
+ * A non-numeric id is a typed URL rather than a bug, so it gets the not-found
+ * page every other address that names nothing gets — not a request for
+ * `/api/books/NaN`.
  */
 export function BookScreen() {
   const { id } = useParams()
   const bookId = Number(id)
 
-  // A non-numeric id is a typed URL, not a bug. It gets the same not-found
-  // page as any other address that names nothing, rather than a request for
-  // `/api/books/NaN`.
   if (!Number.isInteger(bookId)) return <NotFoundScreen />
 
   return <LoadedBookScreen bookId={bookId} />
@@ -75,7 +76,7 @@ function LoadedBookScreen({ bookId }: { bookId: number }) {
         <BackLink />
         <ErrorBlock
           message={gone ? 'That book is not in this library.' : messageFor(book.error)}
-          // A 404 will 404 again. Offering a retry there would say otherwise.
+          // A 404 will 404 again, and offering a retry would say otherwise.
           onRetry={gone ? undefined : () => void book.refetch()}
         />
       </>
@@ -115,10 +116,18 @@ function BackLink() {
 /**
  * Everything about the book that is not the cover.
  *
- * It reads the shelves, the tags and the signed-in reader itself rather than
- * being handed them. Threading four values through the frame above would make
- * that component depend on things it does not draw, which is the prop-drilling
- * rule in docs/specs/code-style.md.
+ * It reads the shelves and the signed-in reader itself rather than being
+ * handed them, which is the prop-drilling rule in docs/specs/code-style.md.
+ *
+ * Rating and shelf writes are immediate, because they are nobody's business
+ * but this reader's, and both send `rating` and `progress` together — the
+ * endpoint is a PUT, so sending one alone resets the other. `canEdit` gates
+ * Edit Book on `is_admin` because `PATCH /books/{id}` is admin-only, and a
+ * form whose Save is certain to be refused is worse than no button.
+ *
+ * `onSendToKindle` hands the Kindle button the raw promise on purpose: that
+ * button owns the failure and prints the reason itself, so the rejection has
+ * to reach it rather than being caught into the page-level error.
  */
 function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
   const { status } = useSession()
@@ -141,9 +150,6 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
 
       <RatingStars
         rating={book.rating}
-        // Immediate, because a rating is nobody's business but this reader's.
-        // Progress goes along for the ride: the endpoint is a PUT, so sending
-        // only the rating would reset how far they had got.
         onRate={(rating) => setState.mutate({ rating, progress: book.progress })}
       />
 
@@ -154,17 +160,12 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
       <BookActions
         book={book}
         shelves={shelves}
-        // `PATCH /books/{id}` is admin-only, so a reader is offered no Edit
-        // Book rather than a form whose Save is certain to be refused.
         canEdit={user?.is_admin ?? false}
         hasKindleAddress={user?.kindle_email != null}
         onEdit={onEdit}
         onMoveToShelf={(shelfId) =>
           setState.mutate({ rating: book.rating, progress: book.progress, shelf_id: shelfId })
         }
-        // Deliberately handed the raw promise: the Kindle button owns this
-        // failure and prints the reason itself, so the rejection has to reach
-        // it rather than being swallowed into the page-level error below.
         onSendToKindle={() => sendToKindle.mutateAsync()}
         onSetUpKindle={() => setKindleModalOpen(true)}
       />

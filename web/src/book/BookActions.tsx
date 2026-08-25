@@ -38,6 +38,9 @@ interface BookActionsProps {
  * very nearly attached to Download, which would have been a small lie — a
  * reader clicking "Start Reading" and finding a file in their downloads
  * folder. It is also the reason the reader (#36) exists at all.
+ *
+ * The API is read here rather than handed down: this is the only thing on the
+ * screen that needs the download address.
  */
 export function BookActions({
   book,
@@ -49,9 +52,6 @@ export function BookActions({
   onSendToKindle,
   onSetUpKindle,
 }: BookActionsProps) {
-  // Read here rather than handed down: this is the only thing on the screen
-  // that needs the download address, so threading it through the page would
-  // make the page depend on something it has no use for.
   const api = useApi()
 
   return (

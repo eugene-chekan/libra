@@ -15,17 +15,16 @@ import styles from './BookTags.module.css'
 /**
  * A book's tags, and the one place in the app that puts them there.
  *
- * The pills are links, as they always were: clicking one asks "what else is
- * like this?" and filters the library. **Add Tag** beside them is what was
- * missing — until it, a tag could be created and looked at but never attached
- * to anything, because the tag manager curates the vocabulary and this screen
- * only read it.
+ * The pills are links: clicking one filters the library, as a tag click does
+ * in the sidebar. Add Tag beside them writes the moment a tag is switched on
+ * or off, because tags are the reader's own state like the rating and the
+ * shelf — nothing to confirm, so no Save. They are deliberately not in the
+ * Edit Book form, which writes the shared catalog and is admin-only; see gap 8
+ * in docs/specs/client-design.md.
  *
- * **It saves the moment a tag is switched on or off.** Tags are the reader's
- * own state, like the rating and the shelf beside them, so there is nothing to
- * confirm and no Save button. They deliberately do not live in the Edit Book
- * form: that form writes the shared catalog and is admin-only, and a personal
- * tag is the one thing on this screen that belongs to whoever is reading.
+ * The menu closes on each pick: adding a pill widens the row and pushes the
+ * trigger right, so one that stayed open would slide out from under the
+ * pointer.
  */
 export function BookTags({ book }: { book: Book }) {
   const { status } = useSession()
@@ -33,28 +32,23 @@ export function BookTags({ book }: { book: Book }) {
   const setState = useSetBookState(book.id)
 
   const isAdmin = status.status === 'signed-in' && status.user.is_admin
-
-  // What this caller may put on a book. A global tag describes the book for
-  // the whole household, so only an admin may hang one — the server answers
-  // anybody else with a 403, and a row that exists to be refused is worse
-  // than no row.
   const settable = isAdmin ? tags : tags.filter((tag) => !tag.is_global)
   const settableIds = new Set(settable.map((tag) => tag.id))
   const onBook = tags.filter((tag) => book.tag_ids.includes(tag.id))
 
   /**
-   * `PUT /state` replaces exactly what the caller may set, so the list sent
-   * has to be exactly that much of the book's current tags — no more.
+   * Switches one tag on or off, and writes the result.
    *
-   * For a reader that is their personal tags: the book's global ones are left
-   * out and stay where they are. For an admin it is everything, because their
-   * write replaces global tags too, and leaving one out would take it off.
+   * The list sent names exactly the tags this caller may set, and no more:
+   * `PUT /books/{id}/state` replaces what it is given. A reader sends their
+   * personal tags, so the book's global ones are left out and stay; an admin
+   * sends everything, because their write replaces global tags too and
+   * anything omitted comes off. `rating` and `progress` go every time — the
+   * endpoint is a PUT, so a field left out is set to zero.
    */
   function toggle(tag: Tag) {
     const mine = book.tag_ids.filter((id) => settableIds.has(id))
     const next = mine.includes(tag.id) ? mine.filter((id) => id !== tag.id) : [...mine, tag.id]
-    // `rating` and `progress` go every time. This is a PUT: a field left out
-    // is set to zero rather than left alone.
     setState.mutate({ rating: book.rating, progress: book.progress, tag_ids: next })
   }
 
@@ -99,10 +93,6 @@ export function BookTags({ book }: { book: Book }) {
                       key={tag.id}
                       className={`${menu.item} ${menu.spread}`}
                       checked={on}
-                      // Closes on each pick, which is Radix's default and the
-                      // right behaviour here: adding a pill widens the row and
-                      // pushes this menu's trigger to the right, so a menu that
-                      // stayed open would jump out from under the pointer.
                       onSelect={() => toggle(tag)}
                     >
                       {tag.name}
