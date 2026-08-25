@@ -11,8 +11,7 @@
   background: var(--libra-accent-lighter);
 }
 
-/* The row being carried. Lifted off the list so it is obvious which one moves
-   when the pointer does. */
+/* The row being carried. */
 .dragging {
   background: var(--libra-bg);
   box-shadow: var(--libra-shadow-dropdown);
@@ -23,8 +22,10 @@
   display: flex;
   color: var(--libra-text-light);
   cursor: grab;
-  /* The pointer must reach this element rather than any text inside it, and a
-     drag should never start a selection. */
+  /*
+   The pointer must reach this element rather than any text inside it, and a drag should never
+     start a selection.
+   */
   touch-action: none;
   user-select: none;
 }

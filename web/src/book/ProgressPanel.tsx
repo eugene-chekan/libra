@@ -7,19 +7,7 @@ interface ProgressPanelProps {
   pages: number | null
 }
 
-/**
- * How far through the book this reader is.
- *
- * **It shows progress and does not set it.** The design drew a slider here,
- * and docs/specs/phase-4-plan.md supersedes it: the in-browser reader (#36) is
- * what turns progress into something the application observes rather than
- * something the reader declares. A slider now would be asking somebody to tell
- * the app a thing the app is about to be able to see for itself.
- *
- * The page line only appears when the book says how many pages it has. Most
- * EPUBs do not — `schema:numberOfPages` is rare — and "42 of null pages" is
- * worse than nothing.
- */
+/** How far through the book this reader is. */
 export function ProgressPanel({ progress, pages }: ProgressPanelProps) {
   const percent = Math.round(Math.min(Math.max(progress, 0), 1) * 100)
 

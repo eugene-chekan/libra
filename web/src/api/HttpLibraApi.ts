@@ -20,22 +20,10 @@ import type {
   UserPatch,
 } from './types'
 
-/**
- * The prefix every endpoint sits behind.
- *
- * Relative, with no host in it, and that is the whole local-first story in one
- * line: the client asks whichever machine served the page. Open the app at
- * `http://kitchen-pi:8000` and it calls `http://kitchen-pi:8000/api/...`
- * without being rebuilt. A host compiled in here would have to be.
- *
- * The `/api` part is not decoration either. Routing is on real paths, so
- * `/shelves` is a page; without the prefix it would also be an endpoint, and
- * reloading the page would hand the reader raw JSON. See
- * docs/specs/client-stack.md.
- */
+/** The prefix every endpoint sits behind. */
 const BASE = '/api'
 
-/** The real client. One instance for the whole application. */
+/** The real client. */
 export class HttpLibraApi implements LibraApi {
   private handler: (() => void) | null = null
 
@@ -73,9 +61,11 @@ export class HttpLibraApi implements LibraApi {
     return this.send<Tag[]>('GET', '/tags')
   }
 
+  /**
+   * `make_global` is off the URL entirely when false: the endpoint's default is an ordinary
+   * create.
+   */
   async createTag(tag: TagCreate, makeGlobal = false): Promise<Tag> {
-    // Off the URL entirely when false, rather than `?make_global=false`: the
-    // endpoint's default is what an ordinary create means.
     return this.send<Tag>('POST', makeGlobal ? '/tags?make_global=true' : '/tags', tag)
   }
 
@@ -103,9 +93,11 @@ export class HttpLibraApi implements LibraApi {
     await this.send<void>('DELETE', `/shelves/${id}`)
   }
 
+  /**
+   * `/shelves/order` is a path of its own — declared before `/shelves/{id}` on the server, so
+   * "order" is never read as an id that fails to parse.
+   */
   async reorderShelves(shelfIds: number[]): Promise<Shelf[]> {
-    // `/shelves/order` is declared before `/shelves/{id}` on the server, so
-    // "order" is a path of its own rather than an id that fails to parse.
     return this.send<Shelf[]>('PUT', '/shelves/order', { shelf_ids: shelfIds })
   }
 
@@ -125,9 +117,11 @@ export class HttpLibraApi implements LibraApi {
     return this.send<Book>('PUT', `/books/${id}/state`, state)
   }
 
+  /**
+   * No body at all, not even an empty object: the endpoint takes none, and sending one would
+   * put a Content-Type on a request with no content.
+   */
   async sendToKindle(id: number): Promise<KindleDelivery> {
-    // No body at all, not even an empty object: the endpoint takes none, and
-    // sending one would put a Content-Type on a request that has no content.
     return this.send<KindleDelivery>('POST', `/books/${id}/send-to-kindle`)
   }
 
@@ -147,24 +141,17 @@ export class HttpLibraApi implements LibraApi {
     return `${BASE}/books/${id}/file`
   }
 
+  /** Every request goes through here. */
   private async send<T>(method: string, path: string, body?: unknown): Promise<T> {
     let response: Response
     try {
       response = await fetch(BASE + path, {
         method,
-        // The session is a cookie, so it has to be sent. `include` rather than
-        // `same-origin` because the app can also be run from Vite's own port
-        // during development, where the browser counts the backend as a
-        // different origin and would otherwise drop the cookie.
         credentials: 'include',
         headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
         body: body === undefined ? undefined : JSON.stringify(body),
       })
     } catch {
-      // `fetch` only rejects when the request never got an answer: the server
-      // is down, the network is gone, or a CORS preflight was blocked. All
-      // three look identical from here, which is exactly why the CORS setting
-      // is documented in web/README.md.
       throw new ApiError(0, 'Could not reach the server.')
     }
 
@@ -174,23 +161,12 @@ export class HttpLibraApi implements LibraApi {
       throw new ApiError(response.status, await readDetail(response))
     }
 
-    // 204 has no body at all, and asking for one throws. `logout` and
-    // `deleteNote` both answer this way, and every later endpoint that does
-    // gets it for free.
     if (response.status === 204) return undefined as T
     return (await response.json()) as T
   }
 }
 
-/**
- * Pulls the sentence out of a FastAPI error body.
- *
- * FastAPI answers `{"detail": "..."}` for the errors this client raises by
- * hand, and `{"detail": [ ...field errors... ]}` for a body it could not
- * validate. Only the first is worth showing, so the second falls back to the
- * status. Anything that is not JSON at all — a proxy's own error page, say —
- * falls back the same way.
- */
+/** Pulls the sentence out of a FastAPI error body. */
 async function readDetail(response: Response): Promise<string> {
   try {
     const body: unknown = await response.json()
@@ -199,7 +175,7 @@ async function readDetail(response: Response): Promise<string> {
       if (typeof detail === 'string') return detail
     }
   } catch {
-    // Not JSON. Fall through.
+    // Not JSON.
   }
   return `Request failed (${response.status}).`
 }

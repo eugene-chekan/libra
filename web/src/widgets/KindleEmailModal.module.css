@@ -1,8 +1,4 @@
-/* The shell — overlay, card, title — comes from Modal.module.css.
-
-   `.field` is new, and was a className pointing at nothing: the 20px above it
-   used to come from the title's own bottom margin, which the shell no longer
-   carries. */
+/* The shell — overlay, card, title — comes from Modal.module.css. */
 .field {
   margin-top: 20px;
 }

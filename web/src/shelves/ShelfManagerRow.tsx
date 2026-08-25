@@ -20,14 +20,7 @@ interface ShelfManagerRowProps {
   dragHandleProps: { onPointerDown: (event: ReactPointerEvent) => void }
 }
 
-/**
- * One row of the Manage Shelves list: name, count, and what can be done to it.
- *
- * Editing happens **in the row**, not in a second dialog on top of the first.
- * The name and the visibility are one decision — "this shelf, called this,
- * seen by these people" — and splitting them across two surfaces would make a
- * rename and a publish feel like unrelated acts.
- */
+/** One row of the Manage Shelves list: name, count, and what can be done to it. */
 export function ShelfManagerRow({
   shelf,
   dragging,
@@ -59,7 +52,6 @@ export function ShelfManagerRow({
   return (
     <li
       className={dragging ? `${styles.row} ${styles.dragging}` : styles.row}
-      // Read by the drag: it asks the document what row is under the pointer.
       data-drag-id={shelf.id}
     >
       {/* Not a button. It starts a drag rather than doing something, and the

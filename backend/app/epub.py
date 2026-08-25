@@ -1,18 +1,4 @@
-"""EPUB structure validation and metadata extraction.
-
-Parses metadata straight out of the EPUB's OPF package document using the
-standard library. We deliberately do not shell out to Calibre's `ebook-meta`
-here even though `ebook-convert` is the chosen tool for format conversion:
-spawning a subprocess per upload is slower and would make the test suite
-depend on Calibre being installed in CI, whereas the OPF is just XML at a
-location the spec pins down.
-
-Layout we rely on (EPUB 2 and 3 both guarantee it):
-
-    mimetype                 -> "application/epub+zip"
-    META-INF/container.xml   -> <rootfile full-path="..."> points at the OPF
-    <the OPF>                -> <metadata> with Dublin Core elements
-"""
+"""EPUB structure validation and metadata extraction."""
 
 import posixpath
 import re
@@ -75,14 +61,7 @@ class InvalidEpubError(ValueError):
 
 @dataclass
 class EpubMetadata:
-    """Metadata recovered from an EPUB, with fallbacks already applied.
-
-    The typed fields are the ones with a column on `Book`; `extra` is
-    everything that stays in the `book_metadata` blob. Unlike `title` and
-    `author`, these three are `None` rather than placeholder values — a book
-    with no answer is better shown blank than shown a guess, and an admin can
-    correct it afterwards.
-    """
+    """Metadata recovered from an EPUB, with fallbacks already applied."""
 
     title: str
     author: str
@@ -118,13 +97,7 @@ def _read_member(archive: zipfile.ZipFile, name: str) -> bytes:
 
 
 def _parse_xml(data: bytes, what: str) -> ET.Element:
-    """Parse XML from an untrusted archive.
-
-    ElementTree expands internal DTD entities, which makes "billion laughs"
-    style expansion a real concern for files we did not author. Neither
-    container.xml nor the OPF uses a doctype in practice, so rejecting them
-    outright closes that hole without pulling in a third-party parser.
-    """
+    """Parse XML from an untrusted archive."""
     if b"<!DOCTYPE" in data or b"<!ENTITY" in data:
         raise InvalidEpubError(f"{what} contains a doctype or entity declaration")
 
@@ -155,16 +128,7 @@ def _dc_values(metadata: ET.Element, tag: str) -> list[str]:
 
 
 def _publication_date(metadata: ET.Element) -> str | None:
-    """Pick the `dc:date` describing the edition, as its raw string.
-
-    EPUB 3 permits exactly one `dc:date` and defines it as the publication
-    date, so the common case has a single candidate. OPF 2 permits several,
-    told apart by `opf:event` — and taking the first in document order would
-    read a re-export timestamp as the publication year for any file Calibre
-    has round-tripped. A modification date presented as a publication year is
-    a wrong fact, and wrong is worse than blank here, so lifecycle dates are
-    ignored outright rather than merely ranked last.
-    """
+    """Pick the `dc:date` describing the edition, as its raw string."""
     candidates: list[tuple[int, str]] = []
     for el in metadata.findall("dc:date", NS):
         if not (el.text and el.text.strip()):
@@ -193,12 +157,7 @@ def _parse_year(value: str) -> int | None:
 
 
 def _declared_pages(metadata: ET.Element) -> int | None:
-    """Read the print page count the file declares, or None.
-
-    Never estimated. A count derived from word or character count would be an
-    invention presented as fact, and would not match the print edition anyone
-    is holding — so a file that does not say gets no answer.
-    """
+    """Read the print page count the file declares, or None."""
     for el in metadata.findall("opf:meta", NS):
         # `property` is absent on EPUB 2 `<meta name=... content=.../>`, which
         # coexists with EPUB 3 `<meta>` in most Calibre output. Calling
@@ -231,17 +190,7 @@ def _verify_mimetype(archive: zipfile.ZipFile) -> None:
 
 
 def _cover_href(opf_root: ET.Element, metadata: ET.Element) -> tuple[str, str] | None:
-    """Find the cover image's path within the archive, and its media type.
-
-    Both EPUB generations declare it differently and both are common:
-
-    - EPUB 3 marks a manifest item ``properties="cover-image"``.
-    - EPUB 2 uses ``<meta name="cover" content="{manifest item id}"/>``.
-
-    Returns the href *as written in the OPF* — resolving it against the OPF's
-    own directory is the caller's job, because only the caller knows where
-    that is.
-    """
+    """Find the cover image's path within the archive, and its media type."""
     manifest = opf_root.find("opf:manifest", NS)
     if manifest is None:
         return None
@@ -277,9 +226,14 @@ def _cover_href(opf_root: ET.Element, metadata: ET.Element) -> tuple[str, str] |
 def read_cover(path: Path, archive_href: str, max_bytes: int) -> bytes:
     """Read a cover image out of the EPUB.
 
-    Size-capped with the same reasoning as the XML reads: a member that
-    claims to be small and expands hugely is the same threat whether it holds
-    markup or pixels.
+    Args:
+        path: The EPUB on disk.
+        archive_href: Member name inside the archive, as the manifest gave it.
+        max_bytes: Ceiling on the decompressed member.
+
+    Raises:
+        InvalidEpubError: Not a readable archive, or the member is missing or
+            oversized.
     """
     with zipfile.ZipFile(path) as archive:
         try:
@@ -301,10 +255,13 @@ def read_cover(path: Path, archive_href: str, max_bytes: int) -> bytes:
 def read_metadata(path: Path, fallback_title: str) -> EpubMetadata:
     """Validate `path` as an EPUB and extract its metadata.
 
-    Structural problems raise `InvalidEpubError`. Missing *metadata* does not:
-    a book with no title element falls back to `fallback_title` and an unknown
-    author to "Unknown", because real libraries are full of imperfectly
-    tagged files and refusing them would make the tool useless.
+    Args:
+        path: The EPUB on disk.
+        fallback_title: Used when the file declares no title.
+
+    Raises:
+        InvalidEpubError: Structurally unusable — bad zip, missing container or
+            OPF, or a declaration this parser refuses.
     """
     if not zipfile.is_zipfile(path):
         raise InvalidEpubError("file is not a zip archive")

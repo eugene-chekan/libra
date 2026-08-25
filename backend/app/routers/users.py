@@ -29,8 +29,7 @@ def create_user(
     session: Session = Depends(get_session),
     _: User = Depends(require_admin),
 ) -> User:
-    """Create an account. Admin only — there is deliberately no open
-    registration endpoint; see `app/cli.py` for how the first admin exists."""
+    """Create an account."""
     username = normalise_username(new_user.username)
     if not username:
         raise HTTPException(status_code=422, detail="Username must not be empty")
@@ -58,13 +57,7 @@ def update_user(
     session: Session = Depends(get_session),
     caller: User = Depends(current_user),
 ) -> User:
-    """Update a profile.
-
-    A user may edit their own password and Kindle address. Only an admin may
-    edit somebody else's, or grant and revoke admin — including their own,
-    which is why `is_admin` is checked separately from row ownership rather
-    than being folded into it.
-    """
+    """Update a profile."""
     if user_id != caller.id and not caller.is_admin:
         raise HTTPException(status_code=403, detail="Cannot modify another user")
 
@@ -98,16 +91,7 @@ def delete_user(
     session: Session = Depends(get_session),
     caller: User = Depends(require_admin),
 ) -> None:
-    """Remove an account and everything private to it.
-
-    Books they uploaded stay in the library with `uploaded_by` nulled; their
-    shelves, personal tags, reading state, notes and sessions go. Public
-    shelves vanish for everyone, which is the accepted visible consequence.
-
-    Refusing self-deletion is the API's job, not the interface's. The design
-    hides the control on the admin's own row, but hiding a button is a
-    courtesy and this is the guard.
-    """
+    """Remove an account and everything private to it."""
     try:
         library.delete_user(session, user_id, caller)
     except library.UserNotFoundError as exc:

@@ -45,6 +45,44 @@ comment was not even true of the suite it lived in.
 Import the constant. If importing it feels wrong, that is a signal the
 constant is in the wrong place, not that the test should copy it.
 
+### One line, and the parameters
+
+**A docstring is one line.** It says what the thing is or does, and stops.
+Making it longer needs a reason you could defend out loud, not a feeling that
+the reader might like the background.
+
+**In Python, document the parameters too** — an `Args:` section, one short
+phrase each, plus `Returns:` and `Raises:` where either is worth knowing. That
+is interface documentation: it tells a caller what to pass. Route handlers are
+the exception, because their parameters are framework wiring (`Depends(...)`)
+and the real interface is the request and response models, which are typed.
+
+**In TypeScript, the types already document the parameters.** A one-line
+summary, and a short line per field on an exported interface where the name
+does not carry it. Nothing else.
+
+**A comment inside a function is the last resort.** Ask whether the code can
+say it — a rename, an extracted function — before writing one. What survives is
+a genuine surprise the reader cannot deduce: a browser quirk, an endpoint that
+behaves unlike its siblings.
+
+Everything else is garbage, and this codebase carried a great deal of it:
+
+- **Narrative history.** "This used to return the row", "found by the client in
+  #65", "the prototype drew it in the edit form". Git holds that, and the specs
+  hold the parts worth keeping.
+- **Alternatives considered.** "Renaming the routes would have worked and left
+  a rule to remember forever." A design decision belongs in `docs/specs/`, once,
+  where somebody looking for design decisions will find it.
+- **Reassurance.** "Verified, not assumed." "That is deliberate rather than
+  tolerated." The reader cannot check any of it, and it makes a file longer for
+  nothing.
+
+Prose is not free. It goes stale, it has to be reviewed, and a wall of it
+trains the reader to skip the lot — including the line that mattered. Before
+Phase 4 closed, a third of every source file here was prose. That is the
+defect this rule exists to stop.
+
 ### A comment is a claim, and claims must stay true
 
 Two comments in this codebase asserted behaviour the code did not have:

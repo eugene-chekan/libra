@@ -1,14 +1,4 @@
-"""Message construction and SMTP transport.
-
-Split from the delivery logic so tests can replace `send_message` without a
-mail server, and so the part that is easy to get subtly wrong — the encoded
-size — sits in one place with its reasoning.
-
-The attachment filename used to live here too. It moved to `app.naming` once
-the download endpoint needed the same sanitising for a `Content-Disposition`
-header: a second caller in a different domain is what takes a helper out of
-the module that first needed it.
-"""
+"""Message construction and SMTP transport."""
 
 import smtplib
 from email.message import EmailMessage
@@ -32,15 +22,18 @@ class SmtpNotConfiguredError(RuntimeError):
 
 
 class SendFailedError(RuntimeError):
-    """Raised when the mail server refused or could not be reached.
-
-    Carries a message safe to log. The SMTP server's own response text is
-    deliberately not propagated to callers — it routinely echoes the username.
-    """
+    """Raised when the mail server refused or could not be reached."""
 
 
 def encoded_size(raw_bytes: int) -> int:
-    """Approximate the size of `raw_bytes` once base64-encoded into a message."""
+    """Approximate the size of `raw_bytes` once base64-encoded into a message.
+
+    Args:
+        raw_bytes: The attachment before encoding.
+
+    Returns:
+        Its size once base64 encoded, which is what the ceiling applies to.
+    """
     return int(raw_bytes * BASE64_OVERHEAD) + _ENVELOPE_ALLOWANCE_BYTES
 
 
@@ -73,10 +66,13 @@ def build_message(
 def send_message(message: EmailMessage, settings: Settings) -> None:
     """Hand a message to the configured mail server.
 
-    Injected as a FastAPI dependency so tests replace it wholesale — the suite
-    never opens a socket. Failures are re-raised as `SendFailedError` with a
-    message safe to show, and the underlying detail is logged rather than
-    returned: SMTP rejections routinely quote the username back.
+    Args:
+        message: What `build_message` produced.
+        settings: SMTP host, port, credentials and timeout.
+
+    Raises:
+        SmtpNotConfiguredError: This instance has no mail configured.
+        SendFailedError: The mail server refused it.
     """
     if not settings.kindle_delivery_configured:
         raise SmtpNotConfiguredError("SMTP is not configured on this instance")

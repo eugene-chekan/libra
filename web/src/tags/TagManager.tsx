@@ -12,25 +12,7 @@ import { TagManagerRow } from './TagManagerRow'
 import { useCreateTag, useDeleteTag, useUpdateTag } from './useTagWrites'
 import styles from './TagManager.module.css'
 
-/**
- * Manage Tags: create, rename and delete.
- *
- * **Two sections, because there are two kinds of tag and only one of them is
- * yours.** SHARED holds the household's global vocabulary — "Sci-Fi" is a
- * fact about a book everyone should agree on — and an ordinary reader sees it
- * without any controls, because the server would refuse the write. MINE holds
- * personal tags, invisible to everybody else. An admin may edit both, and the
- * server says which through `editable` rather than this screen working it out.
- *
- * **Every change commits on its own, like Manage Shelves.** The prototype
- * batched them behind Save Changes; that means a half-applied batch when one
- * rename is refused and a delete has already gone through, and no way for the
- * reader to tell which. One write, one row, one answer.
- *
- * Deleting a tag also takes it out of the filter in the address bar. It would
- * otherwise leave the grid filtered by an id that no longer exists, which
- * reads as an empty library.
- */
+/** Manage Tags: create, rename and delete. */
 export function TagManager({ onClose }: { onClose: () => void }) {
   const tags = useTags()
   const [searchParams, setSearchParams] = useSearchParams()
@@ -43,9 +25,6 @@ export function TagManager({ onClose }: { onClose: () => void }) {
   const [newIsShared, setNewIsShared] = useState(false)
   const [pendingDelete, setPendingDelete] = useState<Tag | null>(null)
 
-  // Only an admin may create shared vocabulary, so only an admin is offered
-  // it: the server answers anybody else with a 403, and a control that exists
-  // only to be refused is worse than no control.
   const session = useSession()
   const isAdmin = session.status.status === 'signed-in' && session.status.user.is_admin
 
@@ -53,8 +32,6 @@ export function TagManager({ onClose }: { onClose: () => void }) {
   const shared = all.filter((tag) => tag.is_global)
   const mine = all.filter((tag) => !tag.is_global)
 
-  // One flag for every control in the dialog: a list mid-write is not one to
-  // start a second write in.
   const busy = create.isPending || update.isPending || remove.isPending
   const error = create.error ?? update.error ?? remove.error
 
@@ -62,8 +39,6 @@ export function TagManager({ onClose }: { onClose: () => void }) {
     event.preventDefault()
     const name = newName.trim()
     if (name === '' || busy) return
-    // Cleared only once the server has it, so a refused name is still in the
-    // box to be corrected rather than gone.
     create.mutate(
       { tag: { name }, makeGlobal: newIsShared },
       {

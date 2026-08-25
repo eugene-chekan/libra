@@ -51,9 +51,7 @@ def update_note(
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> NoteRead:
-    """Edit a note. Omitted fields are left alone; an explicit `page: null`
-    clears the page, which is why this passes `exclude_unset` down rather
-    than the model."""
+    """Edit a note."""
     fields = update.model_dump(exclude_unset=True)
     if not fields:
         raise HTTPException(status_code=422, detail="Nothing to update")

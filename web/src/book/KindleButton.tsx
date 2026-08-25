@@ -12,7 +12,7 @@ interface KindleButtonProps {
   hasAddress: boolean
   /** When this reader last sent this book, or null. */
   lastSentAt: string | null
-  /** Sends the book. Rejects with the reason, which is printed under the row. */
+  /** Sends the book. */
   onSend: () => Promise<unknown>
   /** Opens the Kindle Email modal, which is where an address is set. */
   onSetUpAddress: () => void
@@ -20,19 +20,7 @@ interface KindleButtonProps {
 
 type State = 'idle' | 'sending' | 'sent' | 'failed'
 
-/**
- * Send to Kindle, and its five states.
- *
- * The only long-running action in the app, and the one most likely to fail for
- * reasons outside it: an address never set, an Amazon approval never granted,
- * a mail server that will not talk today. Each of those wants a different
- * sentence, so this has five states rather than a spinner and a shrug.
- *
- * **The failure reason comes from the server, word for word.** That is safe by
- * construction rather than by hope: the backend raises `SendFailedError` with a
- * message written to be shown, and keeps the mail server's own reply — which
- * quotes the username — in the log instead.
- */
+/** Send to Kindle, and its five states. */
 export function KindleButton({
   hasAddress,
   lastSentAt,
@@ -55,12 +43,8 @@ export function KindleButton({
     try {
       await onSend()
       setState('sent')
-      // "Sent" is a confirmation, not a resting state. Left up, it would make
-      // the next send look as though it had already happened.
       settle.current = setTimeout(() => setState('idle'), TRANSIENT_CONFIRMATION_MS)
     } catch (error) {
-      // Back to idle rather than stuck on failed: the button is usable again
-      // straight away, and the reason sits under the row where it can be read.
       setState('failed')
       setFailure(messageFor(error))
     }
@@ -117,8 +101,6 @@ export function KindleButton({
       </p>
     )
   } else if (state === 'idle' && lastSentAt) {
-    // The answer to "did I already send this?", which is the question a reader
-    // standing here actually has.
     note = <p className={buttons.hint}>Last sent {relativeTime(lastSentAt)}</p>
   }
 

@@ -28,12 +28,7 @@ def create_tag(
     session: Session = Depends(get_session),
     user: User = Depends(current_user),
 ) -> TagRead:
-    """Create a tag. `?make_global=true` is admin-only.
-
-    Global tag assignment is global, so letting any reader mint one would
-    change what the whole household sees. Restricting it keeps the shared
-    vocabulary curated — and is far easier to relax later than to tighten.
-    """
+    """Create a tag."""
     try:
         return library.create_tag(session, user, tag.name, is_global=make_global)
     except library.TagNotEditableError as exc:

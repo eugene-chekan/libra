@@ -3,18 +3,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 import { useApi } from '../api/ApiProvider'
 import type { Tag, TagCreate, TagPatch } from '../api/types'
 
-/**
- * Creating, renaming and deleting tags.
- *
- * **Every write invalidates the tag list and the library grid**, the same pair
- * the shelf writes invalidate and for the same reason: a tag is a filter over
- * that grid. Renaming one changes the filter pill's text, deleting one takes
- * it off every book it was on, and both change what the sidebar lists.
- *
- * Reads stay in `useTags`, which the sidebar and the search box already share.
- * Nothing here fetches — a write invalidates and lets that one query refetch,
- * so there is still exactly one place the vocabulary comes from.
- */
+/** Creating, renaming and deleting tags. */
 function useTagRefresh(): () => void {
   const queryClient = useQueryClient()
   return () => {
@@ -23,13 +12,7 @@ function useTagRefresh(): () => void {
   }
 }
 
-/**
- * `POST /api/tags`. Personal by default; `makeGlobal` asks for one the whole
- * household sees, which the server allows only for an admin.
- *
- * 422 for a blank name, and 422 for a name with a space in it. 409 when the
- * caller already has that name or a global tag holds it, ignoring case.
- */
+/** `POST /api/tags`. */
 export function useCreateTag(): UseMutationResult<
   Tag,
   Error,
@@ -44,7 +27,7 @@ export function useCreateTag(): UseMutationResult<
   })
 }
 
-/** `PATCH /api/tags/{id}`. A rename moves no books — they hold the tag's id. */
+/** `PATCH /api/tags/{id}`. */
 export function useUpdateTag(): UseMutationResult<Tag, Error, { id: number; patch: TagPatch }> {
   const api = useApi()
   const refresh = useTagRefresh()
@@ -54,7 +37,7 @@ export function useUpdateTag(): UseMutationResult<Tag, Error, { id: number; patc
   })
 }
 
-/** `DELETE /api/tags/{id}`. It comes off every book it was on; the books stay. */
+/** `DELETE /api/tags/{id}`. */
 export function useDeleteTag(): UseMutationResult<void, Error, number> {
   const api = useApi()
   const refresh = useTagRefresh()

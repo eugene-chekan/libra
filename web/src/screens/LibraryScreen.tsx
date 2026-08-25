@@ -14,14 +14,7 @@ import { ErrorBlock } from '../widgets/ErrorBlock'
 import { SkeletonDelay, SkeletonGrid } from '../widgets/Skeleton'
 import gridStyles from './LibraryScreen.module.css'
 
-/**
- * `/library`. Holds no filter state of its own — the URL is the one source
- * of truth, per client-design.md: a filtered view is then linkable, survives
- * a reload, and comes back with the back button. `q` carries the raw search
- * box text (bare words and `#tag` tokens together, exactly as typed); `tags`
- * carries only the sidebar's own selections. The two are merged into one id
- * list here, the same way `GET /books` expects it.
- */
+/** `/library`. */
 export function LibraryScreen() {
   const [searchParams, setSearchParams] = useSearchParams()
   const rawQuery = searchParams.get('q') ?? ''

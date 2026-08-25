@@ -22,26 +22,11 @@ import { Skeleton, SkeletonDelay } from '../widgets/Skeleton'
 import { NotFoundScreen } from './screens'
 import styles from './BookScreen.module.css'
 
-/**
- * `/books/:id` — one book: what it is, where you are in it, and what you can
- * do with it.
- *
- * **Two kinds of write live on this screen, and they behave differently on
- * purpose.** Rating and shelf placement are the reader's own state — nobody
- * else sees them, so they commit the moment they change and there is nothing
- * to confirm. Title, author, year, pages and blurb are the shared catalog: one
- * correction changes what everyone sees, so they sit behind an explicit edit
- * mode with Save and Cancel. The endpoints split the same way, and
- * `PATCH /books/{id}` is admin-only, which is why Edit Book appears only for an
- * admin rather than opening a form that cannot be saved.
- */
+/** `/books/:id` — one book: what it is, where you are in it, and what you can do with it. */
 export function BookScreen() {
   const { id } = useParams()
   const bookId = Number(id)
 
-  // A non-numeric id is a typed URL, not a bug. It gets the same not-found
-  // page as any other address that names nothing, rather than a request for
-  // `/api/books/NaN`.
   if (!Number.isInteger(bookId)) return <NotFoundScreen />
 
   return <LoadedBookScreen bookId={bookId} />
@@ -75,7 +60,7 @@ function LoadedBookScreen({ bookId }: { bookId: number }) {
         <BackLink />
         <ErrorBlock
           message={gone ? 'That book is not in this library.' : messageFor(book.error)}
-          // A 404 will 404 again. Offering a retry there would say otherwise.
+          // A 404 will 404 again, and offering a retry would say otherwise.
           onRetry={gone ? undefined : () => void book.refetch()}
         />
       </>
@@ -112,14 +97,7 @@ function BackLink() {
   )
 }
 
-/**
- * Everything about the book that is not the cover.
- *
- * It reads the shelves, the tags and the signed-in reader itself rather than
- * being handed them. Threading four values through the frame above would make
- * that component depend on things it does not draw, which is the prop-drilling
- * rule in docs/specs/code-style.md.
- */
+/** Everything about the book that is not the cover. */
 function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
   const { status } = useSession()
   const shelves = useShelves().data ?? []
@@ -141,9 +119,6 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
 
       <RatingStars
         rating={book.rating}
-        // Immediate, because a rating is nobody's business but this reader's.
-        // Progress goes along for the ride: the endpoint is a PUT, so sending
-        // only the rating would reset how far they had got.
         onRate={(rating) => setState.mutate({ rating, progress: book.progress })}
       />
 
@@ -154,17 +129,12 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
       <BookActions
         book={book}
         shelves={shelves}
-        // `PATCH /books/{id}` is admin-only, so a reader is offered no Edit
-        // Book rather than a form whose Save is certain to be refused.
         canEdit={user?.is_admin ?? false}
         hasKindleAddress={user?.kindle_email != null}
         onEdit={onEdit}
         onMoveToShelf={(shelfId) =>
           setState.mutate({ rating: book.rating, progress: book.progress, shelf_id: shelfId })
         }
-        // Deliberately handed the raw promise: the Kindle button owns this
-        // failure and prints the reason itself, so the rejection has to reach
-        // it rather than being swallowed into the page-level error below.
         onSendToKindle={() => sendToKindle.mutateAsync()}
         onSetUpKindle={() => setKindleModalOpen(true)}
       />
@@ -192,13 +162,7 @@ function EditMode({ book, onDone }: { book: Book; onDone: () => void }) {
   return <BookEditForm book={book} onSave={(patch) => update.mutateAsync(patch)} onDone={onDone} />
 }
 
-/**
- * Only what the file actually declared, joined by dots.
- *
- * A book whose EPUB carries no year or page count shows neither, rather than
- * an invented one — the same rule the server follows in leaving those columns
- * null.
- */
+/** Only what the file actually declared, joined by dots. */
 function metadataLine(book: Book, shelfName: string | null): string {
   return [
     book.format.toUpperCase(),

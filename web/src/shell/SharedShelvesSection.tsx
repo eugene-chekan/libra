@@ -7,19 +7,8 @@ import styles from './FilterSection.module.css'
 import sharedStyles from './SharedShelvesSection.module.css'
 
 /**
- * The sidebar's SHARED WITH YOU list: public shelves belonging to other
- * readers on this instance.
- *
- * Two deliberate differences from the SHELVES section above it. It is
- * **collapsed by default**, because it is secondary — what somebody else
- * arranged, not what this reader did. And it is **hidden entirely when
- * empty**: on a single-user instance, which is the common case, the section
- * simply does not exist rather than explaining that nobody has shared
- * anything.
- *
- * Clicking one filters the library by it, exactly like the reader's own
- * shelves. That is the point of seeing a shared shelf at all — reading what
- * is on it.
+ * The sidebar's SHARED WITH YOU list: public shelves belonging to other readers on this
+ * instance.
  */
 export function SharedShelvesSection() {
   const shelves = useShelves()
@@ -28,8 +17,6 @@ export function SharedShelvesSection() {
 
   const shared = (shelves.data ?? []).filter((shelf) => !shelf.editable)
 
-  // No skeleton while loading either: a section that appears and then vanishes
-  // is worse than one that arrives a moment late.
   if (shared.length === 0) return null
 
   return (

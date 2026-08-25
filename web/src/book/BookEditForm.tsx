@@ -8,30 +8,13 @@ import styles from './BookEditForm.module.css'
 
 interface BookEditFormProps {
   book: Book
-  /** Writes the change. Rejects with the reason, which is shown in the form. */
+  /** Writes the change. */
   onSave: (patch: BookPatch) => Promise<unknown>
   /** Leaves edit mode — called after a successful save, and on Cancel. */
   onDone: () => void
 }
 
-/**
- * Edit mode: the shared catalog, behind Save and Cancel.
- *
- * Deferred rather than immediate, unlike the rating and the shelf on the same
- * screen. Those are the reader's own; these are everyone's. A field that
- * rewrote the catalog for the whole household the moment it lost focus is the
- * wrong shape for a correction somebody may be halfway through typing — so
- * nothing is written until Save, and Cancel throws the lot away.
- *
- * Only an admin ever sees this: `PATCH /api/books/{id}` is admin-only, because
- * a title describes what every reader sees.
- *
- * **An emptied box clears the value.** The Flutter build treated a blank year
- * as "no change", which left no way at all to remove a wrong one. The boxes
- * arrive filled in, so emptying one is a deliberate act and is treated as one.
- * Title and author are the exception: the server does not accept them empty,
- * so the form refuses before sending rather than turning a typo into a 422.
- */
+/** Edit mode: the shared catalog, behind Save and Cancel. */
 export function BookEditForm({ book, onSave, onDone }: BookEditFormProps) {
   const [title, setTitle] = useState(book.title)
   const [author, setAuthor] = useState(book.author)
@@ -63,8 +46,6 @@ export function BookEditForm({ book, onSave, onDone }: BookEditFormProps) {
       })
       onDone()
     } catch (caught) {
-      // Reachable even for an admin — the flag can be taken away while this
-      // form is open. The server is the authority; the button was a courtesy.
       setError(messageFor(caught))
     } finally {
       setSaving(false)
@@ -162,8 +143,6 @@ function check({
   if (year.trim() !== '' && numberOrNull(year) === null) return 'The year has to be a number.'
   if (pages.trim() !== '') {
     const value = numberOrNull(pages)
-    // The server's own bound is `ge=1`. Checking it here turns a confusing
-    // 422 into a sentence next to the box that caused it.
     if (value === null || value < 1) return 'Pages has to be a whole number, 1 or more.'
   }
   return null
@@ -173,8 +152,6 @@ function check({
 function numberOrNull(raw: string): number | null {
   const trimmed = raw.trim()
   if (trimmed === '') return null
-  // `Number` rather than `parseInt`, which reads "19x5" as 19 and would save a
-  // year the reader never typed.
   const value = Number(trimmed)
   return Number.isInteger(value) ? value : null
 }

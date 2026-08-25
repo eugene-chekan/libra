@@ -6,17 +6,7 @@ import { useSession } from '../session/SessionProvider'
 import { Icon } from '../widgets/Icon'
 import styles from './LoginScreen.module.css'
 
-/**
- * Route `/login`. No sidebar — reached both before any session exists and
- * after one just ended, so it cannot assume the frame around it is safe to
- * show.
- *
- * The error copy is fixed and never says which field was wrong. That is not
- * vagueness: the backend's `auth.authenticate` checks an unknown username
- * against a dummy password hash specifically so the response takes the same
- * time either way, and a screen that says "no such user" would hand back
- * exactly what that effort is spent concealing.
- */
+/** Route `/login`. */
 export function LoginScreen() {
   const { status, login } = useSession()
   const navigate = useNavigate()
@@ -26,9 +16,6 @@ export function LoginScreen() {
   const [error, setError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
 
-  // Read off the session, not off `?next=`. A shared link can carry `next`
-  // while the reader never had a session to lose, and an expiry with nowhere
-  // to return to carries no `next` at all — the two do not agree on this.
   const expired = status.status === 'signed-out' && status.reason === 'expired'
 
   async function handleSubmit(event: FormEvent) {
@@ -64,9 +51,8 @@ export function LoginScreen() {
               value={username}
               onChange={(event) => setUsername(event.target.value)}
               autoComplete="username"
-              // client-design.md specifies this: the field is the only reason
-              // this page exists, so starting focus here skips nothing a
-              // reader would otherwise land on first.
+              // The field is the only reason this page exists, so focus
+              // here skips nothing the reader would otherwise land on.
               // eslint-disable-next-line jsx-a11y/no-autofocus
               autoFocus
             />

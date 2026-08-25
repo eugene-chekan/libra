@@ -1,20 +1,4 @@
-/**
- * The icon set, as inline SVG.
- *
- * client-design.md fixes the style: Feather/Lucide-compatible, `fill="none"`,
- * `stroke="currentColor"`, stroke width 1.5–2, round caps. `currentColor` is
- * the load-bearing part — an icon takes the colour of the text it sits in, so
- * a nav row going active recolours its icon with no extra rule.
- *
- * Inline rather than an icon font or a sprite sheet: this is a local-first app
- * and these are a few hundred bytes each, so a request per icon or a whole
- * font file for eleven glyphs both cost more than they save.
- *
- * Every icon is `aria-hidden`. An icon is decoration; the accessible name
- * belongs to the control around it. A button with nothing but an icon in it
- * therefore needs its own `aria-label`, and `eslint-plugin-jsx-a11y` will fail
- * the build if it does not have one.
- */
+/** The icon set, as inline SVG. */
 
 const paths = {
   grid: (
@@ -136,19 +120,12 @@ const paths = {
 
 export type IconName = keyof typeof paths
 
-/**
- * Every name {@link Icon} accepts, as a value rather than only a type.
- *
- * The test iterates this to check each name draws something. It used to
- * transcribe the list instead, which is the copy docs/specs/code-style.md
- * warns about — a name added here and forgotten there is exactly the icon
- * that would ship as an empty box.
- */
+/** Every name {@link Icon} accepts, as a value rather than only a type. */
 export const iconNames = Object.keys(paths) as IconName[]
 
 interface IconProps {
   name: IconName
-  /** Pixel size for both dimensions. The design uses 12–18px. */
+  /** Pixel size for both dimensions. */
   size?: number
   className?: string
 }

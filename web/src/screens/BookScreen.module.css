@@ -43,8 +43,10 @@
   gap: 24px;
 }
 
-/* Title, author and metadata are one block: they sit closer to each other
-   than the column's own 24px gap puts between its children. */
+/*
+ Title, author and metadata are one block: they sit closer to each other than the column's own
+   24px gap puts between its children.
+ */
 .heading {
   display: flex;
   flex-direction: column;

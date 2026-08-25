@@ -9,20 +9,8 @@ import menu from '../widgets/dropdownMenu.module.css'
 import styles from './AccountRow.module.css'
 
 /**
- * The sidebar footer's account area: avatar, username, and the dropdown that
- * holds Kindle Email and Sign Out. `client-design.md` calls this "new
- * furniture" — the handoff's sidebar had no account area and therefore
- * nowhere to sign out.
- *
- * Reads the session itself rather than taking the user as a prop, the same
- * way every other widget reads what it uses. It renders nothing before the
- * session resolves and nothing once it resolves signed-out — in the wired
- * app this component only ever mounts inside `RequireSession`, so that branch
- * is unreachable in practice, but the type is a union and this is the honest
- * way to narrow it.
- *
- * Manage Users is deliberately absent from the dropdown, admin or not — it is
- * #31, and a row that opened nothing would be worse than no row at all.
+ * The sidebar footer's account area: avatar, username, and the dropdown that holds Kindle Email
+ * and Sign Out.
  */
 export function AccountRow() {
   const { status, signOut } = useSession()
