@@ -37,12 +37,24 @@ export function useUpdateTag(): UseMutationResult<Tag, Error, { id: number; patc
   })
 }
 
-/** `DELETE /api/tags/{id}`. */
-export function useDeleteTag(): UseMutationResult<void, Error, number> {
+/**
+ * `DELETE /api/tags/{id}`.
+ *
+ * `onDeleted` runs as part of the mutation's own `onSuccess`, not one passed
+ * to `mutate()` — a call-level `onSuccess` only fires while the calling
+ * component is still subscribed, and a delete confirmed then immediately
+ * closed away can outlive that subscription.
+ */
+export function useDeleteTag(
+  onDeleted?: (id: number) => void
+): UseMutationResult<void, Error, number> {
   const api = useApi()
   const refresh = useTagRefresh()
   return useMutation({
     mutationFn: (id: number) => api.deleteTag(id),
-    onSuccess: refresh,
+    onSuccess: (_data, id) => {
+      refresh()
+      onDeleted?.(id)
+    },
   })
 }

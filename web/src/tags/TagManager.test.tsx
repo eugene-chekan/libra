@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import { act } from 'react'
 import { MemoryRouter, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -266,6 +267,65 @@ describe('TagManager', () => {
     // Not `?tags=`, which would be an empty filter rather than no filter.
     await waitFor(() => expect(screen.getByTestId('query')).toHaveTextContent(''))
     expect(screen.getByTestId('query').textContent).toBe('')
+  })
+
+  it('clears the filter even when the dialog is closed before the delete resolves', async () => {
+    // `remove.mutate(id, { onSuccess })` only fires that onSuccess while a
+    // component is still subscribed to the mutation. Closing TagManager
+    // right after confirming unsubscribes it, so a delete that is still
+    // in flight must not lose the URL update.
+    let resolveDelete: () => void = () => {}
+    const pendingDelete = new Promise<void>((resolve) => {
+      resolveDelete = resolve
+    })
+    const user = fakeUser({ id: 1, username: 'reader1' })
+    const books = [fakeBook({ id: 5, tag_ids: [2] })]
+    const api = new FakeLibraApi({
+      users: [user],
+      signedInAs: user,
+      tags: [own(2, 'favourites')],
+      books,
+    })
+    const realDeleteTag = api.deleteTag.bind(api)
+    api.deleteTag = async (id: number) => {
+      await pendingDelete
+      return realDeleteTag(id)
+    }
+
+    const userEventApi = userEvent.setup()
+    const queryClient = createQueryClient()
+
+    function Harness({ showManager }: { showManager: boolean }) {
+      return (
+        <MemoryRouter initialEntries={['/library?tags=2']}>
+          <ApiProvider api={api}>
+            <QueryClientProvider client={queryClient}>
+              <SessionProvider>
+                {showManager && <TagManager onClose={vi.fn()} />}
+                <CurrentQuery />
+              </SessionProvider>
+            </QueryClientProvider>
+          </ApiProvider>
+        </MemoryRouter>
+      )
+    }
+
+    const { rerender } = render(<Harness showManager={true} />)
+    await screen.findByText('favourites')
+
+    await userEventApi.click(screen.getByRole('button', { name: 'Delete favourites' }))
+    await userEventApi.click(screen.getByRole('button', { name: 'Delete' }))
+
+    // Simulates clicking Close before the server has answered: TagManager
+    // leaves the tree while the delete is still pending, same router.
+    rerender(<Harness showManager={false} />)
+
+    await act(async () => {
+      resolveDelete()
+      await pendingDelete
+    })
+
+    await waitFor(() => expect(screen.getByTestId('query').textContent).toBe(''))
   })
 
   it('deletes nothing when the confirmation is refused', async () => {

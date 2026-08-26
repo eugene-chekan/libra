@@ -19,7 +19,16 @@ export function TagManager({ onClose }: { onClose: () => void }) {
 
   const create = useCreateTag()
   const update = useUpdateTag()
-  const remove = useDeleteTag()
+  const remove = useDeleteTag((id) => {
+    const active = (searchParams.get('tags') ?? '').split(',').filter(Boolean)
+    if (!active.includes(String(id))) return
+
+    const next = new URLSearchParams(searchParams)
+    const left = active.filter((activeId) => activeId !== String(id))
+    if (left.length > 0) next.set('tags', left.join(','))
+    else next.delete('tags')
+    setSearchParams(next, { replace: true })
+  })
 
   const [newName, setNewName] = useState('')
   const [newIsShared, setNewIsShared] = useState(false)
@@ -51,18 +60,7 @@ export function TagManager({ onClose }: { onClose: () => void }) {
   }
 
   function deleteTag(tag: Tag) {
-    remove.mutate(tag.id, {
-      onSuccess: () => {
-        const active = (searchParams.get('tags') ?? '').split(',').filter(Boolean)
-        if (!active.includes(String(tag.id))) return
-
-        const next = new URLSearchParams(searchParams)
-        const left = active.filter((id) => id !== String(tag.id))
-        if (left.length > 0) next.set('tags', left.join(','))
-        else next.delete('tags')
-        setSearchParams(next, { replace: true })
-      },
-    })
+    remove.mutate(tag.id)
   }
 
   return (
