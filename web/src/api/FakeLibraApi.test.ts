@@ -352,6 +352,65 @@ describe('FakeLibraApi.sendToKindle', () => {
   })
 })
 
+/**
+ * Uploading, added for milestone 8 (#30). The real endpoint derives every
+ * field from the file itself; the fake cannot parse EPUB bytes, so tests
+ * steer what "parsing" returns through `uploadMetadata`, the same way
+ * `kindleFailure` steers a delivery the fake cannot organically produce.
+ */
+describe('FakeLibraApi.uploadBook', () => {
+  function signedIn(overrides: ConstructorParameters<typeof FakeLibraApi>[0] = {}) {
+    const user = fakeUser({ id: 1 })
+    return { user, api: new FakeLibraApi({ users: [user], signedInAs: user, ...overrides }) }
+  }
+
+  it('adds a book from the uploaded file, and it shows up in the library', async () => {
+    const { api } = signedIn()
+    const file = new File(['epub bytes'], 'dune.epub', { type: 'application/epub+zip' })
+
+    const created = await api.uploadBook(file)
+
+    expect(created.title).toBe('dune')
+    expect((await api.listBooks()).items.map((b) => b.id)).toContain(created.id)
+  })
+
+  it('uses the metadata a test configures, the way a parsed EPUB would answer', async () => {
+    const { api } = signedIn({
+      uploadMetadata: { title: 'Dune', author: 'Frank Herbert', year: 1965 },
+    })
+    const file = new File(['epub bytes'], 'upload.epub')
+
+    const created = await api.uploadBook(file)
+
+    expect(created).toMatchObject({ title: 'Dune', author: 'Frank Herbert', year: 1965 })
+  })
+
+  it('415s a file that is not an EPUB, without looking at its content', async () => {
+    const { api } = signedIn()
+    const file = new File(['not an epub'], 'notes.pdf')
+
+    await expect(api.uploadBook(file)).rejects.toMatchObject({ status: 415 })
+  })
+
+  it('raises whatever failure a test configures, for the errors the fake cannot produce on its own', async () => {
+    const { api } = signedIn({
+      uploadFailure: { status: 422, detail: 'Invalid EPUB: bad mimetype' },
+    })
+    const file = new File(['garbage'], 'broken.epub')
+
+    await expect(api.uploadBook(file)).rejects.toMatchObject({
+      status: 422,
+      message: 'Invalid EPUB: bad mimetype',
+    })
+  })
+
+  it('requires a session, like every other endpoint', async () => {
+    const api = new FakeLibraApi()
+
+    await expect(api.uploadBook(new File(['x'], 'x.epub'))).rejects.toBeInstanceOf(ApiError)
+  })
+})
+
 describe('FakeLibraApi notes', () => {
   it("lists only the caller's own notes on the book, newest first", async () => {
     const mine = fakeUser({ id: 1 })

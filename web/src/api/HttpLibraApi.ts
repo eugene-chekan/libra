@@ -47,6 +47,16 @@ export class HttpLibraApi implements LibraApi {
     return this.send<User>('PATCH', `/users/${id}`, patch)
   }
 
+  /**
+   * The one request that is not JSON: the boundary has to come from the browser, so no
+   * `Content-Type` is set by hand here.
+   */
+  async uploadBook(file: File): Promise<Book> {
+    const body = new FormData()
+    body.set('file', file)
+    return this.request<Book>('/books/upload', { method: 'POST', credentials: 'include', body })
+  }
+
   async listBooks(params: BookSearchParams = {}): Promise<BookList> {
     const query = new URLSearchParams()
     if (params.q) query.set('q', params.q)
@@ -141,16 +151,22 @@ export class HttpLibraApi implements LibraApi {
     return `${BASE}/books/${id}/file`
   }
 
-  /** Every request goes through here. */
+  /** Every JSON request goes through here. */
   private async send<T>(method: string, path: string, body?: unknown): Promise<T> {
+    return this.request<T>(path, {
+      method,
+      credentials: 'include',
+      headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
+      body: body === undefined ? undefined : JSON.stringify(body),
+    })
+  }
+
+  /** The tail every request shares, JSON or not: the fetch itself, and turning the response into
+   *  a value or an {@link ApiError}. */
+  private async request<T>(path: string, init: RequestInit): Promise<T> {
     let response: Response
     try {
-      response = await fetch(BASE + path, {
-        method,
-        credentials: 'include',
-        headers: body === undefined ? {} : { 'Content-Type': 'application/json' },
-        body: body === undefined ? undefined : JSON.stringify(body),
-      })
+      response = await fetch(BASE + path, init)
     } catch {
       throw new ApiError(0, 'Could not reach the server.')
     }

@@ -130,6 +130,13 @@ interface FakeOptions {
   notes?: FakeNote[]
   /** What the mail server does with the next send. */
   kindleFailure?: string | null
+  /**
+   * What the next `uploadBook` "parses" out of the file, since the fake cannot read real EPUB
+   * bytes. Unset fields fall back to a name derived from the filename.
+   */
+  uploadMetadata?: Partial<FakeBook> | null
+  /** What `uploadBook` refuses with, for the errors only real file content can trigger. */
+  uploadFailure?: { status: number; detail: string } | null
 }
 
 /** The in-memory server. It enforces the real one's rules, including the surprising ones. */
@@ -146,6 +153,10 @@ export class FakeLibraApi implements LibraApi {
   readonly notes: FakeNote[]
   /** Settable mid-test, so one send can fail and the next succeed. */
   kindleFailure: string | null
+  /** Settable mid-test, so each upload in a test can "parse" to something different. */
+  uploadMetadata: Partial<FakeBook> | null
+  /** Settable mid-test, for the one upload that should fail. */
+  uploadFailure: { status: number; detail: string } | null
 
   /** Every call this fake has answered, in order. */
   readonly calls: string[] = []
@@ -159,6 +170,8 @@ export class FakeLibraApi implements LibraApi {
     shelves = [],
     notes = [],
     kindleFailure = null,
+    uploadMetadata = null,
+    uploadFailure = null,
   }: FakeOptions = {}) {
     this.users = users
     this.signedInId = signedInAs?.id ?? null
@@ -168,6 +181,8 @@ export class FakeLibraApi implements LibraApi {
     this.shelves = shelves
     this.notes = notes
     this.kindleFailure = kindleFailure
+    this.uploadMetadata = uploadMetadata
+    this.uploadFailure = uploadFailure
   }
 
   setOnUnauthorized(handler: (() => void) | null): void {
@@ -257,6 +272,31 @@ export class FakeLibraApi implements LibraApi {
         : [...matches].sort((a, b) => a.title.localeCompare(b.title))
 
     return { items, total: items.length }
+  }
+
+  /**
+   * The extension check mirrors the server exactly — it needs no test to configure it. What the
+   * file actually contains, the fake cannot see, so `uploadMetadata`/`uploadFailure` stand in for
+   * parsing the same way `kindleFailure` stands in for a delivery the fake cannot produce.
+   */
+  async uploadBook(file: File): Promise<Book> {
+    this.calls.push('uploadBook')
+    this.requireSession()
+
+    if (!file.name.toLowerCase().endsWith('.epub')) {
+      throw new ApiError(415, 'Only .epub files are supported in this phase')
+    }
+    if (this.uploadFailure) {
+      throw new ApiError(this.uploadFailure.status, this.uploadFailure.detail)
+    }
+
+    const created = fakeBook({
+      title: file.name.replace(/\.epub$/i, ''),
+      author: 'Unknown',
+      ...this.uploadMetadata,
+    })
+    this.books.push(created)
+    return created
   }
 
   async listTags(): Promise<Tag[]> {

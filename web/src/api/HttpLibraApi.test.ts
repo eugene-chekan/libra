@@ -341,6 +341,36 @@ describe('HttpLibraApi', () => {
     expect(JSON.parse(init.body as string)).toEqual({ shelf_ids: [3, 1, 2] })
   })
 
+  it('uploads a book as multipart form data, with no JSON Content-Type forced on it', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, { id: 9, title: 'Dune' }))
+    const file = new File(['epub bytes'], 'dune.epub', { type: 'application/epub+zip' })
+
+    await new HttpLibraApi().uploadBook(file)
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/upload')
+    expect(init.method).toBe('POST')
+    expect(init.credentials).toBe('include')
+    // No Content-Type header set by hand: the browser has to add the multipart
+    // boundary itself, and a hand-set header on a FormData body drops it.
+    expect(init.headers).toBeUndefined()
+    expect(init.body).toBeInstanceOf(FormData)
+    expect((init.body as FormData).get('file')).toBe(file)
+  })
+
+  it('raises the server detail on a failed upload, the same as every other request', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(415, { detail: 'Only .epub files are supported in this phase' })
+    )
+
+    await expect(new HttpLibraApi().uploadBook(new File(['x'], 'notes.pdf'))).rejects.toMatchObject(
+      {
+        status: 415,
+        message: 'Only .epub files are supported in this phase',
+      }
+    )
+  })
+
   it('raises the duplicate-name sentence the server sends back', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(409, { detail: 'You already have a shelf with that name' })

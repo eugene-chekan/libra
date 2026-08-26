@@ -75,18 +75,12 @@ describe('Sidebar', () => {
     }
   })
 
-  it('keeps Add Book focusable while it is unavailable, and says why', async () => {
-    // `aria-disabled` rather than `disabled`: a disabled attribute is skipped
-    // by the keyboard entirely and explains nothing to a screen-reader user.
+  it('opens the Add Book modal, reachable by keyboard, from a click on Add Book', async () => {
     renderAt(routes.library)
-    const addBook = screen.getByRole('button', { name: 'Add Book' })
 
-    expect(addBook).toHaveAttribute('aria-disabled', 'true')
-    expect(addBook).toHaveAccessibleDescription('Adding books arrives with the upload screen')
+    await userEvent.click(screen.getByRole('button', { name: 'Add Book' }))
 
-    await userEvent.tab()
-    await userEvent.tab()
-    expect(document.activeElement).not.toBe(document.body)
+    expect(screen.getByRole('dialog', { name: 'Add Book' })).toBeInTheDocument()
   })
 
   it('does not invent the shared-with-you or shelves sections with nothing in them', async () => {
