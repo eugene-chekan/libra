@@ -38,6 +38,9 @@ export interface LibraApi {
   /** `GET /api/books`. */
   listBooks(params?: BookSearchParams): Promise<BookList>
 
+  /** `POST /api/books/upload` — creates a book from an EPUB, deriving metadata from the file. */
+  uploadBook(file: File): Promise<Book>
+
   /** `GET /api/tags`. */
   listTags(): Promise<Tag[]>
 

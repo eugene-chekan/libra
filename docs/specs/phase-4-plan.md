@@ -392,7 +392,7 @@ is one.
 | 5 | Book detail | done #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below |
 | 6 | Shelves page + shelf manager | done #68 | Drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below |
 | 7 | Tag manager | done #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches, and the no-spaces rule stated on the name field. Commits per row rather than a batch Save — see below |
-| 8 | Add Book | open #30 | Upload-first redesign |
+| 8 | Add Book | done #30 | Upload-first redesign |
 | 9 | User administration | open #31 | Admin-only modal, per-row commits, destructive delete dialog |
 | 10 | Librarian chat, stubbed | open #32 | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
 | 11 | EPUB chapters and resources | open #35 | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
@@ -567,6 +567,28 @@ every write reported a book with no tags — the same omission fixed in
 removed, so it disagreed with the server it exists to imitate, which is the
 one thing a fake must never do.
 
+**Milestone 8 reused most of the book detail screen rather than rebuilding
+it.** The moment `POST /books/upload` returns, the upload is a real book with
+a real id — so the confirm step points `MoveToShelfButton` and `BookTags` at
+it unchanged, and both write through the same `PUT /books/{id}/state` they
+already used on the detail screen. The title/author/year/pages/blurb fields
+and their checks moved out of `BookEditForm` into a new `BookFields`, so the
+confirm step and the detail screen's edit form run the same rules instead of
+two copies that could drift. A reader who is not an admin sees those fields,
+but cannot type into them — the same reasoning as "Edit Book is admin-only"
+above: `PATCH /books/{id}` would 403, so the box that reaches it is not
+offered.
+
+Building it also found a bug component tests cannot see. `Modal`'s card caps
+itself at 80vh with no scroll of its own, and the confirm step — cover,
+fields, shelf picker, tags — is tall enough to hit that ceiling. In a real
+browser the Done button ended up below the visible area, unreachable by
+mouse or keyboard; jsdom, which the component suite runs in, does no real
+layout, so every one of those tests passed anyway. Only the Playwright spec,
+run in an actual browser, caught it. Fixed with the same `.scroller` pattern
+`TagManager` already uses: the content between the title and the footer
+scrolls on its own, so the footer's buttons stay in place and reachable.
+
 ## Open questions
 
 None blocking. Milestone 0 settled the outstanding design questions; what
@@ -575,7 +597,9 @@ remains is implementation detail:
 - ~~**Drag-to-reorder implementation.**~~ Answered by milestone 6: pointer
   events, no library, committing the full order once on release, with the up
   and down buttons beside it. See above.
-- **Whether `POST /books/upload` should stream progress.** A large EPUB over
-  a household LAN is fast, but the Add Book modal has no progress affordance
-  and the upload is the one place a reader waits on bytes. Decide in
-  milestone 8, with a measurement rather than a guess.
+- ~~**Whether `POST /books/upload` should stream progress.**~~ Shipped in
+  milestone 8 with an indeterminate "Uploading…" state and no byte progress —
+  `fetch` has no upload-progress event, so a real bar means a second,
+  parallel request path (`XMLHttpRequest`) for one call site. Not measured
+  against a large file over a slow link, so this is a decision to revisit
+  the first time it is actually the complaint, not a closed one.

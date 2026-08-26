@@ -1,0 +1,99 @@
+.dropzone {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 40px 20px;
+  border: 1px dashed var(--libra-border);
+  border-radius: var(--libra-radius);
+  color: var(--libra-text-mid);
+  cursor: pointer;
+  transition:
+    border-color var(--libra-t-interactive),
+    color var(--libra-t-interactive);
+}
+
+.dropzone:hover,
+.dragOver {
+  border-color: var(--libra-accent);
+  color: var(--libra-text);
+}
+
+.hiddenInput {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  opacity: 0;
+}
+
+.prompt {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  text-align: center;
+}
+
+/* Mirrors `TagManager.module.css`'s `.scroller`: `Modal`'s card caps itself at
+   80vh with no scroll of its own, so a confirm step tall enough to hit that
+   ceiling needs its own scrolling region, leaving the footer's Done button
+   pinned and always reachable. */
+.scroller {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+}
+
+.cover {
+  width: 120px;
+  margin: 0 auto 16px;
+}
+
+.fieldsForm {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.row {
+  display: flex;
+  margin-top: 14px;
+}
+
+.cancel,
+.done,
+.save {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 600;
+  border-radius: var(--libra-radius);
+  cursor: pointer;
+}
+
+.cancel {
+  padding: 8px 14px;
+  color: var(--libra-text);
+  background: none;
+  border: 1px solid var(--libra-border);
+}
+
+.done {
+  padding: 8px 14px;
+  color: var(--libra-bg);
+  background: var(--libra-accent);
+  border: none;
+}
+
+.save {
+  align-self: flex-start;
+  padding: 6px 12px;
+  color: var(--libra-text);
+  background: none;
+  border: 1px solid var(--libra-border);
+}
+
+.save:disabled,
+.done:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
