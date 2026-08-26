@@ -411,6 +411,106 @@ describe('FakeLibraApi.uploadBook', () => {
   })
 })
 
+/**
+ * User administration, added for milestone 9 (#31). `listUsers` and
+ * `createUser` are admin-only the same way tag/shelf writes already are;
+ * `deleteUser` refuses the caller's own id before anything else, mirroring
+ * `library.delete_user`'s own check order.
+ */
+describe('FakeLibraApi.listUsers', () => {
+  it('lists every user, for an admin', async () => {
+    const admin = fakeUser({ id: 1, username: 'admin', is_admin: true })
+    const reader = fakeUser({ id: 2, username: 'reader' })
+    const api = new FakeLibraApi({ users: [admin, reader], signedInAs: admin })
+
+    const users = await api.listUsers()
+
+    expect(users.map((u) => u.username)).toEqual(['admin', 'reader'])
+  })
+
+  it('403s a reader who is not an admin', async () => {
+    const reader = fakeUser({ is_admin: false })
+    const api = new FakeLibraApi({ users: [reader], signedInAs: reader })
+
+    await expect(api.listUsers()).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe('FakeLibraApi.createUser', () => {
+  it('creates an account, normalising the username', async () => {
+    const admin = fakeUser({ is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+
+    const created = await api.createUser({ username: '  New.Reader  ', password: 'x' })
+
+    expect(created).toMatchObject({ username: 'new.reader', is_admin: false })
+  })
+
+  it('403s a reader who is not an admin', async () => {
+    const reader = fakeUser({ is_admin: false })
+    const api = new FakeLibraApi({ users: [reader], signedInAs: reader })
+
+    await expect(api.createUser({ username: 'x', password: 'x' })).rejects.toMatchObject({
+      status: 403,
+    })
+  })
+
+  it('refuses a taken username', async () => {
+    const admin = fakeUser({ is_admin: true, username: 'taken' })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+
+    await expect(api.createUser({ username: 'taken', password: 'x' })).rejects.toMatchObject({
+      status: 409,
+    })
+  })
+
+  it('refuses a blank username or password', async () => {
+    const admin = fakeUser({ is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+
+    await expect(api.createUser({ username: '   ', password: 'x' })).rejects.toMatchObject({
+      status: 422,
+    })
+    await expect(api.createUser({ username: 'ok', password: '' })).rejects.toMatchObject({
+      status: 422,
+    })
+  })
+})
+
+describe('FakeLibraApi.deleteUser', () => {
+  it('removes the account', async () => {
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const target = fakeUser({ id: 2 })
+    const api = new FakeLibraApi({ users: [admin, target], signedInAs: admin })
+
+    await api.deleteUser(2)
+
+    expect((await api.listUsers()).map((u) => u.id)).toEqual([1])
+  })
+
+  it('403s a reader who is not an admin', async () => {
+    const reader = fakeUser({ id: 1, is_admin: false })
+    const target = fakeUser({ id: 2 })
+    const api = new FakeLibraApi({ users: [reader, target], signedInAs: reader })
+
+    await expect(api.deleteUser(2)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('404s for a user that does not exist', async () => {
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+
+    await expect(api.deleteUser(999)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it("409s on the caller's own id, before anything else", async () => {
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+
+    await expect(api.deleteUser(1)).rejects.toMatchObject({ status: 409 })
+  })
+})
+
 describe('FakeLibraApi notes', () => {
   it("lists only the caller's own notes on the book, newest first", async () => {
     const mine = fakeUser({ id: 1 })

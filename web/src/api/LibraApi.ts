@@ -15,6 +15,7 @@ import type {
   TagCreate,
   TagPatch,
   User,
+  UserCreate,
   UserPatch,
 } from './types'
 
@@ -34,6 +35,15 @@ export interface LibraApi {
 
   /** `PATCH /api/users/{id}`. */
   updateUser(id: number, patch: UserPatch): Promise<User>
+
+  /** `GET /api/users`. Admin only. */
+  listUsers(): Promise<User[]>
+
+  /** `POST /api/users`. Admin only. */
+  createUser(user: UserCreate): Promise<User>
+
+  /** `DELETE /api/users/{id}`. Admin only; refuses the caller's own id. */
+  deleteUser(id: number): Promise<void>
 
   /** `GET /api/books`. */
   listBooks(params?: BookSearchParams): Promise<BookList>
