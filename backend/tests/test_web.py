@@ -71,7 +71,7 @@ def test_a_mistyped_endpoint_is_not_quietly_the_app(web_root: Path) -> None:
     This is the assertion the SPA fallback had to be built around. Unknown
     paths under `/` now return index.html so a reload at `/books/5` works;
     endpoints live under `/api` and keep 404ing, and that separation is the
-    whole reason the prefix exists. See docs/specs/client-stack.md."""
+    whole reason the prefix exists."""
     with TestClient(create_app()) as client:
         assert client.get("/api/not-a-real-path").status_code == 404
 

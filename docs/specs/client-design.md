@@ -10,7 +10,7 @@ loading/error/empty conventions it explicitly declined to invent.
 
 Written to the handoff's standard — exact values, every state named — because
 the reason those five screens were straightforward to build is that they left
-nothing to improvise. A chat screen invented in Flutter while everything else
+nothing to improvise. A chat screen invented ad hoc while everything else
 follows a design system will look like the afterthought it was.
 
 **Where the original spec still governs**, it governs: this document adds and
@@ -22,8 +22,8 @@ recoverable with `git checkout 9b1b423 -- docs/design_handoff_libra/`.
 
 ## Design tokens
 
-Restored from the handoff. Milestone 2 turns these into a Dart constants file
-plus a `ThemeExtension`; this table is the source.
+Restored from the handoff. `web/src/theme/tokens.css` defines these as CSS
+custom properties; this table is the source.
 
 ### Colors
 

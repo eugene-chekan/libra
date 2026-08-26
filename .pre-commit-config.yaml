@@ -25,9 +25,7 @@ repos:
         #
         # web/public/fonts holds the OFL licence texts for the two bundled
         # fonts. Reformatting a licence modifies the terms as distributed,
-        # however immaterial the whitespace. This exclusion existed before and
-        # was lost when the fonts moved out of the deleted Flutter client — the
-        # hook rewrote both files the very next commit.
+        # however immaterial the whitespace.
         exclude: ^(backend/uv\.lock|web/public/fonts/)
         stages: [pre-commit]
       - id: end-of-file-fixer
@@ -36,9 +34,7 @@ repos:
         #
         # web/public/fonts holds the OFL licence texts for the two bundled
         # fonts. Reformatting a licence modifies the terms as distributed,
-        # however immaterial the whitespace. This exclusion existed before and
-        # was lost when the fonts moved out of the deleted Flutter client — the
-        # hook rewrote both files the very next commit.
+        # however immaterial the whitespace.
         exclude: ^(backend/uv\.lock|web/public/fonts/)
         stages: [pre-commit]
       - id: check-yaml

@@ -58,9 +58,8 @@ describe('BookEditForm', () => {
   })
 
   it('clears a value whose box was emptied', async () => {
-    // The Flutter build read a blank box as "no change", which left no way to
-    // remove a wrong year at all. The boxes arrive filled in, so emptying one
-    // is deliberate.
+    // The boxes arrive filled in, so emptying one is deliberate, not a
+    // no-change default.
     const user = userEvent.setup()
     const { onSave } = renderForm()
 

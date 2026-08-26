@@ -179,7 +179,7 @@ if [ "$SCRATCH" -eq 1 ]; then
   echo "    scratch        this instance is wiped on every run"
 fi
 if [ ! -d "$WEB_OUT" ]; then
-  echo "    no client      API only; docs at /docs — see docs/specs/client-stack.md"
+  echo "    no client      API only; docs at /docs"
 fi
 echo "    this machine   http://localhost:$PORT"
 if [ -n "$LAN_IP" ]; then echo "    other devices  http://$LAN_IP:$PORT"; fi

@@ -3,13 +3,6 @@
 The web client — TypeScript, React and Vite. Phase 4 of the project, see
 [docs/architecture.md](../docs/architecture.md).
 
-This replaced a Flutter client on 2026-08-21. The reasons, the cost and the
-full stack are in [docs/specs/client-stack.md](../docs/specs/client-stack.md).
-The short version: Flutter's web build paints the page onto one canvas instead
-of building real page elements, so the accessibility this client promises was
-impossible, the app fetched its renderer and a font from Google at every cold
-load, and no browser-driving test could click anything.
-
 The design is settled up front in
 [docs/specs/client-design.md](../docs/specs/client-design.md). The tokens in
 `src/theme/tokens.css` are that document's CSS form and nothing else should
@@ -130,9 +123,9 @@ fails if any request leaves localhost.
 
 **Accessibility is enforced, not intended.** `eslint-plugin-jsx-a11y` fails the
 build on a clickable `<div>`, and `e2e/shell.spec.ts` checks the real
-accessibility tree in a real browser. That second part matters: `flutter test`
-read the framework's own tree rather than the page, the two disagreed, and
-that is how the old client shipped a sidebar no screen reader could see.
+accessibility tree in a real browser — a framework's own testing utilities can
+report a clean tree while the rendered DOM has none, so only a real browser
+check is trustworthy.
 
 ## Pinned versions, and why
 

@@ -3,11 +3,6 @@ import { defineConfig, devices } from '@playwright/test'
 /**
  * End-to-end tests, in a real browser.
  *
- * This file could not have existed under Flutter. The client painted itself
- * onto one canvas, so there was nothing in the page for a browser-driving tool
- * to find or click — which is how issue #50 was discovered, and why
- * docs/evaluation.md used to say the client had no automated evaluation.
- *
  * Chromium alone. The application is desktop-only by design and self-hosted on
  * a home network; running the same assertions three times in three engines
  * would triple CI for a risk this project does not carry.

@@ -1,20 +1,12 @@
 import { expect, test } from '@playwright/test'
 
 /**
- * The tests that answer issue #50.
+ * Verifies the sidebar reaches a real accessibility tree in a real browser.
  *
- * That issue measured the Flutter client on a running build and found the
- * whole sidebar — Library, Shelves, Librarian, Add Book — reaching a screen
- * reader as nothing at all. Roughly nine nodes existed inside Flutter and none
- * of them reached the page. It was not a labelling bug: every row carried
- * `Semantics(button: true)`. There was simply no page for the labels to
- * reach, because the app was painted onto a canvas.
- *
- * docs/specs/code-style.md draws the rule from that: "Verify accessibility
- * claims against a running build" — `flutter test` read the framework's own
- * tree, not the rendered output, and the two disagreed. A component test here
- * reads jsdom, which is closer but still not a browser. This file is the check
- * that has the final say.
+ * A component test here reads jsdom, which is closer than a framework's own
+ * semantics tree but still not a browser. This file is the check that has
+ * the final say — see "Verify accessibility claims against a build" in
+ * docs/specs/code-style.md.
  */
 
 test.describe('the app frame, in a real browser', () => {
@@ -31,9 +23,9 @@ test.describe('the app frame, in a real browser', () => {
   test('the sidebar renders DOM elements, not pixels on a canvas', async ({ page }) => {
     await page.goto('/library')
 
-    // The Flutter build produced a single <canvas> and nothing else. Asserting
-    // the absence is worth as much as asserting the presence: it is the
-    // difference this whole rewrite was for.
+    // Asserting the absence of a canvas is worth as much as asserting the
+    // presence of real elements: a canvas-painted UI would pass a naive
+    // element-count check while giving screen readers nothing to read.
     //
     // At least 4, not exactly 4: the logo plus the three primary nav rows
     // are always there, but SHELVES and TAGS add more real anchors as the
@@ -118,9 +110,8 @@ test.describe('the app frame, in a real browser', () => {
   test('the fonts are served by this instance and nothing is fetched from Google', async ({
     page,
   }) => {
-    // Issues #49 and #51: the Flutter client pulled its renderer and Roboto
-    // from Google at every cold load, which made "local-first" half true. This
-    // is the assertion that keeps it true.
+    // Fonts are bundled and served by this instance. This is the assertion
+    // that keeps "local-first" true rather than aspirational.
     const offSite: string[] = []
     page.on('request', (request) => {
       const url = new URL(request.url())

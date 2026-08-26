@@ -98,7 +98,7 @@ These I decided; say so if you disagree with any.
 
 | # | Question | Decision | Why |
 |---|---|---|---|
-| 5 | Session cookies vs. native Flutter (Phase 5) | Cookies now; give the session table a `kind` column and `expires_at` | A long-lived device token becomes a row rather than a schema change |
+| 5 | Session cookies vs. a future native app (Phase 5) | Cookies now; give the session table a `kind` column and `expires_at` | A long-lived device token becomes a row rather than a schema change |
 | 6 | `GET /books` response envelope | `{items, total}` | Header shows a count; filtering makes "total matching" meaningful; changing it later breaks every client at once |
 | 7 | Default library sort | `title` ascending, with `?sort=added` available | What a browsing user expects; `?sort=` makes it a one-line change either way |
 | 8 | Non-admins applying global tags | Keep admin-only | Loosening later is a permission change; tightening later breaks workflows people already have |

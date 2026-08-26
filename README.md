@@ -15,9 +15,8 @@ auth, per-user reading state, shelves, tags, search, cover art, and Kindle
 delivery over SMTP.
 
 Next: the web client (Phase 4), then the RAG pipeline (Phase 2) and the
-librarian agent (Phase 3) — the client is deliberately built first, and it is
-being written in TypeScript and React after the Flutter version was dropped on
-2026-08-21 (see [docs/specs/client-stack.md](docs/specs/client-stack.md)). Format conversion was deferred out of Phase 1 — see
+librarian agent (Phase 3) — the client is deliberately built first, in
+TypeScript and React. Format conversion was deferred out of Phase 1 — see
 [docs/specs/phase-1-plan.md](docs/specs/phase-1-plan.md) for that decision and
 [docs/architecture.md](docs/architecture.md) for the roadmap.
 
@@ -26,8 +25,7 @@ being written in TypeScript and React after the Flutter version was dropped on
 **Every endpoint lives under `/api`.** That keeps them apart from the web
 client's own URLs, which are real paths rather than `#` fragments — without the
 prefix, reloading the client at `/shelves` would ask this server for `/shelves`
-and get the shelf list as JSON instead of the app. See
-[docs/specs/client-stack.md](docs/specs/client-stack.md).
+and get the shelf list as JSON instead of the app.
 
 `/health` is the one exception and stays at the root: it is a liveness check
 for whatever watches the process, not something the client calls, and probes

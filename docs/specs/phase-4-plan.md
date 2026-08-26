@@ -2,11 +2,9 @@
 
 **Status:** Active. Written 2026-08-09, the day after Phase 1 completed.
 
-**The client stack changed on 2026-08-21**, from Flutter to TypeScript and
-React. The scope, the milestones and the design in this plan are unchanged —
-only the tools that build the screens changed. The reasons, the cost, and the
-new stack are in [client-stack.md](client-stack.md). Where this plan names a
-Flutter tool below, see the mapping table under "Technical decisions".
+The client is built in TypeScript and React, with Vite. The scope, the
+milestones and the design below are unchanged from when this plan was
+written; only the tools that build the screens changed.
 
 Phase 4 is being built **before** Phases 2 and 3 rather than after. The phase
 numbers stay as they are — they are referenced across
@@ -39,10 +37,10 @@ Three reasons to spend it here:
 The API is **17 paths / 26 operations** as of Phase 1's close.
 
 *Paths below are written as they were at Phase 1's close. Every one of them
-moved under `/api` on 2026-08-21 — `POST /auth/login` is now
-`POST /api/auth/login`, and so on, with `/health` the only exception. The
-reason is in [client-stack.md](client-stack.md); the current list is in the
-README.*
+now lives under `/api` — `POST /auth/login` is `POST /api/auth/login`, and so
+on — with `/health` the only exception. See
+[architecture.md](../architecture.md) for why, and the OpenAPI schema
+(`/docs`) for the current list.*
 
 | Screen | Endpoints |
 |---|---|
@@ -171,26 +169,16 @@ the feature itself.
 
 **Where the parse lives: the backend.** Phase 2's chunker has to walk the
 spine to produce text; the reader walks it to produce markup. One parser, two
-projections. Unzipping in Dart would have been faster to ship and would have
-left the same walk written twice in two languages, with the RAG copy being the
-one nobody notices drifting.
+projections, so neither copy can drift from the other.
 
-**Why Flutter renders it rather than epub.js.** `flutter_html` renders to
-widgets and executes no JavaScript. Book markup comes from an uploaded file
-and would be served from an origin carrying a session cookie, so putting it in
-a browser DOM is stored XSS — the hazard `cover_for`'s media-type allowlist
-already exists to prevent. epub.js is the more capable renderer and would have
-needed a separate origin or a strict sandbox to be safe. The Flutter path
-avoids the question instead of answering it.
-
-***Superseded 2026-08-21: the client is TypeScript, so the question had to be
-answered rather than avoided.*** The answer is the strict sandbox this
-paragraph names: each chapter is rendered by epub.js inside an
-`<iframe sandbox>` with `allow-same-origin` deliberately left off, which puts
-the chapter in its own empty origin where it cannot read the session cookie or
-touch the app around it. The hazard is real and the guard is standard. The
-gain is the renderer this paragraph already called more capable. Full
-reasoning in [client-stack.md](client-stack.md).
+**Why the reader is sandboxed.** Book markup comes from an uploaded file and
+is served from an origin carrying a session cookie, so putting it straight
+into the page's DOM is stored XSS — the hazard `cover_for`'s media-type
+allowlist already exists to prevent. Each chapter is rendered by epub.js
+inside an `<iframe sandbox>`, with `allow-same-origin` deliberately left off:
+that puts the chapter in its own empty origin, where it cannot read the
+session cookie or touch the app around it. The hazard is real and the guard is
+standard.
 
 **Scrolling, not paginated.** Reflowed pagination with real page numbers is a
 project of its own and is not attempted. Progress is
@@ -210,7 +198,7 @@ Three conditions, without which the stub rots instead of paying off.
 
 **One swappable seam.** A single `LibrarianService` interface with a fake
 implementation returning canned exchanges, injected exactly the way the real
-one will be. If faking leaks into widgets, the eventual swap becomes a
+one will be. If faking leaks into components, the eventual swap becomes a
 refactor rather than a substitution.
 
 **Visibly a stub in the interface.** A badge or banner on the screen. This
@@ -303,9 +291,8 @@ were missing and blocked the client regardless of when it is built:
 
 Worth designing to the same standard as the original five, with tokens and
 states specified. The reason those screens were straightforward to reason
-about is that the design left little to improvise; a chat screen invented in
-Flutter while everything else follows a design system will look like the
-afterthought it was.
+about is that the design left little to improvise; a chat screen invented
+without the same rigor would look like the afterthought it was.
 
 The design tokens are not in the working tree — the bundle was removed once
 the specs superseded it. Recover with
@@ -313,50 +300,28 @@ the specs superseded it. Recover with
 
 ## Technical decisions
 
-**Read this section as decisions about problems, not about tools.** The stack
-moved to TypeScript and React on 2026-08-21, but almost every bullet below
-still holds, because each one answers a question the framework does not get to
-decide: should routes be real, should fonts be local, should widgets be
-hand-rolled, how is state shaped. Only the names change.
+Each of these answers a question about the product, not about the framework —
+should routes be real, should fonts be local, how should state be shaped.
 
-| This plan says | Now read as | Still true? |
-|---|---|---|
-| Flutter, web target first | TypeScript + React, built by Vite | Web first, yes. Phase 5 from the same code, no — see [client-stack.md](client-stack.md) |
-| `go_router` | React Router | Yes, unchanged |
-| Riverpod | TanStack Query for server data, React Context for the session | Yes — the reason given was explicit loading/error/data, which TanStack Query gives |
-| Material, restyled | Radix UI, styled from tokens | Yes — the reason given was accessibility, which is exactly what Radix supplies |
-| Design tokens as a Dart constants file | `tokens.css` custom properties + CSS Modules | Yes, unchanged |
-| `pubspec.yaml` font assets | `@font-face` over the same files, as `.woff2` | Yes, and now actually true — Flutter still pulled Roboto from Google (#51) |
-| `flutter_html` for the reader | epub.js inside `<iframe sandbox>` | No — superseded, see the reader section below |
-
-- **Flutter, web target first**, per architecture.md. Desktop and mobile are
-  Phase 5 from the same codebase.
-  *(Superseded 2026-08-21 — see the table above.)*
-- **Real routes** — `/library`, `/shelves`, `/books/:id`, `/chat` — via
-  `go_router`. The prototype switched a `page` string; the handoff explicitly
-  asks for routable, linkable pages and a working back button.
-- **Design tokens** become a generated Dart constants file plus a
-  `ThemeExtension` for the values Material has no slot for.
-- **Fonts bundled, not fetched.** Instrument Serif and DM Sans as
-  `pubspec.yaml` assets. A local-first application that needs the network to
-  render text is a contradiction that would not survive review.
-- **Material as the substrate, restyled** — not hand-rolled widgets. The
+- **Real routes** — `/library`, `/shelves`, `/books/:id`, `/chat` — via React
+  Router. The prototype switched a `page` string; the handoff explicitly asks
+  for routable, linkable pages and a working back button.
+- **Design tokens** live in `tokens.css` as CSS custom properties, with CSS
+  Modules for component-scoped styling.
+- **Fonts bundled, not fetched.** Instrument Serif and DM Sans ship as local
+  `.woff2` files. A local-first application that needs the network to render
+  text is a contradiction that would not survive review.
+- **Radix UI as the substrate, restyled** — not hand-rolled components. The
   handoff's own gap list says accessibility is largely absent and must be
-  rebuilt properly: real buttons, focus management, `role="dialog"`
-  equivalents. Hand-rolling means reimplementing focus traversal, keyboard
-  navigation and text editing to arrive back where Material starts. The
-  pixel-perfect tension is resolvable — `splashFactory: NoSplash`, tightened
-  density, every colour, radius and border from tokens — and the pieces that
-  genuinely fight Material (the cover grid, the shelf plank gradient, the
-  progress bars) were never Material components to begin with.
-- **Riverpod** for state. Two properties decide it against Provider and Bloc:
-  the librarian and API-client swaps become one-line provider overrides, which
-  is the seam discipline this plan demands expressed as the library's native
-  idiom; and async state arrives as an explicit loading/error/data type, which
-  matters because the handoff leaves loading and error states undesigned and
-  they would otherwise be improvised per screen or forgotten. Bloc's
-  event/state ceremony would multiply the line count across what is mostly
-  CRUD.
+  rebuilt properly: real buttons, focus management, real dialog behaviour.
+  Radix supplies all of that with no styling attached, so restyling from
+  tokens is the only work left.
+- **TanStack Query** for server data, **React Context** for the session. Two
+  properties decide it: async state arrives as an explicit
+  loading/error/data value, which matters because the handoff leaves loading
+  and error states undesigned and they would otherwise be improvised per
+  screen or forgotten; and swapping the API client for a fake is a one-line
+  override, the same seam discipline the librarian stub needs.
 - **The chat gets its own `/chat` route**, not a panel over the library. A
   panel is arguably the better product — the library stays visible while the
   agent discusses it — but it is the larger design invention, needing a
@@ -365,7 +330,8 @@ hand-rolled, how is state shaped. Only the names change.
   become a panel in Phase 3 if it earns it.
 - **Auth is a cookie.** The client must send credentialed requests, and
   `LIBRA_CORS_ORIGINS` must name its origin exactly: credentialed CORS cannot
-  be combined with a `*` origin. Expect this to be the first thing that breaks.
+  be combined with a `*` origin. Expect this to be the first thing that
+  breaks.
 
 ## Testing
 
@@ -375,10 +341,8 @@ discipline as the librarian stub. The fake stays hand-written, because it has
 to copy the server's surprising rules; MSW covers only the tests that pin the
 exact shape of a request on the wire.
 
-**End-to-end tests are now possible, and are part of the scope.** Playwright
-drives the golden path through a real browser against a scratch instance. This
-could not be done under Flutter — the client painted itself onto a canvas, so
-there was nothing in the page to click, which is how issue #50 was found.
+**End-to-end tests are part of the scope.** Playwright drives the golden path
+through a real browser against a scratch instance.
 `eslint-plugin-jsx-a11y` runs in CI and fails the build on a clickable
 `<div>`, the defect the handoff's own gap list complained about.
 
@@ -393,7 +357,7 @@ conversion is scheduled after Phase 2 and adds format variants to the book
 model. Naming the change shrinks it: conversion *adds* variants, it does not
 remove `format` or `file_path`, so the change is additive and breaks a client
 only where deserialization is exhaustive. Mitigation is one line of
-discipline — `fromJson` ignores unknown fields. Pulling conversion forward
+discipline — unknown fields are ignored on parse. Pulling conversion forward
 would re-spend on the least novel work in the project the very slack this
 phase exists to spend, so it stays where it is.
 
@@ -416,32 +380,23 @@ One branch per feature, as in Phase 1. Milestone 1 spans three issues because
 its three endpoint groups are unrelated to each other; every other milestone
 is one.
 
-| # | Milestone | Flutter | TypeScript | Notes |
-|---|---|---|---|---|
-| 0 | Close the six design gaps | ✅ | carried over | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions. Design work, so the move did not repeat it |
-| 1 | Notes endpoints | ✅ #21 | backend | Over the table Phase 1 defined for exactly this — no migration needed, which was the point |
-| 1 | `GET /books/{id}/file` | ✅ #22 | backend | Filename rebuilt from the catalog by the new `app/naming.py`, shared with Kindle delivery |
-| 1 | `DELETE /users/{id}` | ✅ #23 | backend | Hand-written cascade; no last-admin check, because admin-only plus no self-deletion makes it unreachable |
-| 2 | Scaffold | ✅ #24 | ✅ #57 | `client/`, tokens → Dart, bundled fonts, `go_router` shell, sidebar with its new pinned footer, Riverpod, skeleton/error/empty primitives, CI analyze + test. No `ThemeExtension` — see below |
-| 3 | API client + auth | ✅ #25 | ✅ #61 | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
-| 4 | Library grid + search | ✅ #26 | ✅ #63 | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
-| 5 | Book detail | ✅ #27 | ✅ #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below. The TypeScript build dropped the progress slider (the reader supersedes it), routed `/books/:id/read` to a stand-in so the primary button leads somewhere, and found the `PATCH /books/{id}` response bug below |
-| 6 | Shelves page + shelf manager | ✅ #28 | ✅ #68 | Real drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below. The TypeScript build hand-rolled the drag on pointer events, kept the up and down buttons beside it as the keyboard path, and put delete behind a dialog of its own rather than the browser's `confirm()` |
-| 7 | Tag manager | — | ✅ #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches, and the no-spaces rule stated on the name field. Commits per row rather than behind the prototype's Save Changes footer — see below |
-| 8 | Add Book | — | #30 | Upload-first redesign |
-| 9 | User administration | — | #31 | Admin-only modal, per-row commits, destructive delete dialog |
-| 10 | Librarian chat, stubbed | — | #32 | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
-| 11 | EPUB chapters and resources | — | backend #35 | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
-| 12 | In-browser reader | — | #36 | epub.js in a sandboxed iframe over the spine, TOC, scroll position written back as progress |
-
-**The two client columns are two builds of the same milestone.** Milestones 0
-to 6 were built in Flutter and are being rewritten in TypeScript, which is the
-three-week timebox in [client-stack.md](client-stack.md). The rewrite files its
-own issues — #57, #61, #63, #65 — because the Flutter ones are closed, and a
-closed issue cannot track work that is still happening. Milestones 7 to 10 and
-12 are built once, in the new client, and were never started in Flutter.
-Milestone 11 (#35) is backend work and is untouched by the move. The milestone
-numbers, scope and dependencies below are unchanged.
+| # | Milestone | Status | Notes |
+|---|---|---|---|
+| 0 | Close the six design gaps | done | [client-design.md](client-design.md) — tokens restored, six surfaces, plus loading/error/empty conventions |
+| 1 | Notes endpoints | done #21 | Over the table Phase 1 defined for exactly this — no migration needed, which was the point |
+| 1 | `GET /books/{id}/file` | done #22 | Filename rebuilt from the catalog by `app/naming.py`, shared with Kindle delivery |
+| 1 | `DELETE /users/{id}` | done #23 | Hand-written cascade; no last-admin check, because admin-only plus no self-deletion makes it unreachable |
+| 2 | Scaffold | done #57 | `web/`, tokens as CSS custom properties, bundled fonts, React Router shell, sidebar with its pinned footer, skeleton/error/empty primitives, CI lint + test |
+| 3 | API client + auth | done #61 | Typed client, credentialed cookies, fake-client seam, login, session expiry, route guards, account row and dropdown, sign-out, Kindle address modal |
+| 4 | Library grid + search | done #63 | `#tag` autocomplete, OR/AND semantics, the shelf filter pill, gradient cover fallback, empty and first-run states. Sidebar shelf/tag filter lists landed here too — they are filters over this grid |
+| 5 | Book detail | done #65 | View and edit modes, rating, progress, move-to-shelf, lightbox, notes, the two-row action split, download, Send to Kindle with all five of its states. Edit Book is admin-only — see below |
+| 6 | Shelves page + shelf manager | done #68 | Drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below |
+| 7 | Tag manager | done #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches, and the no-spaces rule stated on the name field. Commits per row rather than a batch Save — see below |
+| 8 | Add Book | open #30 | Upload-first redesign |
+| 9 | User administration | open #31 | Admin-only modal, per-row commits, destructive delete dialog |
+| 10 | Librarian chat, stubbed | open #32 | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
+| 11 | EPUB chapters and resources | open #35 | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
+| 12 | In-browser reader | open #36 | epub.js in a sandboxed iframe over the spine, TOC, scroll position written back as progress |
 
 The three milestone-1 issues and #24 are independent of everything; #25 gates
 every client milestone after it; #27 additionally waits on #21 and #22, and
@@ -459,36 +414,16 @@ What it actually found, now that it is done:
   `SameSite=lax` cookie and the credentialed CORS preflight all worked
   first time against a real browser on a different origin. The one operational
   requirement is that `LIBRA_CORS_ORIGINS` name the client's origin exactly;
-  recorded in [client README](../../client/README.md) because a blocked
+  recorded in [web README](../../web/README.md) because a blocked
   preflight is indistinguishable from an unreachable server.
-- **The cold-load window needed its own route.** Letting a protected route
-  match while the session is still unknown mounts the shell for someone who may
-  not be allowed it, then tears it down — which churns the shell navigator's
-  `GlobalKey`, and from milestone 4 would fire every screen's initial load
-  before anyone knows whether there is a session. Redirecting to `/login`
-  instead would flash the login card on every refresh. Hence `/starting`, which
-  carries the intended destination through as `?next=`.
-- **The fire-once expiry rule needed a sharper test than "count the
-  notifications".** `SessionState`'s anonymous value is `const`, so repeated
-  assignments hand Riverpod the same canonical instance and get coalesced for
-  free — a broken guard passed a notification-counting test. The test now asks
-  each concurrent 401 whether *it* was the one that ended the session.
+- **The cold-load window needs to render nothing, not redirect.** Redirecting
+  to `/login` while the session is still unknown flashes the login card on
+  every refresh, even for someone who turns out to be signed in.
+  `RequireSession` (`web/src/session/RequireSession.tsx`) renders nothing in
+  place — same URL, no navigation — until the session resolves, then renders
+  the real screen. No dedicated route is needed for the window.
 
-**Milestone 2 dropped the `ThemeExtension`.** It was going to hold the tokens
-Material has no slot for — `accentHover`, `accentLighter`, `coverBg` — but the
-design is a single fixed palette with no dark mode drawn, and theming is not a
-project goal. With no second implementation behind it, the extension would only
-re-expose `LibraColors` through a context lookup: indirection for its own sake,
-the same thing as the redundant tag filter deleted in #9. Widgets read the
-token classes directly, and `lib/theme/theme.dart` records where an extension
-goes if a second palette is ever designed.
-
-The collapsible SHELVES / SHARED WITH YOU / TAGS sections of the sidebar are
-**not** stubbed by milestone 2. They are #28 and #29, they need real data, and
-an empty section carrying invented copy would be harder to replace than
-nothing. Milestone 2 owns the frame: logo, primary nav, and the pinned footer.
-
-**Milestone 4 then took the SHELVES and TAGS lists**, because gap 4 makes them
+**Milestone 4** took the SHELVES and TAGS lists, because gap 4 makes them
 filters over the library grid rather than links to a management screen — they
 belong to whoever owns the grid. #28 and #29 keep the Shelves page, the SHARED
 WITH YOU section, and both manager modals.
@@ -499,11 +434,11 @@ Two decisions worth recording from milestone 4:
   live in the query string. A filtered view is then linkable, survives a
   reload, and comes back with the back button — and the screen holds no filter
   state of its own.
-- **Automatic provider retry is off.** Riverpod 3 retries a failed provider
-  indefinitely with backoff. The design specifies an error block with a "Try
-  again" button, and an invisible retry racing it is two mechanisms for one
-  job: the error flickers in and out and the reader cannot tell whether their
-  click did anything. Failure is reported once; retrying is the reader's call.
+- **Automatic query retry is off.** The design specifies an error block with a
+  "Try again" button, and an invisible retry racing it is two mechanisms for
+  one job: the error flickers in and out and the reader cannot tell whether
+  their click did anything. Failure is reported once; retrying is the
+  reader's call. See `retry: false` in `web/src/queryClient.ts`.
 
 **Milestone 5 found the first real client/server disagreement**, and it is
 worth recording because the same shape will recur.
@@ -522,30 +457,28 @@ Two things follow:
   endpoint rather than to look tidy.
 - **The fake was wrong in the same way**, which is why no test caught it. A
   fake that does not model the server faithfully converts an integration bug
-  into a passing suite. `FakeLibraApi` now mirrors the hybrid exactly, and
-  `test/api/http_libra_api_test.dart` drives the real client against a mock
-  transport to pin the wire format — the layer the fake, by construction,
-  cannot cover.
+  into a passing suite. `FakeLibraApi` now mirrors the hybrid exactly, and a
+  wire-format test drives the real client against a mock transport to pin the
+  exact request shape — the layer the fake, by construction, cannot cover.
 
-**Rebuilding milestone 5 in TypeScript found a second disagreement**, this
-time in a response rather than a request. `PATCH /books/{id}` returned the
-table row and let `response_model` turn it into a `BookRead`. Five of that
-model's fields are not columns on `Book` — `rating`, `progress`, `shelf_id`,
-`has_cover`, `tag_ids` — so FastAPI filled them from the defaults. A book the
-caller had rated five stars and read halfway came back unrated, unstarted,
-unshelved and with no cover. `POST /books` already went through
-`library.get_book` and already carried a comment warning about exactly this
-path; `PATCH` had not. Nothing inside the process could see it, because the
-response was well formed and only untrue — it took a screen reading the
-response back to find it. Fixed in the same branch, with a test that fails
-again the moment the fix is undone.
+Building milestone 5 also found a second disagreement, this time in a
+response rather than a request. `PATCH /books/{id}` returned the table row and
+let `response_model` turn it into a `BookRead`. Five of that model's fields
+are not columns on `Book` — `rating`, `progress`, `shelf_id`, `has_cover`,
+`tag_ids` — so FastAPI filled them from the defaults. A book the caller had
+rated five stars and read halfway came back unrated, unstarted, unshelved and
+with no cover. `POST /books` already went through `library.get_book` and
+already carried a comment warning about exactly this path; `PATCH` had not.
+Nothing inside the process could see it, because the response was well formed
+and only untrue — it took a screen reading the response back to find it.
+Fixed in the same branch, with a test that fails again the moment the fix is
+undone.
 
-Two decisions in that rebuild differ from the Flutter one on purpose. There is
-**no progress slider**, because the reader (#36) is what turns progress into
-something the application observes rather than something the reader declares;
-and `/books/:id/read` is **routed to the same stand-in the Librarian tab
-uses**, because the Flutter build pointed its most prominent button at an
-address that matched nothing.
+There is **no progress slider**, because the reader (#36) is what turns
+progress into something the application observes rather than something the
+reader declares; and `/books/:id/read` is **routed to the same stand-in the
+Librarian tab uses**, so the primary button leads somewhere until the reader
+ships.
 
 **Milestone 6 needed one backend field.** The design labels somebody else's
 public shelf "by {username}", but `ShelfRead` carried only `owner_id` and
@@ -563,15 +496,14 @@ ended, while an expiry on the library carried no `next` and said nothing at
 all. The session now records the one moment a live session ends, and the screen
 reads that.
 
-**Rebuilding milestone 6 in TypeScript needed no new backend field**, because
-the Flutter build had already added it. What it had to answer was the drag.
-`useDragReorder` is about forty lines over pointer events, with no drag
-library: the list is one short column, and a dependency is a cost that stays
-long after the screen is done. Nothing is written until the pointer is
-released, and only when the order really changed — a write per row crossed
-would be one request per pixel of travel. The up and down buttons beside each
-row are not a fallback for the drag. A drag cannot be done from a keyboard at
-all, so the buttons are the real control and the drag is the quick way.
+What milestone 6 had to answer was the drag. `useDragReorder` is about forty
+lines over pointer events, with no drag library: the list is one short
+column, and a dependency is a cost that stays long after the screen is done.
+Nothing is written until the pointer is released, and only when the order
+really changed — a write per row crossed would be one request per pixel of
+travel. The up and down buttons beside each row are not a fallback for the
+drag. A drag cannot be done from a keyboard at all, so the buttons are the
+real control and the drag is the quick way.
 
 That split is visible in the tests. jsdom — the fake browser the component
 tests run in — does not answer the question the drag asks it, which row is
@@ -615,10 +547,10 @@ courtesy, the endpoint is the guard.
 **Milestones 5 and 7 together left a hole that only using the app found.** The
 tag manager curates the vocabulary — create, rename, delete — and milestone 5
 had drawn a book's tags as pills that filter the library. Neither built the
-control that puts a tag *on* a book: #65's issue said tag editing belonged to
-the tag manager, and #29's scope was the vocabulary. So the app could make a
-tag and show a tag and never attach one, and the only way to do it was to call
-the API by hand.
+control that puts a tag *on* a book: milestone 5's issue said tag editing
+belonged to the tag manager, and #29's scope was the vocabulary. So the app
+could make a tag and show a tag and never attach one, and the only way to do
+it was to call the API by hand.
 
 The fix is [gap 8](client-design.md) — a **+ Add Tag** pill beside the others,
 writing `PUT /books/{id}/state` at once, in view mode rather than the

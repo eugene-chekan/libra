@@ -15,13 +15,10 @@ export default tseslint.config(
       // top-level configs are still eslintrc-shaped, with `plugins` as an
       // array of strings, and flat config rejects them outright.
       reactHooks.configs.flat['recommended-latest'],
-      // The reason this whole lint setup exists. The design handoff's rows
-      // were all `<div onClick>`, and the Flutter client promised keyboard
-      // and screen-reader support it could not deliver (#50). These rules
-      // fail the build on that, which moves the rule out of a document and
-      // into CI — see docs/specs/code-style.md, which notes that none of its
-      // rules could be checked by a machine. For accessibility, that stops
-      // being true here.
+      // The reason this whole lint setup exists: a clickable `<div>` gives
+      // no keyboard or screen-reader support for free, and these rules fail
+      // the build on that instead of relying on a reviewer to catch it. See
+      // docs/specs/code-style.md.
       jsxA11y.flatConfigs.strict,
     ],
     languageOptions: {

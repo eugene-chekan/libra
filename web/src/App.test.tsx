@@ -74,9 +74,7 @@ describe('routing', () => {
   })
 
   it('routes the reader, so the Start Reading button does not lead to a dead address', async () => {
-    // It is a stand-in until #36 builds it. The Flutter client left this route
-    // out entirely, so the most prominent button on the book screen took a
-    // reader to "no such page".
+    // It is a stand-in until #36 builds it.
     renderAt(readerPath(4))
 
     await waitFor(() => expect(screen.getByRole('heading', { name: 'Reader' })).toBeInTheDocument())
@@ -111,10 +109,9 @@ describe('routing', () => {
 
 describe('query client', () => {
   it('does not retry, so the error block is the only thing reporting failure', () => {
-    // The Flutter client had to turn this off in Riverpod for the same reason:
-    // an invisible retry racing the visible "Try again" button makes the error
-    // blink in and out, and the reader cannot tell whether their click did
-    // anything. TanStack Query retries three times unless told otherwise.
+    // An invisible retry racing the visible "Try again" button makes the
+    // error blink in and out, and the reader cannot tell whether their click
+    // did anything. TanStack Query retries three times unless told otherwise.
     const defaults = createQueryClient().getDefaultOptions()
 
     expect(defaults.queries?.retry).toBe(false)

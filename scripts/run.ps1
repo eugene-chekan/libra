@@ -230,7 +230,7 @@ try { $LanIp = ($LanIpScript | & $VenvPy - 2>$null) -join '' } catch { }
 
 Write-Host ''
 if ($Scratch)                 { Write-Host '    scratch        this instance is wiped on every run' }
-if (-not (Test-Path $WebOut)) { Write-Host '    no client      API only; docs at /docs — see docs/specs/client-stack.md' }
+if (-not (Test-Path $WebOut)) { Write-Host '    no client      API only; docs at /docs' }
 Write-Host "    this machine   http://localhost:$Port"
 if ($LanIp)    { Write-Host "    other devices  http://${LanIp}:$Port" }
 if ($Accounts) { Write-Host "    sign in as     $Accounts" }

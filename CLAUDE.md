@@ -13,11 +13,10 @@ first-class concerns — this needs to hold up to committee scrutiny, not just
 
 **Phase 1 (backend core)** is done bar format conversion, and **Phase 4 (the
 web client)** is underway — it was deliberately reordered ahead of RAG and the
-agent, see `docs/specs/phase-4-plan.md` for why. **The client moved from
-Flutter to TypeScript and React on 2026-08-21** — see
-`docs/specs/client-stack.md` for the reasons. See `docs/architecture.md` for
-the full 5-phase roadmap and `docs/evaluation.md` for how each phase's
-evaluation methodology is built alongside the implementation.
+agent, see `docs/specs/phase-4-plan.md` for why. The client is TypeScript and
+React. See `docs/architecture.md` for the full 5-phase roadmap and
+`docs/evaluation.md` for how each phase's evaluation methodology is built
+alongside the implementation.
 
 ## How to write here
 
@@ -102,9 +101,8 @@ Docker: `docker compose -f scripts/docker-compose.yml up --build` (from repo roo
 
 ### Client
 
-All commands run from `web/`. TypeScript, React and Vite — the Flutter client
-was deleted on 2026-08-21, see `docs/specs/client-stack.md`. Full command
-list, the e2e-against-a-real-backend setup, and the dev-proxy details are in
+All commands run from `web/`. TypeScript, React and Vite. Full command list,
+the e2e-against-a-real-backend setup, and the dev-proxy details are in
 [`web/README.md`](web/README.md); the essentials:
 
 ```bash
@@ -155,15 +153,10 @@ pushing rather than relying on CI to catch a broken branch.
 
 ## Code style and architecture rules
 
-Full reasoning, with the defect behind each rule, is in
-[`docs/specs/code-style.md`](docs/specs/code-style.md) — every rule there
-cites the bug that produced it, which is what makes it worth following.
-Written against the Flutter client, so the rules are about the defects, not
-the framework: "widget" reads as "component", and the a11y rule is now
-enforced by `eslint-plugin-jsx-a11y` in CI rather than only by reading. See
-[`docs/specs/client-stack.md`](docs/specs/client-stack.md) for why Flutter
-left. None of this is caught by lint or format — that's why it has to be
-read, not just run.
+Full reasoning is in
+[`docs/specs/code-style.md`](docs/specs/code-style.md). None of this is
+caught by lint or format — that's why it has to be read, not just run. The
+a11y rule is also enforced by `eslint-plugin-jsx-a11y` in CI.
 
 - One decision, one place — duplicated policy drifts; move it up, not sideways.
 - Check the SDK before writing a helper.
@@ -178,11 +171,11 @@ read, not just run.
   part of the diff.
 - A placeholder names a live issue and dies when it ships — closing an issue
   includes grepping for its number.
-- A widget reads what it uses; don't thread dependencies through a parent
+- A component reads what it uses; don't thread dependencies through a parent
   that only forwards them.
-- Never key a widget by state its own output changes.
+- Never key a component by state its own output changes.
 - The fake enforces the server's rules, including surprising ones.
-- Every widget gets at least one test; assert what's on screen, not that
+- Every component gets at least one test; assert what's on screen, not that
   nothing threw; mutation-test every guard by hand (break it, confirm the
   test fails, restore it); probe with a throwaway print before you fix; verify
   a11y claims against a running build, not the framework's own semantics tree.

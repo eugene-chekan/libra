@@ -374,9 +374,9 @@ other way.
 **This is the constraint that makes CORS non-trivial.** Cookie auth from a
 browser client requires `allow_credentials=True`, which forbids the `*`
 origin — the allowed origins must be enumerated. So `cors_origins` is a real
-configuration value, not a permissive default. It also means the Flutter web
-client must send credentialed requests, and native Flutter (Phase 5) handles
-cookies less gracefully than a browser does; see [Decisions](#decisions).
+configuration value, not a permissive default. It also means a future native
+app (Phase 5) would need to handle cookies explicitly, since it has no
+browser to do it for; see [Decisions](#decisions).
 
 ## Permissions
 
@@ -741,8 +741,8 @@ carried from [format-conversion.md](format-conversion.md), is in
   applies to everyone.
 - **Notes and highlights** — model defined above and created by the
   migration, endpoints in Phase 2.
-- **Session cookies and native Flutter** — cookies now; `Session.kind` and
-  `expires_at` make a Phase 5 per-device token a row rather than a schema
+- **Session cookies and a future native app** — cookies now; `Session.kind`
+  and `expires_at` make a Phase 5 per-device token a row rather than a schema
   change.
 - **`GET /books` envelope** — `{items, total}`. The design's header shows a
   count, filtering makes "total matching" the number it actually wants, and

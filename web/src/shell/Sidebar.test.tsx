@@ -38,11 +38,9 @@ describe('Sidebar', () => {
   })
 
   it('renders every primary nav entry as a real link', () => {
-    // The rewrite exists because of this. In the Flutter client every one of
-    // these rows was wrapped in `Semantics(button: true)` and none of them
-    // reached the page — nine nodes existed in the framework and a screen
-    // reader found nothing (#50). Here they are `<a href>` elements, so the
-    // role and the keyboard come from the element itself.
+    // Each row is a real `<a href>` element, so the role and the keyboard
+    // handling come from the element itself, not from an attribute claiming
+    // it.
     renderAt(routes.library)
 
     for (const { label, to } of primaryNav) {
@@ -65,8 +63,8 @@ describe('Sidebar', () => {
   })
 
   it('reaches every row with the keyboard alone', () => {
-    // The claim `tappable_row.dart` made and could not keep. Asserted here on
-    // the real accessibility tree rather than on a framework's idea of one.
+    // Asserted on the real accessibility tree rather than on a framework's
+    // idea of one.
     renderAt(routes.library)
     const reachable = ['libra', ...primaryNav.map((entry) => entry.label), 'Add Book']
 
