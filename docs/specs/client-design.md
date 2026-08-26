@@ -226,6 +226,14 @@ naive implementation fires one redirect per in-flight request.
 
 ## Gap 2 — User administration
 
+**Superseded 2026-08-26 by [admin-page.md](admin-page.md).** User
+administration is a full `/admin` page with a tab shell, not a modal — made
+to grow into fine-grained permissions and other admin sections later, which
+a modal does not do well. The row-level behaviour below (edit-in-place,
+per-row commit, the delete dialog and its wording) carries over unchanged;
+only the container around it changed. Left here for the reasoning that led
+to the row design in the first place.
+
 Admin only, reached from the account dropdown. **Manage Users modal**, 520px
 wide (wider than Manage Shelves' 460px because rows carry more), otherwise
 structurally identical: 28px/28px/20px padding, max-height 80vh, column flex
