@@ -45,6 +45,10 @@ venv/
 .claude/settings.local.json
 .claude.local.md
 
+# Superpowers plugin scratch: SDD ledgers, brainstorming mockups. Working
+# artifacts, not source.
+/.superpowers/
+
 # IDE
 .vscode/
 .idea/
