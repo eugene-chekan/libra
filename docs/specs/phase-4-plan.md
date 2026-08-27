@@ -393,7 +393,7 @@ is one.
 | 6 | Shelves page + shelf manager | done #68 | Drag-reorder, visibility control and its pill, shared-shelf section in both sidebar and page. Needed `owner_username` on `ShelfRead` — see below |
 | 7 | Tag manager | done #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches, and the no-spaces rule stated on the name field. Commits per row rather than a batch Save — see below |
 | 8 | Add Book | done #30 | Upload-first redesign |
-| 9 | User administration | open #31 | Admin-only modal, per-row commits, destructive delete dialog |
+| 9 | User administration | done #31 | Full `/admin` page with a tab shell, not a modal — per-row commits, destructive delete dialog |
 | 10 | Librarian chat, stubbed | open #32 | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
 | 11 | EPUB chapters and resources | open #35 | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
 | 12 | In-browser reader | open #36 | epub.js in a sandboxed iframe over the spine, TOC, scroll position written back as progress |
@@ -588,6 +588,41 @@ layout, so every one of those tests passed anyway. Only the Playwright spec,
 run in an actual browser, caught it. Fixed with the same `.scroller` pattern
 `TagManager` already uses: the content between the title and the footer
 scrolls on its own, so the footer's buttons stay in place and reachable.
+
+**Milestone 9 grew from a modal into a full page while it was still being
+designed.** The original design gap (client-design.md's Gap 2) specified a
+Manage Users modal, matching Shelves and Tags. Partway through brainstorming
+it, the plan changed: a full-size `/admin` page with a tab shell, room for
+database and server settings tabs later, and fine-grained per-user
+permissions beyond the `is_admin` boolean — that last part filed as its own
+follow-up rather than built here. `docs/specs/admin-page.md` records the
+full reasoning; the shipped scope is the page shell plus one tab, Users,
+still `is_admin`-boolean-based. The tab bar renders even with one tab in it,
+deliberately not a "show it once there are 2+ tabs" conditional — the
+second tab, whenever it lands, costs one entry in `AdminLayout`'s `TABS`
+array and one route.
+
+One decision worth recording: the Administrator checkbox on a user's edit
+row is disabled on the caller's own row, the same courtesy already applied
+to the trash button (no self-deletion). Unlike the trash button, this one
+is *only* a client-side courtesy — `PATCH /users/{id}` has no backend guard
+against an admin removing their own admin status, unlike `delete_user`'s
+refusal of self-deletion. Nothing in the shipped UI can reach that state,
+but the gap is real for anyone calling the API directly, and is tracked as
+its own backend issue (#85) rather than fixed here.
+
+Built via subagent-driven development — nine tasks, each independently
+reviewed, plus a final whole-branch review that caught three bugs no
+single task's review could see, because each spans files two different
+tasks touched: editing your own row updated the users list but left
+`SessionProvider`'s cached copy stale, so the account dropdown and Send to
+Kindle kept showing the old Kindle address until a reload; the password
+fields had no `autoComplete` hint, risking a browser password manager
+offering the signed-in admin's own saved credential on a screen whose job
+is setting *other* people's passwords; and the shared error line, copied
+from `ShelfManager`'s modal-shaped pattern, never cleared on this route,
+because a route — unlike a modal — never unmounts to reset it. All three
+were fixed and re-reviewed before merge.
 
 ## Open questions
 

@@ -1,6 +1,6 @@
 # Spec: Admin Page
 
-**Status:** Design approved 2026-08-26. Not yet built. Covers milestone 9 of
+**Status:** Shipped 2026-08-27 (PR #86). Covers milestone 9 of
 [phase-4-plan.md](phase-4-plan.md) (issue #31), and **replaces** the Manage
 Users modal design in [client-design.md](client-design.md)'s Gap 2 — see the
 note added there.
@@ -68,6 +68,13 @@ uses for admin-only controls (Edit Book, the global-tag checkbox): the
 route redirect is the courtesy, `require_admin` on every endpoint underneath
 is the actual guard, and it was already there before this page existed.
 
+One control on this page is the exception: the Administrator checkbox,
+disabled on the caller's own row (see below), has no backend guard behind
+it. `PATCH /users/{id}` never refuses an admin's own `is_admin: false` the
+way `DELETE /users/{id}` refuses self-deletion. Nothing in this page can
+reach that state, but it is a client-only courtesy for this one control,
+not a courtesy over a real guard — tracked as backend issue #85.
+
 The route table addition, inside the existing `AppShell` branch so the page
 keeps the normal sidebar:
 
@@ -126,7 +133,11 @@ management screen.
 
 **Edit** expands the row in place: Kindle address field, an Administrator
 checkbox, and a "Set new password" field that starts blank — blank means
-unchanged, exactly how `UserPatch.password` already works. Save writes
+unchanged, exactly how `UserPatch.password` already works. The
+Administrator checkbox is disabled on the caller's own row, the same
+courtesy as the missing trash button above — see "Routing and the
+admin-only guard" for why this one has no backend guard behind it, unlike
+the trash button's. Save writes
 `PATCH /users/{id}` and collapses back to the view row. Writes commit
 **per row, immediately** — no batch, no page-level Save. This is not a new
 decision; it is the same one milestones 6 and 7 already made for shelves and
@@ -179,8 +190,12 @@ it applies here for the same reason.
   `FakeLibraApi` tests for the two new rule sets (admin-only list/create,
   self-deletion refusal), the same shape as the existing tag/shelf write
   tests.
-- An e2e spec: a non-admin session hitting `/admin` lands on `/library`; an
-  admin session creates, edits, and deletes a user against a real backend.
+- An e2e spec: an admin session creates, edits, and deletes a user against
+  a real backend, and reaches it from the sidebar. Admin-vs-non-admin
+  branching (the redirect, the hidden trash button, the disabled checkbox)
+  is covered at the component level instead — the same reasoning
+  `book.spec.ts` already established for Edit Book: the e2e session is
+  always the seeded admin.
 
 ## Open questions
 
