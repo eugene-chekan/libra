@@ -17,6 +17,7 @@ import type {
   TagCreate,
   TagPatch,
   User,
+  UserCreate,
   UserPatch,
 } from './types'
 
@@ -241,6 +242,52 @@ export class FakeLibraApi implements LibraApi {
     if ('is_admin' in patch && patch.is_admin !== undefined) user.is_admin = patch.is_admin
 
     return publicUser(user)
+  }
+
+  async listUsers(): Promise<User[]> {
+    this.calls.push('listUsers')
+    const caller = this.requireSession()
+    if (!caller.is_admin) throw new ApiError(403, 'Admin only')
+    return this.users.map(publicUser)
+  }
+
+  async createUser(newUser: UserCreate): Promise<User> {
+    this.calls.push('createUser')
+    const caller = this.requireSession()
+    if (!caller.is_admin) throw new ApiError(403, 'Admin only')
+
+    const username = newUser.username.trim().toLowerCase()
+    if (!username) throw new ApiError(422, 'Username must not be empty')
+    if (!newUser.password) throw new ApiError(422, 'Password must not be empty')
+    if (this.users.some((u) => u.username === username)) {
+      throw new ApiError(409, 'Username already taken')
+    }
+
+    const created = fakeUser({
+      username,
+      password: newUser.password,
+      is_admin: newUser.is_admin ?? false,
+      kindle_email: newUser.kindle_email ?? null,
+    })
+    this.users.push(created)
+    return publicUser(created)
+  }
+
+  /**
+   * Mirrors `library.delete_user`'s order: not found is 404, and only once
+   * the user is known to exist does deleting your own account become a 409
+   * rather than a 404 for someone else's id.
+   */
+  async deleteUser(id: number): Promise<void> {
+    this.calls.push(`deleteUser:${id}`)
+    const caller = this.requireSession()
+    if (!caller.is_admin) throw new ApiError(403, 'Admin only')
+
+    const user = this.users.find((u) => u.id === id)
+    if (!user) throw new ApiError(404, 'User not found')
+    if (user.id === caller.id) throw new ApiError(409, 'Cannot delete your own account')
+
+    this.users.splice(this.users.indexOf(user), 1)
   }
 
   async listBooks(params: BookSearchParams = {}): Promise<BookList> {

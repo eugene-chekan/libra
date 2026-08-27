@@ -21,6 +21,14 @@ export interface UserPatch {
   is_admin?: boolean
 }
 
+/** `POST /api/users`. */
+export interface UserCreate {
+  username: string
+  password: string
+  is_admin?: boolean
+  kindle_email?: string | null
+}
+
 /** A book as one reader sees it, from `GET /api/books` and `GET /api/books/{id}`. */
 export interface Book {
   id: number

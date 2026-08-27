@@ -371,6 +371,39 @@ describe('HttpLibraApi', () => {
     )
   })
 
+  it('lists users from their own endpoint', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, []))
+
+    await new HttpLibraApi().listUsers()
+
+    expect(lastFetchCall()[0]).toBe('/api/users')
+  })
+
+  it('creates a user as JSON, including the admin flag', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(201, { id: 9, username: 'new' }))
+
+    await new HttpLibraApi().createUser({ username: 'new', password: 'x', is_admin: true })
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/users')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({
+      username: 'new',
+      password: 'x',
+      is_admin: true,
+    })
+  })
+
+  it('deletes a user on their own path', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+
+    await new HttpLibraApi().deleteUser(9)
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/users/9')
+    expect(init.method).toBe('DELETE')
+  })
+
   it('raises the duplicate-name sentence the server sends back', async () => {
     fetchMock.mockResolvedValue(
       jsonResponse(409, { detail: 'You already have a shelf with that name' })

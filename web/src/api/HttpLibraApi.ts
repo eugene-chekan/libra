@@ -17,6 +17,7 @@ import type {
   TagCreate,
   TagPatch,
   User,
+  UserCreate,
   UserPatch,
 } from './types'
 
@@ -45,6 +46,18 @@ export class HttpLibraApi implements LibraApi {
 
   async updateUser(id: number, patch: UserPatch): Promise<User> {
     return this.send<User>('PATCH', `/users/${id}`, patch)
+  }
+
+  async listUsers(): Promise<User[]> {
+    return this.send<User[]>('GET', '/users')
+  }
+
+  async createUser(user: UserCreate): Promise<User> {
+    return this.send<User>('POST', '/users', user)
+  }
+
+  async deleteUser(id: number): Promise<void> {
+    await this.send<void>('DELETE', `/users/${id}`)
   }
 
   /**

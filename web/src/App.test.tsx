@@ -73,6 +73,33 @@ describe('routing', () => {
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
   })
 
+  it('renders /admin/users inside the shell for an admin, with the Users tab current', async () => {
+    const admin = fakeUser({ is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+    renderAt(routes.adminUsers, api)
+
+    await waitFor(() => expect(screen.getByRole('heading', { name: 'Admin' })).toBeInTheDocument())
+    expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page')
+  })
+
+  it('sends /admin to /admin/users', async () => {
+    const admin = fakeUser({ is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+    renderAt(routes.admin, api)
+
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Users' })).toHaveAttribute('aria-current', 'page')
+    )
+  })
+
+  it('sends a non-admin at /admin to the library, not the admin page', async () => {
+    renderAt(routes.admin)
+
+    await waitFor(() =>
+      expect(screen.getByRole('heading', { name: 'Library' })).toBeInTheDocument()
+    )
+  })
+
   it('routes the reader, so the Start Reading button does not lead to a dead address', async () => {
     // It is a stand-in until #36 builds it.
     renderAt(readerPath(4))

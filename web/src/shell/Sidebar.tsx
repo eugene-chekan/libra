@@ -3,6 +3,7 @@ import { NavLink } from 'react-router-dom'
 
 import { AddBookModal } from '../addBook/AddBookModal'
 import { primaryNav, routes } from '../routes'
+import { useSession } from '../session/SessionProvider'
 import { Icon } from '../widgets/Icon'
 import { AccountRow } from './AccountRow'
 import { SharedShelvesSection } from './SharedShelvesSection'
@@ -13,6 +14,8 @@ import { TagsSection } from './TagsSection'
 /** The application frame's left column. */
 export function Sidebar() {
   const [addBookOpen, setAddBookOpen] = useState(false)
+  const { status } = useSession()
+  const isAdmin = status.status === 'signed-in' && status.user.is_admin
 
   return (
     <nav className={styles.sidebar} aria-label="Main">
@@ -28,6 +31,12 @@ export function Sidebar() {
               {label}
             </NavLink>
           ))}
+          {isAdmin && (
+            <NavLink to={routes.admin} className={styles.navRow}>
+              <Icon name="shield" size={18} />
+              Admin
+            </NavLink>
+          )}
         </div>
 
         <ShelvesSection />
