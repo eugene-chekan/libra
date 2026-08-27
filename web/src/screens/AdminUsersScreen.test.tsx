@@ -28,7 +28,7 @@ function renderScreen(admin: FakeUser, users: FakeUser[] = [admin]) {
 }
 
 describe('AdminUsersScreen', () => {
-  it("lists every account, with its Kindle address or the fallback", async () => {
+  it('lists every account, with its Kindle address or the fallback', async () => {
     const admin = fakeUser({
       id: 1,
       username: 'admin',

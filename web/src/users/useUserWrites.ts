@@ -22,11 +22,7 @@ export function useCreateUser(): UseMutationResult<User, Error, UserCreate> {
 }
 
 /** `PATCH /api/users/{id}`. */
-export function useUpdateUser(): UseMutationResult<
-  User,
-  Error,
-  { id: number; patch: UserPatch }
-> {
+export function useUpdateUser(): UseMutationResult<User, Error, { id: number; patch: UserPatch }> {
   const api = useApi()
   const refresh = useUserRefresh()
   return useMutation({
