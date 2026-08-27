@@ -1,6 +1,7 @@
 import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
+import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
@@ -8,16 +9,17 @@ import { ApiProvider } from '../api/ApiProvider'
 import { fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
 import type { FakeUser } from '../api/FakeLibraApi'
 import { createQueryClient } from '../queryClient'
-import { SessionProvider } from '../session/SessionProvider'
+import { SessionProvider, useSession } from '../session/SessionProvider'
 import { AdminUsersScreen } from './AdminUsersScreen'
 
-function renderScreen(admin: FakeUser, users: FakeUser[] = [admin]) {
+function renderScreen(admin: FakeUser, users: FakeUser[] = [admin], extra: ReactNode = null) {
   const api = new FakeLibraApi({ users, signedInAs: admin })
   render(
     <MemoryRouter initialEntries={['/admin/users']}>
       <ApiProvider api={api}>
         <QueryClientProvider client={createQueryClient()}>
           <SessionProvider>
+            {extra}
             <AdminUsersScreen />
           </SessionProvider>
         </QueryClientProvider>
@@ -25,6 +27,13 @@ function renderScreen(admin: FakeUser, users: FakeUser[] = [admin]) {
     </MemoryRouter>
   )
   return api
+}
+
+/** Surfaces the session's Kindle address as text, so a test can prove `setUser` ran. */
+function SessionKindleEmail() {
+  const { status } = useSession()
+  if (status.status !== 'signed-in') return null
+  return <span data-testid="session-kindle-email">{status.user.kindle_email ?? 'none'}</span>
 }
 
 describe('AdminUsersScreen', () => {
@@ -75,6 +84,10 @@ describe('AdminUsersScreen', () => {
     await screen.findByText('admin')
 
     await user.click(screen.getByRole('button', { name: '+ Add User' }))
+    // A browser password manager must not offer to fill or save these with the
+    // signed-in admin's own credential — this form sets someone else's.
+    expect(screen.getByLabelText('Username')).toHaveAttribute('autoComplete', 'off')
+    expect(screen.getByLabelText('Password')).toHaveAttribute('autoComplete', 'new-password')
     await user.type(screen.getByLabelText('Username'), 'newreader')
     await user.type(screen.getByLabelText('Password'), 'correct-horse')
     await user.click(screen.getByRole('button', { name: 'Create' }))
@@ -125,6 +138,10 @@ describe('AdminUsersScreen', () => {
     await screen.findByText('reader')
 
     await user.click(screen.getByRole('button', { name: 'Edit reader' }))
+    expect(screen.getByLabelText('Set new password')).toHaveAttribute(
+      'autoComplete',
+      'new-password'
+    )
     await user.type(screen.getByLabelText('Set new password'), 'brand-new')
     await user.click(screen.getByRole('button', { name: 'Save' }))
 
@@ -173,5 +190,67 @@ describe('AdminUsersScreen', () => {
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
     expect(await screen.findByText('Username already taken')).toBeInTheDocument()
+  })
+
+  it('updates the session when the admin edits their own row, not just the users list', async () => {
+    const user = userEvent.setup()
+    const admin = fakeUser({ id: 1, username: 'admin', is_admin: true, kindle_email: null })
+    renderScreen(admin, [admin], <SessionKindleEmail />)
+    await screen.findByText('admin')
+    expect(screen.getByTestId('session-kindle-email')).toHaveTextContent('none')
+
+    await user.click(screen.getByRole('button', { name: 'Edit admin' }))
+    await user.type(screen.getByLabelText('Kindle address'), 'admin@kindle.com')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    // The Kindle Email modal and the Send to Kindle button elsewhere both read
+    // from the session, not from this screen's own list — so unless the
+    // mutation also updates the session, they would keep showing the old value.
+    await waitFor(() =>
+      expect(screen.getByTestId('session-kindle-email')).toHaveTextContent('admin@kindle.com')
+    )
+  })
+
+  it('clears a failed create error once the Add row is opened again and cancelled', async () => {
+    const user = userEvent.setup()
+    const admin = fakeUser({ id: 1, username: 'admin', is_admin: true })
+    renderScreen(admin, [admin])
+    await screen.findByText('admin')
+
+    await user.click(screen.getByRole('button', { name: '+ Add User' }))
+    await user.type(screen.getByLabelText('Username'), 'admin')
+    await user.type(screen.getByLabelText('Password'), 'x')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    expect(await screen.findByText('Username already taken')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: '+ Add User' }))
+    await user.click(screen.getByRole('button', { name: 'Cancel' }))
+
+    expect(screen.queryByText('Username already taken')).not.toBeInTheDocument()
+  })
+
+  it('clears a stale create error once a later edit succeeds', async () => {
+    const user = userEvent.setup()
+    const admin = fakeUser({ id: 1, username: 'admin', is_admin: true })
+    const reader = fakeUser({ id: 2, username: 'reader', kindle_email: null })
+    renderScreen(admin, [admin, reader])
+    await screen.findByText('reader')
+
+    await user.click(screen.getByRole('button', { name: '+ Add User' }))
+    await user.type(screen.getByLabelText('Username'), 'admin')
+    await user.type(screen.getByLabelText('Password'), 'x')
+    await user.click(screen.getByRole('button', { name: 'Create' }))
+    expect(await screen.findByText('Username already taken')).toBeInTheDocument()
+
+    // A failed create's error must not survive an unrelated, later success —
+    // react-query mutation objects keep `.error` set until reset, so this only
+    // passes if the screen tracks the most recently settled mutation.
+    await user.click(screen.getByRole('button', { name: 'Edit reader' }))
+    await user.type(screen.getByLabelText('Kindle address'), 'reader@kindle.com')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(screen.queryByText('Username already taken')).not.toBeInTheDocument()
+    )
   })
 })

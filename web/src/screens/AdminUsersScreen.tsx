@@ -22,9 +22,12 @@ export function AdminUsersScreen() {
   const update = useUpdateUser()
   const remove = useDeleteUser()
   const [pendingDelete, setPendingDelete] = useState<User | null>(null)
+  // This page is a route, not a modal, so it never unmounts to drop a stale
+  // error on its own: `error` tracks only the most recently settled mutation.
+  const [error, setError] = useState<Error | null>(null)
 
   const busy = create.isPending || update.isPending || remove.isPending
-  const error = create.error ?? update.error ?? remove.error
+  const settled = { onSuccess: () => setError(null), onError: (err: Error) => setError(err) }
 
   return (
     <>
@@ -46,14 +49,18 @@ export function AdminUsersScreen() {
               user={user}
               isSelf={user.id === callerId}
               busy={busy}
-              onSave={(patch) => update.mutate({ id: user.id, patch })}
+              onSave={(patch) => update.mutate({ id: user.id, patch }, settled)}
               onDelete={() => setPendingDelete(user)}
             />
           ))}
         </ul>
       )}
 
-      <AddUserRow busy={create.isPending} onCreate={(newUser) => create.mutate(newUser)} />
+      <AddUserRow
+        busy={create.isPending}
+        onCreate={(newUser) => create.mutate(newUser, settled)}
+        onCancel={() => setError(null)}
+      />
 
       {error && <ErrorBlock message={messageFor(error)} />}
 
@@ -64,7 +71,7 @@ export function AdminUsersScreen() {
           confirmLabel="Delete"
           onClose={() => setPendingDelete(null)}
           onConfirm={() => {
-            remove.mutate(pendingDelete.id)
+            remove.mutate(pendingDelete.id, settled)
             setPendingDelete(null)
           }}
         />

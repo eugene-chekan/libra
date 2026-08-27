@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 
 import { useApi } from '../api/ApiProvider'
 import type { User, UserCreate, UserPatch } from '../api/types'
+import { useSession } from '../session/SessionProvider'
 
 /** Creating, changing and deleting accounts. */
 function useUserRefresh(): () => void {
@@ -21,13 +22,17 @@ export function useCreateUser(): UseMutationResult<User, Error, UserCreate> {
   })
 }
 
-/** `PATCH /api/users/{id}`. */
+/** `PATCH /api/users/{id}`. Keeps the session in step when the caller edits their own row. */
 export function useUpdateUser(): UseMutationResult<User, Error, { id: number; patch: UserPatch }> {
   const api = useApi()
   const refresh = useUserRefresh()
+  const { status, setUser } = useSession()
   return useMutation({
     mutationFn: ({ id, patch }: { id: number; patch: UserPatch }) => api.updateUser(id, patch),
-    onSuccess: refresh,
+    onSuccess: (updated) => {
+      refresh()
+      if (status.status === 'signed-in' && status.user.id === updated.id) setUser(updated)
+    },
   })
 }
 

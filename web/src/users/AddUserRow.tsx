@@ -6,10 +6,12 @@ import styles from './AddUserRow.module.css'
 interface AddUserRowProps {
   busy: boolean
   onCreate: (user: UserCreate) => void
+  /** Fires when Cancel closes the form, so a caller can drop a stale error alongside it. */
+  onCancel: () => void
 }
 
 /** The dashed "+ Add User" row, expanding into an inline create form. */
-export function AddUserRow({ busy, onCreate }: AddUserRowProps) {
+export function AddUserRow({ busy, onCreate, onCancel }: AddUserRowProps) {
   const [open, setOpen] = useState(false)
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
@@ -20,6 +22,11 @@ export function AddUserRow({ busy, onCreate }: AddUserRowProps) {
     setUsername('')
     setPassword('')
     setIsAdmin(false)
+  }
+
+  function cancel() {
+    reset()
+    onCancel()
   }
 
   function submit(event: FormEvent) {
@@ -47,6 +54,7 @@ export function AddUserRow({ busy, onCreate }: AddUserRowProps) {
         className={styles.input}
         value={username}
         onChange={(event) => setUsername(event.target.value)}
+        autoComplete="off"
       />
 
       <label className={styles.label} htmlFor="new-user-password">
@@ -58,6 +66,7 @@ export function AddUserRow({ busy, onCreate }: AddUserRowProps) {
         className={styles.input}
         value={password}
         onChange={(event) => setPassword(event.target.value)}
+        autoComplete="new-password"
       />
 
       <div className={styles.checkboxRow}>
@@ -71,7 +80,7 @@ export function AddUserRow({ busy, onCreate }: AddUserRowProps) {
       </div>
 
       <div className={styles.formFooter}>
-        <button type="button" className={styles.cancel} onClick={reset}>
+        <button type="button" className={styles.cancel} onClick={cancel}>
           Cancel
         </button>
         <button type="submit" className={styles.create} disabled={busy}>

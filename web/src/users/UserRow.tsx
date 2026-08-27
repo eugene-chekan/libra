@@ -133,6 +133,7 @@ function UserEditor({
         value={newPassword}
         placeholder="Leave blank to keep the current password"
         onChange={(event) => setNewPassword(event.target.value)}
+        autoComplete="new-password"
       />
 
       <div className={styles.editorFooter}>
