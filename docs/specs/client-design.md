@@ -364,6 +364,16 @@ stays attached to the tag group only.
 
 ## Gap 5 — The librarian chat
 
+**Superseded 2026-08-28 by
+[librarian-panel.md](librarian-panel.md).** The librarian is a panel that
+opens over whatever page you're on, not its own `/chat` page — leaving the
+book you were reading to ask about it, then finding your way back, worked
+against the point of asking. The content design below — messages,
+streaming, tool-call status, citations, the three error shapes, the
+composer, one conversation per reader — carries over unchanged; only the
+route and layout sections no longer apply. Left here for the reasoning that
+shaped that content in the first place.
+
 Route `/chat`. Sidebar nav row "Librarian".
 
 **This screen ships against a stub**, and the whole reason to design it now is
