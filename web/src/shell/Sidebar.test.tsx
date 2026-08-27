@@ -132,4 +132,21 @@ describe('Sidebar', () => {
       `/library?tags=${tag.id}`
     )
   })
+
+  it('shows Admin in the nav for an admin, pointing at /admin', async () => {
+    const admin = fakeUser({ username: 'root', is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+    renderAt(routes.library, api)
+
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Admin' })).toHaveAttribute('href', routes.admin)
+    )
+  })
+
+  it('does not show Admin for a reader who is not one', async () => {
+    renderAt(routes.library)
+
+    await waitFor(() => expect(screen.getByText('eugene')).toBeInTheDocument())
+    expect(screen.queryByRole('link', { name: 'Admin' })).not.toBeInTheDocument()
+  })
 })
