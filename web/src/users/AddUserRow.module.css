@@ -1,0 +1,110 @@
+.addButton {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px dashed var(--libra-border);
+  border-radius: var(--libra-radius);
+  background: none;
+  color: var(--libra-text-mid);
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  cursor: pointer;
+  transition:
+    border-color var(--libra-t-interactive),
+    color var(--libra-t-interactive);
+}
+
+.addButton:hover {
+  border-color: var(--libra-accent);
+  color: var(--libra-accent);
+}
+
+.form {
+  padding: 14px;
+  background: var(--libra-bg);
+  border-radius: var(--libra-radius);
+}
+
+.label {
+  display: block;
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--libra-text-mid);
+  margin-bottom: 4px;
+}
+
+.label:not(:first-child) {
+  margin-top: 12px;
+}
+
+.input {
+  width: 100%;
+  height: 36px;
+  padding: 0 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+  background: var(--libra-card);
+  border: 1px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  outline: none;
+  transition: border-color var(--libra-t-interactive);
+}
+
+.input:focus {
+  border-color: var(--libra-accent);
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-text);
+}
+
+.checkboxRow input {
+  accent-color: var(--libra-accent);
+  width: 15px;
+  height: 15px;
+}
+
+.formFooter {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+.cancel,
+.create {
+  padding: 7px 14px;
+  border-radius: var(--libra-radius);
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.cancel {
+  border: 1px solid var(--libra-border);
+  background: var(--libra-card);
+  color: var(--libra-text-mid);
+}
+
+.create {
+  border: none;
+  background: var(--libra-accent);
+  color: #fff;
+}
+
+.create:hover:not(:disabled) {
+  background: var(--libra-accent-hover);
+}
+
+.create:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
