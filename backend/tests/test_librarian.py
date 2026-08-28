@@ -29,9 +29,11 @@ def test_opens_with_a_tool_status_pair(session: Session) -> None:
         "status": "searching",
         "label": "Searching your library…",
     }
-    assert chunks[1]["type"] == "tool_status"
-    assert chunks[1]["status"] == "done"
-    assert "1 book" in chunks[1]["summary"]
+    assert chunks[1] == {
+        "type": "tool_status",
+        "status": "done",
+        "summary": "Searched your library · 1 book",
+    }
 
 
 def test_recommends_the_one_book_in_the_library_for_what_to_read_next(session: Session) -> None:
@@ -49,9 +51,12 @@ def test_picks_the_first_book_by_title_when_several_exist(session: Session) -> N
     _add_book(session, "Neuromancer")
     first = _add_book(session, "Dune")
 
-    citation = next(c for c in _drain(session, "next?") if c["type"] == "citation")
+    chunks = _drain(session, "next?")
 
+    citation = next(c for c in chunks if c["type"] == "citation")
     assert citation["book_id"] == first.id
+    done = next(c for c in chunks if c["type"] == "tool_status" and c["status"] == "done")
+    assert done["summary"] == "Searched your library · 2 books"
 
 
 def test_answers_a_themes_question_citing_the_book(session: Session) -> None:
