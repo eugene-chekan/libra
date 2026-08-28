@@ -286,6 +286,7 @@ class Message(SQLModel, table=True):
     # `sa_type` explicit: SQLModel 0.0.39 cannot derive a column type from a
     # bare `Literal` annotation on a table model (it isn't a subclass of
     # `Enum`), and raises a `TypeError` at class-creation time without this.
+    # Does not restore validation — table=True classes never enforce a Literal.
     role: MessageRole = Field(sa_type=String)
     content: str
     created_at: datetime = Field(default_factory=utcnow)
