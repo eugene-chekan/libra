@@ -54,19 +54,25 @@ def generate_reply(session: Session, question: str) -> Iterator[dict]:
 
     if NOT_INDEXED_TRIGGER in lowered:
         text = "I don't have that book indexed yet, so I can't answer questions about its contents."
+        cite = False
     elif book is None:
         text = _NOTHING_FOUND
+        cite = False
     elif "next" in lowered:
         text = f"Based on what's in your library, {book.title} looks like a good next read."
+        cite = True
     elif "theme" in lowered:
         text = f"{book.title} explores several themes worth pulling on — ask me about any of them."
+        cite = True
     elif "like" in lowered or "similar" in lowered:
         text = f"{book.title} is the closest match in your library to what you described."
+        cite = True
     else:
         text = _NOTHING_FOUND
+        cite = False
 
     for piece in _split(text):
         yield {"type": "token", "text": piece}
 
-    if text != _NOTHING_FOUND and NOT_INDEXED_TRIGGER not in lowered and book is not None:
+    if cite:
         yield {"type": "citation", "book_id": book.id, "title": book.title}
