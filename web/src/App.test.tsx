@@ -1,11 +1,15 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
 
 import { fakeBook, fakeUser, FakeLibraApi } from './api/FakeLibraApi'
 import { ApiProvider } from './api/ApiProvider'
 import { AppRoutes } from './App'
+import { FakeLibrarianService } from './librarian/FakeLibrarianService'
+import { LibrarianProvider } from './librarian/LibrarianProvider'
+import { LibrarianServiceProvider } from './librarian/LibrarianServiceContext'
 import { createQueryClient } from './queryClient'
 import { bookPath, readerPath, routes } from './routes'
 import { SessionProvider } from './session/SessionProvider'
@@ -20,11 +24,15 @@ function renderAt(path: string, api: FakeLibraApi = signedInApi()) {
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <ApiProvider api={api}>
-        <MemoryRouter initialEntries={[path]}>
-          <SessionProvider>
-            <AppRoutes />
-          </SessionProvider>
-        </MemoryRouter>
+        <LibrarianServiceProvider service={new FakeLibrarianService()}>
+          <MemoryRouter initialEntries={[path]}>
+            <SessionProvider>
+              <LibrarianProvider>
+                <AppRoutes />
+              </LibrarianProvider>
+            </SessionProvider>
+          </MemoryRouter>
+        </LibrarianServiceProvider>
       </ApiProvider>
     </QueryClientProvider>
   )
@@ -48,13 +56,33 @@ describe('routing', () => {
   it.each([
     [routes.library, 'Library'],
     [routes.shelves, 'Shelves'],
-    [routes.chat, 'Librarian'],
   ])('renders %s inside the shell', async (path, heading) => {
     renderAt(path)
 
     await waitFor(() => expect(screen.getByRole('heading', { name: heading })).toBeInTheDocument())
     // Every screen keeps the frame: the nav is still there to navigate with.
     expect(screen.getByRole('navigation', { name: 'Main' })).toBeInTheDocument()
+  })
+
+  it('the librarian panel opens over the current page and stays open on navigation', async () => {
+    const user = userEvent.setup()
+    renderAt(routes.library)
+    await screen.findByRole('heading', { name: 'Library' })
+
+    await user.click(screen.getByRole('button', { name: 'Librarian' }))
+    expect(screen.getByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
+
+    // The panel is a modal overlay: it marks the page underneath
+    // `aria-hidden` and blocks pointer events on it, so a real reader cannot
+    // click through to the sidebar while it's open. `fireEvent` reaches the
+    // link directly, standing in for whatever non-click route change a real
+    // reader would use instead (the browser's back button, for one) — the
+    // point under test is only whether the panel survives the route
+    // changing underneath it, not how that change gets triggered.
+    fireEvent.click(screen.getByRole('link', { name: 'Shelves', hidden: true }))
+    await screen.findByRole('heading', { name: 'Shelves', hidden: true })
+
+    expect(screen.getByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
   })
 
   it('renders one book inside the shell too', async () => {

@@ -16,7 +16,7 @@ test.describe('the app frame, in a real browser', () => {
     // The exact rows issue #50 found missing.
     await expect(page.getByRole('link', { name: 'Library' })).toBeVisible()
     await expect(page.getByRole('link', { name: 'Shelves' })).toBeVisible()
-    await expect(page.getByRole('link', { name: 'Librarian' })).toBeVisible()
+    await expect(page.getByRole('button', { name: 'Librarian' })).toBeVisible()
     await expect(page.getByRole('button', { name: 'Add Book' })).toBeVisible()
   })
 
@@ -27,15 +27,16 @@ test.describe('the app frame, in a real browser', () => {
     // presence of real elements: a canvas-painted UI would pass a naive
     // element-count check while giving screen readers nothing to read.
     //
-    // At least 4, not exactly 4: the logo plus the three primary nav rows
-    // are always there, but SHELVES and TAGS add more real anchors as the
-    // scratch database accumulates them across a whole `playwright test`
-    // run — this only needs to prove those are real elements too, not pin
-    // how many exist right now.
+    // At least 3, not exactly 3: the logo plus the two primary nav link rows
+    // (Library, Shelves — Librarian is a button, not a link, since it opens
+    // the panel rather than navigating) are always there, but SHELVES and
+    // TAGS add more real anchors as the scratch database accumulates them
+    // across a whole `playwright test` run — this only needs to prove those
+    // are real elements too, not pin how many exist right now.
     await expect(page.locator('canvas')).toHaveCount(0)
     await expect
       .poll(() => page.locator('nav[aria-label="Main"] a').count())
-      .toBeGreaterThanOrEqual(4)
+      .toBeGreaterThanOrEqual(3)
   })
 
   test('the whole sidebar is reachable by keyboard alone', async ({ page }) => {

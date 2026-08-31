@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { NavLink } from 'react-router-dom'
 
 import { AddBookModal } from '../addBook/AddBookModal'
+import { useLibrarian } from '../librarian/LibrarianProvider'
 import { primaryNav, routes } from '../routes'
 import { useSession } from '../session/SessionProvider'
 import { Icon } from '../widgets/Icon'
@@ -15,6 +16,7 @@ import { TagsSection } from './TagsSection'
 export function Sidebar() {
   const [addBookOpen, setAddBookOpen] = useState(false)
   const { status } = useSession()
+  const { open: openLibrarian } = useLibrarian()
   const isAdmin = status.status === 'signed-in' && status.user.is_admin
 
   return (
@@ -31,6 +33,10 @@ export function Sidebar() {
               {label}
             </NavLink>
           ))}
+          <button type="button" className={styles.navRow} onClick={openLibrarian}>
+            <Icon name="message-square" size={18} />
+            Librarian
+          </button>
           {isAdmin && (
             <NavLink to={routes.admin} className={styles.navRow}>
               <Icon name="shield" size={18} />
