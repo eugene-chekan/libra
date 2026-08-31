@@ -167,3 +167,26 @@ export interface ShelfPatch {
   name?: string
   visibility?: ShelfVisibility
 }
+
+export type MessageRole = 'user' | 'librarian'
+
+/** A book the librarian pointed to in a reply. */
+export interface Citation {
+  book_id: number
+  title: string
+}
+
+/** One turn in a conversation with the librarian, from `GET /api/conversations/mine`. */
+export interface LibrarianMessage {
+  id: number
+  role: MessageRole
+  content: string
+  created_at: string
+  meta: { citation?: Citation; tool_call?: { summary: string } }
+}
+
+/** The reader's one implicit conversation with the librarian. */
+export interface Conversation {
+  id: number
+  messages: LibrarianMessage[]
+}
