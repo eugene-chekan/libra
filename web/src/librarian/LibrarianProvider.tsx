@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, type ReactNode } from 'react'
+import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
 
 import type { Citation, LibrarianMessage } from '../api/types'
 import type { LibrarianEvent } from './LibrarianService'
@@ -15,6 +15,7 @@ interface Librarian {
   open: () => void
   close: () => void
   messages: LibrarianMessage[]
+  loadError: Error | null
   streaming: StreamingState | null
   isSending: boolean
   sendError: Error | null
@@ -23,27 +24,39 @@ interface Librarian {
 
 const LibrarianContext = createContext<Librarian | null>(null)
 
+/** Turns whatever a rejected promise threw into an `Error`. */
+function toError(err: unknown): Error {
+  return err instanceof Error ? err : new Error('Something went wrong.')
+}
+
 /** Opening the panel, and streaming a reply into it. */
 export function LibrarianProvider({ children }: { children: ReactNode }) {
   const service = useLibrarianService()
   const [isOpen, setIsOpen] = useState(false)
   const [conversationId, setConversationId] = useState<number | null>(null)
   const [messages, setMessages] = useState<LibrarianMessage[]>([])
+  const [loadError, setLoadError] = useState<Error | null>(null)
   const [streaming, setStreaming] = useState<StreamingState | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<Error | null>(null)
+  // A ref, not just the `isSending` state: two clicks in the same tick both
+  // close over the same pre-update `isSending`, so a state check alone lets
+  // both through. The ref is mutated synchronously, so the second call sees
+  // the first one's lock immediately.
+  const isSendingRef = useRef(false)
 
   async function ensureConversation(): Promise<number> {
     if (conversationId !== null) return conversationId
     const conversation = await service.getConversation()
     setConversationId(conversation.id)
     setMessages(conversation.messages)
+    setLoadError(null)
     return conversation.id
   }
 
   function open() {
     setIsOpen(true)
-    void ensureConversation()
+    void ensureConversation().catch((err) => setLoadError(toError(err)))
   }
 
   function close() {
@@ -51,6 +64,8 @@ export function LibrarianProvider({ children }: { children: ReactNode }) {
   }
 
   function send(text: string) {
+    if (isSendingRef.current) return
+    isSendingRef.current = true
     setIsSending(true)
     setSendError(null)
     setStreaming({ toolStatus: null, text: '', citation: null })
@@ -73,8 +88,9 @@ export function LibrarianProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch (err) {
-        setSendError(err instanceof Error ? err : new Error('Something went wrong.'))
+        setSendError(toError(err))
       } finally {
+        isSendingRef.current = false
         setIsSending(false)
         setStreaming(null)
       }
@@ -83,7 +99,7 @@ export function LibrarianProvider({ children }: { children: ReactNode }) {
 
   return (
     <LibrarianContext
-      value={{ isOpen, open, close, messages, streaming, isSending, sendError, send }}
+      value={{ isOpen, open, close, messages, loadError, streaming, isSending, sendError, send }}
     >
       {children}
     </LibrarianContext>
