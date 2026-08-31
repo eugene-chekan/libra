@@ -9,7 +9,8 @@ import { MessageBubble, StreamingBubble } from './MessageBubble'
 
 /** The librarian, as a panel over whatever page is open — not its own route. */
 export function LibrarianPanel() {
-  const { isOpen, close, messages, streaming, isSending, sendError, send } = useLibrarian()
+  const { isOpen, open, close, messages, loadError, streaming, isSending, sendError, send } =
+    useLibrarian()
   const [draft, setDraft] = useState('')
   const books = useBooks({ sort: 'title' })
   const firstBook = books.data?.items[0]
@@ -30,7 +31,7 @@ export function LibrarianPanel() {
   }
 
   return (
-    <Dialog.Root open={isOpen} onOpenChange={(open) => !open && close()}>
+    <Dialog.Root open={isOpen} onOpenChange={(nextOpen) => !nextOpen && close()}>
       {isOpen && (
         <Dialog.Portal>
           <Dialog.Overlay className={styles.overlay} />
@@ -44,8 +45,16 @@ export function LibrarianPanel() {
             </div>
 
             <div className={styles.messages}>
-              {messages.length === 0 && !streaming && (
-                <EmptyState firstBookTitle={firstBook?.title} onPick={(text) => send(text)} />
+              {loadError ? (
+                <ErrorCard
+                  message="Couldn't load your conversation with the librarian."
+                  onRetry={open}
+                />
+              ) : (
+                messages.length === 0 &&
+                !streaming && (
+                  <EmptyState firstBookTitle={firstBook?.title} onPick={(text) => send(text)} />
+                )
               )}
               {messages.map((message) => (
                 <MessageBubble key={message.id} message={message} />
@@ -62,13 +71,10 @@ export function LibrarianPanel() {
                 />
               )}
               {sendError && (
-                <div className={styles.errorCard} role="alert">
-                  <div className={styles.errorText}>The librarian is unavailable right now.</div>
-                  <button type="button" className={styles.retry} onClick={() => submit()}>
-                    <Icon name="rotate-cw" size={12} />
-                    Try again
-                  </button>
-                </div>
+                <ErrorCard
+                  message="The librarian is unavailable right now."
+                  onRetry={() => submit()}
+                />
               )}
             </div>
 
@@ -96,6 +102,19 @@ export function LibrarianPanel() {
         </Dialog.Portal>
       )}
     </Dialog.Root>
+  )
+}
+
+/** The error-card shape both `loadError` and `sendError` render into — same look, different message. */
+function ErrorCard({ message, onRetry }: { message: string; onRetry: () => void }) {
+  return (
+    <div className={styles.errorCard} role="alert">
+      <div className={styles.errorText}>{message}</div>
+      <button type="button" className={styles.retry} onClick={onRetry}>
+        <Icon name="rotate-cw" size={12} />
+        Try again
+      </button>
+    </div>
   )
 }
 

@@ -7,10 +7,12 @@ import { describe, expect, it } from 'vitest'
 
 import { ApiProvider } from '../api/ApiProvider'
 import { fakeBook, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
+import type { Conversation } from '../api/types'
 import { createQueryClient } from '../queryClient'
 import { FakeLibrarianService } from './FakeLibrarianService'
 import { LibrarianPanel } from './LibrarianPanel'
 import { LibrarianProvider, useLibrarian } from './LibrarianProvider'
+import type { LibrarianService } from './LibrarianService'
 import { LibrarianServiceProvider } from './LibrarianServiceContext'
 
 /** Opens the panel on mount and renders a marker for whatever route is active — the
@@ -26,9 +28,21 @@ function AutoOpen() {
   return null
 }
 
+/** `getConversation()` always rejects — exercises the panel's own load-error rendering,
+ *  not just the provider's state (`LibrarianProvider.test.tsx` already covers that). */
+class FailingConversationService extends FakeLibrarianService {
+  async getConversation(): Promise<Conversation> {
+    throw new Error('Could not reach the server.')
+  }
+}
+
 function renderPanel({
   books = [{ id: 1, title: 'Dune' }],
-}: { books?: { id: number; title: string }[] } = {}) {
+  service,
+}: {
+  books?: { id: number; title: string }[]
+  service?: LibrarianService
+} = {}) {
   const user = fakeUser()
   const api = new FakeLibraApi({
     users: [user],
@@ -39,7 +53,7 @@ function renderPanel({
     <MemoryRouter initialEntries={['/library']}>
       <ApiProvider api={api}>
         <QueryClientProvider client={createQueryClient()}>
-          <LibrarianServiceProvider service={new FakeLibrarianService({ books })}>
+          <LibrarianServiceProvider service={service ?? new FakeLibrarianService({ books })}>
             <LibrarianProvider>
               <AutoOpen />
               <LibrarianPanel />
@@ -85,6 +99,18 @@ describe('LibrarianPanel', () => {
     await act(async () => {})
     expect(screen.getByRole('button', { name: 'What should I read next?' })).toBeInTheDocument()
     expect(screen.queryByText(/main themes/)).not.toBeInTheDocument()
+  })
+
+  it('shows a load-error card instead of the empty state, when the conversation fails to load', async () => {
+    renderPanel({ service: new FailingConversationService({ books: [] }) })
+
+    expect(
+      await screen.findByText("Couldn't load your conversation with the librarian.")
+    ).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'What should I read next?' })
+    ).not.toBeInTheDocument()
   })
 
   it('clicking a suggestion sends it and renders the streamed reply', async () => {
