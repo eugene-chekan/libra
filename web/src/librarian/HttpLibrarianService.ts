@@ -7,13 +7,13 @@ const BASE = '/api'
 /** The real client: fetches the conversation, and parses the librarian's SSE reply stream by hand, since `EventSource` cannot POST a body. */
 export class HttpLibrarianService implements LibrarianService {
   async getConversation(): Promise<Conversation> {
-    const response = await fetch(`${BASE}/conversations/mine`, { credentials: 'include' })
+    const response = await this.fetch(`${BASE}/conversations/mine`, { credentials: 'include' })
     if (!response.ok) throw new ApiError(response.status, await readDetail(response))
     return (await response.json()) as Conversation
   }
 
   async *sendMessage(conversationId: number, content: string): AsyncGenerator<LibrarianEvent> {
-    const response = await fetch(`${BASE}/conversations/${conversationId}/messages`, {
+    const response = await this.fetch(`${BASE}/conversations/${conversationId}/messages`, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
@@ -37,6 +37,15 @@ export class HttpLibrarianService implements LibrarianService {
         if (!line.startsWith('data: ')) continue
         yield JSON.parse(line.slice('data: '.length)) as LibrarianEvent
       }
+    }
+  }
+
+  /** `fetch`, with a network failure turned into the same `ApiError(0, ...)` `HttpLibraApi` throws. */
+  private async fetch(path: string, init: RequestInit): Promise<Response> {
+    try {
+      return await fetch(path, init)
+    } catch {
+      throw new ApiError(0, 'Could not reach the server.')
     }
   }
 }

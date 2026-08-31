@@ -132,4 +132,24 @@ describe('HttpLibrarianService', () => {
     expect(error).toBeInstanceOf(ApiError)
     expect(error).toMatchObject({ status: 404, message: 'Conversation not found' })
   })
+
+  it('reports a network failure fetching the conversation as ApiError(0), not a thrown TypeError', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
+
+    const service = new HttpLibrarianService()
+    const error: unknown = await service.getConversation().catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 0, message: 'Could not reach the server.' })
+  })
+
+  it('reports a network failure sending a message as ApiError(0), not a thrown TypeError', async () => {
+    fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
+
+    const service = new HttpLibrarianService()
+    const error = await drain(service.sendMessage(3, 'next?')).catch((e: unknown) => e)
+
+    expect(error).toBeInstanceOf(ApiError)
+    expect(error).toMatchObject({ status: 0, message: 'Could not reach the server.' })
+  })
 })
