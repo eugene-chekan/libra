@@ -477,6 +477,30 @@ describe('FakeLibraApi.createUser', () => {
   })
 })
 
+describe('FakeLibraApi.updateUser', () => {
+  it('409s when an admin clears their own admin status', async () => {
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+
+    await expect(api.updateUser(1, { is_admin: false })).rejects.toMatchObject({ status: 409 })
+  })
+
+  it("clears another admin's status", async () => {
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const other = fakeUser({ id: 2, is_admin: true })
+    const api = new FakeLibraApi({ users: [admin, other], signedInAs: admin })
+
+    expect(await api.updateUser(2, { is_admin: false })).toMatchObject({ is_admin: false })
+  })
+
+  it('lets an admin send their own flag back unchanged', async () => {
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
+
+    expect(await api.updateUser(1, { is_admin: true })).toMatchObject({ is_admin: true })
+  })
+})
+
 describe('FakeLibraApi.deleteUser', () => {
   it('removes the account', async () => {
     const admin = fakeUser({ id: 1, is_admin: true })

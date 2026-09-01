@@ -68,12 +68,11 @@ uses for admin-only controls (Edit Book, the global-tag checkbox): the
 route redirect is the courtesy, `require_admin` on every endpoint underneath
 is the actual guard, and it was already there before this page existed.
 
-One control on this page is the exception: the Administrator checkbox,
-disabled on the caller's own row (see below), has no backend guard behind
-it. `PATCH /users/{id}` never refuses an admin's own `is_admin: false` the
-way `DELETE /users/{id}` refuses self-deletion. Nothing in this page can
-reach that state, but it is a client-only courtesy for this one control,
-not a courtesy over a real guard — tracked as backend issue #85.
+The Administrator checkbox was the one exception until issue #85. It is not
+one now: `PATCH /users/{id}` refuses an admin's own `is_admin: false` with a
+`409`, the way `DELETE /users/{id}` already refused self-deletion. Disabling
+the checkbox on the caller's own row is a courtesy over a real guard, like
+every other admin-only control here.
 
 The route table addition, inside the existing `AppShell` branch so the page
 keeps the normal sidebar:
@@ -135,9 +134,8 @@ management screen.
 checkbox, and a "Set new password" field that starts blank — blank means
 unchanged, exactly how `UserPatch.password` already works. The
 Administrator checkbox is disabled on the caller's own row, the same
-courtesy as the missing trash button above — see "Routing and the
-admin-only guard" for why this one has no backend guard behind it, unlike
-the trash button's. Save writes
+courtesy as the missing trash button above, and backed by the same kind of
+guard: the endpoint refuses it with a `409`. Save writes
 `PATCH /users/{id}` and collapses back to the view row. Writes commit
 **per row, immediately** — no batch, no page-level Save. This is not a new
 decision; it is the same one milestones 6 and 7 already made for shelves and
