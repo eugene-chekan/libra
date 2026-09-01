@@ -50,7 +50,7 @@ test.describe('librarian panel, in a real browser', () => {
     // round trip.
     await expect(page.getByText('What should I read next?').last()).toBeVisible()
     await expect(page.getByText(/Searched your library/).last()).toBeVisible({ timeout: 10_000 })
-    await expect(page.getByRole('link', { name: 'Cited book' }).last()).toBeVisible()
+    await expect(page.getByRole('link', { name: /^Cited book/ }).last()).toBeVisible()
   })
 
   test('a citation click navigates the page underneath and keeps the panel open', async ({
@@ -61,7 +61,7 @@ test.describe('librarian panel, in a real browser', () => {
     await ask(page, 'What should I read next?')
     await expect(page.getByText(/Searched your library/).last()).toBeVisible({ timeout: 10_000 })
 
-    const citation = page.getByRole('link', { name: 'Cited book' }).last()
+    const citation = page.getByRole('link', { name: /^Cited book/ }).last()
     const bookTitle = await citation.textContent()
     await citation.click()
 

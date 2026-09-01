@@ -21,7 +21,7 @@ export function MessageBubble({ message }: { message: LibrarianMessage }) {
         <Link
           to={bookPath(message.meta.citation.book_id)}
           className={styles.citation}
-          aria-label="Cited book"
+          aria-label={`Cited book: ${message.meta.citation.title}`}
         >
           <Icon name="book-open" size={12} />
           {message.meta.citation.title}

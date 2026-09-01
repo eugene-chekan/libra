@@ -3,7 +3,7 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { useEffect } from 'react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { ApiProvider } from '../api/ApiProvider'
 import { fakeBook, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
@@ -140,10 +140,10 @@ describe('LibrarianPanel', () => {
 
     await user.click(screen.getByRole('button', { name: 'What should I read next?' }))
     await waitFor(() =>
-      expect(screen.getByRole('link', { name: 'Cited book' })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /^Cited book/ })).toBeInTheDocument()
     )
 
-    await user.click(screen.getByRole('link', { name: 'Cited book' }))
+    await user.click(screen.getByRole('link', { name: /^Cited book/ }))
 
     expect(await screen.findByText('Book page')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
@@ -161,6 +161,31 @@ describe('LibrarianPanel', () => {
 
     expect(await screen.findByText('The librarian is unavailable right now.')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Try again' })).toBeInTheDocument()
+  })
+
+  it('"Try again" resends the text that failed, even though the composer was already cleared', async () => {
+    const user = userEvent.setup()
+    const service = new FakeLibrarianService({ books: [] })
+    const sendMessage = vi.spyOn(service, 'sendMessage')
+    renderPanel({ books: [], service })
+
+    const composer = screen.getByPlaceholderText('Ask about your library…')
+    await user.type(composer, 'make the librarian unavailable')
+    await user.click(screen.getByRole('button', { name: 'Send' }))
+
+    expect(await screen.findByText('The librarian is unavailable right now.')).toBeInTheDocument()
+    // The composer clears on send, same as any other message — the failed text has to
+    // survive somewhere else for "Try again" to have anything to resend.
+    expect(composer).toHaveValue('')
+    expect(sendMessage).toHaveBeenCalledTimes(1)
+
+    await user.click(screen.getByRole('button', { name: 'Try again' }))
+
+    await waitFor(() => expect(sendMessage).toHaveBeenCalledTimes(2))
+    expect(sendMessage).toHaveBeenLastCalledWith(
+      expect.anything(),
+      'make the librarian unavailable'
+    )
   })
 
   it("disables the send button while empty, and enables it once there's text", async () => {
@@ -193,6 +218,23 @@ describe('LibrarianPanel', () => {
     expect(screen.getByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
 
     await user.keyboard('{Escape}')
+
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Librarian' })).not.toBeInTheDocument()
+    )
+  })
+
+  it('closes on an overlay click', async () => {
+    const user = userEvent.setup()
+    renderPanel()
+    expect(screen.getByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
+
+    // The overlay sits behind Dialog.Content, dimming the page underneath — it has no
+    // accessible role (it's aria-hidden, being decorative), so it's targeted by its
+    // CSS-module class rather than by role or text.
+    const overlay = document.querySelector<HTMLElement>('[class*="overlay"]')
+    expect(overlay).not.toBeNull()
+    await user.click(overlay as HTMLElement)
 
     await waitFor(() =>
       expect(screen.queryByRole('heading', { name: 'Librarian' })).not.toBeInTheDocument()

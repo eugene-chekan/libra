@@ -9,8 +9,18 @@ import { MessageBubble, StreamingBubble } from './MessageBubble'
 
 /** The librarian, as a panel over whatever page is open — not its own route. */
 export function LibrarianPanel() {
-  const { isOpen, open, close, messages, loadError, streaming, isSending, sendError, send } =
-    useLibrarian()
+  const {
+    isOpen,
+    open,
+    close,
+    messages,
+    loadError,
+    streaming,
+    isSending,
+    sendError,
+    lastFailedMessage,
+    send,
+  } = useLibrarian()
   const [draft, setDraft] = useState('')
   const books = useBooks({ sort: 'title' })
   const firstBook = books.data?.items[0]
@@ -73,7 +83,7 @@ export function LibrarianPanel() {
               {sendError && (
                 <ErrorCard
                   message="The librarian is unavailable right now."
-                  onRetry={() => submit()}
+                  onRetry={() => lastFailedMessage && send(lastFailedMessage)}
                 />
               )}
             </div>

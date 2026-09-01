@@ -19,6 +19,8 @@ interface Librarian {
   streaming: StreamingState | null
   isSending: boolean
   sendError: Error | null
+  /** The text that failed to send, so "Try again" can resend it without the composer's draft. */
+  lastFailedMessage: string | null
   send: (text: string) => void
 }
 
@@ -39,6 +41,7 @@ export function LibrarianProvider({ children }: { children: ReactNode }) {
   const [streaming, setStreaming] = useState<StreamingState | null>(null)
   const [isSending, setIsSending] = useState(false)
   const [sendError, setSendError] = useState<Error | null>(null)
+  const [lastFailedMessage, setLastFailedMessage] = useState<string | null>(null)
   // A ref, not just the `isSending` state: two clicks in the same tick both
   // close over the same pre-update `isSending`, so a state check alone lets
   // both through. The ref is mutated synchronously, so the second call sees
@@ -68,6 +71,7 @@ export function LibrarianProvider({ children }: { children: ReactNode }) {
     isSendingRef.current = true
     setIsSending(true)
     setSendError(null)
+    setLastFailedMessage(null)
     setStreaming({ toolStatus: null, text: '', citation: null })
 
     void (async () => {
@@ -89,6 +93,7 @@ export function LibrarianProvider({ children }: { children: ReactNode }) {
         }
       } catch (err) {
         setSendError(toError(err))
+        setLastFailedMessage(text)
       } finally {
         isSendingRef.current = false
         setIsSending(false)
@@ -99,7 +104,18 @@ export function LibrarianProvider({ children }: { children: ReactNode }) {
 
   return (
     <LibrarianContext
-      value={{ isOpen, open, close, messages, loadError, streaming, isSending, sendError, send }}
+      value={{
+        isOpen,
+        open,
+        close,
+        messages,
+        loadError,
+        streaming,
+        isSending,
+        sendError,
+        lastFailedMessage,
+        send,
+      }}
     >
       {children}
     </LibrarianContext>
