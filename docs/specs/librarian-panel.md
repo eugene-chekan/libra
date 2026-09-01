@@ -1,6 +1,7 @@
 # Spec: Librarian Panel
 
-**Status:** Design approved 2026-08-28. Not yet built. Covers milestone 10 of
+**Status:** Design approved 2026-08-28. Built and merged 2026-09-01 (PR #87).
+Covers milestone 10 of
 [phase-4-plan.md](phase-4-plan.md) (issue #32), and **replaces** the routing
 and layout parts of [client-design.md](client-design.md)'s Gap 5 — see the
 note added there. The content design — messages, streaming, tool-call

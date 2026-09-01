@@ -60,6 +60,8 @@ see [Accounts and login](#accounts-and-login).
 | `POST` | `/api/books/{id}/send-to-kindle` | Email the book to your own Kindle |
 | `PATCH` | `/api/books/{id}` | Correct a book's shared metadata (admin) |
 | `DELETE` | `/api/books/{id}` | Delete a book and its stored file (admin) |
+| `GET` | `/api/conversations/mine` | Your one librarian conversation and its messages |
+| `POST` | `/api/conversations/{id}/messages` | Ask the librarian; the reply streams back |
 
 `GET /api/books` returns `{"items": [...], "total": N}` — an envelope rather than
 a bare list, so adding pagination later cannot change the shape under a
@@ -124,6 +126,14 @@ title/author/language/publisher/subjects out of its OPF package document, and
 stores the file under a generated name. Missing metadata falls back to the
 filename and `"Unknown"` rather than failing the upload, and `PATCH` is there
 to fix whatever the parser guessed wrong.
+
+**The librarian answers, but it does not think yet.** Each reader has one
+conversation, created on first access. `POST /api/conversations/{id}/messages`
+saves the question, then streams the reply back as Server-Sent Events — a
+long-lived HTTP response that sends text in pieces as it is produced, so the
+client can show words as they arrive. The reply itself is canned text from
+`app/librarian.py`. Phase 3 replaces that one module with the real agent; the
+endpoint, the storage and the streaming stay as they are.
 
 ### Configuration
 

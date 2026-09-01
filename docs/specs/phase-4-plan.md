@@ -394,7 +394,7 @@ is one.
 | 7 | Tag manager | done #29 | Shared / Mine split, `editable` respected, name-hashed colour swatches, and the no-spaces rule stated on the name field. Commits per row rather than a batch Save — see below |
 | 8 | Add Book | done #30 | Upload-first redesign |
 | 9 | User administration | done #31 | Full `/admin` page with a tab shell, not a modal — per-row commits, destructive delete dialog |
-| 10 | Librarian chat, stubbed | open #32 | `Conversation`/`Message` tables and migration, service seam, screen, streaming, citations, stub badge |
+| 10 | Librarian panel, stubbed | done #32 | `Conversation`/`Message` tables and migration, service seam, SSE streaming, citations. Shipped as a panel over any page, not a `/chat` screen — see [librarian-panel.md](librarian-panel.md) |
 | 11 | EPUB chapters and resources | open #35 | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
 | 12 | In-browser reader | open #36 | epub.js in a sandboxed iframe over the spine, TOC, scroll position written back as progress |
 
