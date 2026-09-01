@@ -7,21 +7,26 @@ import { expect, test, type Page } from '@playwright/test'
  * question actually reaches the backend and streams a real reply back.
  */
 
-/**
- * Types a question into the composer and sends it.
- *
- * The onboarding suggestion buttons (e.g. "What should I read next?") only
- * render while the conversation has no messages yet, and this reader's
- * conversation is one persistent record on the server — once any spec run
- * has ever sent a message, every later run starts from that same history.
- * Typing into the composer works either way, and the suggestion buttons
- * themselves are already covered with a fake service at the component level
- * (`LibrarianPanel.test.tsx`).
- */
+/** Types a question into the composer and sends it. */
+// Not the onboarding suggestion button: those only render while the
+// conversation has no messages yet, and this reader's conversation is one
+// persistent record on the server — once any spec run has ever sent a
+// message, every later run starts from that same history. Typing into the
+// composer works either way, and the suggestion buttons themselves are
+// already covered with a fake service at the component level
+// (`LibrarianPanel.test.tsx`).
 async function ask(page: Page, question: string) {
   await page.getByLabel('Ask about your library').fill(question)
   await page.getByRole('button', { name: 'Send' }).click()
 }
+
+// Serial, unlike most specs in this suite: all three tests here sign in as
+// the same reader and share that reader's one, unreset conversation record
+// (`_get_or_create_conversation` in the backend never makes a second one) —
+// two tests sending a message at once would each see the other's turn mixed
+// into their own assertions. See shelves.spec.ts for the same pattern
+// against shared shelf order.
+test.describe.configure({ mode: 'serial' })
 
 test.describe('librarian panel, in a real browser', () => {
   test('opens over the library, asks a question, gets a streamed reply with a citation', async ({
