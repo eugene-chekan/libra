@@ -233,6 +233,9 @@ export class FakeLibraApi implements LibraApi {
     if ('is_admin' in patch && !caller.is_admin) {
       throw new ApiError(403, 'Only an admin can change admin status')
     }
+    if (user.id === caller.id && patch.is_admin === false) {
+      throw new ApiError(409, 'Cannot remove your own admin status')
+    }
     if ('password' in patch) {
       if (!patch.password) throw new ApiError(422, 'Password must not be empty')
       user.password = patch.password

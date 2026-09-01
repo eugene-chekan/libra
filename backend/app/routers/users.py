@@ -70,6 +70,9 @@ def update_user(
     if "is_admin" in fields and not caller.is_admin:
         raise HTTPException(status_code=403, detail="Only an admin can change admin status")
 
+    if user.id == caller.id and fields.get("is_admin") is False:
+        raise HTTPException(status_code=409, detail="Cannot remove your own admin status")
+
     if "password" in fields:
         password = fields.pop("password")
         if not password:

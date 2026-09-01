@@ -1,6 +1,7 @@
 """User administration and self-service profile edits."""
 
 from fastapi.testclient import TestClient
+from sqlmodel import Session
 
 from app.models import User
 from tests.conftest import USER_PASSWORD
@@ -63,6 +64,46 @@ def test_a_user_cannot_promote_themselves(client: TestClient, user: User) -> Non
 
 def test_an_admin_can_promote_someone(admin_client: TestClient, user: User) -> None:
     response = admin_client.patch(f"/users/{user.id}", json={"is_admin": True})
+
+    assert response.status_code == 200
+    assert response.json()["is_admin"] is True
+
+
+def test_an_admin_cannot_demote_themselves(
+    admin_client: TestClient, session: Session, admin_user: User
+) -> None:
+    """The same rule as self-deletion, for the same reason.
+
+    Only an admin may clear the flag, and no admin may clear their own, so
+    every request leaves at least one administrator standing. An instance
+    can never be locked out of its own admin page.
+    """
+    response = admin_client.patch(f"/users/{admin_user.id}", json={"is_admin": False})
+
+    assert response.status_code == 409
+    session.refresh(admin_user)
+    assert admin_user.is_admin is True
+
+
+def test_an_admin_can_demote_another_admin(
+    admin_client: TestClient, session: Session, user: User
+) -> None:
+    """The guard is about the caller's own row, not about the flag."""
+    user.is_admin = True
+    session.add(user)
+    session.commit()
+
+    response = admin_client.patch(f"/users/{user.id}", json={"is_admin": False})
+
+    assert response.status_code == 200
+    assert response.json()["is_admin"] is False
+
+
+def test_an_admin_may_send_their_own_flag_back_unchanged(
+    admin_client: TestClient, admin_user: User
+) -> None:
+    """Only `false` is refused. A form that posts every field still works."""
+    response = admin_client.patch(f"/users/{admin_user.id}", json={"is_admin": True})
 
     assert response.status_code == 200
     assert response.json()["is_admin"] is True
