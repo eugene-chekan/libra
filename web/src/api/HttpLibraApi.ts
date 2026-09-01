@@ -1,4 +1,4 @@
-import { ApiError } from './errors'
+import { ApiError, readDetail } from './errors'
 import type { LibraApi } from './LibraApi'
 import type {
   Book,
@@ -193,18 +193,4 @@ export class HttpLibraApi implements LibraApi {
     if (response.status === 204) return undefined as T
     return (await response.json()) as T
   }
-}
-
-/** Pulls the sentence out of a FastAPI error body. */
-async function readDetail(response: Response): Promise<string> {
-  try {
-    const body: unknown = await response.json()
-    if (body && typeof body === 'object' && 'detail' in body) {
-      const detail = (body as { detail: unknown }).detail
-      if (typeof detail === 'string') return detail
-    }
-  } catch {
-    // Not JSON.
-  }
-  return `Request failed (${response.status}).`
 }

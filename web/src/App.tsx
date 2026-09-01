@@ -4,6 +4,9 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 
 import { ApiProvider } from './api/ApiProvider'
 import { HttpLibraApi } from './api/HttpLibraApi'
+import { HttpLibrarianService } from './librarian/HttpLibrarianService'
+import { LibrarianProvider } from './librarian/LibrarianProvider'
+import { LibrarianServiceProvider } from './librarian/LibrarianServiceContext'
 import { createQueryClient } from './queryClient'
 import { routes } from './routes'
 import { AdminLayout } from './screens/AdminLayout'
@@ -16,7 +19,7 @@ import { RequireAdmin } from './session/RequireAdmin'
 import { RequireSession } from './session/RequireSession'
 import { SessionProvider } from './session/SessionProvider'
 import { AppShell } from './shell/AppShell'
-import { ChatScreen, NotFoundScreen, ReaderScreen } from './screens/screens'
+import { NotFoundScreen, ReaderScreen } from './screens/screens'
 
 /** The route table. */
 export function AppRoutes() {
@@ -30,7 +33,6 @@ export function AppRoutes() {
           <Route path={routes.book} element={<BookScreen />} />
           <Route path={routes.reader} element={<ReaderScreen />} />
           <Route path={routes.shelves} element={<ShelvesScreen />} />
-          <Route path={routes.chat} element={<ChatScreen />} />
           <Route element={<RequireAdmin />}>
             <Route element={<AdminLayout />}>
               <Route path={routes.admin} element={<Navigate to={routes.adminUsers} replace />} />
@@ -44,19 +46,24 @@ export function AppRoutes() {
   )
 }
 
-/** Both clients are held in state so React creates each exactly once. */
+/** Every client held in state so React creates each exactly once. */
 export function App() {
   const [queryClient] = useState(createQueryClient)
   const [api] = useState(() => new HttpLibraApi())
+  const [librarianService] = useState(() => new HttpLibrarianService())
 
   return (
     <QueryClientProvider client={queryClient}>
       <ApiProvider api={api}>
-        <BrowserRouter>
-          <SessionProvider>
-            <AppRoutes />
-          </SessionProvider>
-        </BrowserRouter>
+        <LibrarianServiceProvider service={librarianService}>
+          <BrowserRouter>
+            <SessionProvider>
+              <LibrarianProvider>
+                <AppRoutes />
+              </LibrarianProvider>
+            </SessionProvider>
+          </BrowserRouter>
+        </LibrarianServiceProvider>
       </ApiProvider>
     </QueryClientProvider>
   )

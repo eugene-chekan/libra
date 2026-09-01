@@ -25,3 +25,17 @@ export function messageFor(error: unknown): string {
   }
   return 'Something went wrong.'
 }
+
+/** Pulls the sentence out of a FastAPI error body. */
+export async function readDetail(response: Response): Promise<string> {
+  try {
+    const body: unknown = await response.json()
+    if (body && typeof body === 'object' && 'detail' in body) {
+      const detail = (body as { detail: unknown }).detail
+      if (typeof detail === 'string') return detail
+    }
+  } catch {
+    // Not JSON.
+  }
+  return `Request failed (${response.status}).`
+}

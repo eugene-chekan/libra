@@ -3,7 +3,6 @@ export const routes = {
   login: '/login',
   library: '/library',
   shelves: '/shelves',
-  chat: '/chat',
   admin: '/admin',
   adminUsers: '/admin/users',
   /** One book. */
@@ -26,5 +25,4 @@ export function readerPath(id: number): string {
 export const primaryNav = [
   { to: routes.library, label: 'Library', icon: 'grid' },
   { to: routes.shelves, label: 'Shelves', icon: 'shelves' },
-  { to: routes.chat, label: 'Librarian', icon: 'message-square' },
 ] as const

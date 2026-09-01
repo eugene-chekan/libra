@@ -266,6 +266,54 @@ class NoteRead(SQLModel):
     created_at: datetime
 
 
+MessageRole = Literal["user", "librarian"]
+
+
+class Conversation(SQLModel, table=True):
+    """One reader's ongoing exchange with the librarian — one per reader."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    user_id: int = Field(foreign_key="user.id", index=True)
+    title: str | None = Field(default=None)
+    created_at: datetime = Field(default_factory=utcnow)
+
+
+class Message(SQLModel, table=True):
+    """One turn in a conversation, from the reader or the librarian."""
+
+    id: int | None = Field(default=None, primary_key=True)
+    conversation_id: int = Field(foreign_key="conversation.id", index=True)
+    # `sa_type` explicit: SQLModel 0.0.39 cannot derive a column type from a
+    # bare `Literal` annotation on a table model (it isn't a subclass of
+    # `Enum`), and raises a `TypeError` at class-creation time without this.
+    # Does not restore validation — table=True classes never enforce a Literal.
+    role: MessageRole = Field(sa_type=String)
+    content: str
+    created_at: datetime = Field(default_factory=utcnow)
+    # Tool-call status and citation, so Phase 3 can add to this shape
+    # without a migration — the same reasoning as `book_metadata`.
+    meta: dict = Field(default_factory=dict, sa_column=Column(SA_JSON))
+
+
+class MessageCreate(SQLModel):
+    """What a reader sends: the question, nothing else."""
+
+    content: str
+
+
+class MessageRead(SQLModel):
+    id: int
+    role: MessageRole
+    content: str
+    created_at: datetime
+    meta: dict
+
+
+class ConversationRead(SQLModel):
+    id: int
+    messages: list[MessageRead]
+
+
 class UserCreate(SQLModel):
     username: str
     password: str

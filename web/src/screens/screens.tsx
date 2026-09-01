@@ -7,10 +7,6 @@ import styles from '../shell/AppShell.module.css'
 
 /** The routed screens that are still stand-ins. */
 
-export function ChatScreen() {
-  return <PendingScreen title="Librarian" milestone="the librarian chat milestone (#32)" />
-}
-
 /** `/books/:id/read`, which milestone 12 (#36) builds. */
 export function ReaderScreen() {
   return <PendingScreen title="Reader" milestone="the reader milestone (#36)" />

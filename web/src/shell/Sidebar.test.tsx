@@ -6,6 +6,10 @@ import { describe, expect, it } from 'vitest'
 
 import { ApiProvider } from '../api/ApiProvider'
 import { fakeShelf, fakeTag, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
+import { FakeLibrarianService } from '../librarian/FakeLibrarianService'
+import { LibrarianPanel } from '../librarian/LibrarianPanel'
+import { LibrarianProvider } from '../librarian/LibrarianProvider'
+import { LibrarianServiceProvider } from '../librarian/LibrarianServiceContext'
 import { createQueryClient } from '../queryClient'
 import { primaryNav, routes } from '../routes'
 import { SessionProvider } from '../session/SessionProvider'
@@ -15,11 +19,16 @@ function renderAt(path: string, api: FakeLibraApi = signedInApi()) {
   return render(
     <ApiProvider api={api}>
       <QueryClientProvider client={createQueryClient()}>
-        <SessionProvider>
-          <MemoryRouter initialEntries={[path]}>
-            <Sidebar />
-          </MemoryRouter>
-        </SessionProvider>
+        <LibrarianServiceProvider service={new FakeLibrarianService()}>
+          <SessionProvider>
+            <MemoryRouter initialEntries={[path]}>
+              <LibrarianProvider>
+                <Sidebar />
+                <LibrarianPanel />
+              </LibrarianProvider>
+            </MemoryRouter>
+          </SessionProvider>
+        </LibrarianServiceProvider>
       </QueryClientProvider>
     </ApiProvider>
   )
@@ -53,13 +62,23 @@ describe('Sidebar', () => {
 
     expect(screen.getByRole('link', { name: 'Shelves' })).toHaveAttribute('aria-current', 'page')
     expect(screen.getByRole('link', { name: 'Library' })).not.toHaveAttribute('aria-current')
-    expect(screen.getByRole('link', { name: 'Librarian' })).not.toHaveAttribute('aria-current')
   })
 
   it('points the logo at the library', () => {
-    renderAt(routes.chat)
+    renderAt(routes.library)
 
     expect(screen.getByRole('link', { name: 'libra' })).toHaveAttribute('href', routes.library)
+  })
+
+  it('opens the librarian panel from its sidebar row, rather than navigating', async () => {
+    const user = userEvent.setup()
+    renderAt(routes.library)
+    await screen.findByText('eugene')
+
+    await user.click(screen.getByRole('button', { name: 'Librarian' }))
+
+    expect(screen.getByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: 'Librarian' })).not.toBeInTheDocument()
   })
 
   it('reaches every row with the keyboard alone', () => {
