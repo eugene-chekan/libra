@@ -18,7 +18,11 @@ export function MessageBubble({ message }: { message: LibrarianMessage }) {
       <div className={styles.label}>Librarian</div>
       <div className={styles.body}>{message.content}</div>
       {message.meta.citation && (
-        <Link to={bookPath(message.meta.citation.book_id)} className={styles.citation}>
+        <Link
+          to={bookPath(message.meta.citation.book_id)}
+          className={styles.citation}
+          aria-label="Cited book"
+        >
           <Icon name="book-open" size={12} />
           {message.meta.citation.title}
         </Link>

@@ -139,9 +139,11 @@ describe('LibrarianPanel', () => {
     renderPanel({ books: [{ id: 1, title: 'Dune' }] })
 
     await user.click(screen.getByRole('button', { name: 'What should I read next?' }))
-    await waitFor(() => expect(screen.getByRole('link', { name: /Dune/ })).toBeInTheDocument())
+    await waitFor(() =>
+      expect(screen.getByRole('link', { name: 'Cited book' })).toBeInTheDocument()
+    )
 
-    await user.click(screen.getByRole('link', { name: /Dune/ }))
+    await user.click(screen.getByRole('link', { name: 'Cited book' }))
 
     expect(await screen.findByText('Book page')).toBeInTheDocument()
     expect(screen.getByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
