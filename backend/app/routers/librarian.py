@@ -14,7 +14,9 @@ router = APIRouter(prefix="/conversations", tags=["librarian"])
 
 
 def _get_or_create_conversation(session: Session, user: User) -> Conversation:
-    conversation = session.exec(select(Conversation).where(Conversation.user_id == user.id)).first()
+    conversation = session.exec(
+        select(Conversation).where(Conversation.user_id == user.id).order_by(col(Conversation.id))
+    ).first()
     if conversation is not None:
         return conversation
     conversation = Conversation(user_id=user.id)
