@@ -1,0 +1,257 @@
+# Spec: The Reader Screen
+
+**Status:** Design approved 2026-09-02. Not yet built. Covers milestone 12 of
+[phase-4-plan.md](phase-4-plan.md) (issue #36), and closes
+[client-design.md](client-design.md)'s Gap 7, which framed the questions but
+left the answers open. Milestone 11 was dropped: a spike proved the reader
+needs no new backend endpoint, so this screen is the whole of the remaining
+work.
+
+## Why a full takeover, not a screen in the shell
+
+Every other screen sits inside `AppShell`, with the 240px sidebar on the left.
+The reader does not. It replaces the whole shell, the way the login screen
+already does.
+
+Gap 7 put the reason plainly: 240px of navigation beside a column of prose is
+240px of distraction. Reading is the one task in this application where the
+application itself is in the way.
+
+The obvious objection is that the librarian lives in the sidebar, so removing
+the sidebar removes the librarian. It does not. `LibrarianProvider` is mounted
+in [`App.tsx`](../../web/src/App.tsx) **above** the router, which means the
+panel is available on every route, inside the shell or outside it. Its trigger
+is a plain function call, `useLibrarian().open()`. Any component can make that
+call, so the reader carries its own button.
+
+## Scope
+
+**In:**
+
+- A route at `/books/:id/read`, rendered outside `AppShell`.
+- epub.js reading the whole book from `GET /books/{id}/file`.
+- A slim top bar: back, book title, contents, text size, librarian.
+- A contents drawer, opening from the left.
+- Three text sizes.
+- Reading progress written back to the server, and resumed on return.
+- A `BookReader` seam with a fake, so the screen is testable.
+
+**Out**, and each is a deliberate refusal rather than an oversight: themes,
+margin and line-height controls, dictionary lookup, search inside the book,
+bookmarks, and annotation from selection. Gap 7 named these and the answer has
+not changed.
+
+The one worth revisiting later is **highlight-to-note**, because the `Note`
+table and its endpoints already exist, and the passage a reader selects is
+exactly what Phase 2 wants to ingest. It is still not in this milestone.
+
+## Routing: where the reader lives
+
+`routes.reader` already exists and currently points at a placeholder inside
+`AppShell`. It moves out, becoming a sibling of the shell rather than a child
+of it:
+
+```
+<Route element={<RequireSession />}>
+  <Route path={routes.reader} element={<ReaderScreen />} />
+  <Route element={<AppShell />}>
+    … every other screen
+  </Route>
+</Route>
+```
+
+It stays inside `RequireSession`, because a book is not public. It moves
+outside `AppShell`, because the shell is the furniture being removed.
+
+Back goes to the book detail page, not to browser history. A reader who
+arrived from a link should still land somewhere sensible.
+
+## Layout
+
+**The measure.** The column of text is capped at 65 characters a line and
+centred. This is the one screen in the application where centring is correct,
+because the reader's eye is the only thing being aligned to. Everywhere else
+content fills its pane.
+
+**The top bar.** Always visible, about 48px tall, `card` background. Back on
+the left with a chevron. The book's title in the middle, in the serif face at
+14px — smaller than a page title, because it is a label here and not a
+heading. Three icon buttons on the right: contents (`list`), text size
+(`type`), librarian (`message-square`).
+
+Gap 7 asked whether the chrome should fade as you read. It does not. A control
+that hides is a control you have to guess at, and the honest version needs a
+visible affordance anyway, which spends the space it was trying to save.
+
+**Progress is the bar's own bottom border.** The bar has a 2px bottom edge in
+`border`, and the read portion of it is filled in `accent`. This answers Gap
+7's "top or bottom edge" question by making it neither: all the chrome sits in
+one band at the top, and the bottom of the screen stays clean prose. The fill
+animates over `.3s`, the same transition the detail screen's progress bar
+already uses.
+
+## The contents drawer
+
+Opens from the **left**, where the sidebar used to be, 280px wide, over the
+text rather than pushing it. Entries come from the book's own navigation
+document, which epub.js exposes as `book.navigation.toc`.
+
+The current chapter is marked with `accentLight` behind the row, the same
+treatment the sidebar uses for the active navigation row. Choosing an entry
+jumps there and closes the drawer.
+
+It is built on the same Radix Dialog primitives that `Modal` and the librarian
+panel already use, so focus trapping, Escape to close, and returning focus to
+the button that opened it all come for free rather than being hand-rolled.
+
+## Text size
+
+Three steps, not a slider: small, medium, large. A slider implies a precision
+nobody wants and adds a value to store and validate.
+
+The control is a small popup from the `type` button holding the three choices,
+with the current one marked. The choice is a reader preference rather than a
+fact about the book, so it is stored in the browser's own `localStorage` — a
+small store the browser keeps per site — and applies to every book. It is not
+sent to the server; there is no field for it and inventing one for a font size
+is not worth a migration.
+
+## The librarian while reading
+
+The button calls `useLibrarian().open()`. The panel then behaves exactly as it
+does everywhere else: 480px, anchored right, drawn over the page.
+
+**It covers the right-hand edge of the text, and that is accepted.** At 1280px
+the column is centred and the panel takes the right 480px, so roughly the last
+180px of each line sits behind it while the panel is open. The alternative —
+shrinking the reading area so the column re-centres in what is left — was
+considered and rejected: it makes the reader behave unlike every other screen,
+and it reflows the text under the reader's eye at the exact moment they are
+looking at it.
+
+If it turns out to annoy in use, the fix is a CSS change to the reading area's
+width and nothing else. That is cheap enough to defer until there is evidence.
+
+## Loading and errors
+
+**Loading is a skeleton, not a spinner**, following the convention in
+client-design.md: prose-shaped lines at the real measure, appearing only after
+200ms.
+
+This screen takes one deviation from that convention, and it is worth stating
+why. Every other screen reads from a local database and resolves in
+milliseconds. This one downloads the entire book first. So after **2 seconds**
+a quiet line appears beneath the skeleton in 13px `textLight`, naming what is
+happening. Without it a large book looks frozen rather than slow.
+
+**Two errors, and they are deliberately different shapes.**
+
+A failed download — network gone, session expired — uses the standard error
+block, with a "Try again" button that re-fetches. Retrying can work, so the
+button is there.
+
+A file epub.js cannot parse uses the same block **with no retry button**.
+Retrying a corrupt file cannot succeed, and a button that cannot work is worse
+than no button. It offers "Back to the book" instead, where Download still
+works, so the reader can open the file in something else.
+
+This distinction is written down because the opposite mistake has already been
+made once in this project: the librarian panel shipped with a "Try again"
+button that did nothing for a day.
+
+## Progress, resume, and the rating trap
+
+Progress is `(spine_index + scroll_fraction) / spine_count`. `spine_index`
+comes from `rendition.currentLocation().start.index` and `spine_count` from
+`book.spine.spineItems.length`. It fits the existing `0..1` float, so there is
+no schema change.
+
+It is written on a pause in scrolling, debounced at **1 second**, and once
+more when the reader leaves the screen.
+
+**Every write must include the book's current rating.** This is not optional
+and it is not obvious.
+[`PUT /books/{id}/state`](../../backend/app/routers/books.py) replaces the
+whole state row. `shelf_id` and `tag_ids` are protected — the handler checks
+whether the caller supplied them at all — but `rating` and `progress` are not.
+`library.set_reading_state` does `state.rating = rating` unconditionally, and
+`UserBookStateWrite.rating` defaults to `0`. So a write of `{progress: 0.42}`
+alone sets the rating to zero. A reader that writes progress every few seconds
+would wipe the reader's stars on the first scroll and keep them wiped.
+
+The endpoint's shape is what invites this, and that is tracked separately as
+its own issue. Until it changes, this screen sends `rating` with every write.
+
+**Resume** reads `progress` back the other way: multiply by `spine_count` to
+get the chapter, and the remainder is how far down it to scroll. The formula
+is lossy. It returns the reader to the right place in the right chapter, not
+to the right sentence, and the spec says so rather than implying a precision
+it does not have.
+
+## Data and API
+
+No new endpoints. The screen uses three that already exist:
+
+| Call | Purpose |
+|---|---|
+| `GET /books/{id}` | Title for the bar, and the current rating and progress |
+| `GET /books/{id}/file` | The EPUB itself, fetched once and parsed in the browser |
+| `PUT /books/{id}/state` | Progress on scroll pause, carrying the rating |
+
+## Testing
+
+**epub.js cannot run in the component tests.** It needs a real iframe, and its
+renderer waits on `requestAnimationFrame`, which jsdom — the fake browser the
+component tests run in — does not drive. A test that mounted the real thing
+would hang rather than fail, which is the worst way for a test to break.
+
+So the reader gets a **`BookReader` interface with a fake**, the same shape as
+`LibrarianService`: a small seam naming what the screen needs from a book —
+the chapter list, the current position, move to a chapter, set text size — and
+a hand-written fake that answers from a fixture. Component tests run against
+the fake. The real implementation wraps epub.js and is covered by end-to-end
+tests instead.
+
+The fake enforces the same rules the real one does, including the awkward
+ones: a book that fails to parse, and a position that resumes into the middle
+of a chapter.
+
+**End-to-end**, against a real backend with a real uploaded book: open a book,
+see a chapter, open the contents drawer and jump to another chapter, change
+the text size, scroll and confirm progress reaches the server, leave and
+return and land in the same chapter.
+
+## Accessibility
+
+- Every control in the bar is a real button with an accessible label; three of
+  them are icon-only and would otherwise be unreadable to a screen reader.
+- The focus ring is the standard 2px `accent` outline at 2px offset.
+- The contents drawer traps focus, closes on Escape, and returns focus to the
+  button that opened it.
+- Arrow keys and Page Up / Page Down scroll the text, so the book is readable
+  without a mouse.
+- The chapter itself is real text in the page, not an image, so a screen
+  reader can read the book.
+
+## Accepted limitations
+
+- The whole book downloads before the first page. On a home network this is
+  fine; it is the cost of needing no server-side parsing.
+- The book's own stylesheet is applied, but fixed-layout titles and complex
+  typography are not a target. This is a reader for prose.
+- The librarian panel covers the right edge of the text while open.
+- Resume returns to the right chapter, not the right sentence.
+- **epub.js will not render in a hidden browser tab.** Its renderer waits on
+  `requestAnimationFrame`, which browsers never fire while the tab is hidden.
+  It does not fail; it hangs, with no error. Anything that mounts this screen
+  off-screen will look broken for reasons that give no clue.
+
+## Open questions
+
+- Whether the top bar should also show the chapter title next to the book
+  title. It is useful and it is more to fit; left until the bar exists and can
+  be looked at.
+- Whether `progress` should be written when the reader reaches the very end,
+  so `finished_at` is set. `set_reading_state` already sets it at `progress >=
+  1`, but the formula only reaches exactly 1 if the last chapter is scrolled
+  fully to the bottom, which is easy to miss by a pixel.

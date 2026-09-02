@@ -413,7 +413,7 @@ is one.
 | 9 | User administration | done #31 | Full `/admin` page with a tab shell, not a modal — per-row commits, destructive delete dialog |
 | 10 | Librarian panel, stubbed | done #32 | `Conversation`/`Message` tables and migration, service seam, SSE streaming, citations. Shipped as a panel over any page, not a `/chat` screen — see [librarian-panel.md](librarian-panel.md) |
 | 11 | EPUB chapters and resources | dropped #35 | Not needed. epub.js reads the archive in the browser and resolves its own resources, so the reader wants no new endpoint. `epub.read_spine` moves to Phase 2, whose chunker is now its only caller — see "The in-browser reader" |
-| 12 | In-browser reader | open #36 | epub.js over the whole file from `GET /books/{id}/file`, TOC, scroll position written back as progress |
+| 12 | In-browser reader | open #36 | epub.js over the whole file from `GET /books/{id}/file`, TOC, scroll position written back as progress — designed in [reader-screen.md](reader-screen.md) |
 
 The three milestone-1 issues and #24 are independent of everything; #25 gates
 every client milestone after it; #27 additionally waits on #21 and #22, and

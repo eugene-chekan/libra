@@ -109,7 +109,7 @@ Feather/Lucide-compatible, `fill="none"`, `stroke="currentColor"`, stroke
 width 1.5–2, round caps. The handoff needs: grid, shelves, tag, plus,
 chevron down/up/left, search, upload, pencil, trash, ×, star.
 **These surfaces add:** message-square, user, log-out, eye, send, book-open,
-rotate-cw, check, alert-circle.
+rotate-cw, check, alert-circle. **The reader adds:** list, type.
 
 ---
 
@@ -591,6 +591,11 @@ first, in a running build, and it is why it is not what shipped.
 ---
 
 ## Gap 7 — The reader
+
+**Closed on 2026-09-02 by [reader-screen.md](reader-screen.md)**, which
+answers every question below and is the spec to build from. This section is
+kept because the questions were the useful part, and because the answers read
+better next to what was actually being asked.
 
 Nothing drew this screen because nothing planned a reader. It is specified
 alongside milestone 12 rather than here — the screen and the code that fills
