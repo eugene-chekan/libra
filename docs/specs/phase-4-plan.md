@@ -160,25 +160,41 @@ to manage a vector store is not yet known.
 Added after the milestone list was drawn, so recorded here rather than folded
 in as though it were always planned.
 
-**Why it earns two milestones.** The download button was going to be labelled
+**Why it is worth a milestone.** The download button was going to be labelled
 "Start Reading" and deliver a file to a Downloads folder, and the panel above
 it was going to show a progress bar the reader had to move by hand. Both are
 the same defect: the application asking to be told something it could observe.
 A reader makes `progress` a fact rather than a claim, which is worth more than
 the feature itself.
 
-**Where the parse lives: the backend.** Phase 2's chunker has to walk the
-spine to produce text; the reader walks it to produce markup. One parser, two
-projections, so neither copy can drift from the other.
+**The reader needs nothing new from the server.** This replaces an earlier
+plan for chapter and resource endpoints, and it is why milestone 11 was
+dropped. The client fetches the whole book from `GET /books/{id}/file`, which
+already exists, and epub.js unzips and parses it in the browser. It resolves
+in-archive images and stylesheets by itself, rewriting each one to a `blob:`
+URL, so nothing has to serve them. Phase 2 still parses in Python, because the
+chunker runs server-side — but that is one hand-written parser plus a library,
+not two copies of ours that can drift.
 
-**Why the reader is sandboxed.** Book markup comes from an uploaded file and
-is served from an origin carrying a session cookie, so putting it straight
-into the page's DOM is stored XSS — the hazard `cover_for`'s media-type
-allowlist already exists to prevent. Each chapter is rendered by epub.js
-inside an `<iframe sandbox>`, with `allow-same-origin` deliberately left off:
-that puts the chapter in its own empty origin, where it cannot read the
-session cookie or touch the app around it. The hazard is real and the guard is
-standard.
+The cost is that the whole file downloads before the first page. For a
+self-hosted library on a home network that is the right trade; it would not be
+for a public service.
+
+**Why the reader is safe.** Book markup comes from an uploaded file and is
+served from an origin carrying a session cookie, so putting it straight into
+the page's DOM is stored XSS — the hazard `cover_for`'s media-type allowlist
+already exists to prevent. epub.js renders each chapter into an iframe it
+marks `sandbox="allow-same-origin"`, leaving `allow-scripts` off. **The
+protection is that no JavaScript executes, not that the origin differs.**
+Verified rather than assumed: a book carrying an inline `<script>` and an
+`<img onerror=...>` renders, both survive into the iframe's DOM, and neither
+runs. A second and independent layer is that `libra_session` is `HttpOnly`, so
+a script that did run still could not read it.
+
+**epub.js will not render in a hidden tab.** Its renderer waits on
+`requestAnimationFrame`, which browsers never fire while `document.hidden`.
+The call does not fail — it hangs forever with no error and no iframe. Worth
+knowing before it is rediscovered as a bug.
 
 **Scrolling, not paginated.** Reflowed pagination with real page numbers is a
 project of its own and is not attempted. Progress is
@@ -187,10 +203,11 @@ project of its own and is not attempted. Progress is
 Reading Progress panel therefore leads with a percentage and shows
 "≈ page N of M" only where `pages` happens to be known.
 
-**Accepted limitations**, stated here rather than discovered at defence:
-publisher CSS is approximated rather than honoured, which is fine for prose
-and poor for technical books with complex layout; and very large archives are
-capped.
+**Accepted limitations**, stated here rather than discovered at defence: the
+book's own stylesheet is applied, but fixed-layout titles and anything relying
+on complex typography are not a target — this is a reader for prose; and a
+very large book is slow to open, because the whole archive is fetched before
+the first page.
 
 ## The stub boundary
 
@@ -395,8 +412,8 @@ is one.
 | 8 | Add Book | done #30 | Upload-first redesign |
 | 9 | User administration | done #31 | Full `/admin` page with a tab shell, not a modal — per-row commits, destructive delete dialog |
 | 10 | Librarian panel, stubbed | done #32 | `Conversation`/`Message` tables and migration, service seam, SSE streaming, citations. Shipped as a panel over any page, not a `/chat` screen — see [librarian-panel.md](librarian-panel.md) |
-| 11 | EPUB chapters and resources | open #35 | `epub.read_spine`, chapter and resource endpoints — the parse Phase 2's chunker also needs |
-| 12 | In-browser reader | open #36 | epub.js in a sandboxed iframe over the spine, TOC, scroll position written back as progress |
+| 11 | EPUB chapters and resources | dropped #35 | Not needed. epub.js reads the archive in the browser and resolves its own resources, so the reader wants no new endpoint. `epub.read_spine` moves to Phase 2, whose chunker is now its only caller — see "The in-browser reader" |
+| 12 | In-browser reader | open #36 | epub.js over the whole file from `GET /books/{id}/file`, TOC, scroll position written back as progress |
 
 The three milestone-1 issues and #24 are independent of everything; #25 gates
 every client milestone after it; #27 additionally waits on #21 and #22, and

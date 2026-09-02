@@ -78,14 +78,16 @@ this phase.
   was defined early for exactly this reason), `GET /books/{id}/file`, and
   `DELETE /users/{id}`, whose behaviour was already specified but never
   exposed. All land before any client screen depends on them
-- **Includes an in-browser EPUB reader**, added to scope on 2026-08-09. The
-  spine parsing lives in `app/epub.py` rather than the client because Phase 2's
-  chunker needs the same walk — one parser, two projections. Rendering is
-  epub.js inside an `<iframe sandbox>` with `allow-same-origin` left off, so
-  the chapter sits in its own empty origin and cannot reach the session
-  cookie. Book markup comes from an uploaded file, so putting it into the page
-  unguarded would be stored XSS. Reading progress is observed from scroll
-  position rather than typed in by the reader
+- **Includes an in-browser EPUB reader**, added to scope on 2026-08-09. It
+  needs no new endpoint: the client fetches the whole book from
+  `GET /books/{id}/file` and epub.js unzips it in the browser, resolving the
+  archive's own images and stylesheets to `blob:` URLs. Rendering is epub.js
+  inside an iframe it marks `sandbox="allow-same-origin"` with `allow-scripts`
+  left off, so no JavaScript in the book runs — book markup comes from an
+  uploaded file, and putting it into the page unguarded would be stored XSS.
+  Spine parsing in `app/epub.py` was planned for this too, but the browser
+  does that half now, so it belongs to Phase 2's chunker alone. Reading
+  progress is observed from scroll position rather than typed in by the reader
 - The design work is done up front rather than alongside: see
   [specs/client-design.md](specs/client-design.md), which closes the six
   surfaces the handoff never drew and restores the design tokens into the
