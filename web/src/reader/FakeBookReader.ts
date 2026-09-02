@@ -3,8 +3,8 @@ import {
   type BookReader,
   type Chapter,
   type OpenBook,
+  type Appearance,
   type ReaderPosition,
-  type TextSize,
 } from './BookReader'
 
 /**
@@ -33,7 +33,7 @@ interface FakeOptions {
 /** A book in memory, standing in for epub.js, which cannot run in jsdom. */
 export class FakeBookReader implements BookReader {
   readonly calls: string[] = []
-  textSize: TextSize = 'medium'
+  appearance: Appearance = { textSize: 'medium', width: 'medium' }
   destroyed = false
 
   private readonly options: FakeOptions
@@ -83,8 +83,8 @@ export class FakeBookReader implements BookReader {
     }
   }
 
-  setTextSize(size: TextSize): void {
-    this.textSize = size
+  setAppearance(appearance: Appearance): void {
+    this.appearance = appearance
   }
 
   destroy(): void {

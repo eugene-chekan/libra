@@ -27,7 +27,7 @@ function renderBar(props: Partial<Parameters<typeof ReaderBar>[0]> = {}) {
                 progress={0.38}
                 backTo="/books/1"
                 onContents={vi.fn()}
-                onTextSize={vi.fn()}
+                onAppearance={vi.fn()}
                 {...props}
               />
               <LibrarianPanel />
@@ -51,7 +51,7 @@ describe('ReaderBar', () => {
     renderBar()
 
     expect(screen.getByRole('button', { name: 'Contents' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Text size' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Text size and width' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ask the librarian' })).toBeInTheDocument()
   })
 
@@ -66,14 +66,14 @@ describe('ReaderBar', () => {
 
   it('calls out to open the contents and the text sizes', async () => {
     const onContents = vi.fn()
-    const onTextSize = vi.fn()
-    renderBar({ onContents, onTextSize })
+    const onAppearance = vi.fn()
+    renderBar({ onContents, onAppearance })
 
     await userEvent.click(screen.getByRole('button', { name: 'Contents' }))
-    await userEvent.click(screen.getByRole('button', { name: 'Text size' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Text size and width' }))
 
     expect(onContents).toHaveBeenCalledOnce()
-    expect(onTextSize).toHaveBeenCalledOnce()
+    expect(onAppearance).toHaveBeenCalledOnce()
   })
 
   it('opens the librarian, which is why the reader can lose the sidebar', async () => {

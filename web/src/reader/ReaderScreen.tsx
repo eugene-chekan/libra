@@ -4,12 +4,12 @@ import { Link, useParams } from 'react-router-dom'
 import { useBook, useWriteProgress } from '../book/useBook'
 import { bookPath } from '../routes'
 import { ErrorBlock } from '../widgets/ErrorBlock'
-import { ReaderError, type OpenBook, type TextSize } from './BookReader'
+import { ReaderError, type Appearance, type OpenBook } from './BookReader'
 import { useBookReader } from './BookReaderContext'
 import { ContentsDrawer } from './ContentsDrawer'
 import { ReaderBar } from './ReaderBar'
-import { TextSizeMenu } from './TextSizeMenu'
-import { loadTextSize, saveTextSize } from './textSize'
+import { AppearanceMenu } from './AppearanceMenu'
+import { loadAppearance, saveAppearance } from './appearance'
 import { toPosition, toProgress } from './progress'
 import styles from './ReaderScreen.module.css'
 
@@ -27,12 +27,13 @@ export function ReaderScreen() {
   const [open, setOpen] = useState<OpenBook | null>(null)
   const [failure, setFailure] = useState<ReaderError | null>(null)
   const [attempt, setAttempt] = useState(0)
-  const [panel, setPanel] = useState<'contents' | 'textSize' | null>(null)
-  const [textSize, setTextSize] = useState<TextSize>(loadTextSize)
+  const [panel, setPanel] = useState<'contents' | 'appearance' | null>(null)
+  const [appearance, setAppearance] = useState<Appearance>(loadAppearance)
   const [chapterIndex, setChapterIndex] = useState(0)
   const [progress, setProgress] = useState(0)
   const pending = useRef<number | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const resumed = useRef(false)
 
   const { mutate: writeProgress } = useWriteProgress(bookId)
   const savedProgress = book.data?.progress ?? 0
@@ -42,17 +43,11 @@ export function ReaderScreen() {
     if (!mount || !book.isSuccess) return
     let cancelled = false
 
+    resumed.current = false
     reader
       .open(bookId, mount)
       .then((opened) => {
-        if (cancelled) return
-        setOpen(opened)
-        if (savedProgress > 0) {
-          const position = toPosition(savedProgress, opened.chapterCount)
-          void reader.goTo(position)
-          setChapterIndex(position.index)
-          setProgress(savedProgress)
-        }
+        if (!cancelled) setOpen(opened)
       })
       .catch((error: unknown) => {
         if (cancelled) return
@@ -67,11 +62,21 @@ export function ReaderScreen() {
       cancelled = true
       reader.destroy()
     }
-  }, [reader, bookId, attempt, book.isSuccess, savedProgress])
+  }, [reader, bookId, attempt, book.isSuccess])
+
+  // Resuming seeks and stops there: the move comes back through `onMove` like any other, so
+  // the position and the progress rule follow without this having to set them. It is also why
+  // opening no longer depends on the saved progress — that value arrives with the book query,
+  // and having it in the deps above reopened the book underneath itself.
+  useEffect(() => {
+    if (!open || resumed.current) return
+    resumed.current = true
+    if (savedProgress > 0) void reader.goTo(toPosition(savedProgress, open.chapterCount))
+  }, [open, savedProgress, reader])
 
   useEffect(() => {
-    if (open) reader.setTextSize(textSize)
-  }, [reader, open, textSize])
+    if (open) reader.setAppearance(appearance)
+  }, [reader, open, appearance])
 
   useEffect(() => {
     if (!open) return
@@ -108,10 +113,9 @@ export function ReaderScreen() {
     setPanel(null)
   }
 
-  function chooseTextSize(size: TextSize) {
-    setTextSize(size)
-    saveTextSize(size)
-    setPanel(null)
+  function chooseAppearance(next: Appearance) {
+    setAppearance(next)
+    saveAppearance(next)
   }
 
   return (
@@ -121,7 +125,7 @@ export function ReaderScreen() {
         progress={progress}
         backTo={bookPath(bookId)}
         onContents={() => setPanel('contents')}
-        onTextSize={() => setPanel('textSize')}
+        onAppearance={() => setPanel('appearance')}
       />
       {panel === 'contents' && (
         <ContentsDrawer
@@ -131,39 +135,48 @@ export function ReaderScreen() {
           onClose={() => setPanel(null)}
         />
       )}
-      {panel === 'textSize' && (
-        <TextSizeMenu value={textSize} onChange={chooseTextSize} onClose={() => setPanel(null)} />
+      {panel === 'appearance' && (
+        <AppearanceMenu
+          value={appearance}
+          onChange={chooseAppearance}
+          onClose={() => setPanel(null)}
+        />
       )}
       <div className={styles.body}>
-        <div className={styles.column}>
-          {/*
-            Never hidden while opening. epub.js measures this element to size the chapter it
-            renders inside, and a `display: none` box measures zero — which produced a reader
-            that had loaded the whole book and drew none of it. The skeleton covers it instead.
-          */}
-          <div
-            ref={host}
-            className={styles.page}
-            role="region"
-            aria-label={title}
-            aria-busy={open === null}
-            hidden={failure !== null}
-          />
-          {failure && (
-            <ErrorBlock
-              message={failure.message}
-              onRetry={failure.kind === 'download' ? retry : undefined}
-              action={
-                failure.kind === 'parse' ? (
-                  <Link className={styles.backLink} to={bookPath(bookId)}>
-                    Back to the book
-                  </Link>
-                ) : undefined
-              }
-            />
-          )}
-          {!failure && open === null && <OpeningSkeleton />}
-        </div>
+        {/*
+          Never hidden while opening. epub.js measures this element to size the chapter it
+          renders inside, and a `display: none` box measures zero — which produced a reader
+          that had loaded the whole book and drew none of it. The overlay covers it instead.
+        */}
+        <div
+          ref={host}
+          className={styles.page}
+          role="region"
+          aria-label={title}
+          aria-busy={open === null}
+          hidden={failure !== null}
+        />
+        {(failure !== null || open === null) && (
+          <div className={styles.overlay}>
+            <div className={styles.overlayColumn}>
+              {failure ? (
+                <ErrorBlock
+                  message={failure.message}
+                  onRetry={failure.kind === 'download' ? retry : undefined}
+                  action={
+                    failure.kind === 'parse' ? (
+                      <Link className={styles.backLink} to={bookPath(bookId)}>
+                        Back to the book
+                      </Link>
+                    ) : undefined
+                  }
+                />
+              ) : (
+                <OpeningSkeleton />
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -185,7 +198,7 @@ function OpeningSkeleton() {
 
   if (!visible) return null
   return (
-    <div className={styles.skeleton}>
+    <div>
       {[92, 100, 96, 88, 100, 70].map((width, index) => (
         <div key={index} className={styles.skeletonLine} style={{ width: `${width}%` }} />
       ))}

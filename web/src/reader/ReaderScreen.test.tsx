@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { act, render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -126,11 +126,28 @@ describe('ReaderScreen', () => {
     renderReader(reader)
     await opened()
 
-    await userEvent.click(screen.getByRole('button', { name: 'Text size' }))
-    await userEvent.click(await screen.findByRole('button', { name: 'Large' }))
+    await userEvent.click(screen.getByRole('button', { name: 'Text size and width' }))
+    const sizes = await screen.findByRole('group', { name: 'Text size' })
+    await userEvent.click(within(sizes).getByRole('button', { name: 'Large' }))
 
-    expect(reader.textSize).toBe('large')
-    expect(localStorage.getItem('libra.textSize')).toBe('large')
+    expect(reader.appearance.textSize).toBe('large')
+    expect(localStorage.getItem('libra.reader.appearance')).toContain('large')
+  })
+
+  it('applies a chosen page width, and the menu stays open to try another', async () => {
+    // Width and size are things you compare by eye. Closing the menu on every pick would make
+    // the reader reopen it to see the difference.
+    localStorage.clear()
+    const reader = new FakeBookReader()
+    renderReader(reader)
+    await opened()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Text size and width' }))
+    const widths = await screen.findByRole('group', { name: 'Page width' })
+    await userEvent.click(within(widths).getByRole('button', { name: 'Wide' }))
+
+    expect(reader.appearance.width).toBe('wide')
+    expect(screen.getByRole('group', { name: 'Page width' })).toBeInTheDocument()
   })
 
   it('writes progress once, after the reader stops scrolling', async () => {

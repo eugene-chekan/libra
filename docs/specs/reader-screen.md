@@ -30,9 +30,10 @@ call, so the reader carries its own button.
 
 - A route at `/books/:id/read`, rendered outside `AppShell`.
 - epub.js reading the whole book from `GET /books/{id}/file`.
-- A slim top bar: back, book title, contents, text size, librarian.
+- A slim top bar: back, book title, how far through, contents, text size and
+  width, librarian.
 - A contents drawer, opening from the left.
-- Three text sizes.
+- Three text sizes and three page widths.
 - Reading progress written back to the server, and resumed on return.
 - A `BookReader` seam with a fake, so the screen is testable.
 
@@ -69,16 +70,21 @@ arrived from a link should still land somewhere sensible.
 
 ## Layout
 
-**The measure.** The column of text is capped at 65 characters a line and
-centred. This is the one screen in the application where centring is correct,
+**The measure.** The text is capped and centred rather than filling the
+window. This is the one screen in the application where centring is correct,
 because the reader's eye is the only thing being aligned to. Everywhere else
-content fills its pane.
+content fills its pane. How wide it is, and how that is achieved, is under
+"Text size and page width" — it is not a column around the text, for a reason
+that matters.
 
 **The top bar.** Always visible, about 48px tall, `card` background. Back on
 the left with a chevron. The book's title in the middle, in the serif face at
 14px — smaller than a page title, because it is a label here and not a
-heading. Three icon buttons on the right: contents (`list`), text size
-(`type`), librarian (`message-square`).
+heading. Then how far through the book the reader is, as a plain percentage:
+the rule below the bar shows it at a glance, and the number answers "how much
+is left" without squinting at a 2px line. Three icon buttons on the right:
+contents (`list`), text size and width (`type`), librarian
+(`message-square`).
 
 Gap 7 asked whether the chrome should fade as you read. It does not. A control
 that hides is a control you have to guess at, and the honest version needs a
@@ -114,17 +120,32 @@ It is built on the same Radix Dialog primitives that `Modal` and the librarian
 panel already use, so focus trapping, Escape to close, and returning focus to
 the button that opened it all come for free rather than being hand-rolled.
 
-## Text size
+## Text size and page width
 
-Three steps, not a slider: small, medium, large. A slider implies a precision
-nobody wants and adds a value to store and validate.
+Three steps each, not sliders: small, medium, large, and narrow, medium, wide.
+A slider implies a precision nobody wants and adds a value to validate.
 
-The control is a small popup from the `type` button holding the three choices,
-with the current one marked. The choice is a reader preference rather than a
-fact about the book, so it is stored in the browser's own `localStorage` — a
-small store the browser keeps per site — and applies to every book. It is not
-sent to the server; there is no field for it and inventing one for a font size
-is not worth a migration.
+One popup from the `type` button holds both, each in a named group, with the
+current choice marked. It stays open while you pick, because width and size
+are things you judge by eye and comparing them should not mean reopening the
+menu.
+
+**The width is applied inside each chapter, not by the column around it.** The
+scrolling element is epub.js's own container, which spans the window — that is
+what puts the scrollbar at the window's edge, where a browser normally puts
+it, rather than beside a narrow column. The measure is then a `max-width` on
+the chapter's own `body`, in `em`, so it holds its width in characters as the
+text size changes.
+
+Those rules carry `!important`, which is not decoration: epub.js writes the
+body's width, margin and padding as an inline style and recomputes them on
+every resize. Without it the measure applies and the centring does not, and
+the text reads as a wide column jammed against the left edge.
+
+The choice is a reader preference rather than a fact about the book, so it is
+stored in the browser's own `localStorage` — a small store the browser keeps
+per site — and applies to every book. It is not sent to the server; there is
+no field for it and inventing one is not worth a migration.
 
 ## The librarian while reading
 
@@ -277,6 +298,12 @@ Ids are reused after a delete, and the browser will serve a heuristically
 fresh copy without revalidating. The fetch asks for `no-cache`, which
 revalidates against the ETag — cheap when the book is unchanged, and never
 wrong.
+
+**Reporting every scroll event made scrolling stutter.** The adapter called
+epub.js's `currentLocation()` on each `scroll` event — which fires many times
+a frame, and walks the rendered views every time — and pushed the result into
+React state, re-rendering the bar with it. Moves are now reported at most once
+an animation frame, and dropped when nothing a caller can see has changed.
 
 **The fakes were the reason none of this was caught.** `FakeBookReader` and
 the e2e fixture both described a book whose contents matched its spine one to

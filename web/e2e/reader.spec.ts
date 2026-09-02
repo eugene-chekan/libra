@@ -32,6 +32,20 @@ async function uploadBook(request: APIRequestContext, title: string): Promise<nu
 }
 
 /**
+ * Opens the reader and waits for the book itself, not just for the area it renders into. The
+ * area is on screen from the first paint, because epub.js measures it to size the chapter.
+ *
+ * The wait is generous on purpose: the whole archive is fetched and parsed in the browser, and
+ * through the dev server that takes several seconds — longer than Playwright's default.
+ */
+async function openReader(page: Page, id: number, title: string): Promise<void> {
+  await page.goto(`/books/${id}/read`)
+  await expect(page.getByRole('region', { name: title })).toHaveAttribute('aria-busy', 'false', {
+    timeout: 30_000,
+  })
+}
+
+/**
  * The headings of every section epub.js currently has rendered. Continuous flow keeps several
  * sections alive at once, each in its own iframe, so this reads all of them rather than
  * assuming there is exactly one.
@@ -55,9 +69,7 @@ test.describe('the reader, in a real browser', () => {
     const title = `E2E Reader ${Date.now()}`
     const id = await uploadBook(request, title)
 
-    await page.goto(`/books/${id}/read`)
-
-    await expect(page.getByRole('region', { name: title })).toBeVisible()
+    await openReader(page, id, title)
 
     // The book opens on its title page: the first spine item, and one no contents list
     // mentions. Continuous flow is what lets a reader carry on from here into chapter one.
@@ -74,8 +86,7 @@ test.describe('the reader, in a real browser', () => {
     const title = `E2E Reader Frame ${Date.now()}`
     const id = await uploadBook(request, title)
 
-    await page.goto(`/books/${id}/read`)
-    await expect(page.getByRole('region', { name: title })).toBeVisible()
+    await openReader(page, id, title)
 
     await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0)
 
@@ -90,8 +101,7 @@ test.describe('the reader, in a real browser', () => {
     const title = `E2E Reader Contents ${Date.now()}`
     const id = await uploadBook(request, title)
 
-    await page.goto(`/books/${id}/read`)
-    await expect(page.getByRole('region', { name: title })).toBeVisible()
+    await openReader(page, id, title)
 
     await page.getByRole('button', { name: 'Contents' }).click()
     for (const label of CHAPTERS) {
@@ -107,28 +117,100 @@ test.describe('the reader, in a real browser', () => {
     const title = `E2E Reader Size ${Date.now()}`
     const id = await uploadBook(request, title)
 
-    await page.goto(`/books/${id}/read`)
-    await expect(page.getByRole('region', { name: title })).toBeVisible()
+    await openReader(page, id, title)
 
-    await page.getByRole('button', { name: 'Text size' }).click()
-    await page.getByRole('button', { name: 'Large' }).click()
+    await page.getByRole('button', { name: 'Text size and width' }).click()
+    await page
+      .getByRole('group', { name: 'Text size' })
+      .getByRole('button', { name: 'Large' })
+      .click()
+    await page.keyboard.press('Escape')
 
     await page.reload()
-    await expect(page.getByRole('region', { name: title })).toBeVisible()
+    await expect(page.getByRole('region', { name: title })).toHaveAttribute('aria-busy', 'false', {
+      timeout: 30_000,
+    })
 
-    await page.getByRole('button', { name: 'Text size' }).click()
-    await expect(page.getByRole('button', { name: 'Large' })).toHaveAttribute(
-      'aria-current',
-      'true'
-    )
+    await page.getByRole('button', { name: 'Text size and width' }).click()
+    await expect(
+      page.getByRole('group', { name: 'Text size' }).getByRole('button', { name: 'Large' })
+    ).toHaveAttribute('aria-current', 'true')
+  })
+
+  test('the scroller spans the window, so the scrollbar is at its edge', async ({
+    page,
+    request,
+  }) => {
+    // The measure is set inside each chapter instead of by a narrow column, which is what lets
+    // the scrollbar sit where a browser normally puts it.
+    const title = `E2E Reader Scroller ${Date.now()}`
+    const id = await uploadBook(request, title)
+
+    await openReader(page, id, title)
+
+    const widths = await page.evaluate(() => {
+      const container = document.querySelector('.epub-container')
+      return {
+        container: container ? Math.round(container.getBoundingClientRect().width) : 0,
+        window: window.innerWidth,
+      }
+    })
+
+    expect(widths.container).toBeGreaterThan(widths.window - 40)
+  })
+
+  test('the text is centred and capped, and Wide widens it', async ({ page, request }) => {
+    const title = `E2E Reader Width ${Date.now()}`
+    const id = await uploadBook(request, title)
+
+    await openReader(page, id, title)
+
+    // epub.js writes the body's margin and padding as an inline style, so the measure only
+    // holds if the injected rules are `!important`. Without that the text is wide and jammed
+    // against the left edge, which is what this pins down.
+    const measure = () =>
+      page.frames()[1]!.evaluate(() => {
+        const style = getComputedStyle(document.body)
+        return {
+          width: parseFloat(style.width),
+          marginLeft: parseFloat(style.marginLeft),
+          marginRight: parseFloat(style.marginRight),
+        }
+      })
+
+    const medium = await measure()
+    expect(medium.marginLeft).toBeGreaterThan(0)
+    expect(Math.abs(medium.marginLeft - medium.marginRight)).toBeLessThan(2)
+
+    await page.getByRole('button', { name: 'Text size and width' }).click()
+    await page
+      .getByRole('group', { name: 'Page width' })
+      .getByRole('button', { name: 'Wide' })
+      .click()
+    await page.keyboard.press('Escape')
+
+    await expect.poll(async () => (await measure()).width).toBeGreaterThan(medium.width)
+  })
+
+  test('the bar shows how far through the book the reader is', async ({ page, request }) => {
+    const title = `E2E Reader Percent ${Date.now()}`
+    const id = await uploadBook(request, title)
+
+    await openReader(page, id, title)
+
+    await expect(page.getByText('0%')).toBeVisible()
+
+    await page.getByRole('button', { name: 'Contents' }).click()
+    await page.getByRole('button', { name: 'The End' }).click()
+
+    await expect.poll(async () => page.getByText('%').first().textContent()).not.toBe('0%')
   })
 
   test('reading a chapter reaches the server as progress', async ({ page, request }) => {
     const title = `E2E Reader Progress ${Date.now()}`
     const id = await uploadBook(request, title)
 
-    await page.goto(`/books/${id}/read`)
-    await expect(page.getByRole('region', { name: title })).toBeVisible()
+    await openReader(page, id, title)
 
     await page.getByRole('button', { name: 'Contents' }).click()
     await page.getByRole('button', { name: 'The Middle' }).click()

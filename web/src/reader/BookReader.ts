@@ -21,6 +21,14 @@ export interface ReaderPosition {
 
 export type TextSize = 'small' | 'medium' | 'large'
 
+export type ReadingWidth = 'narrow' | 'medium' | 'wide'
+
+/** How the reader wants the page to look. Stored per reader, never sent to the server. */
+export interface Appearance {
+  textSize: TextSize
+  width: ReadingWidth
+}
+
 /** What comes back once the archive is parsed. */
 export interface OpenBook {
   title: string
@@ -54,7 +62,8 @@ export interface BookReader {
   position(): ReaderPosition
   /** Watch for the position changing because the reader scrolled. Returns an unsubscribe. */
   onMove(listener: (position: ReaderPosition) => void): () => void
-  setTextSize(size: TextSize): void
+  /** Text size and measure, applied to the chapter documents themselves. */
+  setAppearance(appearance: Appearance): void
   /** Release the book and its iframe. */
   destroy(): void
 }

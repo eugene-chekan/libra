@@ -3,10 +3,12 @@ import ePub, { type Book, type NavItem, type Rendition } from 'epubjs'
 import type { LibraApi } from '../api/LibraApi'
 import {
   ReaderError,
+  type Appearance,
   type BookReader,
   type Chapter,
   type OpenBook,
   type ReaderPosition,
+  type ReadingWidth,
   type TextSize,
 } from './BookReader'
 
@@ -14,6 +16,17 @@ const FONT_SIZES: Record<TextSize, string> = {
   small: '95%',
   medium: '110%',
   large: '130%',
+}
+
+/**
+ * The measure, in `em`, so it holds its width in characters as the text size changes. The
+ * container itself stays the full width of the window — that is what puts the scrollbar at the
+ * window's edge rather than beside the column — and the text is centred inside each chapter.
+ */
+const WIDTHS: Record<ReadingWidth, string> = {
+  narrow: '32em',
+  medium: '40em',
+  wide: '52em',
 }
 
 /** How far down the scroller `el` is, 0 to 1, treating an unscrollable element as the top. */
@@ -40,6 +53,8 @@ export class EpubBookReader implements BookReader {
   private listeners: ((position: ReaderPosition) => void)[] = []
   private onScroll: (() => void) | null = null
   private scroller: HTMLElement | null = null
+  private frame: number | null = null
+  private last: ReaderPosition | null = null
 
   constructor(private readonly api: LibraApi) {}
 
@@ -119,11 +134,29 @@ export class EpubBookReader implements BookReader {
     }
   }
 
-  setTextSize(size: TextSize): void {
-    this.rendition?.themes.fontSize(FONT_SIZES[size])
+  setAppearance({ textSize, width }: Appearance): void {
+    const rendition = this.rendition
+    if (!rendition) return
+
+    rendition.themes.fontSize(FONT_SIZES[textSize])
+    // `!important` throughout, because epub.js writes the body's width, margin and padding as
+    // an inline style and recomputes them on every resize. Without it the measure applies and
+    // the centring does not, which reads as a wide column jammed against the left edge.
+    rendition.themes.default({
+      body: {
+        'max-width': `${WIDTHS[width]} !important`,
+        'margin-left': 'auto !important',
+        'margin-right': 'auto !important',
+        'padding-left': '24px !important',
+        'padding-right': '24px !important',
+      },
+    })
   }
 
   destroy(): void {
+    if (this.frame !== null) cancelAnimationFrame(this.frame)
+    this.frame = null
+    this.last = null
     if (this.scroller && this.onScroll) {
       this.scroller.removeEventListener('scroll', this.onScroll)
     }
@@ -193,8 +226,23 @@ export class EpubBookReader implements BookReader {
     }
   }
 
+  /**
+   * Reporting a move is throttled to one animation frame, and dropped when nothing a caller
+   * can see has changed. `currentLocation()` walks the rendered views, so calling it on every
+   * scroll event — which fires many times a frame — is what made scrolling stutter.
+   */
   private announce(): void {
-    const position = this.position()
-    for (const listener of this.listeners) listener(position)
+    if (this.frame !== null) return
+    this.frame = requestAnimationFrame(() => {
+      this.frame = null
+      const position = this.position()
+      const unchanged =
+        this.last !== null &&
+        this.last.index === position.index &&
+        Math.abs(this.last.fraction - position.fraction) < 0.001
+      if (unchanged) return
+      this.last = position
+      for (const listener of this.listeners) listener(position)
+    })
   }
 }

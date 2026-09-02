@@ -10,11 +10,11 @@ interface ReaderBarProps {
   progress: number
   backTo: string
   onContents: () => void
-  onTextSize: () => void
+  onAppearance: () => void
 }
 
 /** The reader's only chrome: always visible, and carrying the progress rule. */
-export function ReaderBar({ title, progress, backTo, onContents, onTextSize }: ReaderBarProps) {
+export function ReaderBar({ title, progress, backTo, onContents, onAppearance }: ReaderBarProps) {
   const { open: openLibrarian } = useLibrarian()
   const percent = Math.round(progress * 100)
 
@@ -25,6 +25,7 @@ export function ReaderBar({ title, progress, backTo, onContents, onTextSize }: R
         Back
       </Link>
       <span className={styles.title}>{title}</span>
+      <span className={styles.percent}>{percent}%</span>
       <div className={styles.controls}>
         <button type="button" className={styles.control} aria-label="Contents" onClick={onContents}>
           <Icon name="list" size={18} />
@@ -32,8 +33,8 @@ export function ReaderBar({ title, progress, backTo, onContents, onTextSize }: R
         <button
           type="button"
           className={styles.control}
-          aria-label="Text size"
-          onClick={onTextSize}
+          aria-label="Text size and width"
+          onClick={onAppearance}
         >
           <Icon name="type" size={18} />
         </button>
