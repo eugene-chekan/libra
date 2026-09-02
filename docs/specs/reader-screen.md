@@ -169,19 +169,14 @@ no schema change.
 It is written on a pause in scrolling, debounced at **1 second**, and once
 more when the reader leaves the screen.
 
-**Every write must include the book's current rating.** This is not optional
-and it is not obvious.
-[`PUT /books/{id}/state`](../../backend/app/routers/books.py) replaces the
-whole state row. `shelf_id` and `tag_ids` are protected — the handler checks
-whether the caller supplied them at all — but `rating` and `progress` are not.
-`library.set_reading_state` does `state.rating = rating` unconditionally, and
-`UserBookStateWrite.rating` defaults to `0`. So a write of `{progress: 0.42}`
-alone sets the rating to zero. A reader that writes progress every few seconds
-would wipe the reader's stars on the first scroll and keep them wiped.
-
-The endpoint's shape is what invites this, and it is tracked as issue #89.
-Until that lands, this screen sends `rating` with every write. When it lands,
-this paragraph and the workaround go with it.
+**The write sends `progress` alone**, and nothing else. This is worth a
+sentence because it was not always safe.
+[`PUT /books/{id}/state`](../../backend/app/routers/books.py) used to write
+`rating` unconditionally from a field that defaults to `0`, so a write of
+`{progress: 0.42}` cleared the reader's stars — and this screen, writing every
+few seconds, would have kept them cleared. Issue #89 fixed the endpoint before
+this screen was built: all four fields are now left alone when the caller does
+not send them.
 
 **Resume** reads `progress` back the other way: multiply by `spine_count` to
 get the chapter, and the remainder is how far down it to scroll. The formula

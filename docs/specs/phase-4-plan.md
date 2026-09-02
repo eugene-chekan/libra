@@ -460,23 +460,31 @@ Two decisions worth recording from milestone 4:
 **Milestone 5 found the first real client/server disagreement**, and it is
 worth recording because the same shape will recur.
 
-`PUT /books/{id}/state` is a **hybrid**. `shelf_id` and `tag_ids` are guarded
-by `exclude_unset`, so omitting them leaves them alone. `rating` and `progress`
-are read straight off the parsed body, where they default to zero — so omitting
-either *sets it to zero*. The client initially treated all four as partial, and
-a rating click silently erased how far the reader had got. The endpoint is
-self-consistent and documented; the client simply did not match it.
+`PUT /books/{id}/state` was a **hybrid**. `shelf_id` and `tag_ids` were
+guarded by `exclude_unset`, so omitting them left them alone. `rating` and
+`progress` were read straight off the parsed body, where they default to zero
+— so omitting either *set it to zero*. The client initially treated all four
+as partial, and a rating click silently erased how far the reader had got.
 
-Two things follow:
+The first fix was on the client: `LibraApi.setState` was made to **require**
+`rating` and `progress`, so a partial write of those two was not expressible,
+and `FakeLibraApi` was taught to mirror the hybrid exactly. A wire-format test
+drives the real client against a mock transport to pin the request shape — the
+layer the fake, by construction, cannot cover.
 
-- `LibraApi.setState` now **requires** `rating` and `progress`, so a partial
-  write of those two is not expressible. The signature is shaped to the
-  endpoint rather than to look tidy.
-- **The fake was wrong in the same way**, which is why no test caught it. A
-  fake that does not model the server faithfully converts an integration bug
-  into a passing suite. `FakeLibraApi` now mirrors the hybrid exactly, and a
-  wire-format test drives the real client against a mock transport to pin the
-  exact request shape — the layer the fake, by construction, cannot cover.
+**That was the wrong half to fix, and issue #89 fixed the right one.** Making
+the client compensate left a loaded endpoint for the next caller to find, and
+the reader was that caller: it writes progress on every pause in scrolling, so
+it would have wiped the rating on the first scroll. All four fields are now
+partial, `rating` and `progress` included, and the client's two fields are
+optional again.
+
+The lesson survives its own fix, and is the reason this stays written down:
+**the fake was wrong in the same way as the client, which is why no test
+caught it.** A fake that does not model the server faithfully converts an
+integration bug into a passing suite. When a client shape looks awkward
+because the server is awkward, the awkwardness is worth a second look — it may
+be a defect wearing a workaround.
 
 Building milestone 5 also found a second disagreement, this time in a
 response rather than a request. `PATCH /books/{id}` returned the table row and

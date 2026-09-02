@@ -219,6 +219,19 @@ describe('HttpLibraApi', () => {
     expect(JSON.parse(init.body as string)).toEqual({ rating: 5, progress: 0.5 })
   })
 
+  it('sends a partial reading state as-is, without filling in the missing fields', async () => {
+    // The server leaves out what it is not sent. A client that helpfully
+    // added `rating: 0` here would clear the reader's stars on every scroll —
+    // the defect #89 fixed on the server. The fake cannot catch this, because
+    // the fake never sees the request body.
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 42 }))
+
+    await new HttpLibraApi().setBookState(42, { progress: 0.7 })
+
+    const [, init] = lastFetchCall()
+    expect(JSON.parse(init.body as string)).toEqual({ progress: 0.7 })
+  })
+
   it('sends a Kindle delivery request with no body and no Content-Type', async () => {
     // The endpoint takes none. A body would put a Content-Type on a request
     // that has no content, and the destination is never the caller's to send.
