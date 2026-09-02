@@ -270,8 +270,8 @@ def set_reading_state(
     session: Session,
     book: Book,
     user: User,
-    rating: int,
-    progress: float,
+    rating: int | None = None,
+    progress: float | None = None,
     shelf_id: int | None = None,
     set_shelf: bool = False,
 ) -> BookRead:
@@ -281,10 +281,12 @@ def set_reading_state(
         session: Open database session.
         book: The book being written about.
         user: Whose state row this is.
-        rating: 0 to 5, where 0 means unrated.
-        progress: 0 to 1.
+        rating: 0 to 5, where 0 means unrated. None leaves it as it was.
+        progress: 0 to 1. None leaves it as it was.
         shelf_id: Shelf to place the book on, or None to take it off.
-        set_shelf: Whether `shelf_id` was supplied at all.
+        set_shelf: Whether `shelf_id` was supplied at all. The shelf needs a
+            flag where rating and progress do not, because None is a real
+            value here — it means no shelf.
 
     Raises:
         ShelfNotVisibleError: The shelf does not exist for this caller.
@@ -301,17 +303,21 @@ def set_reading_state(
 
     now = utcnow()
 
-    if progress > 0 and state.started_at is None:
-        state.started_at = now
+    if progress is not None:
+        if progress > 0 and state.started_at is None:
+            state.started_at = now
 
-    if progress >= 1:
-        if state.finished_at is None:
-            state.finished_at = now
-    else:
-        state.finished_at = None
+        if progress >= 1:
+            if state.finished_at is None:
+                state.finished_at = now
+        else:
+            state.finished_at = None
 
-    state.rating = rating
-    state.progress = progress
+        state.progress = progress
+
+    if rating is not None:
+        state.rating = rating
+
     state.updated_at = now
 
     session.add(state)

@@ -66,10 +66,10 @@ export interface BookPatch {
 
 /** The reader's own state, for `PUT /api/books/{id}/state`. */
 export interface BookStateWrite {
-  /** Required: the endpoint is a PUT, so omitting this sets it to zero. */
-  rating: number
-  /** Required, for the same reason as `rating`. */
-  progress: number
+  /** Omit to leave the rating as it is. Send 0 to clear it. */
+  rating?: number
+  /** Omit to leave progress as it is. Send 0 to rewind the book. */
+  progress?: number
   shelf_id?: number | null
   /** Replaces this reader's personal tags on the book. */
   tag_ids?: number[]

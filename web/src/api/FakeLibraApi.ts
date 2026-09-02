@@ -561,8 +561,8 @@ export class FakeLibraApi implements LibraApi {
       }
     }
 
-    book.rating = state.rating
-    book.progress = state.progress
+    if (state.rating !== undefined) book.rating = state.rating
+    if (state.progress !== undefined) book.progress = state.progress
     return book
   }
 

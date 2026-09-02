@@ -48,6 +48,56 @@ def test_setting_state_reads_back(client: TestClient) -> None:
     assert client.get(f"/books/{book_id}").json()["rating"] == 4
 
 
+def test_progress_alone_leaves_the_rating(client: TestClient) -> None:
+    """The reader writes progress on every pause in scrolling. If that reset
+    the rating, the first scroll would wipe the reader's stars."""
+    book_id = _make_book(client)
+    client.put(f"/books/{book_id}/state", json={"rating": 4, "progress": 0.5})
+
+    response = client.put(f"/books/{book_id}/state", json={"progress": 0.7})
+
+    assert response.status_code == 200
+    assert response.json()["rating"] == 4
+    assert response.json()["progress"] == 0.7
+
+
+def test_rating_alone_leaves_the_progress_and_the_finished_date(client: TestClient) -> None:
+    """The mirror image: rating a book you have read must not un-read it."""
+    book_id = _make_book(client)
+    client.put(f"/books/{book_id}/state", json={"rating": 0, "progress": 1.0})
+    finished_at = client.get(f"/books/{book_id}").json()["finished_at"]
+    assert finished_at is not None
+
+    response = client.put(f"/books/{book_id}/state", json={"rating": 5})
+
+    assert response.status_code == 200
+    assert response.json()["progress"] == 1.0
+    assert response.json()["finished_at"] == finished_at
+    assert response.json()["rating"] == 5
+
+
+def test_an_explicit_zero_rating_still_clears_it(client: TestClient) -> None:
+    """Saying nothing means leave it alone; saying zero means unrate it."""
+    book_id = _make_book(client)
+    client.put(f"/books/{book_id}/state", json={"rating": 4, "progress": 0.5})
+
+    response = client.put(f"/books/{book_id}/state", json={"rating": 0})
+
+    assert response.json()["rating"] == 0
+    assert response.json()["progress"] == 0.5
+
+
+def test_an_explicit_zero_progress_still_rewinds_the_book(client: TestClient) -> None:
+    book_id = _make_book(client)
+    client.put(f"/books/{book_id}/state", json={"rating": 3, "progress": 1.0})
+
+    response = client.put(f"/books/{book_id}/state", json={"progress": 0.0})
+
+    assert response.json()["progress"] == 0.0
+    assert response.json()["finished_at"] is None
+    assert response.json()["rating"] == 3
+
+
 def test_state_is_created_lazily(client: TestClient, session: Session) -> None:
     """Reading a book must not write a row; otherwise listing the library
     writes one row per book per user."""

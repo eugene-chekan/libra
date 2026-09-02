@@ -198,17 +198,34 @@ describe('FakeLibraApi.setBookState', () => {
     return { user, api: new FakeLibraApi({ users: [user], signedInAs: user, ...overrides }) }
   }
 
-  it('writes rating and progress together, because the endpoint is a PUT', async () => {
+  it('writes both when both are given, including an explicit zero', async () => {
     const book = fakeBook({ rating: 4, progress: 0.5 })
     const { api } = signedIn({ books: [book] })
 
-    // Only the rating was meant to change. The endpoint has no way to know
-    // that, so a caller who leaves progress out loses it — which is exactly
-    // why `BookStateWrite` makes both required.
     const updated = await api.setBookState(book.id, { rating: 5, progress: 0 })
 
     expect(updated.rating).toBe(5)
     expect(updated.progress).toBe(0)
+  })
+
+  it('leaves the rating alone when only progress is sent', async () => {
+    const book = fakeBook({ rating: 4, progress: 0.5 })
+    const { api } = signedIn({ books: [book] })
+
+    const updated = await api.setBookState(book.id, { progress: 0.7 })
+
+    expect(updated.rating).toBe(4)
+    expect(updated.progress).toBe(0.7)
+  })
+
+  it('leaves the progress alone when only rating is sent', async () => {
+    const book = fakeBook({ rating: 0, progress: 1 })
+    const { api } = signedIn({ books: [book] })
+
+    const updated = await api.setBookState(book.id, { rating: 5 })
+
+    expect(updated.progress).toBe(1)
+    expect(updated.rating).toBe(5)
   })
 
   it('leaves the shelf alone when shelf_id is absent, and clears it when null', async () => {
