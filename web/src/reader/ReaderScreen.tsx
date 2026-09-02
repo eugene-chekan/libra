@@ -6,6 +6,7 @@ import { bookPath } from '../routes'
 import { ErrorBlock } from '../widgets/ErrorBlock'
 import { ReaderError, type OpenBook } from './BookReader'
 import { useBookReader } from './BookReaderContext'
+import { ReaderBar } from './ReaderBar'
 import styles from './ReaderScreen.module.css'
 
 /** `/books/:id/read` — the whole window, with no application furniture. */
@@ -52,6 +53,13 @@ export function ReaderScreen() {
 
   return (
     <div className={styles.screen}>
+      <ReaderBar
+        title={title}
+        progress={0}
+        backTo={bookPath(bookId)}
+        onContents={() => undefined}
+        onTextSize={() => undefined}
+      />
       <div className={styles.body}>
         <div className={styles.column}>
           <div

@@ -5,6 +5,7 @@ import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { ApiProvider } from './api/ApiProvider'
 import { HttpLibraApi } from './api/HttpLibraApi'
 import { HttpLibrarianService } from './librarian/HttpLibrarianService'
+import { LibrarianPanel } from './librarian/LibrarianPanel'
 import { LibrarianProvider } from './librarian/LibrarianProvider'
 import { LibrarianServiceProvider } from './librarian/LibrarianServiceContext'
 import { createQueryClient } from './queryClient'
@@ -60,6 +61,7 @@ export function App() {
             <SessionProvider>
               <LibrarianProvider>
                 <AppRoutes />
+                <LibrarianPanel />
               </LibrarianProvider>
             </SessionProvider>
           </BrowserRouter>

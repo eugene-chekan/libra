@@ -8,6 +8,7 @@ import { fakeBook, fakeUser, FakeLibraApi } from './api/FakeLibraApi'
 import { ApiProvider } from './api/ApiProvider'
 import { AppRoutes } from './App'
 import { FakeLibrarianService } from './librarian/FakeLibrarianService'
+import { LibrarianPanel } from './librarian/LibrarianPanel'
 import { LibrarianProvider } from './librarian/LibrarianProvider'
 import { LibrarianServiceProvider } from './librarian/LibrarianServiceContext'
 import { createQueryClient } from './queryClient'
@@ -29,6 +30,7 @@ function renderAt(path: string, api: FakeLibraApi = signedInApi()) {
             <SessionProvider>
               <LibrarianProvider>
                 <AppRoutes />
+                <LibrarianPanel />
               </LibrarianProvider>
             </SessionProvider>
           </MemoryRouter>

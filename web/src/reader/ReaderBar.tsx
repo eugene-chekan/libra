@@ -1,0 +1,60 @@
+import { Link } from 'react-router-dom'
+
+import { useLibrarian } from '../librarian/LibrarianProvider'
+import { Icon } from '../widgets/Icon'
+import styles from './ReaderBar.module.css'
+
+interface ReaderBarProps {
+  title: string
+  /** 0 to 1. */
+  progress: number
+  backTo: string
+  onContents: () => void
+  onTextSize: () => void
+}
+
+/** The reader's only chrome: always visible, and carrying the progress rule. */
+export function ReaderBar({ title, progress, backTo, onContents, onTextSize }: ReaderBarProps) {
+  const { open: openLibrarian } = useLibrarian()
+  const percent = Math.round(progress * 100)
+
+  return (
+    <header className={styles.bar}>
+      <Link className={styles.back} to={backTo}>
+        <Icon name="chevron-left" size={16} />
+        Back
+      </Link>
+      <span className={styles.title}>{title}</span>
+      <div className={styles.controls}>
+        <button type="button" className={styles.control} aria-label="Contents" onClick={onContents}>
+          <Icon name="list" size={18} />
+        </button>
+        <button
+          type="button"
+          className={styles.control}
+          aria-label="Text size"
+          onClick={onTextSize}
+        >
+          <Icon name="type" size={18} />
+        </button>
+        <button
+          type="button"
+          className={styles.control}
+          aria-label="Ask the librarian"
+          onClick={openLibrarian}
+        >
+          <Icon name="message-square" size={18} />
+        </button>
+      </div>
+      <div
+        className={styles.progress}
+        style={{ width: `${percent}%` }}
+        role="progressbar"
+        aria-label="Reading progress"
+        aria-valuenow={percent}
+        aria-valuemin={0}
+        aria-valuemax={100}
+      />
+    </header>
+  )
+}
