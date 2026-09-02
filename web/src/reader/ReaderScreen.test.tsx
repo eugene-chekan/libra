@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
@@ -24,6 +24,13 @@ function signedInApi(): FakeLibraApi {
     signedInAs: user,
     books: [fakeBook({ id: 1, title: 'The Locked Door' })],
   })
+}
+
+/** The one book the fixture holds, so a test can read its state back. */
+function onlyBook(api: FakeLibraApi) {
+  const book = api.books[0]
+  if (!book) throw new Error('the fixture has no book')
+  return book
 }
 
 function renderReader(reader: BookReader, api: FakeLibraApi = signedInApi()) {
@@ -112,5 +119,55 @@ describe('ReaderScreen', () => {
 
     expect(reader.textSize).toBe('large')
     expect(localStorage.getItem('libra.textSize')).toBe('large')
+  })
+
+  it('writes progress once, after the reader stops scrolling', async () => {
+    const reader = new FakeBookReader()
+    const api = signedInApi()
+    renderReader(reader, api)
+    await screen.findByRole('region', { name: 'The Locked Door' })
+
+    act(() => reader.simulateScroll({ index: 1, fraction: 0.5 }))
+    act(() => reader.simulateScroll({ index: 1, fraction: 0.6 }))
+    expect(api.calls.filter((c) => c === 'setBookState:1')).toHaveLength(0)
+
+    await waitFor(() => expect(api.calls.filter((c) => c === 'setBookState:1')).toHaveLength(1), {
+      timeout: 3000,
+    })
+  })
+
+  it('sends progress alone, so the rating survives every scroll', async () => {
+    const reader = new FakeBookReader()
+    const api = signedInApi()
+    onlyBook(api).rating = 4
+    renderReader(reader, api)
+    await screen.findByRole('region', { name: 'The Locked Door' })
+
+    act(() => reader.simulateScroll({ index: 2, fraction: 1 }))
+
+    await waitFor(() => expect(onlyBook(api).progress).toBe(1), { timeout: 3000 })
+    expect(onlyBook(api).rating).toBe(4)
+  })
+
+  it('resumes where the reader left off', async () => {
+    const reader = new FakeBookReader()
+    const api = signedInApi()
+    onlyBook(api).progress = 1 / 3
+    renderReader(reader, api)
+
+    await waitFor(() => expect(reader.calls).toContain('goTo:1'))
+  })
+
+  it('shows how far through the book the reader is', async () => {
+    const reader = new FakeBookReader()
+    renderReader(reader)
+    await screen.findByRole('region', { name: 'The Locked Door' })
+
+    act(() => reader.simulateScroll({ index: 1, fraction: 0.5 }))
+
+    expect(screen.getByRole('progressbar', { name: 'Reading progress' })).toHaveAttribute(
+      'aria-valuenow',
+      '50'
+    )
   })
 })

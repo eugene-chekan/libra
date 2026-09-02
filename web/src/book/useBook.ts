@@ -40,6 +40,19 @@ export function useSetBookState(id: number): UseMutationResult<Book, Error, Book
   })
 }
 
+/**
+ * The reader's progress write. Deliberately does not refresh the book: the reader writes every
+ * time scrolling pauses, and refetching the value it just sent would change `book.data` under
+ * the screen that is reading from it, reopening the book mid-sentence. Nothing else on screen
+ * shows this progress, and the detail screen refetches on mount anyway.
+ */
+export function useWriteProgress(id: number): UseMutationResult<Book, Error, number> {
+  const api = useApi()
+  return useMutation({
+    mutationFn: (progress: number) => api.setBookState(id, { progress }),
+  })
+}
+
 /** `PATCH /api/books/{id}` — the shared catalog, and admin only. */
 export function useUpdateBook(id: number): UseMutationResult<Book, Error, BookPatch> {
   const api = useApi()

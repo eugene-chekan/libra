@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 
-import { useBook } from '../book/useBook'
+import { useBook, useWriteProgress } from '../book/useBook'
 import { bookPath } from '../routes'
 import { ErrorBlock } from '../widgets/ErrorBlock'
 import { ReaderError, type OpenBook, type TextSize } from './BookReader'
@@ -10,7 +10,11 @@ import { ContentsDrawer } from './ContentsDrawer'
 import { ReaderBar } from './ReaderBar'
 import { TextSizeMenu } from './TextSizeMenu'
 import { loadTextSize, saveTextSize } from './textSize'
+import { toPosition, toProgress } from './progress'
 import styles from './ReaderScreen.module.css'
+
+/** How long the reader must stop scrolling before the position is worth a request. */
+const WRITE_AFTER_MS = 1000
 
 /** `/books/:id/read` — the whole window, with no application furniture. */
 export function ReaderScreen() {
@@ -26,18 +30,29 @@ export function ReaderScreen() {
   const [panel, setPanel] = useState<'contents' | 'textSize' | null>(null)
   const [textSize, setTextSize] = useState<TextSize>(loadTextSize)
   const [chapterIndex, setChapterIndex] = useState(0)
+  const [progress, setProgress] = useState(0)
+  const pending = useRef<number | null>(null)
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  const { mutate: writeProgress } = useWriteProgress(bookId)
+  const savedProgress = book.data?.progress ?? 0
 
   useEffect(() => {
     const mount = host.current
-    if (!mount) return
+    if (!mount || !book.isSuccess) return
     let cancelled = false
-    setFailure(null)
-    setOpen(null)
 
     reader
       .open(bookId, mount)
       .then((opened) => {
-        if (!cancelled) setOpen(opened)
+        if (cancelled) return
+        setOpen(opened)
+        if (savedProgress > 0) {
+          const position = toPosition(savedProgress, opened.chapterCount)
+          void reader.goTo(position)
+          setChapterIndex(position.index)
+          setProgress(savedProgress)
+        }
       })
       .catch((error: unknown) => {
         if (cancelled) return
@@ -52,11 +67,37 @@ export function ReaderScreen() {
       cancelled = true
       reader.destroy()
     }
-  }, [reader, bookId, attempt])
+  }, [reader, bookId, attempt, book.isSuccess, savedProgress])
 
   useEffect(() => {
     if (open) reader.setTextSize(textSize)
   }, [reader, open, textSize])
+
+  useEffect(() => {
+    if (!open) return
+
+    const flush = () => {
+      const latest = pending.current
+      if (latest === null) return
+      pending.current = null
+      writeProgress(latest)
+    }
+
+    const stop = reader.onMove((position) => {
+      const fraction = toProgress(position, open.chapterCount)
+      pending.current = fraction
+      setProgress(fraction)
+      setChapterIndex(position.index)
+      if (timer.current !== null) clearTimeout(timer.current)
+      timer.current = setTimeout(flush, WRITE_AFTER_MS)
+    })
+
+    return () => {
+      stop()
+      if (timer.current !== null) clearTimeout(timer.current)
+      flush()
+    }
+  }, [open, reader, writeProgress])
 
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
   const title = open?.title ?? book.data?.title ?? 'Book'
@@ -77,7 +118,7 @@ export function ReaderScreen() {
     <div className={styles.screen}>
       <ReaderBar
         title={title}
-        progress={0}
+        progress={progress}
         backTo={bookPath(bookId)}
         onContents={() => setPanel('contents')}
         onTextSize={() => setPanel('textSize')}
