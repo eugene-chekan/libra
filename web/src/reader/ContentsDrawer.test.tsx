@@ -5,10 +5,12 @@ import { describe, expect, it, vi } from 'vitest'
 import type { Chapter } from './BookReader'
 import { ContentsDrawer } from './ContentsDrawer'
 
+// Spine positions, not list positions: a real book's front matter is absent from its own
+// contents, so the third entry is the sixth section.
 const CHAPTERS: Chapter[] = [
-  { index: 0, label: 'The Beginning' },
-  { index: 1, label: 'The Middle' },
-  { index: 2, label: 'The End' },
+  { index: 2, label: 'The Beginning', depth: 0 },
+  { index: 3, label: 'The Middle', depth: 0 },
+  { index: 5, label: 'The End', depth: 1 },
 ]
 
 describe('ContentsDrawer', () => {
@@ -20,9 +22,10 @@ describe('ContentsDrawer', () => {
     expect(screen.getAllByRole('button', { name: /^The / })).toHaveLength(3)
   })
 
-  it('marks the chapter being read', () => {
+  it('marks the entry covering where the reader is, not the one that matches exactly', () => {
+    // Section 4 is inside "The Middle", which starts at 3 — there is no entry for 4 itself.
     render(
-      <ContentsDrawer chapters={CHAPTERS} currentIndex={1} onChoose={vi.fn()} onClose={vi.fn()} />
+      <ContentsDrawer chapters={CHAPTERS} currentIndex={4} onChoose={vi.fn()} onClose={vi.fn()} />
     )
 
     expect(screen.getByRole('button', { name: 'The Middle' })).toHaveAttribute(
@@ -30,6 +33,18 @@ describe('ContentsDrawer', () => {
       'true'
     )
     expect(screen.getByRole('button', { name: 'The End' })).not.toHaveAttribute('aria-current')
+  })
+
+  it('marks nothing while the reader is in front matter', () => {
+    // A title page belongs to no chapter, and claiming it is chapter one is a lie the
+    // highlight would tell on every real book.
+    render(
+      <ContentsDrawer chapters={CHAPTERS} currentIndex={0} onChoose={vi.fn()} onClose={vi.fn()} />
+    )
+
+    for (const label of ['The Beginning', 'The Middle', 'The End']) {
+      expect(screen.getByRole('button', { name: label })).not.toHaveAttribute('aria-current')
+    }
   })
 
   it('reports the chapter chosen', async () => {
@@ -40,7 +55,7 @@ describe('ContentsDrawer', () => {
 
     await userEvent.click(screen.getByRole('button', { name: 'The End' }))
 
-    expect(onChoose).toHaveBeenCalledWith(2)
+    expect(onChoose).toHaveBeenCalledWith(5)
   })
 
   it('closes on Escape', async () => {

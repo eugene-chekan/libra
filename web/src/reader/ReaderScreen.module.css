@@ -14,12 +14,19 @@
 }
 
 .column {
+  position: relative;
   width: 100%;
   max-width: 65ch;
 }
 
 .page {
   height: 100%;
+}
+
+.skeleton {
+  position: absolute;
+  inset: 0;
+  background: var(--libra-card);
 }
 
 .skeletonLine {

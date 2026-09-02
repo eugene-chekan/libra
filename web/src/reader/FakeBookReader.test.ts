@@ -14,8 +14,19 @@ describe('FakeBookReader', () => {
     const book = await reader.open(1, host())
 
     expect(book.title).toBe('The Locked Door')
-    expect(book.chapterCount).toBe(3)
+    expect(book.chapterCount).toBe(6)
     expect(book.chapters.map((c) => c.label)).toEqual(['The Beginning', 'The Middle', 'The End'])
+  })
+
+  it('points its contents at spine positions, not at positions in the list', async () => {
+    // The defect this exists to stop: mapping contents entries to 0, 1, 2 works on a fixture
+    // and sends a real reader to the title page when they ask for chapter three.
+    const reader = new FakeBookReader()
+
+    const book = await reader.open(1, host())
+
+    expect(book.chapters.map((c) => c.index)).toEqual([2, 3, 5])
+    expect(book.chapterCount).toBeGreaterThan(book.chapters.length)
   })
 
   it('starts at the beginning', async () => {

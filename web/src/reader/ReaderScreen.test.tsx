@@ -26,6 +26,13 @@ function signedInApi(): FakeLibraApi {
   })
 }
 
+/** Waits until the book is actually open — the region exists from the first paint now. */
+async function opened(title = 'The Locked Door') {
+  const region = await screen.findByRole('region', { name: title })
+  await waitFor(() => expect(region).toHaveAttribute('aria-busy', 'false'))
+  return region
+}
+
 /** The one book the fixture holds, so a test can read its state back. */
 function onlyBook(api: FakeLibraApi) {
   const book = api.books[0]
@@ -56,10 +63,15 @@ function renderReader(reader: BookReader, api: FakeLibraApi = signedInApi()) {
 }
 
 describe('ReaderScreen', () => {
-  it('shows the book once it opens', async () => {
+  it('marks the reading area busy until the book is open', async () => {
+    // The area is in the DOM from the first paint, because epub.js measures it to size the
+    // chapter and a hidden box measures zero. `aria-busy` is what actually says "ready".
     renderReader(new FakeBookReader())
 
-    expect(await screen.findByRole('region', { name: 'The Locked Door' })).toBeInTheDocument()
+    expect(screen.getByRole('region', { name: 'Book' })).toHaveAttribute('aria-busy', 'true')
+
+    const region = await opened()
+    expect(region).toHaveAttribute('aria-busy', 'false')
   })
 
   it('offers a working retry when the download failed', async () => {
@@ -90,7 +102,7 @@ describe('ReaderScreen', () => {
   it('releases the book when it unmounts', async () => {
     const reader = new FakeBookReader()
     const { unmount } = renderReader(reader)
-    await screen.findByRole('region', { name: 'The Locked Door' })
+    await opened()
 
     unmount()
 
@@ -100,19 +112,19 @@ describe('ReaderScreen', () => {
   it('jumps to a chapter chosen from the contents', async () => {
     const reader = new FakeBookReader()
     renderReader(reader)
-    await screen.findByRole('region', { name: 'The Locked Door' })
+    await opened()
 
     await userEvent.click(screen.getByRole('button', { name: 'Contents' }))
     await userEvent.click(await screen.findByRole('button', { name: 'The End' }))
 
-    expect(reader.calls).toContain('goTo:2')
+    expect(reader.calls).toContain('goTo:5')
   })
 
   it('applies a chosen text size and remembers it', async () => {
     localStorage.clear()
     const reader = new FakeBookReader()
     renderReader(reader)
-    await screen.findByRole('region', { name: 'The Locked Door' })
+    await opened()
 
     await userEvent.click(screen.getByRole('button', { name: 'Text size' }))
     await userEvent.click(await screen.findByRole('button', { name: 'Large' }))
@@ -125,7 +137,7 @@ describe('ReaderScreen', () => {
     const reader = new FakeBookReader()
     const api = signedInApi()
     renderReader(reader, api)
-    await screen.findByRole('region', { name: 'The Locked Door' })
+    await opened()
 
     act(() => reader.simulateScroll({ index: 1, fraction: 0.5 }))
     act(() => reader.simulateScroll({ index: 1, fraction: 0.6 }))
@@ -141,9 +153,9 @@ describe('ReaderScreen', () => {
     const api = signedInApi()
     onlyBook(api).rating = 4
     renderReader(reader, api)
-    await screen.findByRole('region', { name: 'The Locked Door' })
+    await opened()
 
-    act(() => reader.simulateScroll({ index: 2, fraction: 1 }))
+    act(() => reader.simulateScroll({ index: 5, fraction: 1 }))
 
     await waitFor(() => expect(onlyBook(api).progress).toBe(1), { timeout: 3000 })
     expect(onlyBook(api).rating).toBe(4)
@@ -152,18 +164,18 @@ describe('ReaderScreen', () => {
   it('resumes where the reader left off', async () => {
     const reader = new FakeBookReader()
     const api = signedInApi()
-    onlyBook(api).progress = 1 / 3
+    onlyBook(api).progress = 3 / 6
     renderReader(reader, api)
 
-    await waitFor(() => expect(reader.calls).toContain('goTo:1'))
+    await waitFor(() => expect(reader.calls).toContain('goTo:3'))
   })
 
   it('shows how far through the book the reader is', async () => {
     const reader = new FakeBookReader()
     renderReader(reader)
-    await screen.findByRole('region', { name: 'The Locked Door' })
+    await opened()
 
-    act(() => reader.simulateScroll({ index: 1, fraction: 0.5 }))
+    act(() => reader.simulateScroll({ index: 2, fraction: 1 }))
 
     expect(screen.getByRole('progressbar', { name: 'Reading progress' })).toHaveAttribute(
       'aria-valuenow',

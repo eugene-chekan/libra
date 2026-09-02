@@ -1,4 +1,4 @@
-import ePub, { type Book, type Rendition } from 'epubjs'
+import ePub, { type Book, type NavItem, type Rendition } from 'epubjs'
 
 import type { LibraApi } from '../api/LibraApi'
 import {
@@ -58,8 +58,13 @@ export class EpubBookReader implements BookReader {
     // `spineItems` is real at runtime but missing from epubjs's Spine typings.
     this.chapterCount = (book.spine as unknown as { spineItems: unknown[] }).spineItems.length
 
+    // `scrolled` with the continuous manager, not `scrolled-doc`: the latter renders one spine
+    // item and stops, so a reader lands on the title page with nowhere to go. Continuous
+    // stitches the sections together and loads the next as you reach it, which is what
+    // "scrolling, not paginated" was always supposed to mean.
     const rendition = book.renderTo(host, {
-      flow: 'scrolled-doc',
+      flow: 'scrolled',
+      manager: 'continuous',
       width: '100%',
       height: '100%',
     })
@@ -82,7 +87,10 @@ export class EpubBookReader implements BookReader {
     const rendition = this.rendition
     if (!rendition) throw new Error('The book is not open')
 
-    await rendition.display(position.index)
+    // By href, not by spine number. The continuous manager accepts a number and quietly does
+    // nothing with it; the section's own address is the target it acts on.
+    const href = this.book?.spine.get(position.index)?.href
+    await (href ? rendition.display(href) : rendition.display(position.index))
     if (position.fraction > 0 && this.scroller) {
       const scrollable = this.scroller.scrollHeight - this.scroller.clientHeight
       this.scroller.scrollTop = scrollable * position.fraction
@@ -131,7 +139,14 @@ export class EpubBookReader implements BookReader {
   private async download(bookId: number): Promise<ArrayBuffer> {
     let response: Response
     try {
-      response = await fetch(this.api.fileUrl(bookId), { credentials: 'include' })
+      // `no-cache` revalidates rather than refetches: the ETag makes an unchanged book cheap,
+      // and a stale one impossible. Ids are reused after a delete, so the same address can
+      // hold a different book, and the browser will otherwise serve the old one from a
+      // heuristically-fresh cache entry without asking.
+      response = await fetch(this.api.fileUrl(bookId), {
+        credentials: 'include',
+        cache: 'no-cache',
+      })
     } catch {
       throw new ReaderError('download', 'Could not reach the server.')
     }
@@ -145,9 +160,37 @@ export class EpubBookReader implements BookReader {
     return response.arrayBuffer()
   }
 
+  /**
+   * The book's own contents, flattened and resolved to real spine positions.
+   *
+   * Two things a naive mapping gets wrong on a real book. Entries nest — parts holding
+   * chapters — so only the top level would be listed. And an entry's position in the contents
+   * is not its position in the spine: front matter is usually absent from the contents
+   * entirely, so the third entry is rarely the third section.
+   */
   private tableOfContents(book: Book): Chapter[] {
-    const toc = book.navigation?.toc ?? []
-    return toc.map((entry, index) => ({ index, label: entry.label.trim() }))
+    const chapters: Chapter[] = []
+
+    const walk = (items: NavItem[], depth: number): void => {
+      for (const item of items) {
+        const index = this.spineIndexOf(book, item.href)
+        if (index !== null) chapters.push({ index, label: item.label.trim(), depth })
+        if (item.subitems?.length) walk(item.subitems, depth + 1)
+      }
+    }
+
+    walk(book.navigation?.toc ?? [], 0)
+    return chapters
+  }
+
+  /** Where `href` sits in the spine, ignoring any fragment after `#`. */
+  private spineIndexOf(book: Book, href: string): number | null {
+    try {
+      const section = book.spine.get(href.split('#')[0])
+      return typeof section?.index === 'number' ? section.index : null
+    } catch {
+      return null
+    }
   }
 
   private announce(): void {

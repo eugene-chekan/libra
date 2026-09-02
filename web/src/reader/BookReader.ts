@@ -1,9 +1,14 @@
 /** One entry in the book's own table of contents. */
 export interface Chapter {
-  /** Position in the spine, counting from zero. */
+  /**
+   * Position in the spine, counting from zero — where this entry actually points, which is
+   * rarely its own position in the contents list.
+   */
   index: number
   /** The label the book gives it. */
   label: string
+  /** How deeply nested the entry is: 0 for a part, 1 for a chapter inside it. */
+  depth: number
 }
 
 /** Where the reader is in the book. */

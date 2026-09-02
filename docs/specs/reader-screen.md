@@ -97,6 +97,15 @@ Opens from the **left**, where the sidebar used to be, 280px wide, over the
 text rather than pushing it. Entries come from the book's own navigation
 document, which epub.js exposes as `book.navigation.toc`.
 
+**Entries are flattened and resolved to spine positions**, and both halves of
+that matter on a real book. Contents nest — parts holding chapters — so only
+the top level would otherwise be listed, and a nine-chapter book would offer
+three entries. And an entry's place in the contents is not its place in the
+spine: front matter is usually in no contents list at all, so the third entry
+is rarely the third section. Each `href` is resolved through
+`book.spine.get()`, and nested entries carry a depth so a part reads
+differently from a chapter inside it.
+
 The current chapter is marked with `accentLight` behind the row, the same
 treatment the sidebar uses for the active navigation row. Choosing an entry
 jumps there and closes the drawer.
@@ -236,6 +245,45 @@ return and land in the same chapter.
   without a mouse.
 - The chapter itself is real text in the page, not an image, so a screen
   reader can read the book.
+
+## What a real book changed
+
+The screen passed 538 component tests, 47 end-to-end tests and a review, and
+then failed on the first real book anybody opened. Four defects, all of them
+invisible to a fixture, recorded because the pattern matters more than the
+fixes.
+
+**One spine item is not a book.** `flow: 'scrolled-doc'` renders a single
+spine item and stops. A reader landed on the title page with no way forward,
+because scrolling did nothing and the contents drawer does not list front
+matter. The reader now uses `flow: 'scrolled'` with the continuous manager,
+which stitches sections together and loads the next as you reach it. That is
+what "scrolling, not paginated" was always supposed to mean; the first
+reading of it was simply wrong.
+
+**A hidden box measures zero.** The reading area carried `hidden` while the
+book opened. epub.js measures that element to size the chapter it renders
+inside, so every section came out 0px wide: a reader that had downloaded the
+book, parsed it, and drawn 20,000px of nothing. The area is now always in the
+DOM, with the skeleton laid over it, and `aria-busy` says whether it is
+ready.
+
+**The continuous manager ignores a spine number.** `rendition.display(9)`
+returns without error and without moving. Sections are addressed by `href`,
+which is also what the contents gives us.
+
+**A book file can be cached under an id that now holds a different book.**
+Ids are reused after a delete, and the browser will serve a heuristically
+fresh copy without revalidating. The fetch asks for `no-cache`, which
+revalidates against the ETag — cheap when the book is unchanged, and never
+wrong.
+
+**The fakes were the reason none of this was caught.** `FakeBookReader` and
+the e2e fixture both described a book whose contents matched its spine one to
+one, with no front matter and no nesting — a book that does not exist. Both
+now model the awkward shape, and a test names the defect it exists to stop.
+This is the third time this project has been bitten by a fake that was kinder
+than the thing it stood for; `phase-4-plan.md` records the first two.
 
 ## Accepted limitations
 

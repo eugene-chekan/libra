@@ -136,13 +136,18 @@ export function ReaderScreen() {
       )}
       <div className={styles.body}>
         <div className={styles.column}>
+          {/*
+            Never hidden while opening. epub.js measures this element to size the chapter it
+            renders inside, and a `display: none` box measures zero — which produced a reader
+            that had loaded the whole book and drew none of it. The skeleton covers it instead.
+          */}
           <div
             ref={host}
             className={styles.page}
             role="region"
             aria-label={title}
             aria-busy={open === null}
-            hidden={open === null || failure !== null}
+            hidden={failure !== null}
           />
           {failure && (
             <ErrorBlock
@@ -180,7 +185,7 @@ function OpeningSkeleton() {
 
   if (!visible) return null
   return (
-    <div>
+    <div className={styles.skeleton}>
       {[92, 100, 96, 88, 100, 70].map((width, index) => (
         <div key={index} className={styles.skeletonLine} style={{ width: `${width}%` }} />
       ))}

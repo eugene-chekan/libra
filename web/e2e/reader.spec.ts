@@ -31,9 +31,23 @@ async function uploadBook(request: APIRequestContext, title: string): Promise<nu
   return book.id
 }
 
-/** The chapter epub.js has rendered, read from inside its iframe. */
-function chapterHeading(page: Page) {
-  return page.frameLocator('[role="region"] iframe').locator('h1').first()
+/**
+ * The headings of every section epub.js currently has rendered. Continuous flow keeps several
+ * sections alive at once, each in its own iframe, so this reads all of them rather than
+ * assuming there is exactly one.
+ */
+async function renderedHeadings(page: Page): Promise<string[]> {
+  const frames = page.frames().filter((frame) => frame !== page.mainFrame())
+  const headings = await Promise.all(
+    frames.map((frame) =>
+      frame
+        .locator('h1')
+        .first()
+        .textContent({ timeout: 2000 })
+        .catch(() => null)
+    )
+  )
+  return headings.filter((text): text is string => text !== null).map((text) => text.trim())
 }
 
 test.describe('the reader, in a real browser', () => {
@@ -44,7 +58,10 @@ test.describe('the reader, in a real browser', () => {
     await page.goto(`/books/${id}/read`)
 
     await expect(page.getByRole('region', { name: title })).toBeVisible()
-    await expect(chapterHeading(page)).toHaveText(CHAPTERS[0]!)
+
+    // The book opens on its title page: the first spine item, and one no contents list
+    // mentions. Continuous flow is what lets a reader carry on from here into chapter one.
+    await expect.poll(() => renderedHeadings(page)).toContain(title)
 
     // The security claim the whole design rests on: epub.js keeps the chapter in a sandboxed
     // iframe with no allow-scripts, so JavaScript inside an uploaded book never runs. If a
@@ -83,7 +100,7 @@ test.describe('the reader, in a real browser', () => {
 
     await page.getByRole('button', { name: 'The End' }).click()
 
-    await expect(chapterHeading(page)).toHaveText('The End')
+    await expect.poll(() => renderedHeadings(page)).toContain('The End')
   })
 
   test('a text size is applied and survives a reload', async ({ page, request }) => {
@@ -115,7 +132,7 @@ test.describe('the reader, in a real browser', () => {
 
     await page.getByRole('button', { name: 'Contents' }).click()
     await page.getByRole('button', { name: 'The Middle' }).click()
-    await expect(chapterHeading(page)).toHaveText('The Middle')
+    await expect.poll(() => renderedHeadings(page)).toContain('The Middle')
 
     await expect
       .poll(
