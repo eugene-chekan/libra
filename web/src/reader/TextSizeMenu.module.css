@@ -1,0 +1,52 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+}
+
+.menu {
+  position: fixed;
+  top: 56px;
+  right: 20px;
+  width: 160px;
+  padding: 8px;
+  background: var(--libra-card);
+  border: 1px solid var(--libra-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+.heading {
+  margin: 4px 8px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--libra-text-light);
+}
+
+.row {
+  display: block;
+  width: 100%;
+  padding: 7px 8px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  font-size: 13px;
+  text-align: left;
+  color: var(--libra-text-mid);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.15s;
+}
+
+.row:hover {
+  background: var(--libra-accent-lighter);
+  color: var(--libra-text);
+}
+
+.row[aria-current='true'] {
+  background: var(--libra-accent-light);
+  color: var(--libra-text);
+  font-weight: 500;
+}

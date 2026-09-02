@@ -4,9 +4,12 @@ import { Link, useParams } from 'react-router-dom'
 import { useBook } from '../book/useBook'
 import { bookPath } from '../routes'
 import { ErrorBlock } from '../widgets/ErrorBlock'
-import { ReaderError, type OpenBook } from './BookReader'
+import { ReaderError, type OpenBook, type TextSize } from './BookReader'
 import { useBookReader } from './BookReaderContext'
+import { ContentsDrawer } from './ContentsDrawer'
 import { ReaderBar } from './ReaderBar'
+import { TextSizeMenu } from './TextSizeMenu'
+import { loadTextSize, saveTextSize } from './textSize'
 import styles from './ReaderScreen.module.css'
 
 /** `/books/:id/read` — the whole window, with no application furniture. */
@@ -20,6 +23,9 @@ export function ReaderScreen() {
   const [open, setOpen] = useState<OpenBook | null>(null)
   const [failure, setFailure] = useState<ReaderError | null>(null)
   const [attempt, setAttempt] = useState(0)
+  const [panel, setPanel] = useState<'contents' | 'textSize' | null>(null)
+  const [textSize, setTextSize] = useState<TextSize>(loadTextSize)
+  const [chapterIndex, setChapterIndex] = useState(0)
 
   useEffect(() => {
     const mount = host.current
@@ -48,8 +54,24 @@ export function ReaderScreen() {
     }
   }, [reader, bookId, attempt])
 
+  useEffect(() => {
+    if (open) reader.setTextSize(textSize)
+  }, [reader, open, textSize])
+
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
   const title = open?.title ?? book.data?.title ?? 'Book'
+
+  function chooseChapter(index: number) {
+    void reader.goTo({ index, fraction: 0 })
+    setChapterIndex(index)
+    setPanel(null)
+  }
+
+  function chooseTextSize(size: TextSize) {
+    setTextSize(size)
+    saveTextSize(size)
+    setPanel(null)
+  }
 
   return (
     <div className={styles.screen}>
@@ -57,9 +79,20 @@ export function ReaderScreen() {
         title={title}
         progress={0}
         backTo={bookPath(bookId)}
-        onContents={() => undefined}
-        onTextSize={() => undefined}
+        onContents={() => setPanel('contents')}
+        onTextSize={() => setPanel('textSize')}
       />
+      {panel === 'contents' && (
+        <ContentsDrawer
+          chapters={open?.chapters ?? []}
+          currentIndex={chapterIndex}
+          onChoose={chooseChapter}
+          onClose={() => setPanel(null)}
+        />
+      )}
+      {panel === 'textSize' && (
+        <TextSizeMenu value={textSize} onChange={chooseTextSize} onClose={() => setPanel(null)} />
+      )}
       <div className={styles.body}>
         <div className={styles.column}>
           <div

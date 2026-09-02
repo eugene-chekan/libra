@@ -89,4 +89,28 @@ describe('ReaderScreen', () => {
 
     expect(reader.destroyed).toBe(true)
   })
+
+  it('jumps to a chapter chosen from the contents', async () => {
+    const reader = new FakeBookReader()
+    renderReader(reader)
+    await screen.findByRole('region', { name: 'The Locked Door' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Contents' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'The End' }))
+
+    expect(reader.calls).toContain('goTo:2')
+  })
+
+  it('applies a chosen text size and remembers it', async () => {
+    localStorage.clear()
+    const reader = new FakeBookReader()
+    renderReader(reader)
+    await screen.findByRole('region', { name: 'The Locked Door' })
+
+    await userEvent.click(screen.getByRole('button', { name: 'Text size' }))
+    await userEvent.click(await screen.findByRole('button', { name: 'Large' }))
+
+    expect(reader.textSize).toBe('large')
+    expect(localStorage.getItem('libra.textSize')).toBe('large')
+  })
 })
