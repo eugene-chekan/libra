@@ -2,15 +2,7 @@ import { Link } from 'react-router-dom'
 
 import { routes } from '../routes'
 import { EmptyState } from '../widgets/EmptyState'
-import { PendingScreen } from './PendingScreen'
 import styles from '../shell/AppShell.module.css'
-
-/** The routed screens that are still stand-ins. */
-
-/** `/books/:id/read`, which milestone 12 (#36) builds. */
-export function ReaderScreen() {
-  return <PendingScreen title="Reader" milestone="the reader milestone (#36)" />
-}
 
 /** Reached when no route matches. */
 export function NotFoundScreen() {

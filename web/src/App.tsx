@@ -8,6 +8,9 @@ import { HttpLibrarianService } from './librarian/HttpLibrarianService'
 import { LibrarianPanel } from './librarian/LibrarianPanel'
 import { LibrarianProvider } from './librarian/LibrarianProvider'
 import { LibrarianServiceProvider } from './librarian/LibrarianServiceContext'
+import { BookReaderProvider } from './reader/BookReaderContext'
+import { EpubBookReader } from './reader/EpubBookReader'
+import { ReaderScreen } from './reader/ReaderScreen'
 import { createQueryClient } from './queryClient'
 import { routes } from './routes'
 import { AdminLayout } from './screens/AdminLayout'
@@ -20,7 +23,7 @@ import { RequireAdmin } from './session/RequireAdmin'
 import { RequireSession } from './session/RequireSession'
 import { SessionProvider } from './session/SessionProvider'
 import { AppShell } from './shell/AppShell'
-import { NotFoundScreen, ReaderScreen } from './screens/screens'
+import { NotFoundScreen } from './screens/screens'
 
 /** The route table. */
 export function AppRoutes() {
@@ -28,11 +31,12 @@ export function AppRoutes() {
     <Routes>
       <Route path={routes.login} element={<LoginScreen />} />
       <Route element={<RequireSession />}>
+        {/* Outside the shell: reading is the one screen the sidebar is in the way of. */}
+        <Route path={routes.reader} element={<ReaderScreen />} />
         <Route element={<AppShell />}>
           <Route path="/" element={<Navigate to={routes.library} replace />} />
           <Route path={routes.library} element={<LibraryScreen />} />
           <Route path={routes.book} element={<BookScreen />} />
-          <Route path={routes.reader} element={<ReaderScreen />} />
           <Route path={routes.shelves} element={<ShelvesScreen />} />
           <Route element={<RequireAdmin />}>
             <Route element={<AdminLayout />}>
@@ -52,6 +56,7 @@ export function App() {
   const [queryClient] = useState(createQueryClient)
   const [api] = useState(() => new HttpLibraApi())
   const [librarianService] = useState(() => new HttpLibrarianService())
+  const [bookReader] = useState(() => new EpubBookReader(api))
 
   return (
     <QueryClientProvider client={queryClient}>
@@ -60,7 +65,9 @@ export function App() {
           <BrowserRouter>
             <SessionProvider>
               <LibrarianProvider>
-                <AppRoutes />
+                <BookReaderProvider reader={bookReader}>
+                  <AppRoutes />
+                </BookReaderProvider>
                 <LibrarianPanel />
               </LibrarianProvider>
             </SessionProvider>

@@ -1,6 +1,6 @@
 # Spec: The Reader Screen
 
-**Status:** Design approved 2026-09-02. Not yet built. Covers milestone 12 of
+**Status:** Design approved 2026-09-02. Built 2026-09-02. Covers milestone 12 of
 [phase-4-plan.md](phase-4-plan.md) (issue #36), and closes
 [client-design.md](client-design.md)'s Gap 7, which framed the questions but
 left the answers open. Milestone 11 was dropped: a spike proved the reader
@@ -47,9 +47,10 @@ exactly what Phase 2 wants to ingest. It is still not in this milestone.
 
 ## Routing: where the reader lives
 
-`routes.reader` already exists and currently points at a placeholder inside
-`AppShell`. It moves out, becoming a sibling of the shell rather than a child
-of it:
+`routes.reader` used to point at a placeholder inside `AppShell`. It moved
+out, becoming a sibling of the shell rather than a child of it, and the
+placeholder — along with the `PendingScreen` widget that served it, the last
+stand-in in the client — is gone:
 
 ```
 <Route element={<RequireSession />}>
@@ -155,7 +156,14 @@ Retrying a corrupt file cannot succeed, and a button that cannot work is worse
 than no button. It offers "Back to the book" instead, where Download still
 works, so the reader can open the file in something else.
 
-This distinction is written down because the opposite mistake has already been
+**A missing file is the same shape as a corrupt one**, and this was found by
+running the reader against a real server rather than by reasoning about it. A
+catalog row can exist with no file behind it — `POST /books` takes a
+`file_path` nobody uploaded — and `GET /books/{id}/file` then answers `404`.
+Treating that as a failed download offered "Try again" on a shelf that will
+always be empty. A `404` is now a permanent failure with its own sentence.
+
+The distinction is written down because the opposite mistake has already been
 made once in this project: the librarian panel shipped with a "Try again"
 button that did nothing for a day.
 

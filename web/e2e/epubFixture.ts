@@ -6,9 +6,11 @@
  * counterpart, kept self-contained rather than shelling out across the
  * language boundary for one file.
  *
- * Only what `app/epub.py`'s `read_metadata` actually requires: a container
- * pointing at an OPF, and an OPF with a `<metadata>` element. No mimetype
- * member, no manifest content, no spine entries — none of those are read.
+ * `buildMinimalEpub` carries only what `app/epub.py`'s `read_metadata` requires: a container
+ * pointing at an OPF, and an OPF with a `<metadata>` element. No mimetype member, no manifest
+ * content, no spine entries — the upload endpoint reads none of them.
+ *
+ * `buildReadableEpub` adds all three, because epub.js in the browser does read them.
  */
 
 const CRC_TABLE = buildCrcTable()
@@ -131,4 +133,89 @@ export function buildMinimalEpub({ title, author }: { title: string; author: str
 /** A zip with no `META-INF/container.xml` — a real archive, but not a usable EPUB. */
 export function buildMalformedEpub(): Buffer {
   return buildZip([{ name: 'readme.txt', data: Buffer.from('not an epub', 'utf8') }])
+}
+
+function chapterXhtml(label: string, index: number): string {
+  const paragraphs = Array.from(
+    { length: 12 },
+    (_, n) => `<p>${label}, paragraph ${n + 1}. Something happens, at some length.</p>`
+  ).join('\n    ')
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head><title>${label}</title></head>
+  <body>
+    <h1 id="chapter-${index}">${label}</h1>
+    ${paragraphs}
+  </body>
+</html>`
+}
+
+function navXhtml(labels: string[]): string {
+  const items = labels
+    .map((label, index) => `<li><a href="chapter${index + 1}.xhtml">${label}</a></li>`)
+    .join('\n        ')
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+  <head><title>Contents</title></head>
+  <body>
+    <nav epub:type="toc" id="toc">
+      <ol>
+        ${items}
+      </ol>
+    </nav>
+  </body>
+</html>`
+}
+
+function readableOpfXml(title: string, author: string, labels: string[]): string {
+  const manifest = labels
+    .map(
+      (_, index) =>
+        `<item id="ch${index + 1}" href="chapter${index + 1}.xhtml" ` +
+        `media-type="application/xhtml+xml"/>`
+    )
+    .join('\n    ')
+  const spine = labels.map((_, index) => `<itemref idref="ch${index + 1}"/>`).join('\n    ')
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
+  <metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+    <dc:title>${title}</dc:title>
+    <dc:creator>${author}</dc:creator>
+    <dc:language>en</dc:language>
+    <dc:identifier id="bookid">urn:uuid:e2e-readable</dc:identifier>
+    <meta property="dcterms:modified">2026-01-01T00:00:00Z</meta>
+  </metadata>
+  <manifest>
+    <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
+    ${manifest}
+  </manifest>
+  <spine>
+    ${spine}
+  </spine>
+</package>`
+}
+
+/**
+ * An EPUB the reader can actually open: a real spine, real chapter documents, and a navigation
+ * document for the contents drawer. `buildMinimalEpub` deliberately has none of those, because
+ * the upload endpoint never reads them — epub.js in the browser does.
+ */
+export function buildReadableEpub({
+  title,
+  author,
+  chapters,
+}: {
+  title: string
+  author: string
+  chapters: string[]
+}): Buffer {
+  return buildZip([
+    { name: 'META-INF/container.xml', data: Buffer.from(CONTAINER_XML, 'utf8') },
+    { name: 'content.opf', data: Buffer.from(readableOpfXml(title, author, chapters), 'utf8') },
+    { name: 'nav.xhtml', data: Buffer.from(navXhtml(chapters), 'utf8') },
+    ...chapters.map((label, index) => ({
+      name: `chapter${index + 1}.xhtml`,
+      data: Buffer.from(chapterXhtml(label, index + 1), 'utf8'),
+    })),
+  ])
 }

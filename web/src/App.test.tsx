@@ -11,6 +11,9 @@ import { FakeLibrarianService } from './librarian/FakeLibrarianService'
 import { LibrarianPanel } from './librarian/LibrarianPanel'
 import { LibrarianProvider } from './librarian/LibrarianProvider'
 import { LibrarianServiceProvider } from './librarian/LibrarianServiceContext'
+import type { BookReader } from './reader/BookReader'
+import { BookReaderProvider } from './reader/BookReaderContext'
+import { FakeBookReader } from './reader/FakeBookReader'
 import { createQueryClient } from './queryClient'
 import { bookPath, readerPath, routes } from './routes'
 import { SessionProvider } from './session/SessionProvider'
@@ -21,7 +24,11 @@ import { SessionProvider } from './session/SessionProvider'
  * own suite in `session/`. `RequireSession.test.tsx` and `LoginScreen.test.tsx`
  * cover the signed-out and cold-load cases this helper skips past.
  */
-function renderAt(path: string, api: FakeLibraApi = signedInApi()) {
+function renderAt(
+  path: string,
+  api: FakeLibraApi = signedInApi(),
+  reader: BookReader = new FakeBookReader()
+) {
   return render(
     <QueryClientProvider client={createQueryClient()}>
       <ApiProvider api={api}>
@@ -29,7 +36,9 @@ function renderAt(path: string, api: FakeLibraApi = signedInApi()) {
           <MemoryRouter initialEntries={[path]}>
             <SessionProvider>
               <LibrarianProvider>
-                <AppRoutes />
+                <BookReaderProvider reader={reader}>
+                  <AppRoutes />
+                </BookReaderProvider>
                 <LibrarianPanel />
               </LibrarianProvider>
             </SessionProvider>
@@ -130,12 +139,18 @@ describe('routing', () => {
     )
   })
 
-  it('routes the reader, so the Start Reading button does not lead to a dead address', async () => {
-    // It is a stand-in until #36 builds it.
-    renderAt(readerPath(4))
+  it('renders the reader outside the shell, so nothing competes with the prose', async () => {
+    const user = fakeUser()
+    const api = new FakeLibraApi({
+      users: [user],
+      signedInAs: user,
+      books: [fakeBook({ id: 4, title: 'Dune' })],
+    })
 
-    await waitFor(() => expect(screen.getByRole('heading', { name: 'Reader' })).toBeInTheDocument())
-    expect(screen.getByText(/arrives with the reader milestone \(#36\)/)).toBeInTheDocument()
+    renderAt(readerPath(4), api, new FakeBookReader({ title: 'Dune' }))
+
+    await waitFor(() => expect(screen.getByRole('region', { name: 'Dune' })).toBeInTheDocument())
+    expect(screen.queryByRole('navigation', { name: 'Main' })).not.toBeInTheDocument()
   })
 
   it('shows the not-found screen for an address that means nothing', async () => {

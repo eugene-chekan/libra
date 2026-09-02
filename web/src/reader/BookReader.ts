@@ -25,8 +25,9 @@ export interface OpenBook {
 }
 
 /**
- * Why the book could not be opened. `download` is worth retrying; `parse` never is, because the
- * bytes will be the same next time.
+ * Why the book could not be opened, and therefore whether the screen offers a retry.
+ * `download` is worth retrying — the network or the session may come back. `parse` never is:
+ * the file is unreadable or gone, and the next attempt reads the same thing.
  */
 export class ReaderError extends Error {
   readonly kind: 'download' | 'parse'
