@@ -1,0 +1,55 @@
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--libra-card);
+}
+
+.body {
+  flex: 1;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+  padding: 32px 24px 64px;
+}
+
+.column {
+  width: 100%;
+  max-width: 65ch;
+}
+
+.page {
+  height: 100%;
+}
+
+.skeletonLine {
+  height: 12px;
+  background: var(--libra-border);
+  border-radius: 4px;
+  margin-bottom: 14px;
+  animation: reader-pulse 1.4s ease-in-out infinite;
+}
+
+.slowNote {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--libra-text-light);
+}
+
+.backLink {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--libra-accent);
+}
+
+@keyframes reader-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}
