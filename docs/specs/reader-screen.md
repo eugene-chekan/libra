@@ -179,8 +179,9 @@ whether the caller supplied them at all — but `rating` and `progress` are not.
 alone sets the rating to zero. A reader that writes progress every few seconds
 would wipe the reader's stars on the first scroll and keep them wiped.
 
-The endpoint's shape is what invites this, and that is tracked separately as
-its own issue. Until it changes, this screen sends `rating` with every write.
+The endpoint's shape is what invites this, and it is tracked as issue #89.
+Until that lands, this screen sends `rating` with every write. When it lands,
+this paragraph and the workaround go with it.
 
 **Resume** reads `progress` back the other way: multiply by `spine_count` to
 get the chapter, and the remainder is how far down it to scroll. The formula
