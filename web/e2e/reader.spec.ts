@@ -236,14 +236,23 @@ test.describe('the reader, in a real browser', () => {
     await expect.poll(() => renderedHeadings(page)).toContain('The Middle')
     await page.waitForTimeout(800)
 
-    // Short scrolls, well within one chapter. Counting chapters gives the same number for all
-    // of them; measuring the text gives a different one as the reading goes on.
+    // Steps measured against the chapter's own height rather than in pixels. A runner with no
+    // Georgia installed lays the same chapter out much taller, and a fixed 200px step there
+    // never reaches the next measured position, so the number legitimately does not move.
+    const step = await page.evaluate(() => {
+      const view = document.querySelector('.epub-view')
+      return view ? Math.round(view.getBoundingClientRect().height / 8) : 0
+    })
+    expect(step).toBeGreaterThan(0)
+
+    // Counting chapters gives the same number for every one of these; measuring the text gives
+    // a different one as the reading goes on.
     const readings = new Set<number>([await percent()])
-    for (let step = 0; step < 6; step++) {
-      await page.evaluate(() => {
+    for (let taken = 0; taken < 6; taken++) {
+      await page.evaluate((by) => {
         const scroller = document.querySelector('.epub-container')
-        if (scroller) scroller.scrollTop += 200
-      })
+        if (scroller) scroller.scrollTop += by
+      }, step)
       await page.waitForTimeout(300)
       readings.add(await percent())
     }
