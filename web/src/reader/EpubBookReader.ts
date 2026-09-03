@@ -19,6 +19,13 @@ const FONT_SIZES: Record<TextSize, string> = {
 }
 
 /**
+ * Warm near-black rather than pure black, the way ink sits on paper. The same value as the
+ * app's `text` token, written out because this is injected into the book's own document, where
+ * the application's custom properties do not reach.
+ */
+const PAPER_INK = '#2a2520'
+
+/**
  * The measure, in `em`, so it holds its width in characters as the text size changes. The
  * container itself stays the full width of the window — that is what puts the scrollbar at the
  * window's edge rather than beside the column — and the text is centred inside each chapter.
@@ -29,10 +36,23 @@ const WIDTHS: Record<ReadingWidth, string> = {
   wide: '52em',
 }
 
-/** How far down the scroller `el` is, 0 to 1, treating an unscrollable element as the top. */
-function scrollFraction(el: HTMLElement): number {
-  const scrollable = el.scrollHeight - el.clientHeight
-  return scrollable <= 0 ? 0 : Math.min(1, Math.max(0, el.scrollTop / scrollable))
+/**
+ * How far the reader has scrolled through the chapter now at the top of `scroller`, 0 to 1.
+ *
+ * Measured against that chapter's own view rather than the scroller as a whole. Continuous flow
+ * keeps only the sections near the reader loaded and resizes the scroller as it adds and prunes
+ * them, so the scroller's own scroll position says nothing about where in a chapter you are —
+ * reading it that way made progress move a whole chapter at a time.
+ */
+function sectionFraction(scroller: HTMLElement): number {
+  const top = scroller.getBoundingClientRect().top
+  for (const view of scroller.querySelectorAll('.epub-view')) {
+    const box = view.getBoundingClientRect()
+    if (box.height > 0 && box.top <= top + 1 && box.bottom > top) {
+      return Math.min(1, Math.max(0, (top - box.top) / box.height))
+    }
+  }
+  return 0
 }
 
 /** The nearest ancestor that actually scrolls, which is where epub.js puts the chapter. */
@@ -107,8 +127,8 @@ export class EpubBookReader implements BookReader {
     const href = this.book?.spine.get(position.index)?.href
     await (href ? rendition.display(href) : rendition.display(position.index))
     if (position.fraction > 0 && this.scroller) {
-      const scrollable = this.scroller.scrollHeight - this.scroller.clientHeight
-      this.scroller.scrollTop = scrollable * position.fraction
+      const view = this.scroller.querySelector('.epub-view')
+      if (view) this.scroller.scrollTop += view.getBoundingClientRect().height * position.fraction
     }
   }
 
@@ -123,7 +143,7 @@ export class EpubBookReader implements BookReader {
       { start?: { index?: number } } | undefined
     return {
       index: location?.start?.index ?? 0,
-      fraction: this.scroller ? scrollFraction(this.scroller) : 0,
+      fraction: this.scroller ? sectionFraction(this.scroller) : 0,
     }
   }
 
@@ -139,17 +159,47 @@ export class EpubBookReader implements BookReader {
     if (!rendition) return
 
     rendition.themes.fontSize(FONT_SIZES[textSize])
-    // `!important` throughout, because epub.js writes the body's width, margin and padding as
-    // an inline style and recomputes them on every resize. Without it the measure applies and
-    // the centring does not, which reads as a wide column jammed against the left edge.
     rendition.themes.default({
+      // `!important` on the box, because epub.js writes the body's width, margin and padding as
+      // an inline style and recomputes them on every resize. Without it the measure applies and
+      // the centring does not, which reads as a wide column jammed against the left edge.
       body: {
         'max-width': `${WIDTHS[width]} !important`,
         'margin-left': 'auto !important',
         'margin-right': 'auto !important',
         'padding-left': '24px !important',
         'padding-right': '24px !important',
+        // Page margins. In continuous flow this also opens a gap where one chapter ends and
+        // the next begins, which is the break a printed book gets from starting a new page.
+        'padding-top': '2em !important',
+        'padding-bottom': '3em !important',
+        // The page colour comes from the container behind, so chapter boundaries leave no seam.
+        background: 'transparent',
+        color: PAPER_INK,
+        'line-height': '1.7',
+        'text-align': 'justify',
+        hyphens: 'auto',
+        '-webkit-hyphens': 'auto',
       },
+      // Printed books indent the run of a paragraph and do not space them apart. A book that
+      // says otherwise in its own stylesheet still wins: these carry no `!important`.
+      p: {
+        'line-height': '1.7',
+        'text-align': 'justify',
+        'text-indent': '1.4em',
+        'margin-top': '0',
+        'margin-bottom': '0',
+      },
+      // The first paragraph after a heading or a break starts flush, as it does in print.
+      'h1 + p, h2 + p, h3 + p, hr + p, blockquote + p': { 'text-indent': '0' },
+      'h1, h2, h3, h4': {
+        'line-height': '1.3',
+        'margin-top': '1.6em',
+        'margin-bottom': '0.8em',
+        'text-align': 'left',
+        hyphens: 'none',
+      },
+      img: { 'max-width': '100%', height: 'auto' },
     })
   }
 

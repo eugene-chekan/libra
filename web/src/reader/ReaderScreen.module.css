@@ -1,8 +1,12 @@
+/*
+  Paper, not a white screen: the reading surface takes the warm page colour, and the chapters
+  themselves are transparent so a chapter boundary leaves no seam down the page.
+*/
 .screen {
   display: flex;
   flex-direction: column;
   height: 100vh;
-  background: var(--libra-card);
+  background: var(--libra-bg);
 }
 
 /*
@@ -27,7 +31,7 @@
   justify-content: center;
   overflow: auto;
   padding: 32px 24px 64px;
-  background: var(--libra-card);
+  background: var(--libra-bg);
 }
 
 .overlayColumn {

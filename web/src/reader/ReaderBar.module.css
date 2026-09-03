@@ -6,7 +6,7 @@
   align-items: center;
   gap: 16px;
   padding: 0 20px;
-  background: var(--libra-card);
+  background: var(--libra-bg);
   border-bottom: 2px solid var(--libra-border);
 }
 

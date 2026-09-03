@@ -206,6 +206,64 @@ test.describe('the reader, in a real browser', () => {
     await expect.poll(async () => page.getByText('%').first().textContent()).not.toBe('0%')
   })
 
+  test('progress moves a point at a time, not a chapter at a time', async ({ page, request }) => {
+    // The defect this exists to stop: the fraction was measured against epub.js's whole
+    // continuous container, which holds only the sections currently loaded and is resized as
+    // they come and go. It said nothing about position within a chapter, so the percentage
+    // only ever moved when the chapter did — 0%, then 13%, on a book with eight sections.
+    const title = `E2E Reader Steps ${Date.now()}`
+    const id = await uploadBook(request, title)
+
+    await openReader(page, id, title)
+
+    const percent = async () =>
+      Number(await page.getByRole('progressbar').getAttribute('aria-valuenow'))
+
+    // Well inside a chapter, so neither reading is at a chapter boundary.
+    await page.getByRole('button', { name: 'Contents' }).click()
+    await page.getByRole('button', { name: 'The Middle' }).click()
+    await page.waitForTimeout(500)
+
+    const before = await percent()
+    await page.evaluate(() => {
+      const scroller = document.querySelector('.epub-container')
+      if (scroller) scroller.scrollTop += 120
+    })
+    await expect.poll(percent).not.toBe(before)
+
+    // A chapter's share of this book, which is what the old behaviour moved in one go. A
+    // scroll of a few lines has to be a fraction of that, not all of it.
+    const chapterShare = 100 / (CHAPTERS.length + 1)
+    const after = await percent()
+    expect(after).toBeGreaterThan(before)
+    expect(after - before).toBeLessThan(chapterShare / 2)
+  })
+
+  test('the chapter is set like a printed page', async ({ page, request }) => {
+    const title = `E2E Reader Paper ${Date.now()}`
+    const id = await uploadBook(request, title)
+
+    await openReader(page, id, title)
+
+    const typography = await page.frames()[1]!.evaluate(() => {
+      const body = getComputedStyle(document.body)
+      const paragraphs = document.querySelectorAll('p')
+      const run = paragraphs[paragraphs.length - 1]
+      return {
+        align: body.textAlign,
+        hyphens: body.hyphens || body.webkitHyphens,
+        runIndent: run ? parseFloat(getComputedStyle(run).textIndent) : 0,
+        runGap: run ? parseFloat(getComputedStyle(run).marginBottom) : -1,
+      }
+    })
+
+    expect(typography.align).toBe('justify')
+    expect(typography.hyphens).toBe('auto')
+    // Indented run-on paragraphs with no gap between them, the way print sets prose.
+    expect(typography.runIndent).toBeGreaterThan(0)
+    expect(typography.runGap).toBe(0)
+  })
+
   test('reading a chapter reaches the server as progress', async ({ page, request }) => {
     const title = `E2E Reader Progress ${Date.now()}`
     const id = await uploadBook(request, title)

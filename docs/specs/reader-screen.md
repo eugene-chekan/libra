@@ -77,8 +77,9 @@ content fills its pane. How wide it is, and how that is achieved, is under
 "Text size and page width" — it is not a column around the text, for a reason
 that matters.
 
-**The top bar.** Always visible, about 48px tall, `card` background. Back on
-the left with a chevron. The book's title in the middle, in the serif face at
+**The top bar.** Always visible, about 48px tall, and the same `bg` as the
+page so the chrome sits on the paper rather than on a white strip above it.
+Back on the left with a chevron. The book's title in the middle, in the serif face at
 14px — smaller than a page title, because it is a label here and not a
 heading. Then how far through the book the reader is, as a plain percentage:
 the rule below the bar shows it at a glance, and the number answers "how much
@@ -146,6 +147,33 @@ The choice is a reader preference rather than a fact about the book, so it is
 stored in the browser's own `localStorage` — a small store the browser keeps
 per site — and applies to every book. It is not sent to the server; there is
 no field for it and inventing one is not worth a migration.
+
+## Set like a printed page
+
+The reader should look like a book, not like a web page showing a book. Six
+rules, injected into each chapter's own document through epub.js's themes:
+
+- **Paper, not screen.** The reading surface takes the warm `bg` rather than
+  white, and the chapters themselves are transparent so the colour comes from
+  behind them — a chapter boundary leaves no seam down the page.
+- **Warm ink**, `#2a2520`, the same value as the `text` token. It is written
+  out rather than referenced, because this stylesheet lands inside the book's
+  document, where the application's custom properties do not reach.
+- **Justified, with hyphenation on.** This is how prose is set in print, and
+  it is what the ragged right edge was missing.
+- **Paragraphs indent and do not space.** A printed book indents the run of a
+  paragraph instead of leaving a gap; the first after a heading or a break
+  starts flush, as it does on the page.
+- **Line height 1.7**, and headings left-aligned with hyphenation off, since a
+  broken word in a chapter title reads as a mistake.
+- **Page margins** top and bottom. In continuous flow these also open the gap
+  where one chapter ends and the next begins, which is the break a printed
+  book gets for free by starting a new page.
+
+Only the box rules carry `!important`, and only because epub.js writes those
+inline. **The typography deliberately does not**, so a book with real opinions
+in its own stylesheet still wins. This is a default for books that say
+nothing, not a house style imposed over the publisher's.
 
 ## The librarian while reading
 
@@ -298,6 +326,8 @@ Ids are reused after a delete, and the browser will serve a heuristically
 fresh copy without revalidating. The fetch asks for `no-cache`, which
 revalidates against the ETag — cheap when the book is unchanged, and never
 wrong.
+
+**Progress moved a chapter at a time.** The fraction inside the progress formula was measured against epub.js's whole continuous container. That container holds only the sections currently loaded and is resized as they come and go, so it says nothing about where in a chapter the reader is — the percentage only moved when the chapter did, jumping 0 to 13 on a book with eight sections. It is measured against the current chapter's own view now.
 
 **Reporting every scroll event made scrolling stutter.** The adapter called
 epub.js's `currentLocation()` on each `scroll` event — which fires many times
