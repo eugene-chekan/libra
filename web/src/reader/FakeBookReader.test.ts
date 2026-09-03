@@ -31,7 +31,7 @@ describe('FakeBookReader', () => {
     const reader = new FakeBookReader()
     await reader.open(1, host())
 
-    expect(reader.position()).toEqual({ index: 0, progress: 0 })
+    expect(reader.position()).toEqual({ index: 0, progress: 0, mark: null })
   })
 
   it('resumes to a little short of the fraction asked for, as the real one does', async () => {
@@ -39,7 +39,7 @@ describe('FakeBookReader', () => {
     const reader = new FakeBookReader()
     await reader.open(1, host())
 
-    await reader.goTo(0.42)
+    await reader.goTo({ mark: null, progress: 0.42 })
 
     expect(reader.position().progress).toBeLessThan(0.42)
     expect(reader.position().progress).toBeGreaterThan(0.41)
@@ -62,12 +62,12 @@ describe('FakeBookReader', () => {
     const seen = vi.fn()
     const stop = reader.onMove(seen)
 
-    reader.simulateScroll({ index: 1, progress: 0.25 })
+    reader.simulateScroll({ index: 1, progress: 0.25, mark: 'mark:1-0.25' })
     stop()
-    reader.simulateScroll({ index: 2, progress: 0.75 })
+    reader.simulateScroll({ index: 2, progress: 0.75, mark: 'mark:2-0.75' })
 
     expect(seen).toHaveBeenCalledTimes(1)
-    expect(seen).toHaveBeenCalledWith({ index: 1, progress: 0.25 })
+    expect(seen).toHaveBeenCalledWith({ index: 1, progress: 0.25, mark: 'mark:1-0.25' })
   })
 
   it('throws a download error when told to, which is the retryable kind', async () => {
@@ -94,7 +94,7 @@ describe('FakeBookReader', () => {
     const reader = new FakeBookReader()
     await reader.open(1, host())
 
-    await expect(reader.goTo(1.5)).rejects.toThrow()
-    await expect(reader.goTo(-0.1)).rejects.toThrow()
+    await expect(reader.goTo({ mark: null, progress: 1.5 })).rejects.toThrow()
+    await expect(reader.goTo({ mark: null, progress: -0.1 })).rejects.toThrow()
   })
 })

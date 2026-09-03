@@ -159,8 +159,8 @@ describe('ReaderScreen', () => {
     renderReader(reader, api)
     await opened()
 
-    act(() => reader.simulateScroll({ index: 1, progress: 0.2 }))
-    act(() => reader.simulateScroll({ index: 1, progress: 0.22 }))
+    act(() => reader.simulateScroll({ index: 1, progress: 0.2, mark: 'mark:1-0.2' }))
+    act(() => reader.simulateScroll({ index: 1, progress: 0.22, mark: 'mark:1-0.22' }))
     expect(api.calls.filter((c) => c === 'setBookState:1')).toHaveLength(0)
 
     await waitFor(() => expect(api.calls.filter((c) => c === 'setBookState:1')).toHaveLength(1), {
@@ -175,7 +175,7 @@ describe('ReaderScreen', () => {
     renderReader(reader, api)
     await opened()
 
-    act(() => reader.simulateScroll({ index: 5, progress: 1 }))
+    act(() => reader.simulateScroll({ index: 5, progress: 1, mark: 'mark:5-1' }))
 
     await waitFor(() => expect(onlyBook(api).progress).toBe(1), { timeout: 3000 })
     expect(onlyBook(api).rating).toBe(4)
@@ -191,14 +191,14 @@ describe('ReaderScreen', () => {
     renderReader(reader, api)
     await opened()
 
-    act(() => reader.simulateScroll({ index: 0, progress: 0 }))
+    act(() => reader.simulateScroll({ index: 0, progress: 0, mark: 'mark:0-0' }))
     await new Promise((resolve) => setTimeout(resolve, WRITE_WAIT_MS))
 
     expect(onlyBook(api).progress).toBe(0.09)
     expect(api.calls).not.toContain('setBookState:1')
 
     await act(async () => reader.finishResume())
-    act(() => reader.simulateScroll({ index: 0, progress: 0.11 }))
+    act(() => reader.simulateScroll({ index: 0, progress: 0.11, mark: 'mark:0-0.11' }))
     await waitFor(() => expect(onlyBook(api).progress).toBe(0.11), { timeout: 3000 })
   })
 
@@ -209,7 +209,7 @@ describe('ReaderScreen', () => {
     const { unmount } = renderReader(reader, api)
     await opened()
 
-    act(() => reader.simulateScroll({ index: 0, progress: 0 }))
+    act(() => reader.simulateScroll({ index: 0, progress: 0, mark: 'mark:0-0' }))
     unmount()
     // Leaving flushes whatever is pending, and that write is asynchronous — asserting straight
     // after the unmount would pass before it had a chance to land.
@@ -237,15 +237,34 @@ describe('ReaderScreen', () => {
     expect(api.calls).not.toContain('setBookState:1')
   })
 
-  it('shows the place the book was left at, not the one resuming could reach', async () => {
-    // The book page says 40%. Resuming lands on the measured position before that, so
-    // reporting the landing made the reader say 39% about the same page.
-    const reader = new FakeBookReader({ slowResume: true })
+  it('saves where the reader is, not only how far in that is', async () => {
+    // A percentage cannot be turned back into a place, so the place is saved beside it. This
+    // is the whole reason a book can be resumed exactly rather than approximately.
+    const reader = new FakeBookReader()
     const api = signedInApi()
-    onlyBook(api).progress = 0.4
     renderReader(reader, api)
     await opened()
 
+    act(() => reader.simulateScroll({ index: 2, progress: 0.35, mark: 'epubcfi(/6/8!/4/2/12)' }))
+
+    await waitFor(() => expect(onlyBook(api).position).toBe('epubcfi(/6/8!/4/2/12)'), {
+      timeout: 3000,
+    })
+    expect(onlyBook(api).progress).toBe(0.35)
+  })
+
+  it('resumes from the stored mark, and the bar agrees with the book page', async () => {
+    // A mark is an address in the page itself, so going back to one is exact and the number
+    // beside it is the one the book page shows. Resuming by percentage cannot do that: it
+    // reaches only a position the book was measured at, which is always a little before.
+    const reader = new FakeBookReader({ slowResume: true })
+    const api = signedInApi()
+    onlyBook(api).progress = 0.4
+    onlyBook(api).position = 'epubcfi(/6/4!/4/2/330/3:0)'
+    renderReader(reader, api)
+    await opened()
+
+    await waitFor(() => expect(reader.calls).toContain('goTo:epubcfi(/6/4!/4/2/330/3:0)'))
     await act(async () => reader.finishResume())
 
     await waitFor(() =>
@@ -282,7 +301,7 @@ describe('ReaderScreen', () => {
     await opened()
     await act(async () => reader.finishResume())
 
-    act(() => reader.simulateScroll({ index: 3, progress: 0.55 }))
+    act(() => reader.simulateScroll({ index: 3, progress: 0.55, mark: 'mark:3-0.55' }))
 
     await waitFor(() => expect(onlyBook(api).progress).toBe(0.55), { timeout: 3000 })
   })
@@ -301,7 +320,7 @@ describe('ReaderScreen', () => {
     renderReader(reader)
     await opened()
 
-    act(() => reader.simulateScroll({ index: 2, progress: 0.5 }))
+    act(() => reader.simulateScroll({ index: 2, progress: 0.5, mark: 'mark:2-0.5' }))
 
     expect(screen.getByRole('progressbar', { name: 'Reading progress' })).toHaveAttribute(
       'aria-valuenow',

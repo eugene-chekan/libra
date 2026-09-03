@@ -284,6 +284,27 @@ scroll, and the exact spot inside it is set outright from
 `view.locationOf(cfi)`. That lands within one measured position, and asking
 twice does not move it a second time.
 
+**The reader's place is stored as an address, not as a percentage.**
+`PUT /books/{id}/state` carries a `position` beside `progress`: for EPUB, the
+epub.js CFI of the page the engine actually rendered. `progress` says how far
+through the book that is, for the bar and the book page; `position` says
+where, and it is what the reader is put back to. The server never reads it.
+
+This is the whole reason a book can be resumed exactly. A percentage cannot be
+turned back into a place: doing so has to go through a measurement of the
+book, and that measurement is taken from a different parse of the file than
+the one on screen — see below. Calibre-Web stores a CFI for the same reason.
+
+Measured on two real books, resuming to a point 8% in:
+
+| | stored as a percentage | stored as an address |
+|---|---|---|
+| a book whose parses agree | lands within 0.4 points | exact |
+| a book whose parses do not | lands at the top, or throws | exact |
+
+Books already in the library have no address yet. They resume by percentage
+once, land near, and gain an address the moment they are read.
+
 **Some books cannot be resumed by address at all.** epub.js measures a book
 by parsing each section as XHTML. The browser renders the same section as
 HTML. Those are different parsers, and where a book's markup is invalid HTML
@@ -300,11 +321,15 @@ the stored place was then overwritten with that 0. A second book in the same
 library has none of this markup and resumed exactly. Nothing about the reader
 was different — only the books.
 
-So the placement has a second way to get there. When the address cannot be
-found, the share of that section's own measured positions lying before the
-target is used against the section's height. It is text against pixels rather
-than text against text, so it is an estimate — but on the book that could not
-resume at all it landed within one percentage point every time.
+So an address is only believed when it came from the rendered page. One
+worked out from the measurement is not: it does not merely fail, it can
+resolve, silently, to the wrong node — on this book it put the reader back at
+the very top of a chapter they were a long way into. The percentage path
+therefore places by the share of that section's own measured positions lying
+before the target, against the section's height. Text against pixels rather
+than text against text, so an estimate, but one that cannot land far wrong: on
+the book that could not resume at all it came within a percentage point every
+time.
 
 **Opening a book does not move the place it was left at.** Resuming can only
 land on a position the book was measured at, and it takes the one at or
@@ -314,13 +339,18 @@ single open: a book left at 40% read 39.5%, then 38.8%, then 38.1%, with
 nobody reading a word. It looked like the resume was simply unreliable, and it
 got worse the more often a book was opened.
 
-So until the reader moves a full displayed percentage point away from it, the
-position they were put back at is both the number shown and the number kept.
-Away from either the number asked for or the one it actually reached: a
-landing that misses by several points, as the estimate above can, is still not
-the reader moving, and must not be written either. The cost is that reading
-less than one percent and leaving is not saved. The alternative was losing the
-place a little at a time, for good.
+So until the reader moves a full displayed percentage point away from it,
+nothing is written. Away from either the number asked for or the one the
+resume actually reached: a landing that misses by several points is still not
+the reader moving. The cost is that reading less than one percent and leaving
+is not saved. The alternative was losing the place a little at a time, for
+good.
+
+The bar shows the number the book page shows **only while the resume both
+landed and landed where it was aimed**. When it misses, the bar says where the
+reader actually is. Showing the stored number unconditionally painted 3% over
+a reader sitting on the cover of a book they could not resume — which hid the
+failure rather than fixing it, and is how this was nearly missed.
 
 **A measurement with nothing in it is not kept.** epub.js answers `[]` when it
 could not walk the book — a spine it treats as empty, a section it could not
@@ -343,7 +373,7 @@ No new endpoints. The screen uses three that already exist:
 |---|---|
 | `GET /books/{id}` | Title for the bar, and the current rating and progress |
 | `GET /books/{id}/file` | The EPUB itself, fetched once and parsed in the browser |
-| `PUT /books/{id}/state` | Progress on scroll pause, carrying the rating |
+| `PUT /books/{id}/state` | Progress and position on scroll pause |
 
 ## Testing
 

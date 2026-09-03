@@ -242,6 +242,7 @@ def set_reading_state(
             user,
             rating=state.rating if "rating" in fields else None,
             progress=state.progress if "progress" in fields else None,
+            position=state.position if "position" in fields else None,
             shelf_id=state.shelf_id,
             set_shelf="shelf_id" in fields,
         )

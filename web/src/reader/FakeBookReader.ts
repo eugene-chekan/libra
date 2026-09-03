@@ -5,6 +5,7 @@ import {
   type OpenBook,
   type Appearance,
   type ReaderPosition,
+  type ReaderTarget,
 } from './BookReader'
 
 /**
@@ -60,7 +61,7 @@ export class FakeBookReader implements BookReader {
   private readonly options: FakeOptions
   private readonly chapters: Chapter[]
   private readonly spineLength: number
-  private current: ReaderPosition = { index: 0, progress: 0 }
+  private current: ReaderPosition = { index: 0, progress: 0, mark: null }
   private listeners: ((position: ReaderPosition) => void)[] = []
   private releaseResume: (() => void) | null = null
 
@@ -88,15 +89,22 @@ export class FakeBookReader implements BookReader {
    * Resuming lands a little short of where it is told, and says so, exactly as the real one
    * does: it can only land on a position it measured, and it takes the one before.
    */
-  goTo(progress: number): Promise<void> {
+  goTo({ mark, progress }: ReaderTarget): Promise<void> {
     if (progress < 0 || progress > 1) {
       return Promise.reject(new RangeError(`Progress out of range: ${progress}`))
     }
-    this.calls.push(`goTo:${progress.toFixed(2)}`)
+    this.calls.push(mark ? `goTo:${mark}` : `goTo:${progress.toFixed(2)}`)
 
     const land = () => {
-      const short = this.options.landShortBy ?? MEASURED_STEP
-      this.current = { ...this.current, progress: Math.max(0, progress - short) }
+      // A mark is an address in the page itself, so going back to one is exact. A percentage
+      // has to be turned back into a place, and only reaches a position the book was measured
+      // at — which is always a little before the one asked for.
+      const short = mark ? 0 : (this.options.landShortBy ?? MEASURED_STEP)
+      this.current = {
+        ...this.current,
+        mark: mark ?? this.current.mark,
+        progress: Math.max(0, progress - short),
+      }
       // Reported a beat later, as the real one does: it reports a move on the next animation
       // frame, so the landing always arrives after the caller has been told resuming is done.
       setTimeout(() => {
@@ -126,7 +134,7 @@ export class FakeBookReader implements BookReader {
       return Promise.reject(new RangeError(`No chapter ${index}`))
     }
     this.calls.push(`goToChapter:${index}`)
-    this.current = { index, progress: index / this.spineLength }
+    this.current = { index, progress: index / this.spineLength, mark: `mark:chapter-${index}` }
     return Promise.resolve()
   }
 

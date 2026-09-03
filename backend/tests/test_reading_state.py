@@ -33,6 +33,7 @@ def test_a_new_book_reads_back_with_default_state(client: TestClient) -> None:
 
     assert body["rating"] == 0
     assert body["progress"] == 0.0
+    assert body["position"] is None
     assert body["started_at"] is None
     assert body["finished_at"] is None
 
@@ -46,6 +47,32 @@ def test_setting_state_reads_back(client: TestClient) -> None:
     assert response.json()["rating"] == 4
     assert response.json()["progress"] == 0.5
     assert client.get(f"/books/{book_id}").json()["rating"] == 4
+
+
+def test_position_is_stored_and_read_back(client: TestClient) -> None:
+    """Where the reader stopped, in the reading client's own terms. A
+    percentage cannot be turned back into a place, so the place is kept too."""
+    book_id = _make_book(client)
+    mark = "epubcfi(/6/4!/4/2/330/3:0)"
+
+    response = client.put(f"/books/{book_id}/state", json={"progress": 0.08, "position": mark})
+
+    assert response.status_code == 200
+    assert response.json()["position"] == mark
+    assert client.get(f"/books/{book_id}").json()["position"] == mark
+
+
+def test_rating_alone_leaves_the_position(client: TestClient) -> None:
+    """Rating a book must not lose the reader's place, the same way it must
+    not lose their progress."""
+    book_id = _make_book(client)
+    mark = "epubcfi(/6/4!/4/2/330/3:0)"
+    client.put(f"/books/{book_id}/state", json={"progress": 0.08, "position": mark})
+
+    response = client.put(f"/books/{book_id}/state", json={"rating": 5})
+
+    assert response.status_code == 200
+    assert response.json()["position"] == mark
 
 
 def test_progress_alone_leaves_the_rating(client: TestClient) -> None:

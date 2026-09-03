@@ -22,6 +22,26 @@ export interface ReaderPosition {
   progress: number
   /** Which spine item is on screen, for marking the contents. */
   index: number
+  /**
+   * Exactly where the reader is, as an address the reading engine produced from the page it
+   * actually rendered. This is what a resume is built on, and `progress` is only the number
+   * shown beside it — see `ReaderTarget`.
+   */
+  mark: string | null
+}
+
+/**
+ * Where to put the reader back when a book is opened.
+ *
+ * `mark` is the address the engine gave for the page it rendered last time, and going back to
+ * it is exact. `progress` is the fallback, for a book last read before marks were kept: turning
+ * a percentage back into a place has to go through a measurement of the book taken from a
+ * different parse of it than the one on screen, and on real books that lands anywhere from a
+ * point out to nowhere at all.
+ */
+export interface ReaderTarget {
+  mark: string | null
+  progress: number
 }
 
 export type TextSize = 'small' | 'medium' | 'large'
@@ -60,10 +80,10 @@ export interface BookReader {
   /** Fetch, parse and mount the book into `host`. */
   open(bookId: number, host: HTMLElement): Promise<OpenBook>
   /**
-   * Go to a fraction of the way through the book — resuming. Exact rather than approximate,
-   * so this waits for whatever measuring the book needs before it can land in the right place.
+   * Put the reader back where they were — resuming. Exact when the target carries a mark;
+   * otherwise it waits for the book to be measured and lands as near as that allows.
    */
-  goTo(progress: number): Promise<void>
+  goTo(target: ReaderTarget): Promise<void>
   /** Go to the start of a spine item — choosing from the contents. */
   goToChapter(index: number): Promise<void>
   /** Where the reader is now. */

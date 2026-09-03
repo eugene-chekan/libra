@@ -36,7 +36,7 @@ export function ReaderScreen() {
   const [appearance, setAppearance] = useState<Appearance>(loadAppearance)
   const [chapterIndex, setChapterIndex] = useState(0)
   const [progress, setProgress] = useState(0)
-  const pending = useRef<number | null>(null)
+  const pending = useRef<{ progress: number; position: string | null } | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resumed = useRef(false)
   const restored = useRef(false)
@@ -46,6 +46,7 @@ export function ReaderScreen() {
 
   const { mutate: writeProgress } = useWriteProgress(bookId)
   const savedProgress = book.data?.progress ?? 0
+  const savedMark = book.data?.position ?? null
 
   useEffect(() => {
     const mount = host.current
@@ -84,15 +85,15 @@ export function ReaderScreen() {
     if (!open || resumed.current) return
     resumed.current = true
     resumedTo.current = savedProgress
-    if (savedProgress <= 0) {
+    if (savedProgress <= 0 && savedMark === null) {
       restored.current = true
       return
     }
-    void reader.goTo(savedProgress).finally(() => {
+    void reader.goTo({ mark: savedMark, progress: savedProgress }).finally(() => {
       landedAt.current = reader.position().progress
       restored.current = true
     })
-  }, [open, savedProgress, reader])
+  }, [open, savedProgress, savedMark, reader])
 
   useEffect(() => {
     if (open) reader.setAppearance(appearance)
@@ -112,34 +113,34 @@ export function ReaderScreen() {
       setChapterIndex(position.index)
 
       // Nothing is written until the book has been put back where the reader left it. Resuming
-      // waits for the book to be measured, and in that gap the reader is sitting at the top —
-      // reporting that position wrote a 0 over the stored position it was about to restore.
+      // is not instant, and in that gap the reader is sitting at the top — reporting that
+      // position wrote a 0 over the stored position it was about to restore.
       if (!restored.current) {
         setProgress(position.progress)
         return
       }
 
-      // Resuming lands near where it was sent, not exactly on it: it can only reach a position
-      // the book was measured at, and on a book whose addresses do not survive rendering it
-      // reaches one by proportion instead. Until the reader moves off it, that is still the
-      // place they left, and it is shown and kept as the number they left it at.
-      //
-      // Reporting the landing instead did two visible things: the bar said 39% about a book
-      // whose page said 40%, and saving it walked the place one step down the book on every
-      // single open — 40%, then 39.5%, then 38.8% — without anybody reading a word.
-      //
-      // Near where it was sent, or near where it came to rest: a landing that misses by more
-      // than a point is still not the reader moving, and must not be written either.
+      // Nor is the landing itself the reader moving. Going back to a mark is exact, but a book
+      // last read before marks were kept can only be resumed by percentage, and that lands a
+      // little short — saving it walked the place one step down the book on every open, 40%
+      // then 39.5% then 38.8%, without anybody reading a word. Near where it was sent, or near
+      // where it came to rest: either one means the reader has not moved yet.
       const landed = landedAt.current
-      const whereItWasPut =
+      const stillWhereItWasPut =
         !moved.current &&
         (Math.abs(position.progress - resumedTo.current) < MOVED_BY ||
           (landed !== null && Math.abs(position.progress - landed) < MOVED_BY))
-      setProgress(whereItWasPut ? resumedTo.current : position.progress)
-      if (whereItWasPut) return
+
+      // The bar reads the number the book page shows only while the reader really is back
+      // where they left off — the resume both landed and landed where it was aimed. When it
+      // misses, the bar says where the reader actually is. Saying otherwise painted the stored
+      // number over a reader sitting on the cover, which hid the failure instead of showing it.
+      const cameBackToThePlace = landed !== null && Math.abs(landed - resumedTo.current) < MOVED_BY
+      setProgress(stillWhereItWasPut && cameBackToThePlace ? resumedTo.current : position.progress)
+      if (stillWhereItWasPut) return
       moved.current = true
 
-      pending.current = position.progress
+      pending.current = { progress: position.progress, position: position.mark }
       if (timer.current !== null) clearTimeout(timer.current)
       timer.current = setTimeout(flush, WRITE_AFTER_MS)
     })

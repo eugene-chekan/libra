@@ -10,6 +10,7 @@ import {
   type Chapter,
   type OpenBook,
   type ReaderPosition,
+  type ReaderTarget,
   type ReadingWidth,
   type TextSize,
 } from './BookReader'
@@ -134,13 +135,20 @@ export class EpubBookReader implements BookReader {
     }
   }
 
-  async goTo(progress: number): Promise<void> {
+  async goTo({ mark, progress }: ReaderTarget): Promise<void> {
     const rendition = this.rendition
     const book = this.book
     if (!rendition || !book) throw new Error('The book is not open')
 
-    // Resuming is the one place exactness is the whole point, so it waits to be measured
-    // rather than landing near the right chapter and calling it close enough.
+    // A mark came out of the page epub.js itself rendered, so it addresses that same page and
+    // needs no measurement to interpret. Resuming from one is both exact and immediate.
+    if (mark) {
+      await this.moveTo(mark, true)
+      return
+    }
+
+    // Without one, the percentage is all there is, and turning it back into an address needs
+    // the book measured first.
     await this.measured
     const cfi = book.locations.cfiFromPercentage(Math.min(1, Math.max(0, progress)))
 
@@ -148,6 +156,22 @@ export class EpubBookReader implements BookReader {
     // truthy, so passing it straight on asks epub.js for section -1, which it refuses. There is
     // nowhere exact to go: the book stays where it is, and reads from the top.
     if (typeof cfi !== 'string') return
+    await this.moveTo(cfi, false)
+  }
+
+  /**
+   * Puts the reader at `cfi`, wherever in the book that is.
+   *
+   * `addressIsSound` says whether the address can be believed. One the engine gave for the page
+   * it rendered can be. One worked out from a measurement of the book cannot: the measurement
+   * comes from a different parse of the same file, and where the two disagree the address does
+   * not merely fail — it can resolve, silently, to the wrong node. On one real book that put
+   * the reader back at the very top of a chapter they were a long way into.
+   */
+  private async moveTo(cfi: string, addressIsSound: boolean): Promise<void> {
+    const rendition = this.rendition
+    const book = this.book
+    if (!rendition || !book) return
 
     const section = book.spine.get(cfi)
     if (!section) {
@@ -157,7 +181,7 @@ export class EpubBookReader implements BookReader {
 
     // The section by its own address, which does not scroll, then the exact spot inside it.
     await rendition.display(section.href)
-    this.placeAt(section, cfi)
+    this.placeAt(section, cfi, addressIsSound)
   }
 
   /**
@@ -169,37 +193,39 @@ export class EpubBookReader implements BookReader {
    * therefore lands somewhere different depending on what came before it. Setting the position
    * outright is the same arithmetic without that dependence.
    */
-  private placeAt(section: Section, cfi: string): void {
+  private placeAt(section: Section, cfi: string, addressIsSound: boolean): void {
     const manager = (this.rendition as unknown as { manager?: ViewManager }).manager
     const view = manager?.views.find(section)
     const scroller = manager?.container
     if (!view || !scroller) return
 
     const above = view.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
-    scroller.scrollTop += above + this.offsetWithin(view, section, cfi)
+    scroller.scrollTop += above + this.offsetWithin(view, section, cfi, addressIsSound)
   }
 
   /**
    * How far down its section the target sits, in pixels.
    *
-   * Exactly, when the address can be found in the rendered text. It often cannot, and that is
-   * not this reader's doing: epub.js measures a book by parsing each section as XHTML, and the
-   * browser renders the same section as HTML. Where a book's markup is invalid HTML the two
-   * parsers disagree — one real book here wraps a picture in a paragraph, which HTML does not
-   * allow, so the browser lifts it out and every address past that picture points at the wrong
-   * node. Three of four positions in that book could not be found at all.
-   *
-   * So when the address fails, the share of the section's own measured positions that lie
-   * before the target is used instead, against the section's height. It is text against pixels
-   * rather than text against text, so it is an estimate — and on that book it landed within one
-   * percentage point every time, where the exact answer landed nowhere.
+   * Exactly, from a sound address. Otherwise by the share of that section's own measured
+   * positions that lie before the target, against the section's height — text against pixels
+   * rather than text against text, so an estimate, but one that cannot land far wrong. On the
+   * book whose addresses do not survive rendering it came within a percentage point every time,
+   * while the address put the reader at the top of the chapter or threw outright.
    */
-  private offsetWithin(view: SectionView, section: Section, cfi: string): number {
-    try {
-      return view.locationOf(cfi).top
-    } catch {
-      return this.shareOf(section, cfi) * view.element.getBoundingClientRect().height
+  private offsetWithin(
+    view: SectionView,
+    section: Section,
+    cfi: string,
+    addressIsSound: boolean
+  ): number {
+    if (addressIsSound) {
+      try {
+        return view.locationOf(cfi).top
+      } catch {
+        // Even a sound address can fail, if the book moved under it. Estimate instead.
+      }
     }
+    return this.shareOf(section, cfi) * view.element.getBoundingClientRect().height
   }
 
   /** How far through `section`'s own measured positions `cfi` sits, from 0 to 1. */
@@ -247,7 +273,7 @@ export class EpubBookReader implements BookReader {
 
   position(): ReaderPosition {
     const rendition = this.rendition
-    if (!rendition) return { progress: 0, index: 0 }
+    if (!rendition) return { progress: 0, index: 0, mark: null }
 
     // The typings overload `currentLocation` as both sync and a promise, and describe the
     // resolved value as a DisplayedLocation. What comes back is a Location, whose `start` is
@@ -255,8 +281,9 @@ export class EpubBookReader implements BookReader {
     const location = rendition.currentLocation() as unknown as
       { start?: { index?: number; cfi?: string } } | undefined
     const index = location?.start?.index ?? 0
+    const cfi = location?.start?.cfi
 
-    return { index, progress: this.progressAt(location?.start?.cfi, index) }
+    return { index, mark: cfi ?? null, progress: this.progressAt(cfi, index) }
   }
 
   /**
@@ -440,6 +467,7 @@ export class EpubBookReader implements BookReader {
       const unchanged =
         this.last !== null &&
         this.last.index === position.index &&
+        this.last.mark === position.mark &&
         Math.abs(this.last.progress - position.progress) < 0.0005
       if (unchanged) return
       this.last = position

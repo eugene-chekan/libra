@@ -102,6 +102,7 @@ def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = 
         view.shelf_id = state.shelf_id
         view.rating = state.rating
         view.progress = state.progress
+        view.position = state.position
         view.started_at = state.started_at
         view.finished_at = state.finished_at
         view.last_sent_at = state.last_sent_at
@@ -272,6 +273,7 @@ def set_reading_state(
     user: User,
     rating: int | None = None,
     progress: float | None = None,
+    position: str | None = None,
     shelf_id: int | None = None,
     set_shelf: bool = False,
 ) -> BookRead:
@@ -283,6 +285,8 @@ def set_reading_state(
         user: Whose state row this is.
         rating: 0 to 5, where 0 means unrated. None leaves it as it was.
         progress: 0 to 1. None leaves it as it was.
+        position: Where in the book the reader stopped, in the client's own
+            terms. None leaves it as it was.
         shelf_id: Shelf to place the book on, or None to take it off.
         set_shelf: Whether `shelf_id` was supplied at all. The shelf needs a
             flag where rating and progress do not, because None is a real
@@ -314,6 +318,9 @@ def set_reading_state(
             state.finished_at = None
 
         state.progress = progress
+
+    if position is not None:
+        state.position = position
 
     if rating is not None:
         state.rating = rating

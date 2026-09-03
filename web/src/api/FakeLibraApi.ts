@@ -62,6 +62,7 @@ export function fakeBook(overrides: Partial<FakeBook> = {}): FakeBook {
     shelf_id: null,
     rating: 0,
     progress: 0,
+    position: null,
     last_sent_at: null,
     ...overrides,
   }
@@ -563,6 +564,9 @@ export class FakeLibraApi implements LibraApi {
 
     if (state.rating !== undefined) book.rating = state.rating
     if (state.progress !== undefined) book.progress = state.progress
+    // Left alone when the caller does not send it, exactly like the rating and the progress:
+    // the reader writes progress on every pause, and that must not lose the reader's place.
+    if (state.position !== undefined) book.position = state.position
     return book
   }
 

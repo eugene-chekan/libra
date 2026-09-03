@@ -46,10 +46,13 @@ export function useSetBookState(id: number): UseMutationResult<Book, Error, Book
  * the screen that is reading from it, reopening the book mid-sentence. Nothing else on screen
  * shows this progress, and the detail screen refetches on mount anyway.
  */
-export function useWriteProgress(id: number): UseMutationResult<Book, Error, number> {
+export function useWriteProgress(
+  id: number
+): UseMutationResult<Book, Error, { progress: number; position: string | null }> {
   const api = useApi()
   return useMutation({
-    mutationFn: (progress: number) => api.setBookState(id, { progress }),
+    mutationFn: ({ progress, position }: { progress: number; position: string | null }) =>
+      api.setBookState(id, position === null ? { progress } : { progress, position }),
   })
 }
 
