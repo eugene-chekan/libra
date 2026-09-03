@@ -1,0 +1,41 @@
+.arrow {
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--libra-text-light);
+  cursor: pointer;
+  transition:
+    color 0.15s ease,
+    background 0.15s ease;
+}
+
+.arrow:hover:not(:disabled) {
+  color: var(--libra-text);
+  background: var(--libra-card);
+}
+
+.arrow:disabled {
+  opacity: 0.25;
+  cursor: default;
+}
+
+.arrow:focus-visible {
+  outline: 2px solid var(--libra-accent);
+  outline-offset: 2px;
+}
+
+.previous {
+  left: 8px;
+}
+
+.next {
+  right: 8px;
+}
