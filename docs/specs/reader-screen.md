@@ -55,11 +55,17 @@ exactly what Phase 2 wants to ingest. It is still not in this milestone.
 
 ## How this is built
 
-The first reader was 733 lines across two files, and most of it was
-compensation: a measurement pass, addresses rebuilt from percentages, an
-estimate for when those failed, and three interacting rules about when a
-position was safe to save. Each was added to cover for the one before it. That
-accumulation was the defect, not any single rule in it.
+Positioning the reader took 733 lines across two files — `EpubBookReader.ts`
+and `ReaderScreen.tsx` — and most of it was compensation: a measurement pass,
+addresses rebuilt from percentages, an estimate for when those failed, and
+three interacting rules about when a position was safe to save. Each was added
+to cover for the one before it. That accumulation was the defect, not any
+single rule in it.
+
+Those two files, plus the `BookReader` seam and its fake, are what the rebuild
+replaces — about 996 lines of source and the tests that go with them. The bar,
+the contents drawer, the appearance menu, every stylesheet and the whole
+backend change stay as they are.
 
 So this rebuild is held to a standard the last one was not:
 
