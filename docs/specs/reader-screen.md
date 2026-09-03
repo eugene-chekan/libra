@@ -115,9 +115,17 @@ that matters.
 
 **The top bar.** Always visible, about 48px tall, and the same `bg` as the
 page so the chrome sits on the paper rather than on a white strip above it.
-Back on the left with a chevron. The book's title in the middle, in the serif face at
-14px — smaller than a page title, because it is a label here and not a
-heading. Then how far through the book the reader is, as a plain percentage:
+Back on the left with a chevron. In the middle, the book's title in the serif
+face at 14px — smaller than a page title, because it is a label here and not a
+heading — followed by the chapter, in `textMuted` after a thin separator:
+*Долгая прогулка · Глава 4*. The book says which book; the chapter says where
+you are in it, which is the thing that changes as you read.
+
+The chapter name comes from the book's own contents: the last entry whose
+spine position is at or before the one on screen. Books that ship no contents
+at all — one in the test library has none — simply show the book title, with
+no separator and no empty space where a name would have been. On a narrow
+window the chapter is what drops first. Then how far through the book the reader is, as a plain percentage:
 the rule below the bar shows it at a glance, and the number answers "how much
 is left" without squinting at a 2px line. Three icon buttons on the right:
 contents (`list`), text size and width (`type`), librarian
@@ -310,6 +318,17 @@ and `position` together. A single flag stops writes until the resume has
 settled. There is no second guard, because there is nothing left to drift —
 resuming to a CFI reports the same CFI back.
 
+**The last page finishes the book.** `set_reading_state` already stamps
+`finished_at` when `progress` reaches 1, so the reader needs no new field and
+the backend needs no new rule — but it must not wait for the percentage to
+arrive at exactly 1 by itself, which the last page of a measured book only
+does by luck. The reader knows when there is no next page; that is the same
+fact that greys out the forward arrow. On the last page it writes `progress:
+1`, and the book is finished.
+
+Jumping to the last page from the contents finishes the book too. That is the
+honest reading of the action, and it is what every other reader does.
+
 **Books that predate this** carry a percentage and no CFI. They get one
 best-effort `cfiFromPercentage` on first open, and nothing is written until
 the reader turns a page, so a bad landing costs nothing. If it fails, that
@@ -441,10 +460,6 @@ where they should be, the screen says so.
 
 ## Open questions
 
-- Whether the top bar should also show the chapter title next to the book
-  title. It is useful and it is more to fit; left until the bar exists and can
-  be looked at.
-- Whether reaching the last page should set `finished_at`. `set_reading_state`
-  sets it at `progress >= 1`, and the last page of a measured book reports
-  exactly 1, so this may already work — it needs checking on a real book
-  rather than reasoning about.
+None. The two that stood here — whether the bar shows the chapter, and whether
+the last page finishes the book — were both answered yes on 2026-09-03 and are
+written into "Layout" and "Position, progress, and turning pages" above.
