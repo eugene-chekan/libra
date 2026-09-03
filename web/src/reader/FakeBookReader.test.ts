@@ -14,7 +14,6 @@ describe('FakeBookReader', () => {
     const book = await reader.open(1, host())
 
     expect(book.title).toBe('The Locked Door')
-    expect(book.chapterCount).toBe(6)
     expect(book.chapters.map((c) => c.label)).toEqual(['The Beginning', 'The Middle', 'The End'])
   })
 
@@ -26,23 +25,33 @@ describe('FakeBookReader', () => {
     const book = await reader.open(1, host())
 
     expect(book.chapters.map((c) => c.index)).toEqual([2, 3, 5])
-    expect(book.chapterCount).toBeGreaterThan(book.chapters.length)
   })
 
   it('starts at the beginning', async () => {
     const reader = new FakeBookReader()
     await reader.open(1, host())
 
-    expect(reader.position()).toEqual({ index: 0, fraction: 0 })
+    expect(reader.position()).toEqual({ index: 0, progress: 0 })
   })
 
-  it('moves to a position and reports it back', async () => {
+  it('resumes to a fraction of the way through the book', async () => {
     const reader = new FakeBookReader()
     await reader.open(1, host())
 
-    await reader.goTo({ index: 2, fraction: 0.5 })
+    await reader.goTo(0.42)
 
-    expect(reader.position()).toEqual({ index: 2, fraction: 0.5 })
+    expect(reader.position().progress).toBe(0.42)
+    expect(reader.calls).toContain('goTo:0.42')
+  })
+
+  it('goes to the start of a chapter, which is a different thing from a fraction', async () => {
+    const reader = new FakeBookReader()
+    await reader.open(1, host())
+
+    await reader.goToChapter(3)
+
+    expect(reader.position().index).toBe(3)
+    expect(reader.calls).toContain('goToChapter:3')
   })
 
   it('tells listeners when the position changes, and stops when unsubscribed', async () => {
@@ -51,12 +60,12 @@ describe('FakeBookReader', () => {
     const seen = vi.fn()
     const stop = reader.onMove(seen)
 
-    reader.simulateScroll({ index: 1, fraction: 0.25 })
+    reader.simulateScroll({ index: 1, progress: 0.25 })
     stop()
-    reader.simulateScroll({ index: 2, fraction: 0.75 })
+    reader.simulateScroll({ index: 2, progress: 0.75 })
 
     expect(seen).toHaveBeenCalledTimes(1)
-    expect(seen).toHaveBeenCalledWith({ index: 1, fraction: 0.25 })
+    expect(seen).toHaveBeenCalledWith({ index: 1, progress: 0.25 })
   })
 
   it('throws a download error when told to, which is the retryable kind', async () => {
@@ -72,10 +81,18 @@ describe('FakeBookReader', () => {
     await expect(reader.open(1, host())).rejects.toMatchObject({ kind: 'parse' })
   })
 
-  it('refuses a position past the end of the book', async () => {
+  it('refuses a chapter past the end of the book', async () => {
     const reader = new FakeBookReader()
     await reader.open(1, host())
 
-    await expect(reader.goTo({ index: 9, fraction: 0 })).rejects.toThrow()
+    await expect(reader.goToChapter(9)).rejects.toThrow()
+  })
+
+  it('refuses a progress outside 0 to 1', async () => {
+    const reader = new FakeBookReader()
+    await reader.open(1, host())
+
+    await expect(reader.goTo(1.5)).rejects.toThrow()
+    await expect(reader.goTo(-0.1)).rejects.toThrow()
   })
 })

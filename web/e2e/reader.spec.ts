@@ -206,11 +206,10 @@ test.describe('the reader, in a real browser', () => {
     await expect.poll(async () => page.getByText('%').first().textContent()).not.toBe('0%')
   })
 
-  test('progress moves a point at a time, not a chapter at a time', async ({ page, request }) => {
-    // The defect this exists to stop: the fraction was measured against epub.js's whole
-    // continuous container, which holds only the sections currently loaded and is resized as
-    // they come and go. It said nothing about position within a chapter, so the percentage
-    // only ever moved when the chapter did — 0%, then 13%, on a book with eight sections.
+  test('progress moves while the reader stays inside one chapter', async ({ page, request }) => {
+    // The defect this exists to stop: progress counted chapters, so it could only move by
+    // changing chapter — 0%, then 13%, on a book with eight sections, with nothing in between
+    // however far you read. It is measured against the book's text now.
     const title = `E2E Reader Steps ${Date.now()}`
     const id = await uploadBook(request, title)
 
@@ -219,24 +218,24 @@ test.describe('the reader, in a real browser', () => {
     const percent = async () =>
       Number(await page.getByRole('progressbar').getAttribute('aria-valuenow'))
 
-    // Well inside a chapter, so neither reading is at a chapter boundary.
     await page.getByRole('button', { name: 'Contents' }).click()
     await page.getByRole('button', { name: 'The Middle' }).click()
-    await page.waitForTimeout(500)
+    await expect.poll(() => renderedHeadings(page)).toContain('The Middle')
+    await page.waitForTimeout(800)
 
-    const before = await percent()
-    await page.evaluate(() => {
-      const scroller = document.querySelector('.epub-container')
-      if (scroller) scroller.scrollTop += 120
-    })
-    await expect.poll(percent).not.toBe(before)
+    // Short scrolls, well within one chapter. Counting chapters gives the same number for all
+    // of them; measuring the text gives a different one as the reading goes on.
+    const readings = new Set<number>([await percent()])
+    for (let step = 0; step < 6; step++) {
+      await page.evaluate(() => {
+        const scroller = document.querySelector('.epub-container')
+        if (scroller) scroller.scrollTop += 200
+      })
+      await page.waitForTimeout(300)
+      readings.add(await percent())
+    }
 
-    // A chapter's share of this book, which is what the old behaviour moved in one go. A
-    // scroll of a few lines has to be a fraction of that, not all of it.
-    const chapterShare = 100 / (CHAPTERS.length + 1)
-    const after = await percent()
-    expect(after).toBeGreaterThan(before)
-    expect(after - before).toBeLessThan(chapterShare / 2)
+    expect(readings.size).toBeGreaterThanOrEqual(3)
   })
 
   test('the chapter is set like a printed page', async ({ page, request }) => {

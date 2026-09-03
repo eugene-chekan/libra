@@ -117,7 +117,7 @@ describe('ReaderScreen', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Contents' }))
     await userEvent.click(await screen.findByRole('button', { name: 'The End' }))
 
-    expect(reader.calls).toContain('goTo:5')
+    expect(reader.calls).toContain('goToChapter:5')
   })
 
   it('applies a chosen text size and remembers it', async () => {
@@ -156,8 +156,8 @@ describe('ReaderScreen', () => {
     renderReader(reader, api)
     await opened()
 
-    act(() => reader.simulateScroll({ index: 1, fraction: 0.5 }))
-    act(() => reader.simulateScroll({ index: 1, fraction: 0.6 }))
+    act(() => reader.simulateScroll({ index: 1, progress: 0.2 }))
+    act(() => reader.simulateScroll({ index: 1, progress: 0.22 }))
     expect(api.calls.filter((c) => c === 'setBookState:1')).toHaveLength(0)
 
     await waitFor(() => expect(api.calls.filter((c) => c === 'setBookState:1')).toHaveLength(1), {
@@ -172,7 +172,7 @@ describe('ReaderScreen', () => {
     renderReader(reader, api)
     await opened()
 
-    act(() => reader.simulateScroll({ index: 5, fraction: 1 }))
+    act(() => reader.simulateScroll({ index: 5, progress: 1 }))
 
     await waitFor(() => expect(onlyBook(api).progress).toBe(1), { timeout: 3000 })
     expect(onlyBook(api).rating).toBe(4)
@@ -181,10 +181,10 @@ describe('ReaderScreen', () => {
   it('resumes where the reader left off', async () => {
     const reader = new FakeBookReader()
     const api = signedInApi()
-    onlyBook(api).progress = 3 / 6
+    onlyBook(api).progress = 0.42
     renderReader(reader, api)
 
-    await waitFor(() => expect(reader.calls).toContain('goTo:3'))
+    await waitFor(() => expect(reader.calls).toContain('goTo:0.42'))
   })
 
   it('shows how far through the book the reader is', async () => {
@@ -192,7 +192,7 @@ describe('ReaderScreen', () => {
     renderReader(reader)
     await opened()
 
-    act(() => reader.simulateScroll({ index: 2, fraction: 1 }))
+    act(() => reader.simulateScroll({ index: 2, progress: 0.5 }))
 
     expect(screen.getByRole('progressbar', { name: 'Reading progress' })).toHaveAttribute(
       'aria-valuenow',

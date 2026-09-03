@@ -10,7 +10,6 @@ import { ContentsDrawer } from './ContentsDrawer'
 import { ReaderBar } from './ReaderBar'
 import { AppearanceMenu } from './AppearanceMenu'
 import { loadAppearance, saveAppearance } from './appearance'
-import { toPosition, toProgress } from './progress'
 import styles from './ReaderScreen.module.css'
 
 /** How long the reader must stop scrolling before the position is worth a request. */
@@ -71,7 +70,7 @@ export function ReaderScreen() {
   useEffect(() => {
     if (!open || resumed.current) return
     resumed.current = true
-    if (savedProgress > 0) void reader.goTo(toPosition(savedProgress, open.chapterCount))
+    if (savedProgress > 0) void reader.goTo(savedProgress)
   }, [open, savedProgress, reader])
 
   useEffect(() => {
@@ -89,9 +88,8 @@ export function ReaderScreen() {
     }
 
     const stop = reader.onMove((position) => {
-      const fraction = toProgress(position, open.chapterCount)
-      pending.current = fraction
-      setProgress(fraction)
+      pending.current = position.progress
+      setProgress(position.progress)
       setChapterIndex(position.index)
       if (timer.current !== null) clearTimeout(timer.current)
       timer.current = setTimeout(flush, WRITE_AFTER_MS)
@@ -108,7 +106,7 @@ export function ReaderScreen() {
   const title = open?.title ?? book.data?.title ?? 'Book'
 
   function chooseChapter(index: number) {
-    void reader.goTo({ index, fraction: 0 })
+    void reader.goToChapter(index)
     setChapterIndex(index)
     setPanel(null)
   }

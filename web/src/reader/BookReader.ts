@@ -13,10 +13,15 @@ export interface Chapter {
 
 /** Where the reader is in the book. */
 export interface ReaderPosition {
-  /** Which spine item is on screen. */
+  /**
+   * How far through the book, 0 to 1, measured by how much text is behind the reader rather
+   * than by how many chapters are. Counting chapters weighs a two-paragraph title page the
+   * same as a forty-page chapter, which made the number move in jumps that had nothing to do
+   * with how much had been read.
+   */
+  progress: number
+  /** Which spine item is on screen, for marking the contents. */
   index: number
-  /** How far down that item, 0 to 1. */
-  fraction: number
 }
 
 export type TextSize = 'small' | 'medium' | 'large'
@@ -33,8 +38,6 @@ export interface Appearance {
 export interface OpenBook {
   title: string
   chapters: Chapter[]
-  /** Spine length, which is the denominator of the progress formula. */
-  chapterCount: number
 }
 
 /**
@@ -56,8 +59,13 @@ export class ReaderError extends Error {
 export interface BookReader {
   /** Fetch, parse and mount the book into `host`. */
   open(bookId: number, host: HTMLElement): Promise<OpenBook>
-  /** Show a position. */
-  goTo(position: ReaderPosition): Promise<void>
+  /**
+   * Go to a fraction of the way through the book — resuming. Exact rather than approximate,
+   * so this waits for whatever measuring the book needs before it can land in the right place.
+   */
+  goTo(progress: number): Promise<void>
+  /** Go to the start of a spine item — choosing from the contents. */
+  goToChapter(index: number): Promise<void>
   /** Where the reader is now. */
   position(): ReaderPosition
   /** Watch for the position changing because the reader scrolled. Returns an unsubscribe. */

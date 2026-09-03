@@ -39,7 +39,7 @@ export class FakeBookReader implements BookReader {
   private readonly options: FakeOptions
   private readonly chapters: Chapter[]
   private readonly spineLength: number
-  private current: ReaderPosition = { index: 0, fraction: 0 }
+  private current: ReaderPosition = { index: 0, progress: 0 }
   private listeners: ((position: ReaderPosition) => void)[] = []
 
   constructor(options: FakeOptions = {}) {
@@ -59,16 +59,28 @@ export class FakeBookReader implements BookReader {
     return Promise.resolve({
       title: this.options.title ?? 'The Locked Door',
       chapters: this.chapters,
-      chapterCount: this.spineLength,
     })
   }
 
-  goTo(position: ReaderPosition): Promise<void> {
-    if (position.index < 0 || position.index >= this.spineLength) {
-      return Promise.reject(new RangeError(`No chapter ${position.index}`))
+  /**
+   * Resuming lands where it is told. The real one has to measure the book first and rounds to
+   * the nearest position it marked, so a caller must not assume it comes back exactly.
+   */
+  goTo(progress: number): Promise<void> {
+    if (progress < 0 || progress > 1) {
+      return Promise.reject(new RangeError(`Progress out of range: ${progress}`))
     }
-    this.calls.push(`goTo:${position.index}`)
-    this.current = position
+    this.calls.push(`goTo:${progress.toFixed(2)}`)
+    this.current = { ...this.current, progress }
+    return Promise.resolve()
+  }
+
+  goToChapter(index: number): Promise<void> {
+    if (index < 0 || index >= this.spineLength) {
+      return Promise.reject(new RangeError(`No chapter ${index}`))
+    }
+    this.calls.push(`goToChapter:${index}`)
+    this.current = { index, progress: index / this.spineLength }
     return Promise.resolve()
   }
 

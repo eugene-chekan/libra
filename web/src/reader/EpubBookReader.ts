@@ -1,6 +1,7 @@
 import ePub, { type Book, type NavItem, type Rendition } from 'epubjs'
 
 import type { LibraApi } from '../api/LibraApi'
+import { loadLocations, saveLocations } from './locationsCache'
 import {
   ReaderError,
   type Appearance,
@@ -37,23 +38,11 @@ const WIDTHS: Record<ReadingWidth, string> = {
 }
 
 /**
- * How far the reader has scrolled through the chapter now at the top of `scroller`, 0 to 1.
- *
- * Measured against that chapter's own view rather than the scroller as a whole. Continuous flow
- * keeps only the sections near the reader loaded and resizes the scroller as it adds and prunes
- * them, so the scroller's own scroll position says nothing about where in a chapter you are —
- * reading it that way made progress move a whole chapter at a time.
+ * Characters between one measured position and the next. Smaller is more precise and takes
+ * longer to measure; epub.js's own examples use this figure, and on a novel it puts a mark
+ * roughly every screenful.
  */
-function sectionFraction(scroller: HTMLElement): number {
-  const top = scroller.getBoundingClientRect().top
-  for (const view of scroller.querySelectorAll('.epub-view')) {
-    const box = view.getBoundingClientRect()
-    if (box.height > 0 && box.top <= top + 1 && box.bottom > top) {
-      return Math.min(1, Math.max(0, (top - box.top) / box.height))
-    }
-  }
-  return 0
-}
+const CHARS_PER_LOCATION = 1000
 
 /** The nearest ancestor that actually scrolls, which is where epub.js puts the chapter. */
 function scrollerFor(host: HTMLElement): HTMLElement {
@@ -75,6 +64,7 @@ export class EpubBookReader implements BookReader {
   private scroller: HTMLElement | null = null
   private frame: number | null = null
   private last: ReaderPosition | null = null
+  private measured: Promise<void> = Promise.resolve()
 
   constructor(private readonly api: LibraApi) {}
 
@@ -111,40 +101,76 @@ export class EpubBookReader implements BookReader {
     this.onScroll = () => this.announce()
     this.scroller.addEventListener('scroll', this.onScroll, { passive: true })
 
+    this.measured = this.measure(book, bookId, bytes.byteLength)
+
     return {
       title: book.packaging.metadata.title,
       chapters: this.tableOfContents(book),
-      chapterCount: this.chapterCount,
     }
   }
 
-  async goTo(position: ReaderPosition): Promise<void> {
+  async goTo(progress: number): Promise<void> {
+    const rendition = this.rendition
+    const book = this.book
+    if (!rendition || !book) throw new Error('The book is not open')
+
+    // Resuming is the one place exactness is the whole point, so it waits to be measured
+    // rather than landing near the right chapter and calling it close enough.
+    await this.measured
+    const cfi = book.locations.cfiFromPercentage(Math.min(1, Math.max(0, progress)))
+    if (cfi) await rendition.display(cfi)
+  }
+
+  async goToChapter(index: number): Promise<void> {
     const rendition = this.rendition
     if (!rendition) throw new Error('The book is not open')
 
     // By href, not by spine number. The continuous manager accepts a number and quietly does
     // nothing with it; the section's own address is the target it acts on.
-    const href = this.book?.spine.get(position.index)?.href
-    await (href ? rendition.display(href) : rendition.display(position.index))
-    if (position.fraction > 0 && this.scroller) {
-      const view = this.scroller.querySelector('.epub-view')
-      if (view) this.scroller.scrollTop += view.getBoundingClientRect().height * position.fraction
-    }
+    const href = this.book?.spine.get(index)?.href
+    await (href ? rendition.display(href) : rendition.display(index))
   }
 
   position(): ReaderPosition {
     const rendition = this.rendition
-    if (!rendition) return { index: 0, fraction: 0 }
+    if (!rendition) return { progress: 0, index: 0 }
 
     // The typings overload `currentLocation` as both sync and a promise, and describe the
     // resolved value as a DisplayedLocation. What comes back is a Location, whose `start` is
     // undefined until the first `relocated`.
     const location = rendition.currentLocation() as unknown as
-      { start?: { index?: number } } | undefined
-    return {
-      index: location?.start?.index ?? 0,
-      fraction: this.scroller ? sectionFraction(this.scroller) : 0,
+      { start?: { index?: number; cfi?: string } } | undefined
+    const index = location?.start?.index ?? 0
+
+    return { index, progress: this.progressAt(location?.start?.cfi, index) }
+  }
+
+  /**
+   * How far through the text the reader is. Until the book has been measured there is nothing
+   * to be exact with, so it falls back to counting chapters — the rough answer this used to
+   * give always, and now gives only for the second or so before the measuring finishes.
+   */
+  private progressAt(cfi: string | undefined, index: number): number {
+    const book = this.book
+    if (book && cfi && book.locations.length()) {
+      const measured = book.locations.percentageFromCfi(cfi)
+      if (typeof measured === 'number' && !Number.isNaN(measured)) {
+        return Math.min(1, Math.max(0, measured))
+      }
     }
+    return this.chapterCount > 0 ? Math.min(1, index / this.chapterCount) : 0
+  }
+
+  /** Measures the book, reusing the last measurement of the same file when there is one. */
+  private async measure(book: Book, bookId: number, byteLength: number): Promise<void> {
+    const cached = loadLocations(bookId, byteLength)
+    if (cached) {
+      book.locations.load(cached)
+      return
+    }
+    await book.locations.generate(CHARS_PER_LOCATION)
+    saveLocations(bookId, byteLength, book.locations.save())
+    this.announce()
   }
 
   onMove(listener: (position: ReaderPosition) => void): () => void {
@@ -289,7 +315,7 @@ export class EpubBookReader implements BookReader {
       const unchanged =
         this.last !== null &&
         this.last.index === position.index &&
-        Math.abs(this.last.fraction - position.fraction) < 0.001
+        Math.abs(this.last.progress - position.progress) < 0.0005
       if (unchanged) return
       this.last = position
       for (const listener of this.listeners) listener(position)

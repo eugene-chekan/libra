@@ -227,10 +227,26 @@ button that did nothing for a day.
 
 ## Progress, resume, and the rating trap
 
-Progress is `(spine_index + scroll_fraction) / spine_count`. `spine_index`
-comes from `rendition.currentLocation().start.index` and `spine_count` from
-`book.spine.spineItems.length`. It fits the existing `0..1` float, so there is
-no schema change.
+**Progress is measured by text, not by chapters.** epub.js walks the book once
+and marks a position every thousand characters; `percentageFromCfi()` then
+turns where the reader is into a real fraction of the book. It fits the
+existing `0..1` float, so there is no schema change.
+
+The first attempt counted chapters — `(spine_index + scroll_fraction) /
+spine_count` — and that is wrong in a way worth recording, because it looks
+reasonable. It weighs a two-paragraph title page the same as a forty-page
+chapter. On a book with eight sections the number went from 0% to 13% in one
+step and then sat still however far you read, because only the chapter index
+could move it. A title page was one eighth of the progress bar and under one
+percent of the reading.
+
+Measuring costs a pass over the book, a second or two on a novel. It runs in
+the background once the book is on screen, and until it finishes the number
+falls back to the old chapter estimate — the rough answer, for the moment
+before the real one arrives. The result is kept in `localStorage` under the
+book's id and file size, so a book is measured once rather than on every
+open; the size is what stops a reused id handing one book another's
+measurements.
 
 It is written on a pause in scrolling, debounced at **1 second**, and once
 more when the reader leaves the screen.
@@ -244,11 +260,12 @@ few seconds, would have kept them cleared. Issue #89 fixed the endpoint before
 this screen was built: all four fields are now left alone when the caller does
 not send them.
 
-**Resume** reads `progress` back the other way: multiply by `spine_count` to
-get the chapter, and the remainder is how far down it to scroll. The formula
-is lossy. It returns the reader to the right place in the right chapter, not
-to the right sentence, and the spec says so rather than implying a precision
-it does not have.
+**Resume** reads `progress` back the other way, through
+`cfiFromPercentage()`, and lands within a thousand characters of where the
+reader stopped — a paragraph or so, rather than the "right chapter, not the
+right sentence" this used to promise. It is the one place exactness is the
+whole point, so it waits for the book to be measured instead of landing
+nearby and calling it close enough.
 
 ## Data and API
 
@@ -349,7 +366,6 @@ than the thing it stood for; `phase-4-plan.md` records the first two.
 - The book's own stylesheet is applied, but fixed-layout titles and complex
   typography are not a target. This is a reader for prose.
 - The librarian panel covers the right edge of the text while open.
-- Resume returns to the right chapter, not the right sentence.
 - **epub.js will not render in a hidden browser tab.** Its renderer waits on
   `requestAnimationFrame`, which browsers never fire while the tab is hidden.
   It does not fail; it hangs, with no error. Anything that mounts this screen

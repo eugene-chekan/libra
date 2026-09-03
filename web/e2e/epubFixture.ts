@@ -136,8 +136,10 @@ export function buildMalformedEpub(): Buffer {
 }
 
 function chapterXhtml(label: string, index: number): string {
+  // Long enough that a chapter spans several of epub.js's location marks. A chapter shorter
+  // than one mark cannot show progress moving inside it, which is the thing worth testing.
   const paragraphs = Array.from(
-    { length: 12 },
+    { length: 60 },
     (_, n) => `<p>${label}, paragraph ${n + 1}. Something happens, at some length.</p>`
   ).join('\n    ')
   return `<?xml version="1.0" encoding="UTF-8"?>
