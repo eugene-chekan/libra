@@ -62,6 +62,9 @@ function renderReader(reader: BookReader, api: FakeLibraApi = signedInApi()) {
   )
 }
 
+/** Comfortably longer than the reader's write debounce, so a write would have happened. */
+const WRITE_WAIT_MS = 1500
+
 describe('ReaderScreen', () => {
   it('marks the reading area busy until the book is open', async () => {
     // The area is in the DOM from the first paint, because epub.js measures it to size the
@@ -176,6 +179,43 @@ describe('ReaderScreen', () => {
 
     await waitFor(() => expect(onlyBook(api).progress).toBe(1), { timeout: 3000 })
     expect(onlyBook(api).rating).toBe(4)
+  })
+
+  it('does not write the top of the book over the position it is about to resume to', async () => {
+    // Resuming waits for the book to be measured. In that gap the reader sits at the top, and
+    // reporting that position wrote a 0 over the stored 9% — so the next open started at the
+    // beginning. Nothing may be written until the resume has landed.
+    const reader = new FakeBookReader({ slowResume: true })
+    const api = signedInApi()
+    onlyBook(api).progress = 0.09
+    renderReader(reader, api)
+    await opened()
+
+    act(() => reader.simulateScroll({ index: 0, progress: 0 }))
+    await new Promise((resolve) => setTimeout(resolve, WRITE_WAIT_MS))
+
+    expect(onlyBook(api).progress).toBe(0.09)
+    expect(api.calls).not.toContain('setBookState:1')
+
+    await act(async () => reader.finishResume())
+    act(() => reader.simulateScroll({ index: 0, progress: 0.11 }))
+    await waitFor(() => expect(onlyBook(api).progress).toBe(0.11), { timeout: 3000 })
+  })
+
+  it('keeps the stored position when the reader leaves before the resume lands', async () => {
+    const reader = new FakeBookReader({ slowResume: true })
+    const api = signedInApi()
+    onlyBook(api).progress = 0.09
+    const { unmount } = renderReader(reader, api)
+    await opened()
+
+    act(() => reader.simulateScroll({ index: 0, progress: 0 }))
+    unmount()
+    // Leaving flushes whatever is pending, and that write is asynchronous — asserting straight
+    // after the unmount would pass before it had a chance to land.
+    await new Promise((resolve) => setTimeout(resolve, WRITE_WAIT_MS))
+
+    expect(onlyBook(api).progress).toBe(0.09)
   })
 
   it('resumes where the reader left off', async () => {

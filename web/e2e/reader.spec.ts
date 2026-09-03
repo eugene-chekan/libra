@@ -306,4 +306,40 @@ test.describe('the reader, in a real browser', () => {
       )
       .toBeGreaterThan(0)
   })
+
+  test('coming back to a book keeps the place, rather than starting over', async ({
+    page,
+    request,
+  }) => {
+    // The round trip Continue Reading actually makes, which nothing else here covers.
+    //
+    // It does not reproduce the defect that made this necessary: that needed measuring to
+    // outlast the one-second write debounce, which happens on a large book or a slow machine
+    // and never on a fixture this small. `ReaderScreen.test.tsx` holds the resume open on
+    // purpose and is the test that fails without the fix.
+    const title = `E2E Reader Resume ${Date.now()}`
+    const id = await uploadBook(request, title)
+    const stored = async () => {
+      const response = await request.get(`/api/books/${id}`)
+      return ((await response.json()) as { progress: number }).progress
+    }
+
+    await openReader(page, id, title)
+    await page.getByRole('button', { name: 'Contents' }).click()
+    await page.getByRole('button', { name: 'The Middle' }).click()
+    await expect.poll(stored, { timeout: 10_000 }).toBeGreaterThan(0)
+    const left = await stored()
+
+    // Leave and come back, which is what Continue Reading does.
+    await page.getByRole('link', { name: 'Back' }).click()
+    await expect(page.getByRole('heading', { name: title, level: 1 })).toBeVisible()
+    await openReader(page, id, title)
+    await page.waitForTimeout(2500)
+
+    expect(await stored()).toBeGreaterThan(0)
+    expect(Math.abs((await stored()) - left)).toBeLessThan(0.1)
+    await expect
+      .poll(async () => Number(await page.getByRole('progressbar').getAttribute('aria-valuenow')))
+      .toBeGreaterThan(0)
+  })
 })

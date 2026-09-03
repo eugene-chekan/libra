@@ -156,16 +156,26 @@ export class EpubBookReader implements BookReader {
     return this.chapterCount > 0 ? Math.min(1, index / this.chapterCount) : 0
   }
 
-  /** Measures the book, reusing the last measurement of the same file when there is one. */
+  /**
+   * Measures the book, reusing the last measurement of the same file when there is one.
+   *
+   * Never rejects. A book that cannot be measured still reads; it falls back to the chapter
+   * estimate, and resuming lands near rather than exactly. Rejecting would leave the screen
+   * waiting on a promise that never settles, and it waits before writing anything.
+   */
   private async measure(book: Book, bookId: number, byteLength: number): Promise<void> {
-    const cached = loadLocations(bookId, byteLength)
-    if (cached) {
-      book.locations.load(cached)
-      return
+    try {
+      const cached = loadLocations(bookId, byteLength)
+      if (cached) {
+        book.locations.load(cached)
+        return
+      }
+      await book.locations.generate(CHARS_PER_LOCATION)
+      saveLocations(bookId, byteLength, book.locations.save())
+      this.announce()
+    } catch {
+      // Measured or not, the book is readable.
     }
-    await book.locations.generate(CHARS_PER_LOCATION)
-    saveLocations(bookId, byteLength, book.locations.save())
-    this.announce()
   }
 
   onMove(listener: (position: ReaderPosition) => void): () => void {

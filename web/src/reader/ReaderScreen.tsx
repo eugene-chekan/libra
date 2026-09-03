@@ -33,6 +33,7 @@ export function ReaderScreen() {
   const pending = useRef<number | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resumed = useRef(false)
+  const restored = useRef(false)
 
   const { mutate: writeProgress } = useWriteProgress(bookId)
   const savedProgress = book.data?.progress ?? 0
@@ -43,6 +44,7 @@ export function ReaderScreen() {
     let cancelled = false
 
     resumed.current = false
+    restored.current = false
     reader
       .open(bookId, mount)
       .then((opened) => {
@@ -70,7 +72,13 @@ export function ReaderScreen() {
   useEffect(() => {
     if (!open || resumed.current) return
     resumed.current = true
-    if (savedProgress > 0) void reader.goTo(savedProgress)
+    if (savedProgress <= 0) {
+      restored.current = true
+      return
+    }
+    void reader.goTo(savedProgress).finally(() => {
+      restored.current = true
+    })
   }, [open, savedProgress, reader])
 
   useEffect(() => {
@@ -88,9 +96,15 @@ export function ReaderScreen() {
     }
 
     const stop = reader.onMove((position) => {
-      pending.current = position.progress
       setProgress(position.progress)
       setChapterIndex(position.index)
+
+      // Nothing is written until the book has been put back where the reader left it. Resuming
+      // waits for the book to be measured, and in that gap the reader is sitting at the top —
+      // reporting that position wrote a 0 over the stored position it was about to restore.
+      if (!restored.current) return
+
+      pending.current = position.progress
       if (timer.current !== null) clearTimeout(timer.current)
       timer.current = setTimeout(flush, WRITE_AFTER_MS)
     })

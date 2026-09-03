@@ -260,6 +260,13 @@ few seconds, would have kept them cleared. Issue #89 fixed the endpoint before
 this screen was built: all four fields are now left alone when the caller does
 not send them.
 
+**Nothing is written until the resume has landed.** Resuming waits for the book
+to be measured, and in that gap the reader is sitting at the top of it. Reporting
+that position wrote a 0 over the stored one — so Continue Reading destroyed the
+place by the act of returning to it, and the next open started from the
+beginning. It only showed on a book big enough that measuring outlasted the
+one-second write debounce, which is why it looked intermittent.
+
 **Resume** reads `progress` back the other way, through
 `cfiFromPercentage()`, and lands within a thousand characters of where the
 reader stopped — a paragraph or so, rather than the "right chapter, not the

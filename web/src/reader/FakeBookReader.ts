@@ -28,6 +28,12 @@ interface FakeOptions {
   chapters?: Chapter[]
   /** Spine length, which is larger than the contents on any real book. */
   chapterCount?: number
+  /**
+   * Holds `goTo` until `finishResume()` is called. The real one measures the book before it
+   * can land anywhere exact, so resuming is never instant — and what happens in that gap is
+   * where the reader used to write a 0 over the position it was about to restore.
+   */
+  slowResume?: boolean
 }
 
 /** A book in memory, standing in for epub.js, which cannot run in jsdom. */
@@ -41,6 +47,7 @@ export class FakeBookReader implements BookReader {
   private readonly spineLength: number
   private current: ReaderPosition = { index: 0, progress: 0 }
   private listeners: ((position: ReaderPosition) => void)[] = []
+  private releaseResume: (() => void) | null = null
 
   constructor(options: FakeOptions = {}) {
     this.options = options
@@ -71,8 +78,26 @@ export class FakeBookReader implements BookReader {
       return Promise.reject(new RangeError(`Progress out of range: ${progress}`))
     }
     this.calls.push(`goTo:${progress.toFixed(2)}`)
-    this.current = { ...this.current, progress }
-    return Promise.resolve()
+
+    const land = () => {
+      this.current = { ...this.current, progress }
+    }
+    if (!this.options.slowResume) {
+      land()
+      return Promise.resolve()
+    }
+    return new Promise((resolve) => {
+      this.releaseResume = () => {
+        land()
+        resolve()
+      }
+    })
+  }
+
+  /** Test-only: let a held `goTo` land, the way measuring the book eventually lets it. */
+  finishResume(): void {
+    this.releaseResume?.()
+    this.releaseResume = null
   }
 
   goToChapter(index: number): Promise<void> {
