@@ -24,6 +24,7 @@ function renderBar(props: Partial<Parameters<typeof ReaderBar>[0]> = {}) {
             <LibrarianProvider>
               <ReaderBar
                 title="The Locked Door"
+                chapter={null}
                 progress={0.38}
                 backTo="/books/1"
                 onContents={vi.fn()}
@@ -82,5 +83,20 @@ describe('ReaderBar', () => {
     await userEvent.click(screen.getByRole('button', { name: 'Ask the librarian' }))
 
     expect(await screen.findByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
+  })
+
+  it('names the chapter after the book, when the book lists one', () => {
+    renderBar({ chapter: 'The Middle' })
+
+    expect(screen.getByText('· The Middle')).toBeInTheDocument()
+  })
+
+  it('shows no percentage at all until the book has been measured', () => {
+    // A number nobody knows yet is worse than no number: it used to be a chapter estimate,
+    // which moved in jumps that had nothing to do with how much had been read.
+    renderBar({ progress: null })
+
+    expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.queryByText(/%$/)).not.toBeInTheDocument()
   })
 })

@@ -11,37 +11,23 @@ export interface Chapter {
   depth: number
 }
 
-/** Where the reader is in the book. */
+/** Where the reader is. */
 export interface ReaderPosition {
   /**
-   * How far through the book, 0 to 1, measured by how much text is behind the reader rather
-   * than by how many chapters are. Counting chapters weighs a two-paragraph title page the
-   * same as a forty-page chapter, which made the number move in jumps that had nothing to do
-   * with how much had been read.
+   * The address of the page on screen, as the engine reports it for the page it rendered.
+   * Resuming is built on this and nothing else. Null before the first page arrives.
    */
-  progress: number
-  /** Which spine item is on screen, for marking the contents. */
+  mark: string | null
+  /** Which spine item, for naming the chapter and marking the contents. */
   index: number
   /**
-   * Exactly where the reader is, as an address the reading engine produced from the page it
-   * actually rendered. This is what a resume is built on, and `progress` is only the number
-   * shown beside it — see `ReaderTarget`.
+   * How far through the book, 0 to 1 — for the bar, and never for navigating. Null until the
+   * book has been measured, because a number nobody knows yet should not be shown.
    */
-  mark: string | null
-}
-
-/**
- * Where to put the reader back when a book is opened.
- *
- * `mark` is the address the engine gave for the page it rendered last time, and going back to
- * it is exact. `progress` is the fallback, for a book last read before marks were kept: turning
- * a percentage back into a place has to go through a measurement of the book taken from a
- * different parse of it than the one on screen, and on real books that lands anywhere from a
- * point out to nowhere at all.
- */
-export interface ReaderTarget {
-  mark: string | null
-  progress: number
+  progress: number | null
+  /** Whether there is a page before this one, and after it. */
+  atStart: boolean
+  atEnd: boolean
 }
 
 export type TextSize = 'small' | 'medium' | 'large'
@@ -79,18 +65,24 @@ export class ReaderError extends Error {
 export interface BookReader {
   /** Fetch, parse and mount the book into `host`. */
   open(bookId: number, host: HTMLElement): Promise<OpenBook>
+  /** Go back to an address this reader reported earlier. Exact. */
+  goTo(mark: string): Promise<void>
   /**
-   * Put the reader back where they were — resuming. Exact when the target carries a mark;
-   * otherwise it waits for the book to be measured and lands as near as that allows.
+   * Go to a fraction of the way through the book. Best effort, and only for a book stored
+   * before addresses were kept: it has to turn the number back into an address, which is the
+   * step addresses exist to avoid.
    */
-  goTo(target: ReaderTarget): Promise<void>
+  goToProgress(progress: number): Promise<void>
   /** Go to the start of a spine item — choosing from the contents. */
   goToChapter(index: number): Promise<void>
+  /** Turn one page forward, or back. */
+  next(): Promise<void>
+  previous(): Promise<void>
   /** Where the reader is now. */
   position(): ReaderPosition
-  /** Watch for the position changing because the reader scrolled. Returns an unsubscribe. */
+  /** Watch the position change. Returns an unsubscribe. */
   onMove(listener: (position: ReaderPosition) => void): () => void
-  /** Text size and measure, applied to the chapter documents themselves. */
+  /** Text size and measure. */
   setAppearance(appearance: Appearance): void
   /** Release the book and its iframe. */
   destroy(): void

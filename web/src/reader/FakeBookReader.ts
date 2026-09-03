@@ -1,18 +1,17 @@
 import {
   ReaderError,
+  type Appearance,
   type BookReader,
   type Chapter,
   type OpenBook,
-  type Appearance,
   type ReaderPosition,
-  type ReaderTarget,
 } from './BookReader'
 
 /**
  * Deliberately shaped like a real book rather than a convenient one: two sections of front
- * matter that the contents never mentions, an interlude between chapters, and therefore
- * contents entries whose spine positions are nothing like their positions in the list. A fake
- * where the third entry was the third section is what let a real defect through once.
+ * matter the contents never mentions, an interlude between chapters, and therefore contents
+ * entries whose spine positions are nothing like their positions in the list. A fake where the
+ * third entry was the third section is what let a real defect through once.
  */
 const CHAPTERS: Chapter[] = [
   { index: 2, label: 'The Beginning', depth: 0 },
@@ -20,36 +19,21 @@ const CHAPTERS: Chapter[] = [
   { index: 5, label: 'The End', depth: 0 },
 ]
 
-const SPINE_LENGTH = 6
-
-/**
- * How far apart the real reader's measured positions are, near enough.
- *
- * Resuming lands on the measured position at or before the one it was asked for, so it always
- * comes back a little short of it. A fake that landed exactly hid a defect that walked a book's
- * saved place a step down the page on every single open.
- */
-const MEASURED_STEP = 0.006
+/** Pages in the fake book. The last one is the end of it. */
+const PAGES = 10
 
 interface FakeOptions {
   /** Makes `open` reject, so the screen's two error shapes can both be tested. */
   failWith?: 'download' | 'parse'
   title?: string
   chapters?: Chapter[]
-  /** Spine length, which is larger than the contents on any real book. */
-  chapterCount?: number
   /**
-   * Holds `goTo` until `finishResume()` is called. The real one measures the book before it
-   * can land anywhere exact, so resuming is never instant — and what happens in that gap is
-   * where the reader used to write a 0 over the position it was about to restore.
+   * Holds `goTo` until `finishResume()` is called. Resuming a real book is never instant, and
+   * what the screen does in that gap is worth testing.
    */
   slowResume?: boolean
-  /**
-   * How far short of the position asked for `goTo` lands, when a measured position is not the
-   * answer. On a book whose addresses do not survive rendering the real one places the reader
-   * by proportion instead — near the right spot, but further off than usual.
-   */
-  landShortBy?: number
+  /** Reports no progress, as a book that has not been measured yet does. */
+  unmeasured?: boolean
 }
 
 /** A book in memory, standing in for epub.js, which cannot run in jsdom. */
@@ -58,18 +42,11 @@ export class FakeBookReader implements BookReader {
   appearance: Appearance = { textSize: 'medium', width: 'medium' }
   destroyed = false
 
-  private readonly options: FakeOptions
-  private readonly chapters: Chapter[]
-  private readonly spineLength: number
-  private current: ReaderPosition = { index: 0, progress: 0, mark: null }
+  private page = 0
   private listeners: ((position: ReaderPosition) => void)[] = []
   private releaseResume: (() => void) | null = null
 
-  constructor(options: FakeOptions = {}) {
-    this.options = options
-    this.chapters = options.chapters ?? CHAPTERS
-    this.spineLength = options.chapterCount ?? SPINE_LENGTH
-  }
+  constructor(private readonly options: FakeOptions = {}) {}
 
   open(bookId: number, _host: HTMLElement): Promise<OpenBook> {
     this.calls.push(`open:${bookId}`)
@@ -81,36 +58,14 @@ export class FakeBookReader implements BookReader {
     }
     return Promise.resolve({
       title: this.options.title ?? 'The Locked Door',
-      chapters: this.chapters,
+      chapters: this.options.chapters ?? CHAPTERS,
     })
   }
 
-  /**
-   * Resuming lands a little short of where it is told, and says so, exactly as the real one
-   * does: it can only land on a position it measured, and it takes the one before.
-   */
-  goTo({ mark, progress }: ReaderTarget): Promise<void> {
-    if (progress < 0 || progress > 1) {
-      return Promise.reject(new RangeError(`Progress out of range: ${progress}`))
-    }
-    this.calls.push(mark ? `goTo:${mark}` : `goTo:${progress.toFixed(2)}`)
-
-    const land = () => {
-      // A mark is an address in the page itself, so going back to one is exact. A percentage
-      // has to be turned back into a place, and only reaches a position the book was measured
-      // at — which is always a little before the one asked for.
-      const short = mark ? 0 : (this.options.landShortBy ?? MEASURED_STEP)
-      this.current = {
-        ...this.current,
-        mark: mark ?? this.current.mark,
-        progress: Math.max(0, progress - short),
-      }
-      // Reported a beat later, as the real one does: it reports a move on the next animation
-      // frame, so the landing always arrives after the caller has been told resuming is done.
-      setTimeout(() => {
-        for (const listener of this.listeners) listener(this.current)
-      }, 0)
-    }
+  /** Marks name their page, so a test can read back where a resume landed. */
+  goTo(mark: string): Promise<void> {
+    this.calls.push(`goTo:${mark}`)
+    const land = () => this.moveTo(Number(mark.replace('page:', '')))
     if (!this.options.slowResume) {
       land()
       return Promise.resolve()
@@ -123,23 +78,46 @@ export class FakeBookReader implements BookReader {
     })
   }
 
-  /** Test-only: let a held `goTo` land, the way measuring the book eventually lets it. */
-  finishResume(): void {
-    this.releaseResume?.()
-    this.releaseResume = null
+  goToProgress(progress: number): Promise<void> {
+    if (progress < 0 || progress > 1) {
+      return Promise.reject(new RangeError(`Progress out of range: ${progress}`))
+    }
+    this.calls.push(`goToProgress:${progress.toFixed(2)}`)
+    this.moveTo(Math.round(progress * (PAGES - 1)))
+    return Promise.resolve()
   }
 
   goToChapter(index: number): Promise<void> {
-    if (index < 0 || index >= this.spineLength) {
+    if (index < 0 || index >= PAGES) {
       return Promise.reject(new RangeError(`No chapter ${index}`))
     }
     this.calls.push(`goToChapter:${index}`)
-    this.current = { index, progress: index / this.spineLength, mark: `mark:chapter-${index}` }
+    this.moveTo(index)
+    return Promise.resolve()
+  }
+
+  next(): Promise<void> {
+    this.calls.push('next')
+    this.moveTo(Math.min(PAGES - 1, this.page + 1))
+    return Promise.resolve()
+  }
+
+  previous(): Promise<void> {
+    this.calls.push('previous')
+    this.moveTo(Math.max(0, this.page - 1))
     return Promise.resolve()
   }
 
   position(): ReaderPosition {
-    return this.current
+    return {
+      mark: `page:${this.page}`,
+      index: this.page,
+      // Never reaches 1, as a real book's measured percentage does not: the last page starts
+      // before the end of the text. Only `atEnd` can say the book is finished.
+      progress: this.options.unmeasured ? null : this.page / PAGES,
+      atStart: this.page === 0,
+      atEnd: this.page === PAGES - 1,
+    }
   }
 
   onMove(listener: (position: ReaderPosition) => void): () => void {
@@ -158,9 +136,18 @@ export class FakeBookReader implements BookReader {
     this.listeners = []
   }
 
-  /** Test-only: pretend the reader scrolled. */
-  simulateScroll(position: ReaderPosition): void {
-    this.current = position
-    for (const listener of this.listeners) listener(position)
+  /** Test-only: let a held `goTo` land, the way measuring the book eventually lets it. */
+  finishResume(): void {
+    this.releaseResume?.()
+    this.releaseResume = null
+  }
+
+  private moveTo(page: number): void {
+    this.page = page
+    // Reported a beat later, as the real one does: epub.js announces a move on its own
+    // schedule, after the call that caused it has already returned.
+    setTimeout(() => {
+      for (const listener of this.listeners) listener(this.position())
+    }, 0)
   }
 }

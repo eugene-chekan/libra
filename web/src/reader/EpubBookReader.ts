@@ -1,8 +1,6 @@
 import ePub, { type Book, type NavItem, type Rendition } from 'epubjs'
-import type Section from 'epubjs/types/section'
 
 import type { LibraApi } from '../api/LibraApi'
-import { loadLocations, saveLocations } from './locationsCache'
 import {
   ReaderError,
   type Appearance,
@@ -10,15 +8,26 @@ import {
   type Chapter,
   type OpenBook,
   type ReaderPosition,
-  type ReaderTarget,
   type ReadingWidth,
   type TextSize,
 } from './BookReader'
+import { loadLocations, saveLocations } from './locationsCache'
 
 const FONT_SIZES: Record<TextSize, string> = {
   small: '95%',
   medium: '110%',
   large: '130%',
+}
+
+/**
+ * How wide the reading area runs. epub.js works its column widths out from the box it is given,
+ * so this is set on that box rather than inside the book — fighting the engine for the same
+ * property is what made the old reader's text jam against the left edge.
+ */
+const WIDTHS: Record<ReadingWidth, string> = {
+  narrow: '46em',
+  medium: '62em',
+  wide: '84em',
 }
 
 /**
@@ -29,62 +38,38 @@ const FONT_SIZES: Record<TextSize, string> = {
 const PAPER_INK = '#2a2520'
 
 /**
- * The measure, in `em`, so it holds its width in characters as the text size changes. The
- * container itself stays the full width of the window — that is what puts the scrollbar at the
- * window's edge rather than beside the column — and the text is centred inside each chapter.
- */
-const WIDTHS: Record<ReadingWidth, string> = {
-  narrow: '32em',
-  medium: '40em',
-  wide: '52em',
-}
-
-/**
- * Characters between one measured position and the next. Smaller is more precise and takes
- * longer to measure; epub.js's own examples use this figure, and on a novel it puts a mark
- * roughly every screenful.
+ * Characters between one measured position and the next. epub.js's own examples use this
+ * figure. The measurement feeds the percentage on the bar and nothing else.
  */
 const CHARS_PER_LOCATION = 1000
 
-/**
- * The parts of epub.js's view manager this file uses, which its typings do not describe.
- * `container` is the element that actually scrolls; `views` holds one view per rendered
- * section, and a view can say where a given address sits inside itself.
- */
-interface ViewManager {
-  container: HTMLElement
-  views: {
-    find(section: Section): SectionView | undefined
-  }
+const NOWHERE: ReaderPosition = {
+  mark: null,
+  index: 0,
+  progress: null,
+  atStart: true,
+  atEnd: false,
 }
 
 /**
- * The two parts of epub.js's `locations` its own typings get wrong: `total` is not declared at
- * all, and `locationFromCfi` answers with a position number, not a `Location`.
+ * What epub.js hands to `relocated`. Its typings call `atStart` and `atEnd` booleans, but it
+ * only ever sets them to true, so they arrive undefined the rest of the time.
  */
-interface MeasuredLocations {
-  total: number
-  locationFromCfi(cfi: string): number
-}
-
-interface SectionView {
-  element: HTMLElement
-  /** Throws when the address cannot be found in the rendered document — see `offsetWithin`. */
-  locationOf(target: string): { top: number }
+interface RelocatedLocation {
+  start?: { index?: number; cfi?: string }
+  atStart?: boolean
+  atEnd?: boolean
 }
 
 /** epub.js over the whole archive, fetched once and parsed in the browser. */
 export class EpubBookReader implements BookReader {
   private book: Book | null = null
-  private host: HTMLElement | null = null
   private rendition: Rendition | null = null
-  private chapterCount = 0
+  private host: HTMLElement | null = null
   private listeners: ((position: ReaderPosition) => void)[] = []
-  private onScroll: (() => void) | null = null
-  private frame: number | null = null
-  private last: ReaderPosition | null = null
-  private measured: Promise<void> = Promise.resolve()
-  private locationSections: number[] | null = null
+  private current: ReaderPosition = NOWHERE
+  private measured: Promise<boolean> = Promise.resolve(false)
+  private isMeasured = false
 
   constructor(private readonly api: LibraApi) {}
 
@@ -98,34 +83,22 @@ export class EpubBookReader implements BookReader {
     } catch {
       throw new ReaderError('parse', 'This file is not a readable EPUB.')
     }
-
     this.book = book
-    this.locationSections = null
-    // `spineItems` is real at runtime but missing from epubjs's Spine typings.
-    this.chapterCount = (book.spine as unknown as { spineItems: unknown[] }).spineItems.length
+    this.host = host
 
-    // `scrolled` with the continuous manager, not `scrolled-doc`: the latter renders one spine
-    // item and stops, so a reader lands on the title page with nowhere to go. Continuous
-    // stitches the sections together and loads the next as you reach it, which is what
-    // "scrolling, not paginated" was always supposed to mean.
+    // Paginated, with epub.js's default manager. The continuous one reaches a target with
+    // `scrollBy` — a move relative to wherever the reader already was — and loads sections in
+    // and out underneath it, so the same address landed somewhere different on every open.
+    // This one uses `scrollTo`, an absolute position snapped to a page edge.
     const rendition = book.renderTo(host, {
-      flow: 'scrolled',
-      manager: 'continuous',
+      flow: 'paginated',
+      spread: 'auto',
       width: '100%',
       height: '100%',
     })
     this.rendition = rendition
+    rendition.on('relocated', (location: RelocatedLocation) => this.report(location))
     await rendition.display()
-
-    rendition.on('relocated', () => this.announce())
-
-    // Captured on the host rather than bound to epub.js's scrolling element. That element is
-    // created and sized as the chapter lays out, so looking for it here finds nothing on a
-    // slow machine and leaves the listener on something that never scrolls — progress then
-    // only moved when the chapter did. Scroll events do not bubble, but they do capture.
-    this.host = host
-    this.onScroll = () => this.announce()
-    host.addEventListener('scroll', this.onScroll, { capture: true, passive: true })
 
     this.measured = this.measure(book, bookId, bytes.byteLength)
 
@@ -135,193 +108,36 @@ export class EpubBookReader implements BookReader {
     }
   }
 
-  async goTo({ mark, progress }: ReaderTarget): Promise<void> {
-    const rendition = this.rendition
+  async goTo(mark: string): Promise<void> {
+    await this.rendition?.display(mark)
+  }
+
+  async goToProgress(progress: number): Promise<void> {
     const book = this.book
-    if (!rendition || !book) throw new Error('The book is not open')
+    if (!book || !(await this.measured)) return
 
-    // A mark came out of the page epub.js itself rendered, so it addresses that same page and
-    // needs no measurement to interpret. Resuming from one is both exact and immediate.
-    if (mark) {
-      await this.moveTo(mark, true)
-      return
-    }
-
-    // Without one, the percentage is all there is, and turning it back into an address needs
-    // the book measured first.
-    await this.measured
     const cfi = book.locations.cfiFromPercentage(Math.min(1, Math.max(0, progress)))
-
-    // A book with no measurement answers with the number -1 rather than an address. -1 is
-    // truthy, so passing it straight on asks epub.js for section -1, which it refuses. There is
-    // nowhere exact to go: the book stays where it is, and reads from the top.
+    // An unmeasured book answers with the number -1 rather than an address, and -1 is truthy.
     if (typeof cfi !== 'string') return
-    await this.moveTo(cfi, false)
-  }
-
-  /**
-   * Puts the reader at `cfi`, wherever in the book that is.
-   *
-   * `addressIsSound` says whether the address can be believed. One the engine gave for the page
-   * it rendered can be. One worked out from a measurement of the book cannot: the measurement
-   * comes from a different parse of the same file, and where the two disagree the address does
-   * not merely fail — it can resolve, silently, to the wrong node. On one real book that put
-   * the reader back at the very top of a chapter they were a long way into.
-   */
-  private async moveTo(cfi: string, addressIsSound: boolean): Promise<void> {
-    const rendition = this.rendition
-    const book = this.book
-    if (!rendition || !book) return
-
-    const section = book.spine.get(cfi)
-    if (!section) {
-      await rendition.display(cfi)
-      return
-    }
-
-    // The section by its own address, which does not scroll, then the exact spot inside it.
-    await rendition.display(section.href)
-    this.placeAt(section, cfi, addressIsSound)
-  }
-
-  /**
-   * Puts the text at `cfi` at the top of the window.
-   *
-   * epub.js can be asked to display an address directly, but under the continuous manager it
-   * gets there with `scrollBy` — a move *relative* to wherever the reader already was — and
-   * then fills in the sections around it, which moves the page again. The same address
-   * therefore lands somewhere different depending on what came before it. Setting the position
-   * outright is the same arithmetic without that dependence.
-   */
-  private placeAt(section: Section, cfi: string, addressIsSound: boolean): void {
-    const manager = (this.rendition as unknown as { manager?: ViewManager }).manager
-    const view = manager?.views.find(section)
-    const scroller = manager?.container
-    if (!view || !scroller) return
-
-    const above = view.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
-    scroller.scrollTop += above + this.offsetWithin(view, section, cfi, addressIsSound)
-  }
-
-  /**
-   * How far down its section the target sits, in pixels.
-   *
-   * Exactly, from a sound address. Otherwise by the share of that section's own measured
-   * positions that lie before the target, against the section's height — text against pixels
-   * rather than text against text, so an estimate, but one that cannot land far wrong. On the
-   * book whose addresses do not survive rendering it came within a percentage point every time,
-   * while the address put the reader at the top of the chapter or threw outright.
-   */
-  private offsetWithin(
-    view: SectionView,
-    section: Section,
-    cfi: string,
-    addressIsSound: boolean
-  ): number {
-    if (addressIsSound) {
-      try {
-        return view.locationOf(cfi).top
-      } catch {
-        // Even a sound address can fail, if the book moved under it. Estimate instead.
-      }
-    }
-    return this.shareOf(section, cfi) * view.element.getBoundingClientRect().height
-  }
-
-  /** How far through `section`'s own measured positions `cfi` sits, from 0 to 1. */
-  private shareOf(section: Section, cfi: string): number {
-    const book = this.book
-    if (!book) return 0
-
-    this.locationSections ??= this.mapLocationsToSections(book)
-    const first = this.locationSections.indexOf(section.index)
-    const last = this.locationSections.lastIndexOf(section.index)
-    if (first < 0 || last <= first) return 0
-
-    const target = (book.locations as unknown as MeasuredLocations).locationFromCfi(cfi)
-    return Math.min(1, Math.max(0, (target - first) / (last - first)))
-  }
-
-  /** The spine position each measured position belongs to. Worked out once, on first need. */
-  private mapLocationsToSections(book: Book): number[] {
-    const sections: number[] = []
-    const total = (book.locations as unknown as MeasuredLocations).total
-    for (let at = 0; at <= total; at++) {
-      const cfi = book.locations.cfiFromLocation(at)
-      let index = -1
-      if (typeof cfi === 'string') {
-        try {
-          index = book.spine.get(cfi)?.index ?? -1
-        } catch {
-          index = -1
-        }
-      }
-      sections.push(index)
-    }
-    return sections
+    await this.rendition?.display(cfi)
   }
 
   async goToChapter(index: number): Promise<void> {
-    const rendition = this.rendition
-    if (!rendition) throw new Error('The book is not open')
-
-    // By href, not by spine number. The continuous manager accepts a number and quietly does
-    // nothing with it; the section's own address is the target it acts on.
+    // By href, not by spine number: a number is accepted and quietly ignored.
     const href = this.book?.spine.get(index)?.href
-    await (href ? rendition.display(href) : rendition.display(index))
+    if (href) await this.rendition?.display(href)
+  }
+
+  async next(): Promise<void> {
+    await this.rendition?.next()
+  }
+
+  async previous(): Promise<void> {
+    await this.rendition?.prev()
   }
 
   position(): ReaderPosition {
-    const rendition = this.rendition
-    if (!rendition) return { progress: 0, index: 0, mark: null }
-
-    // The typings overload `currentLocation` as both sync and a promise, and describe the
-    // resolved value as a DisplayedLocation. What comes back is a Location, whose `start` is
-    // undefined until the first `relocated`.
-    const location = rendition.currentLocation() as unknown as
-      { start?: { index?: number; cfi?: string } } | undefined
-    const index = location?.start?.index ?? 0
-    const cfi = location?.start?.cfi
-
-    return { index, mark: cfi ?? null, progress: this.progressAt(cfi, index) }
-  }
-
-  /**
-   * How far through the text the reader is. Until the book has been measured there is nothing
-   * to be exact with, so it falls back to counting chapters — the rough answer this used to
-   * give always, and now gives only for the second or so before the measuring finishes.
-   */
-  private progressAt(cfi: string | undefined, index: number): number {
-    const book = this.book
-    if (book && cfi && book.locations.length()) {
-      const measured = book.locations.percentageFromCfi(cfi)
-      if (typeof measured === 'number' && !Number.isNaN(measured)) {
-        return Math.min(1, Math.max(0, measured))
-      }
-    }
-    return this.chapterCount > 0 ? Math.min(1, index / this.chapterCount) : 0
-  }
-
-  /**
-   * Measures the book, reusing the last measurement of the same file when there is one.
-   *
-   * Never rejects. A book that cannot be measured still reads; it falls back to the chapter
-   * estimate, and resuming lands near rather than exactly. Rejecting would leave the screen
-   * waiting on a promise that never settles, and it waits before writing anything.
-   */
-  private async measure(book: Book, bookId: number, byteLength: number): Promise<void> {
-    try {
-      const cached = loadLocations(bookId, byteLength)
-      if (cached) {
-        book.locations.load(cached)
-        return
-      }
-      await book.locations.generate(CHARS_PER_LOCATION)
-      saveLocations(bookId, byteLength, book.locations.save())
-      this.announce()
-    } catch {
-      // Measured or not, the book is readable.
-    }
+    return this.current
   }
 
   onMove(listener: (position: ReaderPosition) => void): () => void {
@@ -333,25 +149,12 @@ export class EpubBookReader implements BookReader {
 
   setAppearance({ textSize, width }: Appearance): void {
     const rendition = this.rendition
-    if (!rendition) return
+    const host = this.host
+    if (!rendition || !host) return
 
     rendition.themes.fontSize(FONT_SIZES[textSize])
     rendition.themes.default({
-      // `!important` on the box, because epub.js writes the body's width, margin and padding as
-      // an inline style and recomputes them on every resize. Without it the measure applies and
-      // the centring does not, which reads as a wide column jammed against the left edge.
       body: {
-        'max-width': `${WIDTHS[width]} !important`,
-        'margin-left': 'auto !important',
-        'margin-right': 'auto !important',
-        'padding-left': '24px !important',
-        'padding-right': '24px !important',
-        // Page margins. In continuous flow this also opens a gap where one chapter ends and
-        // the next begins, which is the break a printed book gets from starting a new page.
-        'padding-top': '2em !important',
-        'padding-bottom': '3em !important',
-        // The page colour comes from the container behind, so chapter boundaries leave no seam.
-        background: 'transparent',
         color: PAPER_INK,
         'line-height': '1.7',
         'text-align': 'justify',
@@ -359,15 +162,13 @@ export class EpubBookReader implements BookReader {
         '-webkit-hyphens': 'auto',
       },
       // Printed books indent the run of a paragraph and do not space them apart. A book that
-      // says otherwise in its own stylesheet still wins: these carry no `!important`.
+      // says otherwise in its own stylesheet still wins: none of this carries `!important`.
       p: {
         'line-height': '1.7',
         'text-align': 'justify',
         'text-indent': '1.4em',
-        'margin-top': '0',
-        'margin-bottom': '0',
+        margin: '0',
       },
-      // The first paragraph after a heading or a break starts flush, as it does in print.
       'h1 + p, h2 + p, h3 + p, hr + p, blockquote + p': { 'text-indent': '0' },
       'h1, h2, h3, h4': {
         'line-height': '1.3',
@@ -378,23 +179,71 @@ export class EpubBookReader implements BookReader {
       },
       img: { 'max-width': '100%', height: 'auto' },
     })
+
+    host.style.maxWidth = WIDTHS[width]
+    // The box changed under it, and epub.js only relayouts when the window itself resizes.
+    rendition.resize(host.clientWidth, host.clientHeight)
   }
 
   destroy(): void {
-    if (this.frame !== null) cancelAnimationFrame(this.frame)
-    this.frame = null
-    this.last = null
-    if (this.host && this.onScroll) {
-      this.host.removeEventListener('scroll', this.onScroll, { capture: true })
-    }
     this.listeners = []
-    this.onScroll = null
-    this.host = null
-    this.locationSections = null
+    this.current = NOWHERE
     this.rendition?.destroy()
     this.book?.destroy()
     this.rendition = null
     this.book = null
+    this.host = null
+  }
+
+  /** Turns what epub.js reports into what the screen reads, and tells everyone watching. */
+  private report(location: RelocatedLocation): void {
+    const cfi = location.start?.cfi
+    this.current = {
+      mark: cfi ?? null,
+      index: location.start?.index ?? 0,
+      progress: this.progressAt(cfi),
+      atStart: location.atStart === true,
+      atEnd: location.atEnd === true,
+    }
+    for (const listener of this.listeners) listener(this.current)
+  }
+
+  /** The number for the bar, or null while the book has not been measured. */
+  private progressAt(cfi: string | undefined): number | null {
+    const book = this.book
+    if (!book || !cfi || !this.isMeasured) return null
+
+    const measured = book.locations.percentageFromCfi(cfi)
+    if (typeof measured !== 'number' || Number.isNaN(measured)) return null
+    return Math.min(1, Math.max(0, measured))
+  }
+
+  /**
+   * Measures the book so the bar has a number, reusing the last measurement of the same file.
+   *
+   * Never rejects. A book that cannot be measured still reads; it shows no percentage. This
+   * decides nothing about where the reader goes.
+   */
+  private async measure(book: Book, bookId: number, byteLength: number): Promise<boolean> {
+    try {
+      const cached = loadLocations(bookId, byteLength)
+      if (cached) {
+        book.locations.load(cached)
+      } else {
+        await book.locations.generate(CHARS_PER_LOCATION)
+        saveLocations(bookId, byteLength, book.locations.save())
+      }
+      this.isMeasured = book.locations.length() > 0
+    } catch {
+      this.isMeasured = false
+    }
+
+    // Say where we are again, so the bar picks up the number it could not show before.
+    const rendition = this.rendition
+    if (this.isMeasured && rendition) {
+      this.report(rendition.currentLocation() as unknown as RelocatedLocation)
+    }
+    return this.isMeasured
   }
 
   private async download(bookId: number): Promise<ArrayBuffer> {
@@ -402,8 +251,7 @@ export class EpubBookReader implements BookReader {
     try {
       // `no-cache` revalidates rather than refetches: the ETag makes an unchanged book cheap,
       // and a stale one impossible. Ids are reused after a delete, so the same address can
-      // hold a different book, and the browser will otherwise serve the old one from a
-      // heuristically-fresh cache entry without asking.
+      // hold a different book, and the browser will otherwise serve the old one.
       response = await fetch(this.api.fileUrl(bookId), {
         credentials: 'include',
         cache: 'no-cache',
@@ -413,7 +261,7 @@ export class EpubBookReader implements BookReader {
     }
     if (response.status === 404) {
       // The catalog row is there and the file is not. Retrying reads the same empty shelf.
-      throw new ReaderError('parse', "This book's file is missing from the library.")
+      throw new ReaderError('parse', 'This file is missing from the library.')
     }
     if (!response.ok) {
       throw new ReaderError('download', 'Could not reach the server.')
@@ -452,26 +300,5 @@ export class EpubBookReader implements BookReader {
     } catch {
       return null
     }
-  }
-
-  /**
-   * Reporting a move is throttled to one animation frame, and dropped when nothing a caller
-   * can see has changed. `currentLocation()` walks the rendered views, so calling it on every
-   * scroll event — which fires many times a frame — is what made scrolling stutter.
-   */
-  private announce(): void {
-    if (this.frame !== null) return
-    this.frame = requestAnimationFrame(() => {
-      this.frame = null
-      const position = this.position()
-      const unchanged =
-        this.last !== null &&
-        this.last.index === position.index &&
-        this.last.mark === position.mark &&
-        Math.abs(this.last.progress - position.progress) < 0.0005
-      if (unchanged) return
-      this.last = position
-      for (const listener of this.listeners) listener(position)
-    })
   }
 }

@@ -4,22 +4,27 @@ import { Link, useParams } from 'react-router-dom'
 import { useBook, useWriteProgress } from '../book/useBook'
 import { bookPath } from '../routes'
 import { ErrorBlock } from '../widgets/ErrorBlock'
-import { ReaderError, type Appearance, type OpenBook } from './BookReader'
-import { useBookReader } from './BookReaderContext'
-import { ContentsDrawer } from './ContentsDrawer'
-import { ReaderBar } from './ReaderBar'
 import { AppearanceMenu } from './AppearanceMenu'
 import { loadAppearance, saveAppearance } from './appearance'
+import { ReaderError, type Appearance, type OpenBook, type ReaderPosition } from './BookReader'
+import { useBookReader } from './BookReaderContext'
+import { chapterAt } from './chapterAt'
+import { ContentsDrawer } from './ContentsDrawer'
+import { PageArrows } from './PageArrows'
+import { ReaderBar } from './ReaderBar'
 import styles from './ReaderScreen.module.css'
+import { usePageKeys } from './usePageKeys'
 
-/** How long the reader must stop scrolling before the position is worth a request. */
+/** How long after the last page turn the new place is worth a request. */
 const WRITE_AFTER_MS = 1000
 
-/**
- * How far the reader has to be from where the book put them before the position is worth
- * saving: one displayed percentage point.
- */
-const MOVED_BY = 0.01
+const NOWHERE: ReaderPosition = {
+  mark: null,
+  index: 0,
+  progress: null,
+  atStart: true,
+  atEnd: false,
+}
 
 /** `/books/:id/read` — the whole window, with no application furniture. */
 export function ReaderScreen() {
@@ -34,29 +39,20 @@ export function ReaderScreen() {
   const [attempt, setAttempt] = useState(0)
   const [panel, setPanel] = useState<'contents' | 'appearance' | null>(null)
   const [appearance, setAppearance] = useState<Appearance>(loadAppearance)
-  const [chapterIndex, setChapterIndex] = useState(0)
-  const [progress, setProgress] = useState(0)
-  const pending = useRef<{ progress: number; position: string | null } | null>(null)
+  const [position, setPosition] = useState<ReaderPosition>(NOWHERE)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resumed = useRef(false)
-  const restored = useRef(false)
-  const resumedTo = useRef(0)
-  const landedAt = useRef<number | null>(null)
-  const moved = useRef(false)
 
   const { mutate: writeProgress } = useWriteProgress(bookId)
-  const savedProgress = book.data?.progress ?? 0
   const savedMark = book.data?.position ?? null
+  const savedProgress = book.data?.progress ?? 0
 
   useEffect(() => {
     const mount = host.current
     if (!mount || !book.isSuccess) return
     let cancelled = false
-
     resumed.current = false
-    restored.current = false
-    moved.current = false
-    landedAt.current = null
+
     reader
       .open(bookId, mount)
       .then((opened) => {
@@ -77,23 +73,14 @@ export function ReaderScreen() {
     }
   }, [reader, bookId, attempt, book.isSuccess])
 
-  // Resuming seeks and stops there: the move comes back through `onMove` like any other, so
-  // the position and the progress rule follow without this having to set them. It is also why
-  // opening no longer depends on the saved progress — that value arrives with the book query,
-  // and having it in the deps above reopened the book underneath itself.
+  // Resuming happens once, and never writes anything. An address goes back exactly. A
+  // percentage is best effort, and only for a book stored before addresses were kept.
   useEffect(() => {
     if (!open || resumed.current) return
     resumed.current = true
-    resumedTo.current = savedProgress
-    if (savedProgress <= 0 && savedMark === null) {
-      restored.current = true
-      return
-    }
-    void reader.goTo({ mark: savedMark, progress: savedProgress }).finally(() => {
-      landedAt.current = reader.position().progress
-      restored.current = true
-    })
-  }, [open, savedProgress, savedMark, reader])
+    if (savedMark !== null) void reader.goTo(savedMark)
+    else if (savedProgress > 0) void reader.goToProgress(savedProgress)
+  }, [open, savedMark, savedProgress, reader])
 
   useEffect(() => {
     if (open) reader.setAppearance(appearance)
@@ -101,63 +88,45 @@ export function ReaderScreen() {
 
   useEffect(() => {
     if (!open) return
+    return reader.onMove(setPosition)
+  }, [open, reader])
 
-    const flush = () => {
-      const latest = pending.current
-      if (latest === null) return
-      pending.current = null
-      writeProgress(latest)
-    }
-
-    const stop = reader.onMove((position) => {
-      setChapterIndex(position.index)
-
-      // Nothing is written until the book has been put back where the reader left it. Resuming
-      // is not instant, and in that gap the reader is sitting at the top — reporting that
-      // position wrote a 0 over the stored position it was about to restore.
-      if (!restored.current) {
-        setProgress(position.progress)
-        return
-      }
-
-      // Nor is the landing itself the reader moving. Going back to a mark is exact, but a book
-      // last read before marks were kept can only be resumed by percentage, and that lands a
-      // little short — saving it walked the place one step down the book on every open, 40%
-      // then 39.5% then 38.8%, without anybody reading a word. Near where it was sent, or near
-      // where it came to rest: either one means the reader has not moved yet.
-      const landed = landedAt.current
-      const stillWhereItWasPut =
-        !moved.current &&
-        (Math.abs(position.progress - resumedTo.current) < MOVED_BY ||
-          (landed !== null && Math.abs(position.progress - landed) < MOVED_BY))
-
-      // The bar reads the number the book page shows only while the reader really is back
-      // where they left off — the resume both landed and landed where it was aimed. When it
-      // misses, the bar says where the reader actually is. Saying otherwise painted the stored
-      // number over a reader sitting on the cover, which hid the failure instead of showing it.
-      const cameBackToThePlace = landed !== null && Math.abs(landed - resumedTo.current) < MOVED_BY
-      setProgress(stillWhereItWasPut && cameBackToThePlace ? resumedTo.current : position.progress)
-      if (stillWhereItWasPut) return
-      moved.current = true
-
-      pending.current = { progress: position.progress, position: position.mark }
+  useEffect(
+    () => () => {
       if (timer.current !== null) clearTimeout(timer.current)
-      timer.current = setTimeout(flush, WRITE_AFTER_MS)
-    })
+    },
+    []
+  )
 
-    return () => {
-      stop()
-      if (timer.current !== null) clearTimeout(timer.current)
-      flush()
-    }
-  }, [open, reader, writeProgress])
+  /**
+   * The one write rule: turning a page saves where the turn landed, a second after the last
+   * one. Opening a book is not turning a page, so a resume can never overwrite the place it is
+   * restoring. The last page finishes the book, which is what stamps `finished_at`.
+   */
+  const save = useCallback(() => {
+    if (timer.current !== null) clearTimeout(timer.current)
+    timer.current = setTimeout(() => {
+      const now = reader.position()
+      writeProgress({ progress: now.atEnd ? 1 : now.progress, position: now.mark })
+    }, WRITE_AFTER_MS)
+  }, [reader, writeProgress])
+
+  const turn = useCallback(
+    (move: () => Promise<void>) => {
+      void move().then(save)
+    },
+    [save]
+  )
+
+  const goNext = useCallback(() => turn(() => reader.next()), [turn, reader])
+  const goPrevious = useCallback(() => turn(() => reader.previous()), [turn, reader])
+  usePageKeys(goPrevious, goNext, open !== null && panel === null)
 
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
   const title = open?.title ?? book.data?.title ?? 'Book'
 
   function chooseChapter(index: number) {
-    void reader.goToChapter(index)
-    setChapterIndex(index)
+    turn(() => reader.goToChapter(index))
     setPanel(null)
   }
 
@@ -170,7 +139,8 @@ export function ReaderScreen() {
     <div className={styles.screen}>
       <ReaderBar
         title={title}
-        progress={progress}
+        chapter={chapterAt(open?.chapters ?? [], position.index)}
+        progress={position.progress}
         backTo={bookPath(bookId)}
         onContents={() => setPanel('contents')}
         onAppearance={() => setPanel('appearance')}
@@ -178,7 +148,7 @@ export function ReaderScreen() {
       {panel === 'contents' && (
         <ContentsDrawer
           chapters={open?.chapters ?? []}
-          currentIndex={chapterIndex}
+          currentIndex={position.index}
           onChoose={chooseChapter}
           onClose={() => setPanel(null)}
         />
@@ -192,9 +162,9 @@ export function ReaderScreen() {
       )}
       <div className={styles.body}>
         {/*
-          Never hidden while opening. epub.js measures this element to size the chapter it
-          renders inside, and a `display: none` box measures zero — which produced a reader
-          that had loaded the whole book and drew none of it. The overlay covers it instead.
+          Never hidden while opening. epub.js measures this element to size the page it renders
+          inside, and a `display: none` box measures zero — which produced a reader that had
+          loaded the whole book and drew none of it. The overlay covers it instead.
         */}
         <div
           ref={host}
@@ -204,6 +174,14 @@ export function ReaderScreen() {
           aria-busy={open === null}
           hidden={failure !== null}
         />
+        {open !== null && failure === null && (
+          <PageArrows
+            atStart={position.atStart}
+            atEnd={position.atEnd}
+            onPrevious={goPrevious}
+            onNext={goNext}
+          />
+        )}
         {(failure !== null || open === null) && (
           <div className={styles.overlay}>
             <div className={styles.overlayColumn}>
