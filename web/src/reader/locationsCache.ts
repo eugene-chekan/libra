@@ -15,10 +15,27 @@ function key(bookId: number, byteLength: number): string {
   return `${PREFIX}${bookId}.${byteLength}`
 }
 
+/**
+ * A measurement with no positions in it is not a measurement, it is a failed one.
+ *
+ * epub.js answers `[]` when it could not walk the book — a spine it treats as empty, a section
+ * it could not load. Keeping that answer is worse than keeping nothing: the next open reads it
+ * as a hit, so the book is never measured again and stays at 0% for good.
+ */
+function isMeasured(stored: string): boolean {
+  try {
+    const positions: unknown = JSON.parse(stored)
+    return Array.isArray(positions) && positions.length > 0
+  } catch {
+    return false
+  }
+}
+
 /** What was measured last time, or null when this book has not been measured yet. */
 export function loadLocations(bookId: number, byteLength: number): string | null {
   try {
-    return localStorage.getItem(key(bookId, byteLength))
+    const stored = localStorage.getItem(key(bookId, byteLength))
+    return stored !== null && isMeasured(stored) ? stored : null
   } catch {
     return null
   }

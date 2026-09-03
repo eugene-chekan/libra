@@ -135,11 +135,11 @@ export function buildMalformedEpub(): Buffer {
   return buildZip([{ name: 'readme.txt', data: Buffer.from('not an epub', 'utf8') }])
 }
 
-function chapterXhtml(label: string, index: number): string {
+function chapterXhtml(label: string, index: number, length: number): string {
   // Long enough that a chapter spans several of epub.js's location marks. A chapter shorter
   // than one mark cannot show progress moving inside it, which is the thing worth testing.
   const paragraphs = Array.from(
-    { length: 60 },
+    { length },
     (_, n) => `<p>${label}, paragraph ${n + 1}. Something happens, at some length.</p>`
   ).join('\n    ')
   return `<?xml version="1.0" encoding="UTF-8"?>
@@ -210,10 +210,17 @@ export function buildReadableEpub({
   title,
   author,
   chapters,
+  paragraphs = 60,
 }: {
   title: string
   author: string
   chapters: string[]
+  /**
+   * Paragraphs per chapter. The default is a small, fast book. A resume is only worth a
+   * percentage point on a book long enough to have a few hundred measured positions — on a
+   * short one a single position is worth two points, and an error that size hides inside it.
+   */
+  paragraphs?: number
 }): Buffer {
   return buildZip([
     { name: 'META-INF/container.xml', data: Buffer.from(CONTAINER_XML, 'utf8') },
@@ -221,10 +228,10 @@ export function buildReadableEpub({
     { name: 'nav.xhtml', data: Buffer.from(navXhtml(chapters), 'utf8') },
     // Front matter, first in the spine and absent from the contents — the shape of a real
     // book, and the reason a contents entry's position is not its spine position.
-    { name: 'titlepage.xhtml', data: Buffer.from(chapterXhtml(title, 0), 'utf8') },
+    { name: 'titlepage.xhtml', data: Buffer.from(chapterXhtml(title, 0, 4), 'utf8') },
     ...chapters.map((label, index) => ({
       name: `chapter${index + 1}.xhtml`,
-      data: Buffer.from(chapterXhtml(label, index + 1), 'utf8'),
+      data: Buffer.from(chapterXhtml(label, index + 1, paragraphs), 'utf8'),
     })),
   ])
 }

@@ -21,6 +21,15 @@ const CHAPTERS: Chapter[] = [
 
 const SPINE_LENGTH = 6
 
+/**
+ * How far apart the real reader's measured positions are, near enough.
+ *
+ * Resuming lands on the measured position at or before the one it was asked for, so it always
+ * comes back a little short of it. A fake that landed exactly hid a defect that walked a book's
+ * saved place a step down the page on every single open.
+ */
+const MEASURED_STEP = 0.006
+
 interface FakeOptions {
   /** Makes `open` reject, so the screen's two error shapes can both be tested. */
   failWith?: 'download' | 'parse'
@@ -70,8 +79,8 @@ export class FakeBookReader implements BookReader {
   }
 
   /**
-   * Resuming lands where it is told. The real one has to measure the book first and rounds to
-   * the nearest position it marked, so a caller must not assume it comes back exactly.
+   * Resuming lands a little short of where it is told, and says so, exactly as the real one
+   * does: it can only land on a position it measured, and it takes the one before.
    */
   goTo(progress: number): Promise<void> {
     if (progress < 0 || progress > 1) {
@@ -80,7 +89,12 @@ export class FakeBookReader implements BookReader {
     this.calls.push(`goTo:${progress.toFixed(2)}`)
 
     const land = () => {
-      this.current = { ...this.current, progress }
+      this.current = { ...this.current, progress: Math.max(0, progress - MEASURED_STEP) }
+      // Reported a beat later, as the real one does: it reports a move on the next animation
+      // frame, so the landing always arrives after the caller has been told resuming is done.
+      setTimeout(() => {
+        for (const listener of this.listeners) listener(this.current)
+      }, 0)
     }
     if (!this.options.slowResume) {
       land()

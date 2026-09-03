@@ -16,13 +16,28 @@ import { buildReadableEpub } from './epubFixture'
 
 const CHAPTERS = ['The Beginning', 'The Middle', 'The End']
 
-async function uploadBook(request: APIRequestContext, title: string): Promise<number> {
+/**
+ * A book with as many sections as a real one. How far a resume misses grows with the number of
+ * sections around the target, because each one epub.js fills in above it moves the page.
+ */
+const LONG_BOOK = Array.from({ length: 12 }, (_, n) => `Chapter ${n + 1}`)
+
+async function uploadBook(
+  request: APIRequestContext,
+  title: string,
+  shape: { chapters?: string[]; paragraphs?: number } = {}
+): Promise<number> {
   const response = await request.post('/api/books/upload', {
     multipart: {
       file: {
         name: `${title}.epub`,
         mimeType: 'application/epub+zip',
-        buffer: buildReadableEpub({ title, author: 'E2E Author', chapters: CHAPTERS }),
+        buffer: buildReadableEpub({
+          title,
+          author: 'E2E Author',
+          chapters: shape.chapters ?? CHAPTERS,
+          paragraphs: shape.paragraphs,
+        }),
       },
     },
   })
@@ -43,6 +58,25 @@ async function openReader(page: Page, id: number, title: string): Promise<void> 
   await expect(page.getByRole('region', { name: title })).toHaveAttribute('aria-busy', 'false', {
     timeout: 30_000,
   })
+}
+
+/**
+ * Waits until the book has been measured.
+ *
+ * Measuring walks every chapter and marks a position every thousand characters, and it runs in
+ * the background — until it lands the percentage is still the rough chapter estimate and a
+ * resume can only land near. The stored measurement appearing is the signal that it is done.
+ */
+async function waitForMeasured(page: Page): Promise<void> {
+  await expect
+    .poll(
+      () =>
+        page.evaluate(() =>
+          Object.keys(localStorage).some((k) => k.startsWith('libra.locations.'))
+        ),
+      { timeout: 30_000 }
+    )
+    .toBe(true)
 }
 
 /**
@@ -218,18 +252,7 @@ test.describe('the reader, in a real browser', () => {
     const percent = async () =>
       Number(await page.getByRole('progressbar').getAttribute('aria-valuenow'))
 
-    // Measuring the book is what makes a real percentage possible, and it runs in the
-    // background — until it lands the number is still the rough chapter estimate. The stored
-    // measurement appearing is the signal that it is done.
-    await expect
-      .poll(
-        () =>
-          page.evaluate(() =>
-            Object.keys(localStorage).some((k) => k.startsWith('libra.locations.'))
-          ),
-        { timeout: 30_000 }
-      )
-      .toBe(true)
+    await waitForMeasured(page)
 
     await page.getByRole('button', { name: 'Contents' }).click()
     await page.getByRole('button', { name: 'The Middle' }).click()
@@ -239,9 +262,14 @@ test.describe('the reader, in a real browser', () => {
     // Steps measured against the chapter's own height rather than in pixels. A runner with no
     // Georgia installed lays the same chapter out much taller, and a fixed 200px step there
     // never reaches the next measured position, so the number legitimately does not move.
+    // The tallest rendered section, not the first one. The first is the title page, which is a
+    // few lines long — an eighth of it is 36 pixels, and six of those do not reach the next
+    // measured position, so the number legitimately never moves.
     const step = await page.evaluate(() => {
-      const view = document.querySelector('.epub-view')
-      return view ? Math.round(view.getBoundingClientRect().height / 8) : 0
+      const heights = Array.from(document.querySelectorAll('.epub-view')).map(
+        (view) => view.getBoundingClientRect().height
+      )
+      return Math.round(Math.max(0, ...heights) / 8)
     })
     expect(step).toBeGreaterThan(0)
 
@@ -307,39 +335,65 @@ test.describe('the reader, in a real browser', () => {
       .toBeGreaterThan(0)
   })
 
-  test('coming back to a book keeps the place, rather than starting over', async ({
+  test('coming back to a book returns to the same place, not near it', async ({
     page,
     request,
   }) => {
-    // The round trip Continue Reading actually makes, which nothing else here covers.
+    // The round trip Continue Reading actually makes.
     //
-    // It does not reproduce the defect that made this necessary: that needed measuring to
-    // outlast the one-second write debounce, which happens on a large book or a slow machine
-    // and never on a fixture this small. `ReaderScreen.test.tsx` holds the resume open on
-    // purpose and is the test that fails without the fix.
+    // A long book on purpose. epub.js can be asked to show an exact address, but under the
+    // continuous manager it gets there by scrolling *relative* to wherever the reader already
+    // was, so the same address lands somewhere different on every open — six or seven points
+    // out on a book this size. A short fixture hides that: one measured position there is
+    // worth two points, so any error fits inside one.
     const title = `E2E Reader Resume ${Date.now()}`
-    const id = await uploadBook(request, title)
+    const id = await uploadBook(request, title, { chapters: LONG_BOOK, paragraphs: 200 })
     const stored = async () => {
       const response = await request.get(`/api/books/${id}`)
       return ((await response.json()) as { progress: number }).progress
     }
+    const shown = async () =>
+      Number(await page.getByRole('progressbar').getAttribute('aria-valuenow'))
 
     await openReader(page, id, title)
+    await waitForMeasured(page)
     await page.getByRole('button', { name: 'Contents' }).click()
-    await page.getByRole('button', { name: 'The Middle' }).click()
-    await expect.poll(stored, { timeout: 10_000 }).toBeGreaterThan(0)
+    await page.getByRole('button', { name: 'Chapter 5' }).click()
+    // The percentage moving is the signal the jump landed. Counting rendered headings is not:
+    // on a book this size epub.js has the sections in the page well before the browser has
+    // attached their frames.
+    await expect.poll(shown, { timeout: 20_000 }).toBeGreaterThan(10)
+
+    await expect.poll(stored, { timeout: 15_000 }).toBeGreaterThan(0)
+    const atChapterStart = await stored()
+
+    // Stop well inside the chapter, where a reader actually stops, and wait for that position
+    // to be the stored one. Landing back on a chapter's first line is the one case the old
+    // seek got right, because the scroll it adds is zero.
+    await page.waitForTimeout(500)
+    await page.evaluate(() => {
+      const view = document.querySelector('.epub-view')
+      const scroller = document.querySelector('.epub-container')
+      if (view && scroller) scroller.scrollTop += view.getBoundingClientRect().height / 2
+    })
+    await expect.poll(stored, { timeout: 15_000 }).toBeGreaterThan(atChapterStart)
     const left = await stored()
 
     // Leave and come back, which is what Continue Reading does.
     await page.getByRole('link', { name: 'Back' }).click()
     await expect(page.getByRole('heading', { name: title, level: 1 })).toBeVisible()
     await openReader(page, id, title)
-    await page.waitForTimeout(2500)
-
-    expect(await stored()).toBeGreaterThan(0)
-    expect(Math.abs((await stored()) - left)).toBeLessThan(0.1)
+    await waitForMeasured(page)
+    // Polled rather than asserted once: under a loaded machine the resume lands a beat after
+    // the book is open, and reading the bar at a fixed moment catches it mid-flight.
     await expect
-      .poll(async () => Number(await page.getByRole('progressbar').getAttribute('aria-valuenow')))
-      .toBeGreaterThan(0)
+      .poll(async () => Math.abs((await shown()) / 100 - left), { timeout: 20_000 })
+      .toBeLessThan(0.02)
+
+    // And the place it came back to is the place it keeps. Opening a book writes back where
+    // the resume landed, so a resume that lands short walks the position down a few points
+    // every single time the book is opened.
+    await page.waitForTimeout(2500)
+    expect(Math.abs((await stored()) - left)).toBeLessThan(0.02)
   })
 })

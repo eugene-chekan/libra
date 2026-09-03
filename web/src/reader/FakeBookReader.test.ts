@@ -34,13 +34,15 @@ describe('FakeBookReader', () => {
     expect(reader.position()).toEqual({ index: 0, progress: 0 })
   })
 
-  it('resumes to a fraction of the way through the book', async () => {
+  it('resumes to a little short of the fraction asked for, as the real one does', async () => {
+    // It can only land on a position the book was measured at, and it takes the one before.
     const reader = new FakeBookReader()
     await reader.open(1, host())
 
     await reader.goTo(0.42)
 
-    expect(reader.position().progress).toBe(0.42)
+    expect(reader.position().progress).toBeLessThan(0.42)
+    expect(reader.position().progress).toBeGreaterThan(0.41)
     expect(reader.calls).toContain('goTo:0.42')
   })
 

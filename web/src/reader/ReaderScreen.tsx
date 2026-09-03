@@ -15,6 +15,12 @@ import styles from './ReaderScreen.module.css'
 /** How long the reader must stop scrolling before the position is worth a request. */
 const WRITE_AFTER_MS = 1000
 
+/**
+ * How far the reader has to be from where the book put them before the position is worth
+ * saving: one displayed percentage point.
+ */
+const MOVED_BY = 0.01
+
 /** `/books/:id/read` — the whole window, with no application furniture. */
 export function ReaderScreen() {
   const { id } = useParams()
@@ -34,6 +40,8 @@ export function ReaderScreen() {
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resumed = useRef(false)
   const restored = useRef(false)
+  const resumedTo = useRef(0)
+  const moved = useRef(false)
 
   const { mutate: writeProgress } = useWriteProgress(bookId)
   const savedProgress = book.data?.progress ?? 0
@@ -45,6 +53,7 @@ export function ReaderScreen() {
 
     resumed.current = false
     restored.current = false
+    moved.current = false
     reader
       .open(bookId, mount)
       .then((opened) => {
@@ -72,6 +81,7 @@ export function ReaderScreen() {
   useEffect(() => {
     if (!open || resumed.current) return
     resumed.current = true
+    resumedTo.current = savedProgress
     if (savedProgress <= 0) {
       restored.current = true
       return
@@ -96,13 +106,28 @@ export function ReaderScreen() {
     }
 
     const stop = reader.onMove((position) => {
-      setProgress(position.progress)
       setChapterIndex(position.index)
 
       // Nothing is written until the book has been put back where the reader left it. Resuming
       // waits for the book to be measured, and in that gap the reader is sitting at the top —
       // reporting that position wrote a 0 over the stored position it was about to restore.
-      if (!restored.current) return
+      if (!restored.current) {
+        setProgress(position.progress)
+        return
+      }
+
+      // Resuming can only land on a position the book was measured at, so it comes back a
+      // little short of the one asked for. Until the reader moves off it, that is still the
+      // place they left, and it is shown and kept as the number they left it at.
+      //
+      // Reporting the landing instead did two visible things: the bar said 39% about a book
+      // whose page said 40%, and saving it walked the place one step down the book on every
+      // single open — 40%, then 39.5%, then 38.8% — without anybody reading a word.
+      const whereItWasPut =
+        !moved.current && Math.abs(position.progress - resumedTo.current) < MOVED_BY
+      setProgress(whereItWasPut ? resumedTo.current : position.progress)
+      if (whereItWasPut) return
+      moved.current = true
 
       pending.current = position.progress
       if (timer.current !== null) clearTimeout(timer.current)

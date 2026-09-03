@@ -274,6 +274,42 @@ right sentence" this used to promise. It is the one place exactness is the
 whole point, so it waits for the book to be measured instead of landing
 nearby and calling it close enough.
 
+**It gets there by scrolling itself, not by asking epub.js to.** epub.js
+accepts an exact address, but under the continuous manager it reaches it with
+`scrollBy` — a move *relative* to wherever the reader already was — and then
+fills in the sections around it, which moves the page again. Measured in a
+browser, the same address landed six or seven points away from where it was
+asked for. So the section is displayed by its own address, which does not
+scroll, and the exact spot inside it is set outright from
+`view.locationOf(cfi)`. That lands within one measured position, and asking
+twice does not move it a second time.
+
+**Opening a book does not move the place it was left at.** Resuming can only
+land on a position the book was measured at, and it takes the one at or
+before, so it always comes back a fraction short of the number it was given.
+Saving that number back walked the place one step down the book on every
+single open: a book left at 40% read 39.5%, then 38.8%, then 38.1%, with
+nobody reading a word. It looked like the resume was simply unreliable, and it
+got worse the more often a book was opened.
+
+So until the reader moves a full displayed percentage point away from it, the
+position they were put back at is both the number shown and the number kept.
+The cost is that reading less than one percent and leaving is not saved. The
+alternative was losing the place a little at a time, for good.
+
+**A measurement with nothing in it is not kept.** epub.js answers `[]` when it
+could not walk the book — a spine it treats as empty, a section it could not
+load. That answer used to be cached like any other, and the cache hit stopped
+the book ever being measured again, so it sat at 0% for good however many
+times it was opened. `loadLocations` now refuses an empty measurement, and the
+book is measured again next time.
+
+**An unmeasured book is not sent anywhere.** `cfiFromPercentage()` answers
+with the number `-1`, not an address, when there is no measurement to read
+from. `-1` is truthy, so passing it straight on asked epub.js for section
+`-1`, which it refuses with `No Section Found`. There is nowhere exact to go
+in that case: the book stays where it is and reads from the top.
+
 ## Data and API
 
 No new endpoints. The screen uses three that already exist:

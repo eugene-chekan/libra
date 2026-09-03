@@ -218,6 +218,57 @@ describe('ReaderScreen', () => {
     expect(onlyBook(api).progress).toBe(0.09)
   })
 
+  it('opening a book does not move the place it was left at', async () => {
+    // Resuming can only land on a position the book was measured at, so it comes back a little
+    // short of the one asked for. Writing that back walked the place one step down the book on
+    // every open — 40%, then 39.5%, then 38.8% — without anybody reading a word.
+    // `slowResume` is what puts the landing where the real one happens: after measuring, with
+    // the screen already listening. A resume that lands before that is heard by nobody.
+    const reader = new FakeBookReader({ slowResume: true })
+    const api = signedInApi()
+    onlyBook(api).progress = 0.4
+    renderReader(reader, api)
+    await opened()
+
+    await act(async () => reader.finishResume())
+    await new Promise((resolve) => setTimeout(resolve, WRITE_WAIT_MS))
+
+    expect(onlyBook(api).progress).toBe(0.4)
+    expect(api.calls).not.toContain('setBookState:1')
+  })
+
+  it('shows the place the book was left at, not the one resuming could reach', async () => {
+    // The book page says 40%. Resuming lands on the measured position before that, so
+    // reporting the landing made the reader say 39% about the same page.
+    const reader = new FakeBookReader({ slowResume: true })
+    const api = signedInApi()
+    onlyBook(api).progress = 0.4
+    renderReader(reader, api)
+    await opened()
+
+    await act(async () => reader.finishResume())
+
+    await waitFor(() =>
+      expect(screen.getByRole('progressbar', { name: 'Reading progress' })).toHaveAttribute(
+        'aria-valuenow',
+        '40'
+      )
+    )
+  })
+
+  it('saves the place once the reader has moved away from it', async () => {
+    const reader = new FakeBookReader({ slowResume: true })
+    const api = signedInApi()
+    onlyBook(api).progress = 0.4
+    renderReader(reader, api)
+    await opened()
+    await act(async () => reader.finishResume())
+
+    act(() => reader.simulateScroll({ index: 3, progress: 0.55 }))
+
+    await waitFor(() => expect(onlyBook(api).progress).toBe(0.55), { timeout: 3000 })
+  })
+
   it('resumes where the reader left off', async () => {
     const reader = new FakeBookReader()
     const api = signedInApi()

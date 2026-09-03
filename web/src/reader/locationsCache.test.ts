@@ -15,8 +15,16 @@ describe('locations cache', () => {
     expect(loadLocations(1, 5000)).toBe('["cfi/1","cfi/2"]')
   })
 
+  it('refuses a measurement with nothing in it, because that book was never measured', () => {
+    // epub.js answers `[]` when it could not walk the book, and that answer used to be kept.
+    // A cache hit then stopped it ever being measured again, so the book was stuck at 0%.
+    saveLocations(1, 5000, '[]')
+
+    expect(loadLocations(1, 5000)).toBeNull()
+  })
+
   it('does not hand one book the measurement of another', () => {
-    saveLocations(1, 5000, 'first')
+    saveLocations(1, 5000, '["cfi/1"]')
 
     expect(loadLocations(2, 5000)).toBeNull()
   })
@@ -24,7 +32,7 @@ describe('locations cache', () => {
   it('does not reuse a measurement when the file behind the id changed size', () => {
     // Ids are reused after a delete, so the same id can hold a different book. Resuming into
     // the wrong place is the failure this avoids.
-    saveLocations(1, 5000, 'first')
+    saveLocations(1, 5000, '["cfi/1"]')
 
     expect(loadLocations(1, 9000)).toBeNull()
   })
@@ -44,7 +52,7 @@ describe('locations cache', () => {
       throw new Error('quota')
     })
 
-    expect(() => saveLocations(1, 5000, 'x')).not.toThrow()
+    expect(() => saveLocations(1, 5000, '["cfi/1"]')).not.toThrow()
     vi.restoreAllMocks()
   })
 })

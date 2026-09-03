@@ -1,4 +1,5 @@
 import ePub, { type Book, type NavItem, type Rendition } from 'epubjs'
+import type Section from 'epubjs/types/section'
 
 import type { LibraApi } from '../api/LibraApi'
 import { loadLocations, saveLocations } from './locationsCache'
@@ -43,6 +44,20 @@ const WIDTHS: Record<ReadingWidth, string> = {
  * roughly every screenful.
  */
 const CHARS_PER_LOCATION = 1000
+
+/**
+ * The parts of epub.js's view manager this file uses, which its typings do not describe.
+ * `container` is the element that actually scrolls; `views` holds one view per rendered
+ * section, and a view can say where a given address sits inside itself.
+ */
+interface ViewManager {
+  container: HTMLElement
+  views: {
+    find(
+      section: Section
+    ): { element: HTMLElement; locationOf(target: string): { top: number } } | undefined
+  }
+}
 
 /** epub.js over the whole archive, fetched once and parsed in the browser. */
 export class EpubBookReader implements BookReader {
@@ -113,7 +128,40 @@ export class EpubBookReader implements BookReader {
     // rather than landing near the right chapter and calling it close enough.
     await this.measured
     const cfi = book.locations.cfiFromPercentage(Math.min(1, Math.max(0, progress)))
-    if (cfi) await rendition.display(cfi)
+
+    // A book with no measurement answers with the number -1 rather than an address. -1 is
+    // truthy, so passing it straight on asks epub.js for section -1, which it refuses. There is
+    // nowhere exact to go: the book stays where it is, and reads from the top.
+    if (typeof cfi !== 'string') return
+
+    const section = book.spine.get(cfi)
+    if (!section) {
+      await rendition.display(cfi)
+      return
+    }
+
+    // The section by its own address, which does not scroll, then the exact spot inside it.
+    await rendition.display(section.href)
+    this.placeAt(section, cfi)
+  }
+
+  /**
+   * Puts the text at `cfi` at the top of the window.
+   *
+   * epub.js can be asked to display an address directly, but under the continuous manager it
+   * gets there with `scrollBy` — a move *relative* to wherever the reader already was — and
+   * then fills in the sections around it, which moves the page again. The same address
+   * therefore lands somewhere different depending on what came before it. Setting the position
+   * outright is the same arithmetic without that dependence.
+   */
+  private placeAt(section: Section, cfi: string): void {
+    const manager = (this.rendition as unknown as { manager?: ViewManager }).manager
+    const view = manager?.views.find(section)
+    const scroller = manager?.container
+    if (!view || !scroller) return
+
+    const above = view.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
+    scroller.scrollTop += above + view.locationOf(cfi).top
   }
 
   async goToChapter(index: number): Promise<void> {
