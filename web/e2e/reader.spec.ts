@@ -218,6 +218,19 @@ test.describe('the reader, in a real browser', () => {
     const percent = async () =>
       Number(await page.getByRole('progressbar').getAttribute('aria-valuenow'))
 
+    // Measuring the book is what makes a real percentage possible, and it runs in the
+    // background — until it lands the number is still the rough chapter estimate. The stored
+    // measurement appearing is the signal that it is done.
+    await expect
+      .poll(
+        () =>
+          page.evaluate(() =>
+            Object.keys(localStorage).some((k) => k.startsWith('libra.locations.'))
+          ),
+        { timeout: 30_000 }
+      )
+      .toBe(true)
+
     await page.getByRole('button', { name: 'Contents' }).click()
     await page.getByRole('button', { name: 'The Middle' }).click()
     await expect.poll(() => renderedHeadings(page)).toContain('The Middle')
