@@ -44,24 +44,14 @@ const WIDTHS: Record<ReadingWidth, string> = {
  */
 const CHARS_PER_LOCATION = 1000
 
-/** The nearest ancestor that actually scrolls, which is where epub.js puts the chapter. */
-function scrollerFor(host: HTMLElement): HTMLElement {
-  let node: HTMLElement | null = host
-  while (node) {
-    if (node.scrollHeight - node.clientHeight > 1) return node
-    node = node.parentElement
-  }
-  return host
-}
-
 /** epub.js over the whole archive, fetched once and parsed in the browser. */
 export class EpubBookReader implements BookReader {
   private book: Book | null = null
+  private host: HTMLElement | null = null
   private rendition: Rendition | null = null
   private chapterCount = 0
   private listeners: ((position: ReaderPosition) => void)[] = []
   private onScroll: (() => void) | null = null
-  private scroller: HTMLElement | null = null
   private frame: number | null = null
   private last: ReaderPosition | null = null
   private measured: Promise<void> = Promise.resolve()
@@ -97,9 +87,14 @@ export class EpubBookReader implements BookReader {
     await rendition.display()
 
     rendition.on('relocated', () => this.announce())
-    this.scroller = scrollerFor(host)
+
+    // Captured on the host rather than bound to epub.js's scrolling element. That element is
+    // created and sized as the chapter lays out, so looking for it here finds nothing on a
+    // slow machine and leaves the listener on something that never scrolls — progress then
+    // only moved when the chapter did. Scroll events do not bubble, but they do capture.
+    this.host = host
     this.onScroll = () => this.announce()
-    this.scroller.addEventListener('scroll', this.onScroll, { passive: true })
+    host.addEventListener('scroll', this.onScroll, { capture: true, passive: true })
 
     this.measured = this.measure(book, bookId, bytes.byteLength)
 
@@ -233,12 +228,12 @@ export class EpubBookReader implements BookReader {
     if (this.frame !== null) cancelAnimationFrame(this.frame)
     this.frame = null
     this.last = null
-    if (this.scroller && this.onScroll) {
-      this.scroller.removeEventListener('scroll', this.onScroll)
+    if (this.host && this.onScroll) {
+      this.host.removeEventListener('scroll', this.onScroll, { capture: true })
     }
     this.listeners = []
     this.onScroll = null
-    this.scroller = null
+    this.host = null
     this.rendition?.destroy()
     this.book?.destroy()
     this.rendition = null
