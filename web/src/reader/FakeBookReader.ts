@@ -43,6 +43,12 @@ interface FakeOptions {
    * where the reader used to write a 0 over the position it was about to restore.
    */
   slowResume?: boolean
+  /**
+   * How far short of the position asked for `goTo` lands, when a measured position is not the
+   * answer. On a book whose addresses do not survive rendering the real one places the reader
+   * by proportion instead — near the right spot, but further off than usual.
+   */
+  landShortBy?: number
 }
 
 /** A book in memory, standing in for epub.js, which cannot run in jsdom. */
@@ -89,7 +95,8 @@ export class FakeBookReader implements BookReader {
     this.calls.push(`goTo:${progress.toFixed(2)}`)
 
     const land = () => {
-      this.current = { ...this.current, progress: Math.max(0, progress - MEASURED_STEP) }
+      const short = this.options.landShortBy ?? MEASURED_STEP
+      this.current = { ...this.current, progress: Math.max(0, progress - short) }
       // Reported a beat later, as the real one does: it reports a move on the next animation
       // frame, so the landing always arrives after the caller has been told resuming is done.
       setTimeout(() => {

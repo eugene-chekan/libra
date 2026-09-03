@@ -284,6 +284,28 @@ scroll, and the exact spot inside it is set outright from
 `view.locationOf(cfi)`. That lands within one measured position, and asking
 twice does not move it a second time.
 
+**Some books cannot be resumed by address at all.** epub.js measures a book
+by parsing each section as XHTML. The browser renders the same section as
+HTML. Those are different parsers, and where a book's markup is invalid HTML
+they build different trees — so an address measured in one points at the wrong
+node in the other, or at no node at all.
+
+One book in the test library wraps a picture in a paragraph. HTML does not
+allow a block element inside a paragraph, so the browser lifts it out, and from
+that picture onward the same element has 329 children in the rendered book and
+327 in the measured one. Three of four positions in that book could not be
+found at all; epub.js's own `display(cfi)` swallowed the failure into a promise
+that never settled, so resuming hung, the reader sat on the cover at 0%, and
+the stored place was then overwritten with that 0. A second book in the same
+library has none of this markup and resumed exactly. Nothing about the reader
+was different — only the books.
+
+So the placement has a second way to get there. When the address cannot be
+found, the share of that section's own measured positions lying before the
+target is used against the section's height. It is text against pixels rather
+than text against text, so it is an estimate — but on the book that could not
+resume at all it landed within one percentage point every time.
+
 **Opening a book does not move the place it was left at.** Resuming can only
 land on a position the book was measured at, and it takes the one at or
 before, so it always comes back a fraction short of the number it was given.
@@ -294,8 +316,11 @@ got worse the more often a book was opened.
 
 So until the reader moves a full displayed percentage point away from it, the
 position they were put back at is both the number shown and the number kept.
-The cost is that reading less than one percent and leaving is not saved. The
-alternative was losing the place a little at a time, for good.
+Away from either the number asked for or the one it actually reached: a
+landing that misses by several points, as the estimate above can, is still not
+the reader moving, and must not be written either. The cost is that reading
+less than one percent and leaving is not saved. The alternative was losing the
+place a little at a time, for good.
 
 **A measurement with nothing in it is not kept.** epub.js answers `[]` when it
 could not walk the book — a spine it treats as empty, a section it could not

@@ -346,6 +346,14 @@ test.describe('the reader, in a real browser', () => {
     // was, so the same address lands somewhere different on every open — six or seven points
     // out on a book this size. A short fixture hides that: one measured position there is
     // worth two points, so any error fits inside one.
+    //
+    // What this does not reach is the placement used when an address cannot be found in the
+    // rendered text at all. The fixture carries the markup that causes it — a block inside a
+    // paragraph, so the measured and rendered documents disagree — but the addresses still
+    // resolve here, to a near-enough wrong node. On the real book it was measured against,
+    // three of four positions could not be found, and the share-of-the-section placement put
+    // every one of them within a percentage point. Breaking that placement does not fail this
+    // test; only that book does.
     const title = `E2E Reader Resume ${Date.now()}`
     const id = await uploadBook(request, title, { chapters: LONG_BOOK, paragraphs: 200 })
     const stored = async () => {

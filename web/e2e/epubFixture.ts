@@ -141,13 +141,28 @@ function chapterXhtml(label: string, index: number, length: number): string {
   const paragraphs = Array.from(
     { length },
     (_, n) => `<p>${label}, paragraph ${n + 1}. Something happens, at some length.</p>`
-  ).join('\n    ')
+  )
+
+  // A block element inside a paragraph, a third of the way in. Real books do this — one in the
+  // library this was debugged against wraps a picture that way — and it is not valid HTML, so
+  // the browser lifts the block out of the paragraph while epub.js's own XHTML parse leaves it
+  // where it is. Every address past this point then means something different in the rendered
+  // book than in the measured one, which is why the reader cannot resume by address alone.
+  if (length > 6) {
+    paragraphs.splice(
+      Math.floor(length / 3),
+      0,
+      `<p>Before the picture.<div class="image">A block where HTML allows none.</div>` +
+        `After the picture.</p>`
+    )
+  }
+
   return `<?xml version="1.0" encoding="UTF-8"?>
 <html xmlns="http://www.w3.org/1999/xhtml">
   <head><title>${label}</title></head>
   <body>
     <h1 id="chapter-${index}">${label}</h1>
-    ${paragraphs}
+    ${paragraphs.join('\n    ')}
   </body>
 </html>`
 }

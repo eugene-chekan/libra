@@ -256,6 +256,24 @@ describe('ReaderScreen', () => {
     )
   })
 
+  it('keeps the stored place when resuming can only land near it', async () => {
+    // Some books cannot be resumed exactly. epub.js measures a book by parsing it as XHTML and
+    // the browser renders it as HTML, and where a book's markup is invalid HTML the two
+    // disagree, so the address does not resolve. The reader is placed by proportion instead —
+    // near, but a few points off. That landing is still not the reader moving.
+    const reader = new FakeBookReader({ slowResume: true, landShortBy: 0.03 })
+    const api = signedInApi()
+    onlyBook(api).progress = 0.4
+    renderReader(reader, api)
+    await opened()
+
+    await act(async () => reader.finishResume())
+    await new Promise((resolve) => setTimeout(resolve, WRITE_WAIT_MS))
+
+    expect(onlyBook(api).progress).toBe(0.4)
+    expect(api.calls).not.toContain('setBookState:1')
+  })
+
   it('saves the place once the reader has moved away from it', async () => {
     const reader = new FakeBookReader({ slowResume: true })
     const api = signedInApi()

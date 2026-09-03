@@ -53,10 +53,23 @@ const CHARS_PER_LOCATION = 1000
 interface ViewManager {
   container: HTMLElement
   views: {
-    find(
-      section: Section
-    ): { element: HTMLElement; locationOf(target: string): { top: number } } | undefined
+    find(section: Section): SectionView | undefined
   }
+}
+
+/**
+ * The two parts of epub.js's `locations` its own typings get wrong: `total` is not declared at
+ * all, and `locationFromCfi` answers with a position number, not a `Location`.
+ */
+interface MeasuredLocations {
+  total: number
+  locationFromCfi(cfi: string): number
+}
+
+interface SectionView {
+  element: HTMLElement
+  /** Throws when the address cannot be found in the rendered document — see `offsetWithin`. */
+  locationOf(target: string): { top: number }
 }
 
 /** epub.js over the whole archive, fetched once and parsed in the browser. */
@@ -70,6 +83,7 @@ export class EpubBookReader implements BookReader {
   private frame: number | null = null
   private last: ReaderPosition | null = null
   private measured: Promise<void> = Promise.resolve()
+  private locationSections: number[] | null = null
 
   constructor(private readonly api: LibraApi) {}
 
@@ -85,6 +99,7 @@ export class EpubBookReader implements BookReader {
     }
 
     this.book = book
+    this.locationSections = null
     // `spineItems` is real at runtime but missing from epubjs's Spine typings.
     this.chapterCount = (book.spine as unknown as { spineItems: unknown[] }).spineItems.length
 
@@ -161,7 +176,63 @@ export class EpubBookReader implements BookReader {
     if (!view || !scroller) return
 
     const above = view.element.getBoundingClientRect().top - scroller.getBoundingClientRect().top
-    scroller.scrollTop += above + view.locationOf(cfi).top
+    scroller.scrollTop += above + this.offsetWithin(view, section, cfi)
+  }
+
+  /**
+   * How far down its section the target sits, in pixels.
+   *
+   * Exactly, when the address can be found in the rendered text. It often cannot, and that is
+   * not this reader's doing: epub.js measures a book by parsing each section as XHTML, and the
+   * browser renders the same section as HTML. Where a book's markup is invalid HTML the two
+   * parsers disagree — one real book here wraps a picture in a paragraph, which HTML does not
+   * allow, so the browser lifts it out and every address past that picture points at the wrong
+   * node. Three of four positions in that book could not be found at all.
+   *
+   * So when the address fails, the share of the section's own measured positions that lie
+   * before the target is used instead, against the section's height. It is text against pixels
+   * rather than text against text, so it is an estimate — and on that book it landed within one
+   * percentage point every time, where the exact answer landed nowhere.
+   */
+  private offsetWithin(view: SectionView, section: Section, cfi: string): number {
+    try {
+      return view.locationOf(cfi).top
+    } catch {
+      return this.shareOf(section, cfi) * view.element.getBoundingClientRect().height
+    }
+  }
+
+  /** How far through `section`'s own measured positions `cfi` sits, from 0 to 1. */
+  private shareOf(section: Section, cfi: string): number {
+    const book = this.book
+    if (!book) return 0
+
+    this.locationSections ??= this.mapLocationsToSections(book)
+    const first = this.locationSections.indexOf(section.index)
+    const last = this.locationSections.lastIndexOf(section.index)
+    if (first < 0 || last <= first) return 0
+
+    const target = (book.locations as unknown as MeasuredLocations).locationFromCfi(cfi)
+    return Math.min(1, Math.max(0, (target - first) / (last - first)))
+  }
+
+  /** The spine position each measured position belongs to. Worked out once, on first need. */
+  private mapLocationsToSections(book: Book): number[] {
+    const sections: number[] = []
+    const total = (book.locations as unknown as MeasuredLocations).total
+    for (let at = 0; at <= total; at++) {
+      const cfi = book.locations.cfiFromLocation(at)
+      let index = -1
+      if (typeof cfi === 'string') {
+        try {
+          index = book.spine.get(cfi)?.index ?? -1
+        } catch {
+          index = -1
+        }
+      }
+      sections.push(index)
+    }
+    return sections
   }
 
   async goToChapter(index: number): Promise<void> {
@@ -292,6 +363,7 @@ export class EpubBookReader implements BookReader {
     this.listeners = []
     this.onScroll = null
     this.host = null
+    this.locationSections = null
     this.rendition?.destroy()
     this.book?.destroy()
     this.rendition = null

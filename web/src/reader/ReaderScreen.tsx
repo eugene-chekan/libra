@@ -41,6 +41,7 @@ export function ReaderScreen() {
   const resumed = useRef(false)
   const restored = useRef(false)
   const resumedTo = useRef(0)
+  const landedAt = useRef<number | null>(null)
   const moved = useRef(false)
 
   const { mutate: writeProgress } = useWriteProgress(bookId)
@@ -54,6 +55,7 @@ export function ReaderScreen() {
     resumed.current = false
     restored.current = false
     moved.current = false
+    landedAt.current = null
     reader
       .open(bookId, mount)
       .then((opened) => {
@@ -87,6 +89,7 @@ export function ReaderScreen() {
       return
     }
     void reader.goTo(savedProgress).finally(() => {
+      landedAt.current = reader.position().progress
       restored.current = true
     })
   }, [open, savedProgress, reader])
@@ -116,15 +119,22 @@ export function ReaderScreen() {
         return
       }
 
-      // Resuming can only land on a position the book was measured at, so it comes back a
-      // little short of the one asked for. Until the reader moves off it, that is still the
+      // Resuming lands near where it was sent, not exactly on it: it can only reach a position
+      // the book was measured at, and on a book whose addresses do not survive rendering it
+      // reaches one by proportion instead. Until the reader moves off it, that is still the
       // place they left, and it is shown and kept as the number they left it at.
       //
       // Reporting the landing instead did two visible things: the bar said 39% about a book
       // whose page said 40%, and saving it walked the place one step down the book on every
       // single open — 40%, then 39.5%, then 38.8% — without anybody reading a word.
+      //
+      // Near where it was sent, or near where it came to rest: a landing that misses by more
+      // than a point is still not the reader moving, and must not be written either.
+      const landed = landedAt.current
       const whereItWasPut =
-        !moved.current && Math.abs(position.progress - resumedTo.current) < MOVED_BY
+        !moved.current &&
+        (Math.abs(position.progress - resumedTo.current) < MOVED_BY ||
+          (landed !== null && Math.abs(position.progress - landed) < MOVED_BY))
       setProgress(whereItWasPut ? resumedTo.current : position.progress)
       if (whereItWasPut) return
       moved.current = true
