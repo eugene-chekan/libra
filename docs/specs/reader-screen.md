@@ -456,9 +456,13 @@ where they should be, the screen says so.
 
 - The whole book downloads before the first page. On a home network this is
   fine; it is the cost of needing no server-side parsing.
-- **No scrolling.** The reader turns pages. Scrolling as a choice is
-  [issue #92](https://github.com/eugene-chekan/libra/issues/92), which was
-  filed the other way round and now means the opposite.
+- **No scrolling, and none planned.** The reader turns pages.
+  [Issue #92](https://github.com/eugene-chekan/libra/issues/92) asked for
+  scrolling as a choice and was closed as not planned: offering it means a
+  second way of placing the reader, with its own write rule and its own
+  end-of-book handling, and that second way is the one already shown to lose a
+  reader's place. Two code paths for one screen, one of them known bad, is
+  worse than not having the choice.
 - The book's own stylesheet is applied, but fixed-layout titles and complex
   typography are not a target. This is a reader for prose.
 - The librarian panel covers the right edge of the text while open.
