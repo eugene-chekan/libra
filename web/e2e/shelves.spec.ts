@@ -243,4 +243,34 @@ test.describe('shelves, in a real browser', () => {
     )
     expect(scrollableBeyondTheWindow).toBe(0)
   })
+
+  /*
+   The component suite proves the card exists and says the right words. It cannot prove the card
+   is on screen, because jsdom does no layout: there, every box is at 0,0 and is 0 wide. A card
+   placed wrongly — behind the row, or off the edge of a row that scrolls sideways — looks the
+   same to jsdom as one placed well, so a real browser has to say where it landed.
+  */
+  test('hovering a cover names the book and its author', async ({ page, request }) => {
+    const stamp = Date.now()
+    const shelf = await createShelf(request, `E2E Tooltip ${stamp}`)
+    const title = `E2E Hovered ${stamp}`
+    await shelveNewBook(request, shelf.id, title)
+    await putFirst(request, [shelf.id])
+
+    await page.goto('/shelves')
+    await page.getByRole('link', { name: `${title} by A` }).hover()
+
+    const card = page.getByRole('tooltip')
+    await expect(card).toContainText(title)
+    await expect(card).toContainText('by A')
+
+    // Really on screen, not cut off by the row it came from: ask the page what is at the middle
+    // of the card, and it answers the card.
+    const showsWhereItSays = await card.evaluate((node) => {
+      const box = node.getBoundingClientRect()
+      const atItsMiddle = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)
+      return node.contains(atItsMiddle)
+    })
+    expect(showsWhereItSays).toBe(true)
+  })
 })

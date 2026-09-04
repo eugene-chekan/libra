@@ -4,6 +4,7 @@ import type { Shelf } from '../api/types'
 import { BookCover } from '../library/BookCover'
 import { useBooks } from '../library/useBooks'
 import { bookPath, routes } from '../routes'
+import { CoverTooltip } from '../widgets/CoverTooltip'
 import { PublicPill } from './PublicPill'
 import styles from './ShelfBlock.module.css'
 
@@ -38,7 +39,9 @@ export function ShelfBlock({ shelf }: { shelf: Shelf }) {
           {books.data.items.map((book) => (
             <li key={book.id}>
               <Link className={styles.cover} to={bookPath(book.id)}>
-                <BookCover id={book.id} title={book.title} hasCover={book.has_cover} />
+                <CoverTooltip title={book.title} author={book.author}>
+                  <BookCover id={book.id} title={book.title} hasCover={book.has_cover} />
+                </CoverTooltip>
                 {/* The cover is a picture; the link still needs words. Visible
                     text would repeat the title under every cover in a row that
                     is meant to be scanned, so it is read out rather than drawn. */}
