@@ -21,6 +21,7 @@ function renderActions(
     canEdit: false,
     hasKindleAddress: true,
     onEdit: vi.fn(),
+    onDelete: vi.fn(),
     onMoveToShelf: vi.fn(),
     onSendToKindle: vi.fn().mockResolvedValue(undefined),
     onSetUpKindle: vi.fn(),
@@ -84,5 +85,20 @@ describe('BookActions', () => {
     await user.click(screen.getByRole('button', { name: 'Edit Book' }))
 
     expect(onEdit).toHaveBeenCalled()
+  })
+
+  it('offers Delete Book only to a reader who may edit the catalog', () => {
+    renderActions({ canEdit: false })
+    expect(screen.queryByRole('button', { name: 'Delete Book' })).not.toBeInTheDocument()
+  })
+
+  /** The row asks; the screen above it is what puts the question and does the deleting. */
+  it('asks the screen to delete when an admin presses it', async () => {
+    const user = userEvent.setup()
+    const { onDelete } = renderActions({ canEdit: true })
+
+    await user.click(screen.getByRole('button', { name: 'Delete Book' }))
+
+    expect(onDelete).toHaveBeenCalled()
   })
 })

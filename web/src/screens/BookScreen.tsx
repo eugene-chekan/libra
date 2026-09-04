@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams } from 'react-router-dom'
 
 import { ApiError, messageFor } from '../api/errors'
 import type { Book } from '../api/types'
@@ -10,11 +10,18 @@ import { DetailCover } from '../book/DetailCover'
 import { NotesPanel } from '../book/NotesPanel'
 import { ProgressPanel } from '../book/ProgressPanel'
 import { RatingStars } from '../book/RatingStars'
-import { useBook, useSendToKindle, useSetBookState, useUpdateBook } from '../book/useBook'
+import {
+  useBook,
+  useDeleteBook,
+  useSendToKindle,
+  useSetBookState,
+  useUpdateBook,
+} from '../book/useBook'
 import { useShelves } from '../library/useShelves'
 import { routes } from '../routes'
 import { useSession } from '../session/SessionProvider'
 import { useSaveKindleEmail } from '../session/useSaveKindleEmail'
+import { ConfirmDialog } from '../widgets/ConfirmDialog'
 import { ErrorBlock } from '../widgets/ErrorBlock'
 import { Icon } from '../widgets/Icon'
 import { KindleEmailModal } from '../widgets/KindleEmailModal'
@@ -100,11 +107,14 @@ function BackLink() {
 /** Everything about the book that is not the cover. */
 function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
   const { status } = useSession()
+  const navigate = useNavigate()
   const shelves = useShelves().data ?? []
   const setState = useSetBookState(book.id)
   const sendToKindle = useSendToKindle(book.id)
+  const remove = useDeleteBook(book.id)
   const saveKindleEmail = useSaveKindleEmail()
   const [kindleModalOpen, setKindleModalOpen] = useState(false)
+  const [confirmingDelete, setConfirmingDelete] = useState(false)
 
   const user = status.status === 'signed-in' ? status.user : null
   const shelf = shelves.find((candidate) => candidate.id === book.shelf_id) ?? null
@@ -132,6 +142,7 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
         canEdit={user?.is_admin ?? false}
         hasKindleAddress={user?.kindle_email != null}
         onEdit={onEdit}
+        onDelete={() => setConfirmingDelete(true)}
         onMoveToShelf={(shelfId) =>
           setState.mutate({ rating: book.rating, progress: book.progress, shelf_id: shelfId })
         }
@@ -140,8 +151,24 @@ function ViewMode({ book, onEdit }: { book: Book; onEdit: () => void }) {
       />
 
       {setState.isError && <ErrorBlock message={messageFor(setState.error)} />}
+      {remove.isError && <ErrorBlock message={messageFor(remove.error)} />}
 
       <NotesPanel bookId={book.id} />
+
+      {confirmingDelete && (
+        <ConfirmDialog
+          title={`Delete ${book.title}?`}
+          message="The book, its file, and everyone's notes, tags, rating and reading place all go. This cannot be undone."
+          confirmLabel="Delete"
+          onClose={() => setConfirmingDelete(false)}
+          onConfirm={() => {
+            setConfirmingDelete(false)
+            remove.mutate(undefined, {
+              onSuccess: () => void navigate(routes.library),
+            })
+          }}
+        />
+      )}
 
       {kindleModalOpen && user && (
         <KindleEmailModal

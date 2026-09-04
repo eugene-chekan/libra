@@ -70,6 +70,25 @@ export function useUpdateBook(id: number): UseMutationResult<Book, Error, BookPa
   })
 }
 
+/**
+ * `DELETE /api/books/{id}` — admin only.
+ *
+ * Drops this book's own cache entry rather than marking it stale, because there is nothing left
+ * to fetch: invalidating would send a request for a book that is now a 404.
+ */
+export function useDeleteBook(id: number): UseMutationResult<void, Error, void> {
+  const api = useApi()
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => api.deleteBook(id),
+    onSuccess: () => {
+      queryClient.removeQueries({ queryKey: ['book', id] })
+      void queryClient.invalidateQueries({ queryKey: ['books'] })
+      void queryClient.invalidateQueries({ queryKey: ['shelves'] })
+    },
+  })
+}
+
 /** `POST /api/books/{id}/send-to-kindle`. */
 export function useSendToKindle(id: number): UseMutationResult<KindleDelivery, Error, void> {
   const api = useApi()

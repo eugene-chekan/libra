@@ -46,3 +46,29 @@ def test_delete_book(admin_client: TestClient) -> None:
     response = admin_client.delete(f"/books/{created['id']}")
     assert response.status_code == 204
     assert admin_client.get(f"/books/{created['id']}").status_code == 404
+
+
+def test_delete_book_takes_everything_hanging_off_it(admin_client: TestClient) -> None:
+    """A book's rating, progress, tags and notes go with it.
+
+    SQLite hands out the same id again once a row is gone, and nothing here
+    enforces the foreign keys, so anything left behind is inherited by the
+    next book uploaded. Whether the id is reused is SQLite's business; that it
+    carries nothing over is ours.
+    """
+    book = admin_client.post("/books", json=BOOK_PAYLOAD).json()
+    tag = admin_client.post("/tags", json={"name": "keeper"}).json()
+    admin_client.put(
+        f"/books/{book['id']}/state",
+        json={"rating": 5, "progress": 0.5, "tag_ids": [tag["id"]]},
+    )
+    admin_client.post(f"/books/{book['id']}/notes", json={"text": "worth remembering"})
+
+    assert admin_client.delete(f"/books/{book['id']}").status_code == 204
+
+    successor = admin_client.post("/books", json={**BOOK_PAYLOAD, "title": "Someone Else"}).json()
+    fresh = admin_client.get(f"/books/{successor['id']}").json()
+    assert fresh["rating"] == 0
+    assert fresh["progress"] == 0
+    assert fresh["tag_ids"] == []
+    assert admin_client.get(f"/books/{successor['id']}/notes").json() == []

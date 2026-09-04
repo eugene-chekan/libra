@@ -219,6 +219,17 @@ describe('HttpLibraApi', () => {
     expect(JSON.parse(init.body as string)).toEqual({ rating: 5, progress: 0.5 })
   })
 
+  it('deletes a book on the same path it reads one from', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+
+    await expect(new HttpLibraApi().deleteBook(42)).resolves.toBeUndefined()
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42')
+    expect(init.method).toBe('DELETE')
+    expect(init.body).toBeUndefined()
+  })
+
   it('sends a partial reading state as-is, without filling in the missing fields', async () => {
     // The server leaves out what it is not sent. A client that helpfully
     // added `rating: 0` here would clear the reader's stars on every scroll —

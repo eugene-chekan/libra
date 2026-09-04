@@ -330,12 +330,8 @@ def delete_book(
     settings: Settings = Depends(get_settings),
     _: User = Depends(require_admin),
 ) -> None:
-    """Remove a book and its file, in that order."""
-    book = session.get(Book, book_id)
-    if book is None:
-        raise HTTPException(status_code=404, detail="Book not found")
-
-    file_path = book.file_path
-    session.delete(book)
-    session.commit()
-    storage.delete(file_path, settings.library_dir)
+    """Remove a book, its file, and everything readers had on it."""
+    try:
+        library.delete_book(session, book_id, settings)
+    except library.BookNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Book not found") from exc

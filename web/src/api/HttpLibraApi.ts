@@ -136,6 +136,10 @@ export class HttpLibraApi implements LibraApi {
     return this.send<Book>('PATCH', `/books/${id}`, patch)
   }
 
+  async deleteBook(id: number): Promise<void> {
+    await this.send<void>('DELETE', `/books/${id}`)
+  }
+
   async setBookState(id: number, state: BookStateWrite): Promise<Book> {
     return this.send<Book>('PUT', `/books/${id}/state`, state)
   }
