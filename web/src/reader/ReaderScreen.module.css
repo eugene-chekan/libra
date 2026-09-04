@@ -14,14 +14,35 @@
   scrollbar at the window's edge. The measure is set inside each chapter instead, so the text
   stays a readable width without the column owning the scrollbar.
 */
+/* Holds the page and the two arrows, which sit in the margin either side of it. */
 .body {
   position: relative;
   flex: 1;
   min-height: 0;
+  display: flex;
+  justify-content: center;
 }
 
 .page {
+  width: 100%;
   height: 100%;
+}
+
+/*
+  How wide the text runs. Set here, before epub.js ever measures the box, because it works its
+  column widths out from this element — and re-measuring after it has rendered throws the page
+  away. In `em`, so the measure holds its width in characters as the text size changes.
+*/
+.narrow {
+  max-width: 46em;
+}
+
+.medium {
+  max-width: 62em;
+}
+
+.wide {
+  max-width: 84em;
 }
 
 .overlay {

@@ -168,7 +168,7 @@ export function ReaderScreen() {
         */}
         <div
           ref={host}
-          className={styles.page}
+          className={`${styles.page} ${styles[appearance.width]}`}
           role="region"
           aria-label={title}
           aria-busy={open === null}

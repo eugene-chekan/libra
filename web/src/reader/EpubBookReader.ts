@@ -8,7 +8,6 @@ import {
   type Chapter,
   type OpenBook,
   type ReaderPosition,
-  type ReadingWidth,
   type TextSize,
 } from './BookReader'
 import { loadLocations, saveLocations } from './locationsCache'
@@ -17,17 +16,6 @@ const FONT_SIZES: Record<TextSize, string> = {
   small: '95%',
   medium: '110%',
   large: '130%',
-}
-
-/**
- * How wide the reading area runs. epub.js works its column widths out from the box it is given,
- * so this is set on that box rather than inside the book — fighting the engine for the same
- * property is what made the old reader's text jam against the left edge.
- */
-const WIDTHS: Record<ReadingWidth, string> = {
-  narrow: '46em',
-  medium: '62em',
-  wide: '84em',
 }
 
 /**
@@ -52,6 +40,15 @@ const NOWHERE: ReaderPosition = {
 }
 
 /**
+ * Re-measuring after the reading area changes width. epub.js takes null for "measure the
+ * containing element"; its typings say `number`, and a real 0 collapses the container to
+ * nothing — which renders an empty page rather than failing.
+ */
+interface Resizable {
+  resize(width: number | null, height: number | null): void
+}
+
+/**
  * What epub.js hands to `relocated`. Its typings call `atStart` and `atEnd` booleans, but it
  * only ever sets them to true, so they arrive undefined the rest of the time.
  */
@@ -65,7 +62,7 @@ interface RelocatedLocation {
 export class EpubBookReader implements BookReader {
   private book: Book | null = null
   private rendition: Rendition | null = null
-  private host: HTMLElement | null = null
+  private watcher: ResizeObserver | null = null
   private listeners: ((position: ReaderPosition) => void)[] = []
   private current: ReaderPosition = NOWHERE
   private measured: Promise<boolean> = Promise.resolve(false)
@@ -84,7 +81,6 @@ export class EpubBookReader implements BookReader {
       throw new ReaderError('parse', 'This file is not a readable EPUB.')
     }
     this.book = book
-    this.host = host
 
     // Paginated, with epub.js's default manager. The continuous one reaches a target with
     // `scrollBy` — a move relative to wherever the reader already was — and loads sections in
@@ -99,6 +95,12 @@ export class EpubBookReader implements BookReader {
     this.rendition = rendition
     rendition.on('relocated', (location: RelocatedLocation) => this.report(location))
     await rendition.display()
+
+    // epub.js watches the window for resizes itself, but its own handler calls `resize()` with
+    // no arguments and then writes the string "undefined" as the width, so the page never
+    // reflows. Watching the box we own, and telling it to measure that box, is what works.
+    this.watcher = new ResizeObserver(() => this.relayout())
+    this.watcher.observe(host)
 
     this.measured = this.measure(book, bookId, bytes.byteLength)
 
@@ -147,10 +149,9 @@ export class EpubBookReader implements BookReader {
     }
   }
 
-  setAppearance({ textSize, width }: Appearance): void {
+  setAppearance({ textSize }: Appearance): void {
     const rendition = this.rendition
-    const host = this.host
-    if (!rendition || !host) return
+    if (!rendition) return
 
     rendition.themes.fontSize(FONT_SIZES[textSize])
     rendition.themes.default({
@@ -180,19 +181,31 @@ export class EpubBookReader implements BookReader {
       img: { 'max-width': '100%', height: 'auto' },
     })
 
-    host.style.maxWidth = WIDTHS[width]
-    // The box changed under it, and epub.js only relayouts when the window itself resizes.
-    rendition.resize(host.clientWidth, host.clientHeight)
+    // The screen owns how wide the reading area is, and has already set it.
+    this.relayout()
+  }
+
+  /**
+   * Lays the page out again for the size the reading area is now.
+   *
+   * Asking epub.js to measure the containing element, rather than handing it numbers: a zero
+   * from an element that has not been laid out yet collapses the container to nothing. When
+   * the size has not actually changed this returns without doing anything.
+   */
+  private relayout(): void {
+    const rendition = this.rendition
+    if (rendition) (rendition as unknown as Resizable).resize(null, null)
   }
 
   destroy(): void {
+    this.watcher?.disconnect()
+    this.watcher = null
     this.listeners = []
     this.current = NOWHERE
     this.rendition?.destroy()
     this.book?.destroy()
     this.rendition = null
     this.book = null
-    this.host = null
   }
 
   /** Turns what epub.js reports into what the screen reads, and tells everyone watching. */
@@ -261,7 +274,7 @@ export class EpubBookReader implements BookReader {
     }
     if (response.status === 404) {
       // The catalog row is there and the file is not. Retrying reads the same empty shelf.
-      throw new ReaderError('parse', 'This file is missing from the library.')
+      throw new ReaderError('parse', "This book's file is missing from the library.")
     }
     if (!response.ok) {
       throw new ReaderError('download', 'Could not reach the server.')
