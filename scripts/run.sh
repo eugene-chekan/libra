@@ -80,7 +80,23 @@ if [ "$SKIP_WEB" -eq 0 ]; then
   # `npm ci` rather than `npm install`: it installs exactly what the lockfile
   # says and fails if package.json and the lockfile disagree, which is the
   # difference between a reproducible build and one that quietly drifts.
-  (cd "$CLIENT" && npm ci --silent && npm run build)
+  #
+  # Only when it is needed, though. npm writes `node_modules/.package-lock.json`
+  # when it installs, so that file being newer than the lockfile means the tree
+  # already matches and there is nothing to do. `npm ci` deletes node_modules
+  # before installing, and that is not free: it took seven minutes on a Windows
+  # machine here, and it fails outright when anything holds a file open — a
+  # running dev server keeps rolldown's native binding locked, and Windows
+  # refuses the delete. The install stops partway and leaves the tree broken.
+  if [ -f "$CLIENT/node_modules/.package-lock.json" ] &&
+     [ ! "$CLIENT/package-lock.json" -nt "$CLIENT/node_modules/.package-lock.json" ]; then
+    printf '    dependencies match the lockfile, skipping npm ci\n'
+  else
+    # Not `--silent`: this takes minutes, and a step with no output at all is
+    # indistinguishable from one that has hung.
+    (cd "$CLIENT" && npm ci)
+  fi
+  (cd "$CLIENT" && npm run build)
 
   # Replaced wholesale rather than merged: a stale hashed asset left behind by
   # an earlier build is served happily and is very hard to recognise later.

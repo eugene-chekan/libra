@@ -110,7 +110,27 @@ if (-not $SkipWeb) {
         # lockfile says and fails if package.json and the lockfile disagree,
         # which is the difference between a reproducible build and one that
         # quietly drifts.
-        Invoke-Native { npm ci --silent } 'npm ci'
+        #
+        # Only when it is needed, though. npm writes
+        # `node_modules\.package-lock.json` when it installs, so that file being
+        # newer than the lockfile means the tree already matches and there is
+        # nothing to do. `npm ci` deletes node_modules before installing, and
+        # that is not free: it took seven minutes on this machine, and it fails
+        # outright when anything holds a file open — a running dev server keeps
+        # rolldown's native binding locked, and Windows refuses the delete. The
+        # install stops partway and leaves the tree broken.
+        $Lockfile  = Join-Path $Client 'package-lock.json'
+        $Installed = Join-Path $Client 'node_modules\.package-lock.json'
+        $Current = (Test-Path $Installed) -and
+            (Get-Item $Installed).LastWriteTimeUtc -ge (Get-Item $Lockfile).LastWriteTimeUtc
+
+        if ($Current) {
+            Write-Host '    dependencies match the lockfile, skipping npm ci'
+        } else {
+            # Not `--silent`: this takes minutes, and a step with no output at
+            # all is indistinguishable from one that has hung.
+            Invoke-Native { npm ci } 'npm ci'
+        }
         Invoke-Native { npm run build } 'npm run build'
     } finally {
         Pop-Location
