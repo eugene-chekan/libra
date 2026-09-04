@@ -1,10 +1,19 @@
 # Spec: The Reader Screen
 
-**Status:** Design approved 2026-09-02, built 2026-09-02, and **rebuilt
-2026-09-03** on a paginated engine after the scrolling one proved it could not
-hold a reader's place — see "Position, progress, and turning pages" for why,
-and "What a real book changed" for what was learned on the way. Covers
-milestone 12 of
+**Status:** Design approved 2026-09-02, built 2026-09-02, **rebuilt 2026-09-03**
+on a paginated engine after the scrolling one proved it could not hold a
+reader's place, and **checked by hand against three real books on
+2026-09-04** — see "Position, progress, and turning pages" for why, and "What a
+real book changed" for what was learned on the way.
+
+That check is part of the work, not a formality: three earlier rounds of this
+reader passed every test and were still broken for the person using it. Слон,
+Творчество как точная наука and Долгая прогулка were each opened, read ten
+pages into, left and returned to four times. All three came back to the same
+text, and none of the three moved its stored place by a single character.
+Долгая прогулка was read to its last page, which set `finished_at`.
+
+Covers milestone 12 of
 [phase-4-plan.md](phase-4-plan.md) (issue #36), and closes
 [client-design.md](client-design.md)'s Gap 7, which framed the questions but
 left the answers open. Milestone 11 was dropped: a spike proved the reader
