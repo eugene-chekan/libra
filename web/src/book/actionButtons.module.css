@@ -53,6 +53,16 @@
 }
 
 /*
+ A step that cannot be undone. It sits quiet until the pointer is on it, which is the same rule
+   the shelf and tag managers follow for their delete controls — the warning belongs in the
+   dialog that follows, not in a row you only meant to read.
+ */
+.destructive:hover:not(:disabled) {
+  border-color: var(--libra-danger);
+  color: var(--libra-danger);
+}
+
+/*
  A spinner belongs inside the control that started the action — the app's rule for something the
    reader did, as against skeletons for content that is arriving on its own.
  */

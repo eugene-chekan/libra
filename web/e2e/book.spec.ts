@@ -141,4 +141,24 @@ test.describe('book detail, in a real browser', () => {
 
     await expect(page.getByText('That book is not in this library.')).toBeVisible()
   })
+
+  /*
+   The session this suite signs in with is an admin, which is who the delete is for. The server
+   is what makes this worth a real test: the component suite deletes from a fake that holds its
+   books in an array, and only a real backend can be asked afterwards whether the row is gone.
+  */
+  test('an admin deletes a book, and the server agrees it is gone', async ({ page, request }) => {
+    const title = `E2E Delete ${Date.now()}`
+    const book = await createBook(request, title)
+
+    await page.goto(`/books/${book.id}`)
+    await page.getByRole('button', { name: 'Delete Book' }).click()
+
+    await expect(page.getByRole('dialog', { name: `Delete ${title}?` })).toBeVisible()
+    await page.getByRole('button', { name: 'Delete', exact: true }).click()
+
+    await expect(page).toHaveURL(/\/library$/)
+    await expect(page.getByRole('link', { name: new RegExp(title) })).toHaveCount(0)
+    expect((await request.get(`/api/books/${book.id}`)).status()).toBe(404)
+  })
 })

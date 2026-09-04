@@ -12,10 +12,11 @@ import styles from './BookActions.module.css'
 interface BookActionsProps {
   book: Book
   shelves: Shelf[]
-  /** Whether this reader may edit the shared catalog. */
+  /** Whether this reader may edit the shared catalog. Deleting takes the same admin rights. */
   canEdit: boolean
   hasKindleAddress: boolean
   onEdit: () => void
+  onDelete: () => void
   onMoveToShelf: (shelfId: number | null) => void
   onSendToKindle: () => Promise<unknown>
   onSetUpKindle: () => void
@@ -28,6 +29,7 @@ export function BookActions({
   canEdit,
   hasKindleAddress,
   onEdit,
+  onDelete,
   onMoveToShelf,
   onSendToKindle,
   onSetUpKindle,
@@ -70,6 +72,16 @@ export function BookActions({
           currentShelfId={book.shelf_id}
           onSelect={onMoveToShelf}
         />
+        {canEdit && (
+          <button
+            type="button"
+            className={`${buttons.outlined} ${buttons.small} ${buttons.destructive}`}
+            onClick={onDelete}
+          >
+            <Icon name="trash" size={14} />
+            Delete Book
+          </button>
+        )}
       </div>
     </div>
   )

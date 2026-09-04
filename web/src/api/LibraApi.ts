@@ -90,6 +90,9 @@ export interface LibraApi {
   /** `PATCH /api/books/{id}`. */
   updateBook(id: number, patch: BookPatch): Promise<Book>
 
+  /** `DELETE /api/books/{id}`. Admin only; takes the file and every reader's notes with it. */
+  deleteBook(id: number): Promise<void>
+
   /** `PUT /api/books/{id}/state`. */
   setBookState(id: number, state: BookStateWrite): Promise<Book>
 

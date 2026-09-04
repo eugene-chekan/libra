@@ -109,6 +109,13 @@ def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = 
     return view
 
 
+def _require_book(session: Session, book_id: int) -> Book:
+    book = session.get(Book, book_id)
+    if book is None:
+        raise BookNotFoundError
+    return book
+
+
 def get_book(session: Session, book_id: int, user: User) -> BookRead | None:
     """One book as `user` sees it, or None if there is no such book.
 
@@ -331,6 +338,41 @@ def set_reading_state(
     session.commit()
     session.refresh(state)
     return _merge(book, state, book_tag_ids(session, book.id, user))
+
+
+def delete_book(session: Session, book_id: int, settings: Settings) -> None:
+    """Remove a book, everything readers had on it, and then its file.
+
+    The rows have to go by hand, as in `delete_user`: nothing declares an ORM
+    relationship to cascade along, and SQLite is not enforcing the foreign
+    keys. Leaving them would not stay invisible either, because SQLite hands
+    the same id out again — the next book uploaded would inherit the dead
+    one's rating, progress, tags and notes.
+
+    Args:
+        session: Open database session.
+        book_id: Which book to remove.
+        settings: Carries the library directory the file sits in.
+
+    Raises:
+        BookNotFoundError: Nothing has that id.
+    """
+    book = _require_book(session, book_id)
+    file_path = book.file_path
+
+    for model, column in (
+        (BookTag, BookTag.book_id),
+        (UserBookState, UserBookState.book_id),
+        (Note, Note.book_id),
+    ):
+        for row in session.exec(select(model).where(column == book_id)).all():
+            session.delete(row)
+
+    session.delete(book)
+    session.commit()
+    # The file last. A commit that fails leaves a book with a file, which is a
+    # library; the other order leaves a book without one, which is a 404.
+    storage.delete(file_path, settings.library_dir)
 
 
 # --- shelves --------------------------------------------------------------
@@ -808,13 +850,6 @@ def _note_to_read(note: Note) -> NoteRead:
         page=note.page,
         created_at=note.created_at,
     )
-
-
-def _require_book(session: Session, book_id: int) -> Book:
-    book = session.get(Book, book_id)
-    if book is None:
-        raise BookNotFoundError
-    return book
 
 
 def _owned_note(session: Session, note_id: int, user: User) -> Note:

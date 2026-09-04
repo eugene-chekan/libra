@@ -527,12 +527,23 @@ all. Now the label is true, and Download says exactly what it does.
 
 **Row 2 — how you file it.** 12px below row 1, 9px/18px padding, 13px labels,
 same outlined treatment.
-- **Edit Book**
+- **Edit Book**, admin only.
 - **Move to Shelf**, with its 10px chevron and upward dropdown, unchanged.
+- **Delete Book**, admin only, with a 14px trash icon. The one difference
+  from the others: it turns `danger` on hover rather than `accent`, which is
+  what the token is for. It sits quiet until then — the warning belongs in
+  the dialog that follows, not in a row you only meant to read.
 
 The split is semantic rather than cosmetic: acting on the book versus
 maintaining the record. That reads as a decision instead of a reflow, and it
 is what lets the screen survive 1024px.
+
+**Deleting asks first**, in the app's one `ConfirmDialog`: "Delete {title}?",
+and a sentence saying what goes — the book, its file, and everyone's notes,
+tags, rating and reading place. Confirming lands back on the library, because
+the page you were on no longer exists. It is admin-only in the row because
+`DELETE /books/{id}` is admin-only on the server; the same rule, said once on
+each side.
 
 ### Send to Kindle states
 

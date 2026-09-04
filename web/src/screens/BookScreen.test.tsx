@@ -234,4 +234,53 @@ describe('BookScreen', () => {
       routes.library
     )
   })
+
+  it('asks before deleting, and deletes nothing while the question is on screen', async () => {
+    const user = userEvent.setup()
+    const api = apiFor(fakeUser({ is_admin: true }), { books: [dune()] })
+
+    renderScreen(api, bookPath(4))
+    await user.click(await screen.findByRole('button', { name: 'Delete Book' }))
+
+    expect(await screen.findByRole('dialog', { name: 'Delete Dune?' })).toBeInTheDocument()
+    expect(api.calls).not.toContain('deleteBook:4')
+  })
+
+  it('deletes the book and lands on the library', async () => {
+    const user = userEvent.setup()
+    const api = apiFor(fakeUser({ is_admin: true }), { books: [dune()] })
+
+    renderScreen(api, bookPath(4))
+    await user.click(await screen.findByRole('button', { name: 'Delete Book' }))
+    // `name` matches the whole accessible name, so this is the dialog's button, not the row's.
+    await user.click(await screen.findByRole('button', { name: 'Delete' }))
+
+    expect(await screen.findByText('the library')).toBeInTheDocument()
+    expect(api.calls).toContain('deleteBook:4')
+  })
+
+  it('keeps the book when the question is answered with Cancel', async () => {
+    const user = userEvent.setup()
+    const api = apiFor(fakeUser({ is_admin: true }), { books: [dune()] })
+
+    renderScreen(api, bookPath(4))
+    await user.click(await screen.findByRole('button', { name: 'Delete Book' }))
+    await user.click(await screen.findByRole('button', { name: 'Cancel' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('dialog', { name: 'Delete Dune?' })).not.toBeInTheDocument()
+    )
+    expect(api.calls).not.toContain('deleteBook:4')
+    expect(screen.getByRole('heading', { name: 'Dune' })).toBeInTheDocument()
+  })
+
+  /** The row is admin-only, and so is the endpoint behind it. */
+  it('offers no way to delete to an ordinary reader', async () => {
+    const api = apiFor(fakeUser({ is_admin: false }), { books: [dune()] })
+
+    renderScreen(api, bookPath(4))
+
+    expect(await screen.findByRole('heading', { name: 'Dune' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Delete Book' })).not.toBeInTheDocument()
+  })
 })

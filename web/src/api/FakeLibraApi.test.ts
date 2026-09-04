@@ -309,6 +309,48 @@ describe('FakeLibraApi.updateBook', () => {
   })
 })
 
+describe('FakeLibraApi.deleteBook', () => {
+  it('refuses a reader who is not an admin, and refuses before the lookup', async () => {
+    const reader = fakeUser({ is_admin: false })
+    const book = fakeBook({ id: 4 })
+    const api = new FakeLibraApi({ users: [reader], signedInAs: reader, books: [book] })
+
+    await expect(api.deleteBook(book.id)).rejects.toMatchObject({ status: 403 })
+    // 403 even for an id that is not there, because `require_admin` runs first on the server.
+    await expect(api.deleteBook(999)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('404s an admin on a book that is not there', async () => {
+    const admin = fakeUser({ is_admin: true })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin, books: [] })
+
+    await expect(api.deleteBook(999)).rejects.toMatchObject({ status: 404 })
+  })
+
+  it("takes everyone's notes with it, not only the caller's", async () => {
+    const admin = fakeUser({ id: 1, is_admin: true })
+    const book = fakeBook({ id: 4 })
+    const kept = fakeBook({ id: 5 })
+    const api = new FakeLibraApi({
+      users: [admin],
+      signedInAs: admin,
+      books: [book, kept],
+      notes: [
+        fakeNote({ id: 1, book_id: 4, user_id: 1 }),
+        fakeNote({ id: 2, book_id: 4, user_id: 2 }),
+        fakeNote({ id: 3, book_id: 5, user_id: 1 }),
+      ],
+    })
+
+    await api.deleteBook(4)
+
+    await expect(api.getBook(4)).rejects.toMatchObject({ status: 404 })
+    // Read straight off the fake, because no endpoint can show you a note on a book that is
+    // gone: `listNotes` asks for the book first and gets a 404.
+    expect(api.notes.map((note) => note.id)).toEqual([3])
+  })
+})
+
 describe('FakeLibraApi.sendToKindle', () => {
   const book = () => fakeBook({ id: 7 })
 

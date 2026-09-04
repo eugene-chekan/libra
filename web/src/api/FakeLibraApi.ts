@@ -529,6 +529,24 @@ export class FakeLibraApi implements LibraApi {
   }
 
   /**
+   * Admin-only and refused before the lookup, as `updateBook` is. Everyone's notes on the book go
+   * with it, not only the caller's — `library.delete_book` clears the table for that book, and a
+   * fake that kept the others would let a test pass on a rule the server does not have.
+   */
+  async deleteBook(id: number): Promise<void> {
+    this.calls.push(`deleteBook:${id}`)
+    const caller = this.requireSession()
+
+    if (!caller.is_admin) throw new ApiError(403, 'Admin only')
+
+    const book = this.requireBook(id)
+    this.books.splice(this.books.indexOf(book), 1)
+    for (let i = this.notes.length - 1; i >= 0; i--) {
+      if (this.notes[i]?.book_id === id) this.notes.splice(i, 1)
+    }
+  }
+
+  /**
    * Tags are written before the state row, the server's order, so a rejected tag leaves the
    * rating exactly as it was.
    */
