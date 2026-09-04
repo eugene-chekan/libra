@@ -3,10 +3,11 @@ import { expect, test } from '@playwright/test'
 /**
  * The shelves page and its manager, against a real backend.
  *
- * One thing here can only be tested in a real browser: **the drag**.
+ * Two things here can only be tested in a real browser. **The drag**:
  * `useDragReorder` asks the document what row is under the pointer, and jsdom
  * answers nothing, so the component suite covers the up/down buttons and this
- * file covers the mouse.
+ * file covers the mouse. **The page height**: jsdom does no layout and reports
+ * every height as zero, so a box in the wrong place costs nothing there.
  *
  * **Serial, unlike every other spec in this suite.** Shelf *order* is one piece
  * of state shared by the whole file: `PUT /shelves/order` rewrites the entire
@@ -26,6 +27,25 @@ async function createShelf(request: Api, name: string) {
   const response = await request.post('/api/shelves', { data: { name } })
   expect(response.ok()).toBe(true)
   return (await response.json()) as ApiShelf
+}
+
+/**
+ * A new book, already on `shelfId`.
+ *
+ * `POST /api/books` takes plain JSON, so nothing here uploads a file — these tests only need a
+ * book to exist and to sit on a shelf, not to be readable.
+ */
+async function shelveNewBook(request: Api, shelfId: number, title: string) {
+  const response = await request.post('/api/books', {
+    data: { title, author: 'A', format: 'epub', file_path: 'x.epub' },
+  })
+  expect(response.ok()).toBe(true)
+  const book = (await response.json()) as { id: number }
+  const state = await request.put(`/api/books/${book.id}/state`, {
+    data: { rating: 0, progress: 0, shelf_id: shelfId },
+  })
+  expect(state.ok()).toBe(true)
+  return book
 }
 
 /** The reader's own shelves, in the order the server keeps them. */
@@ -175,18 +195,7 @@ test.describe('shelves, in a real browser', () => {
     const name = `E2E Delete ${Date.now()}`
     const shelf = await createShelf(request, name)
 
-    const bookResponse = await request.post('/api/books', {
-      data: {
-        title: `E2E Shelved ${Date.now()}`,
-        author: 'A',
-        format: 'epub',
-        file_path: 'x.epub',
-      },
-    })
-    const book = (await bookResponse.json()) as { id: number }
-    await request.put(`/api/books/${book.id}/state`, {
-      data: { rating: 0, progress: 0, shelf_id: shelf.id },
-    })
+    const book = await shelveNewBook(request, shelf.id, `E2E Shelved ${Date.now()}`)
     await putFirst(request, [shelf.id])
 
     await page.goto('/shelves')
@@ -204,5 +213,34 @@ test.describe('shelves, in a real browser', () => {
     const after = await request.get(`/api/books/${book.id}`)
     expect(after.ok()).toBe(true)
     expect(((await after.json()) as { shelf_id: number | null }).shelf_id).toBeNull()
+  })
+
+  /*
+   The window scrolls nothing; the pane inside it does. Each cover carries a title that is read
+   out but not drawn, and hiding it puts it outside the normal flow. A box like that needs a
+   parent that says where it belongs, or the browser places it against the whole page — down
+   where its row sits in a pane that scrolls. The page was then taller than the window, so the
+   window scrolled the layout up and showed empty space under it. Only a real browser can see
+   this: jsdom does no layout and reports every height as zero.
+  */
+  test('the window does not scroll, whatever the shelves hold', async ({ page, request }) => {
+    const stamp = Date.now()
+    const first = await createShelf(request, `E2E Scroll A ${stamp}`)
+    const second = await createShelf(request, `E2E Scroll B ${stamp}`)
+    await shelveNewBook(request, first.id, `E2E Scrolled A ${stamp}`)
+    const title = `E2E Scrolled B ${stamp}`
+    await shelveNewBook(request, second.id, title)
+    await putFirst(request, [first.id, second.id])
+
+    // Short on purpose: the second shelf's row then sits below the window, which is where the
+    // hidden title used to add its own height to the page.
+    await page.setViewportSize({ width: 1280, height: 400 })
+    await page.goto('/shelves')
+    await expect(page.getByRole('link', { name: `${title} by A` })).toBeVisible()
+
+    const scrollableBeyondTheWindow = await page.evaluate(
+      () => document.documentElement.scrollHeight - document.documentElement.clientHeight
+    )
+    expect(scrollableBeyondTheWindow).toBe(0)
   })
 })
