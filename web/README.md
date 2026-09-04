@@ -137,3 +137,15 @@ the warning is expected. Move to 10 when the plugin does.
 **TypeScript is pinned to `~6.0.3`, not 7.** `typescript-eslint` supports
 `<6.1.0`. `~` rather than `^` so a 6.1 release cannot drift past that range on
 its own.
+
+**`@xmldom/xmldom` is overridden inside epubjs.** epubjs asks for `^0.7.5`,
+which resolves to a version npm itself marks "this version has critical
+issues", and `npm audit` reports six advisories against everything up to
+0.8.14. The `overrides` block in `package.json` pins epubjs's copy to
+`^0.8.15`, that package's `lts` line. JSON carries no comments, so the reason
+lives here.
+
+**Do not run `npm audit fix --force` on this.** It installs `epubjs@0.4.2`,
+which is not the current release — npm's `latest` tag is the `0.3.93` we have
+— and which depends on the old unscoped `xmldom@^0.1.27`, carrying seven
+advisories including a critical one with no fix. See issue #97.
