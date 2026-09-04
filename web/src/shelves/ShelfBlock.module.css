@@ -43,6 +43,13 @@
   display: block;
   width: 96px;
   flex-shrink: 0;
+  /*
+   Positioned so `.label` below is placed inside this link. An absolute box with no positioned
+     parent is placed against the *page* instead, and `.label`'s place in the row is far down
+     the pane that scrolls. That made the page itself taller than the window, so the window
+     scrolled the whole layout up and showed empty space under it.
+   */
+  position: relative;
 }
 
 /*
