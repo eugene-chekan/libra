@@ -22,6 +22,7 @@ const NOWHERE: ReaderPosition = {
   mark: null,
   index: 0,
   progress: null,
+  pages: null,
   atStart: true,
   atEnd: false,
 }
@@ -140,6 +141,7 @@ export function ReaderScreen() {
       <ReaderBar
         title={title}
         chapter={chapterAt(open?.chapters ?? [], position.index)}
+        pages={position.pages}
         progress={position.progress}
         backTo={bookPath(bookId)}
         onContents={() => setPanel('contents')}

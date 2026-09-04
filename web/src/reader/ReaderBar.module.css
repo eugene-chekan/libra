@@ -51,6 +51,20 @@
   }
 }
 
+.pages {
+  font-size: 12px;
+  color: var(--libra-text-light);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Narrower still than the chapter: the percentage is the one that always stays. */
+@media (max-width: 560px) {
+  .pages {
+    display: none;
+  }
+}
+
 .percent {
   font-size: 12px;
   color: var(--libra-text-light);

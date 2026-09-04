@@ -1,3 +1,5 @@
+import type { Pages } from './pages'
+
 /** One entry in the book's own table of contents. */
 export interface Chapter {
   /**
@@ -25,6 +27,12 @@ export interface ReaderPosition {
    * book has been measured, because a number nobody knows yet should not be shown.
    */
   progress: number | null
+  /**
+   * Where the reader is in estimated printed pages, or null until the book has been measured.
+   * Counted from the text rather than from the screen, so it holds still when the text size or
+   * the window changes — see `pages.ts`.
+   */
+  pages: Pages | null
   /** Whether there is a page before this one, and after it. */
   atStart: boolean
   atEnd: boolean

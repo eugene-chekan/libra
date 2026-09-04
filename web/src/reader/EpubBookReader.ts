@@ -11,6 +11,7 @@ import {
   type TextSize,
 } from './BookReader'
 import { loadLocations, saveLocations } from './locationsCache'
+import { pagesAt, type Pages } from './pages'
 
 const FONT_SIZES: Record<TextSize, string> = {
   small: '95%',
@@ -35,8 +36,17 @@ const NOWHERE: ReaderPosition = {
   mark: null,
   index: 0,
   progress: null,
+  pages: null,
   atStart: true,
   atEnd: false,
+}
+
+/**
+ * The one part of epub.js's `locations` its own typings get wrong: `locationFromCfi` answers
+ * with a position number, not a `Location`.
+ */
+interface MeasuredLocations {
+  locationFromCfi(cfi: string): number
 }
 
 /**
@@ -215,6 +225,7 @@ export class EpubBookReader implements BookReader {
       mark: cfi ?? null,
       index: location.start?.index ?? 0,
       progress: this.progressAt(cfi),
+      pages: this.pagesAt(cfi),
       atStart: location.atStart === true,
       atEnd: location.atEnd === true,
     }
@@ -229,6 +240,24 @@ export class EpubBookReader implements BookReader {
     const measured = book.locations.percentageFromCfi(cfi)
     if (typeof measured !== 'number' || Number.isNaN(measured)) return null
     return Math.min(1, Math.max(0, measured))
+  }
+
+  /**
+   * How far through the book in estimated pages, or null while it has not been measured.
+   *
+   * The measurement marks a position every thousand characters, so the position number and the
+   * count of them are a character count in disguise — which is all `pagesAt` needs.
+   */
+  private pagesAt(cfi: string | undefined): Pages | null {
+    const book = this.book
+    if (!book || !cfi || !this.isMeasured) return null
+
+    const at = (book.locations as unknown as MeasuredLocations).locationFromCfi(cfi)
+    if (typeof at !== 'number' || Number.isNaN(at)) return null
+    return pagesAt(
+      Math.max(0, at) * CHARS_PER_LOCATION,
+      book.locations.length() * CHARS_PER_LOCATION
+    )
   }
 
   /**

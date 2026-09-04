@@ -134,9 +134,12 @@ The chapter name comes from the book's own contents: the last entry whose
 spine position is at or before the one on screen. Books that ship no contents
 at all — one in the test library has none — simply show the book title, with
 no separator and no empty space where a name would have been. On a narrow
-window the chapter is what drops first. Then how far through the book the reader is, as a plain percentage:
-the rule below the bar shows it at a glance, and the number answers "how much
-is left" without squinting at a 2px line. Three icon buttons on the right:
+window the chapter is what drops first, then the page count.
+
+Then how far through the book the reader is, twice over: **`p. 47 of 312`**,
+and a plain percentage. The rule below the bar shows the percentage at a
+glance, and the number answers "how much is left" without squinting at a 2px
+line. Three icon buttons on the right:
 contents (`list`), text size and width (`type`), librarian
 (`message-square`).
 
@@ -316,6 +319,21 @@ number for the bar and the book page; `position` is where the reader goes.
 They are stored side by side in `user_book_state` and never derived from each
 other. Calibre-Web's reader keeps a CFI for the same reason.
 
+**The page count is an estimate, and says so.** None of the books this was
+built against carry the publisher's own pagination — no `page-list`, so
+epub.js's `location.start.page` has nothing to report — and inventing a number
+that looks like a printed edition's would be a lie. `pages.ts` counts the
+book's own text instead: about 1,800 characters to a page, which is a
+paperback's. The measurement the percentage already needs supplies the
+character count, so this costs no extra work.
+
+Counting text rather than screens is the point. A count of screenfuls would
+grow from "of 22" to "of 40" for the same book the moment the reader chose a
+larger size, which reads as the book changing length. The page *shown* can
+still move by one, because it is the page that begins at the top of the screen
+and where a page begins does change when the text is laid out again — that is
+measured and asserted rather than hoped for.
+
 **Progress** is `locations.percentageFromCfi(currentCfi)`. Measuring costs a
 pass over the book, a second or two, and its result is cached in
 `localStorage` under the book's id and file size. It feeds the number and
@@ -463,6 +481,9 @@ where they should be, the screen says so.
   end-of-book handling, and that second way is the one already shown to lose a
   reader's place. Two code paths for one screen, one of them known bad, is
   worse than not having the choice.
+- The page count is the reader's own estimate, not the publisher's. A book
+  that ships a real `page-list` could show true printed pages; none in the
+  test library does, so that path is not built.
 - The book's own stylesheet is applied, but fixed-layout titles and complex
   typography are not a target. This is a reader for prose.
 - The librarian panel covers the right edge of the text while open.

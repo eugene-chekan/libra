@@ -189,11 +189,22 @@ describe('ReaderScreen', () => {
     expect(screen.getByRole('group', { name: 'Page width' })).toBeInTheDocument()
   })
 
+  it('shows how many pages in the reader is', async () => {
+    const reader = new FakeBookReader()
+    renderReader(reader)
+    await opened()
+
+    await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
+
+    expect(await screen.findByText('p. 2 of 10')).toBeInTheDocument()
+  })
+
   it('shows no percentage while the book has not been measured', async () => {
     renderReader(new FakeBookReader({ unmeasured: true }))
     await opened()
 
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
+    expect(screen.queryByText(/^p\./)).not.toBeInTheDocument()
   })
 
   it('saves where a page turn landed, once the turning stops', async () => {

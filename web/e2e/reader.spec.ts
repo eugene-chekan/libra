@@ -236,6 +236,43 @@ test.describe('the reader, in a real browser', () => {
     await expect(page.getByText('· The Middle')).toBeVisible()
   })
 
+  test('the page count is not a count of screenfuls', async ({ page, request }) => {
+    // The whole reason these pages are counted from the text rather than from the screen. A
+    // screenful count would grow as the text got bigger — "of 22" becoming "of 40" for the
+    // same book. The length of the book does not change, so neither does the total.
+    //
+    // The page the reader is on can still move by one: it is the page that *starts* at the top
+    // of the screen, and where a page starts does change when the text is laid out again.
+    const title = `E2E Reader Pages ${Date.now()}`
+    const id = await uploadBook(request, title, { paragraphs: 200 })
+
+    await openReader(page, id, title)
+    await waitForMeasured(page)
+    const pages = page.getByText(/^p\. \d+ of \d+$/)
+    await expect(pages).toBeVisible()
+    for (let turn = 0; turn < 4; turn++) {
+      await page.getByRole('button', { name: 'Next page' }).click()
+    }
+    const read = async () => {
+      const text = (await pages.textContent()) ?? ''
+      const [, current, total] = /^p\. (\d+) of (\d+)$/.exec(text) ?? []
+      return { current: Number(current), total: Number(total) }
+    }
+    const before = await read()
+
+    await page.getByRole('button', { name: 'Text size and width' }).click()
+    await page
+      .getByRole('group', { name: 'Text size' })
+      .getByRole('button', { name: 'Large' })
+      .click()
+    await page.keyboard.press('Escape')
+    await page.waitForTimeout(1500)
+    const after = await read()
+
+    expect(after.total).toBe(before.total)
+    expect(Math.abs(after.current - before.current)).toBeLessThanOrEqual(1)
+  })
+
   test('a text size is applied and survives a reload', async ({ page, request }) => {
     const title = `E2E Reader Size ${Date.now()}`
     const id = await uploadBook(request, title)

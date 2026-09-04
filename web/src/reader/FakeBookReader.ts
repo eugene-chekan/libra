@@ -115,6 +115,7 @@ export class FakeBookReader implements BookReader {
       // Never reaches 1, as a real book's measured percentage does not: the last page starts
       // before the end of the text. Only `atEnd` can say the book is finished.
       progress: this.options.unmeasured ? null : this.page / PAGES,
+      pages: this.options.unmeasured ? null : { current: this.page + 1, total: PAGES },
       atStart: this.page === 0,
       atEnd: this.page === PAGES - 1,
     }

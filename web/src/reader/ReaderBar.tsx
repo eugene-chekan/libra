@@ -2,12 +2,15 @@ import { Link } from 'react-router-dom'
 
 import { useLibrarian } from '../librarian/LibrarianProvider'
 import { Icon } from '../widgets/Icon'
+import type { Pages } from './pages'
 import styles from './ReaderBar.module.css'
 
 interface ReaderBarProps {
   title: string
   /** The chapter on screen, or null when the book lists none. */
   chapter: string | null
+  /** Estimated printed pages, or null until the book has been measured. */
+  pages: Pages | null
   /** 0 to 1, or null while the book has not been measured. */
   progress: number | null
   backTo: string
@@ -19,6 +22,7 @@ interface ReaderBarProps {
 export function ReaderBar({
   title,
   chapter,
+  pages,
   progress,
   backTo,
   onContents,
@@ -37,6 +41,11 @@ export function ReaderBar({
       </Link>
       <span className={styles.title}>{title}</span>
       {chapter !== null && <span className={styles.chapter}>· {chapter}</span>}
+      {pages !== null && (
+        <span className={styles.pages}>
+          p. {pages.current} of {pages.total}
+        </span>
+      )}
       {percent !== null && <span className={styles.percent}>{percent}%</span>}
       <div className={styles.controls}>
         <button type="button" className={styles.control} aria-label="Contents" onClick={onContents}>

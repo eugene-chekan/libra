@@ -25,6 +25,7 @@ function renderBar(props: Partial<Parameters<typeof ReaderBar>[0]> = {}) {
               <ReaderBar
                 title="The Locked Door"
                 chapter={null}
+                pages={null}
                 progress={0.38}
                 backTo="/books/1"
                 onContents={vi.fn()}
@@ -98,5 +99,17 @@ describe('ReaderBar', () => {
 
     expect(screen.queryByRole('progressbar')).not.toBeInTheDocument()
     expect(screen.queryByText(/%$/)).not.toBeInTheDocument()
+  })
+
+  it('shows how many pages in the reader is, and of how many', () => {
+    renderBar({ pages: { current: 47, total: 312 } })
+
+    expect(screen.getByText('p. 47 of 312')).toBeInTheDocument()
+  })
+
+  it('shows no page count until the book has been measured', () => {
+    renderBar({ pages: null })
+
+    expect(screen.queryByText(/^p\./)).not.toBeInTheDocument()
   })
 })
