@@ -679,6 +679,32 @@ Centered in the content pane, 60px vertical padding:
 This is distinct from the search empty state, which stays as the handoff
 specified it: "No books match your search." at 14px `textLight`.
 
+### Cover tooltip
+
+The app's only tooltip, added because a cover on its own often does not say
+which book it is. A shelf row draws covers 96px wide with no words at all; the
+library grid prints the title but cuts it at two lines.
+
+Hovering any cover shows a small card above it after **150ms**: the title at
+16px serif `text`, then "by {author}" at 12px sans `textLight`. Same surface
+as a dropdown menu — `card` fill, 1px `border`, 8px radius, the dropdown
+shadow — because there is one floating surface in this app, not two. Maximum
+width 260px. It fades and rises 4px on entry, over the 150ms the dropdown
+uses.
+
+Three rules that go with it:
+
+- **Covers only.** Not the 200px cover on the book detail screen, which has
+  the title and author printed beside it already.
+- **It goes as soon as the pointer leaves the cover.** The card holds nothing
+  to reach, so there is no reason to keep it up while the pointer travels
+  towards it.
+- **A screen reader is told none of it.** The card hangs off a plain span
+  that nothing ever lands on. The words are already there without it: a shelf
+  cover's link is named "title by author", and a library cell prints both.
+  This is also why the tooltip is a pointer affordance only, and does not
+  appear on keyboard focus.
+
 ---
 
 ## Accessibility
