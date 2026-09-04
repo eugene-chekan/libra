@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 import { Icon } from './Icon'
 import styles from './ErrorBlock.module.css'
 
@@ -9,10 +11,12 @@ interface ErrorBlockProps {
    * a button, and offering the button says otherwise.
    */
   onRetry?: () => void
+  /** Where to go instead, for a failure that retrying cannot fix. */
+  action?: ReactNode
 }
 
 /** The application's one error shape. */
-export function ErrorBlock({ message, onRetry }: ErrorBlockProps) {
+export function ErrorBlock({ message, onRetry, action }: ErrorBlockProps) {
   return (
     <div className={styles.block} role="alert">
       <p className={styles.message}>
@@ -25,6 +29,7 @@ export function ErrorBlock({ message, onRetry }: ErrorBlockProps) {
           Try again
         </button>
       )}
+      {action}
     </div>
   )
 }

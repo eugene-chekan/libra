@@ -1,0 +1,99 @@
+/*
+  Paper, not a white screen: the reading surface takes the warm page colour, and the chapters
+  themselves are transparent so a chapter boundary leaves no seam down the page.
+*/
+.screen {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  background: var(--libra-bg);
+}
+
+/*
+  The scroller is epub.js's own container, which fills this box — that is what puts the
+  scrollbar at the window's edge. The measure is set inside each chapter instead, so the text
+  stays a readable width without the column owning the scrollbar.
+*/
+/* Holds the page and the two arrows, which sit in the margin either side of it. */
+.body {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  justify-content: center;
+}
+
+/*
+  How wide the text runs. Set here, before epub.js ever measures the box, because it works its
+  column widths out from this element — and re-measuring after it has rendered throws the page
+  away.
+
+  Everything the window has, less the room the page turn arrows sit in. A measure is capped in
+  `em` on top of that, so it holds its width in characters as the text size changes; the widest
+  carries no cap at all, because "wide" should mean the whole window on a large monitor rather
+  than a fixed column with the screen empty either side of it.
+*/
+.page {
+  width: 100%;
+  height: 100%;
+  --reader-usable: calc(100% - 112px);
+}
+
+.narrow {
+  max-width: min(60em, var(--reader-usable));
+}
+
+.medium {
+  max-width: min(88em, var(--reader-usable));
+}
+
+.wide {
+  max-width: var(--reader-usable);
+}
+
+.overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  justify-content: center;
+  overflow: auto;
+  padding: 32px 24px 64px;
+  background: var(--libra-bg);
+}
+
+.overlayColumn {
+  width: 100%;
+  max-width: 65ch;
+}
+
+.skeletonLine {
+  height: 12px;
+  background: var(--libra-border);
+  border-radius: 4px;
+  margin-bottom: 14px;
+  animation: reader-pulse 1.4s ease-in-out infinite;
+}
+
+.slowNote {
+  margin-top: 20px;
+  font-size: 13px;
+  color: var(--libra-text-light);
+}
+
+.backLink {
+  display: inline-block;
+  margin-top: 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--libra-accent);
+}
+
+@keyframes reader-pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.55;
+  }
+}

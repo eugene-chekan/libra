@@ -91,6 +91,7 @@ describe('AddBookModal, drop step', () => {
       shelf_id: null,
       rating: 0,
       progress: 0,
+      position: null,
       last_sent_at: null,
     })
     await screen.findByLabelText('Title')

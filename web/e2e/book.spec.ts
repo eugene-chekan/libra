@@ -118,10 +118,10 @@ test.describe('book detail, in a real browser', () => {
     expect([200, 404]).toContain(response.status())
   })
 
-  test('the Start Reading button leads to the reader stand-in, not to a dead address', async ({
-    page,
-    request,
-  }) => {
+  test('the Start Reading button leads to the reader', async ({ page, request }) => {
+    // This book is a catalog row with no file behind it — `createBook` posts a `file_path` that
+    // was never uploaded. So the reader opens and reports a missing file, and offers no retry,
+    // because retrying reads the same empty shelf. Reading a real book is `reader.spec.ts`.
     const title = `E2E Read ${Date.now()}`
     const book = await createBook(request, title)
 
@@ -129,7 +129,9 @@ test.describe('book detail, in a real browser', () => {
     await page.getByRole('link', { name: 'Start Reading' }).click()
 
     await expect(page).toHaveURL(new RegExp(`/books/${book.id}/read$`))
-    await expect(page.getByRole('heading', { name: 'Reader' })).toBeVisible()
+    await expect(page.getByRole('alert')).toContainText("This book's file is missing")
+    await expect(page.getByRole('button', { name: 'Try again' })).toHaveCount(0)
+    await expect(page.getByRole('link', { name: 'Back to the book' })).toBeVisible()
   })
 
   test('an address that names no book says so, rather than showing an empty page', async ({

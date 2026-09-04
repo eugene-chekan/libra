@@ -37,6 +37,15 @@ describe('ErrorBlock', () => {
     expect(onRetry).toHaveBeenCalledOnce()
   })
 
+  it('shows a way out where retrying is not one', () => {
+    // The reader's unreadable-file case: nothing to retry, but the book's own
+    // page still has a Download button that works.
+    render(<ErrorBlock message="This file is not readable." action={<a href="/books/1">Back</a>} />)
+
+    expect(screen.getByRole('link', { name: 'Back' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Try again' })).not.toBeInTheDocument()
+  })
+
   it('offers no retry when there is nothing useful to retry', () => {
     // A 403 will not become a 200 because the reader pressed a button, and
     // offering the button claims otherwise.

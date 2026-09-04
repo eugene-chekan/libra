@@ -1,0 +1,108 @@
+.bar {
+  position: relative;
+  flex-shrink: 0;
+  height: 48px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 20px;
+  background: var(--libra-bg);
+  border-bottom: 2px solid var(--libra-border);
+}
+
+.back {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--libra-text-mid);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.back:hover {
+  color: var(--libra-text);
+}
+
+.title {
+  flex: 1;
+  text-align: center;
+  font-family: var(--libra-serif);
+  font-size: 14px;
+  color: var(--libra-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.chapter {
+  font-size: 13px;
+  color: var(--libra-text-light);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 32ch;
+}
+
+/* On a narrow window the chapter is what goes; the book's own name stays. */
+@media (max-width: 700px) {
+  .chapter {
+    display: none;
+  }
+}
+
+.pages {
+  font-size: 12px;
+  color: var(--libra-text-light);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Narrower still than the chapter: the percentage is the one that always stays. */
+@media (max-width: 560px) {
+  .pages {
+    display: none;
+  }
+}
+
+.percent {
+  font-size: 12px;
+  color: var(--libra-text-light);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.controls {
+  display: flex;
+  gap: 2px;
+}
+
+.control {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: 8px;
+  background: none;
+  color: var(--libra-text-light);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.15s;
+}
+
+.control:hover {
+  background: var(--libra-accent-lighter);
+  color: var(--libra-text-mid);
+}
+
+.progress {
+  position: absolute;
+  left: 0;
+  bottom: -2px;
+  height: 2px;
+  background: var(--libra-accent);
+  transition: width 0.3s;
+}

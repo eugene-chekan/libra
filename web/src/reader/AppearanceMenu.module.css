@@ -1,0 +1,61 @@
+.overlay {
+  position: fixed;
+  inset: 0;
+}
+
+.menu {
+  position: fixed;
+  top: 56px;
+  right: 20px;
+  width: 232px;
+  padding: 12px;
+  background: var(--libra-card);
+  border: 1px solid var(--libra-border);
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgb(0 0 0 / 12%);
+}
+
+.heading {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 1.2px;
+  color: var(--libra-text-light);
+}
+
+.group {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 16px;
+}
+
+.group:last-child {
+  margin-bottom: 0;
+}
+
+.choice {
+  flex: 1;
+  padding: 7px 4px;
+  border: 1px solid var(--libra-border);
+  border-radius: 6px;
+  background: none;
+  font-size: 12px;
+  color: var(--libra-text-mid);
+  cursor: pointer;
+  transition:
+    background 0.12s,
+    color 0.15s;
+}
+
+.choice:hover {
+  background: var(--libra-accent-lighter);
+  color: var(--libra-text);
+}
+
+.choice[aria-current='true'] {
+  background: var(--libra-accent-light);
+  border-color: var(--libra-accent-light);
+  color: var(--libra-text);
+  font-weight: 500;
+}

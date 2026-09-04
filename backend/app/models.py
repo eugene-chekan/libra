@@ -64,6 +64,7 @@ class BookRead(BookBase):
     tag_ids: list[int] = []
     rating: int = 0
     progress: float = 0.0
+    position: str | None = None
     started_at: datetime | None = None
     finished_at: datetime | None = None
     last_sent_at: datetime | None = None
@@ -214,6 +215,13 @@ class UserBookState(SQLModel, table=True):
     shelf_id: int | None = Field(default=None, foreign_key="shelf.id")
     rating: int = Field(default=0)  # 0 = unrated
     progress: float = Field(default=0.0)
+    # Exactly where the reader stopped, in the reading client's own terms. For EPUB that is an
+    # epub.js CFI. `progress` says how far through the book that is, for the bar and the shelf;
+    # this says where, and it is what the reader is put back to. The two are kept apart because
+    # a percentage cannot be turned back into a place: doing so goes through a measurement of
+    # the book taken from a different parse of it than the one on screen, and on some real books
+    # the answer lands nowhere. Opaque to the server, which never reads it.
+    position: str | None = Field(default=None)
     started_at: datetime | None = Field(default=None)
     finished_at: datetime | None = Field(default=None)
     last_sent_at: datetime | None = Field(default=None)
@@ -225,6 +233,7 @@ class UserBookStateWrite(SQLModel):
 
     rating: int = Field(default=0, ge=0, le=5)
     progress: float = Field(default=0.0, ge=0, le=1)
+    position: str | None = Field(default=None, max_length=1000)
     shelf_id: int | None = None
     tag_ids: list[int] | None = None
 

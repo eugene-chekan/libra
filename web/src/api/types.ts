@@ -51,6 +51,13 @@ export interface Book {
   rating: number
   /** 0 to 1. */
   progress: number
+  /**
+   * Exactly where this reader stopped, in the reading client's own terms — for EPUB, an
+   * epub.js CFI. `progress` says how far through the book that is; this says where. A
+   * percentage cannot be turned back into a place, so both are kept. Null until first read,
+   * and for anything read before positions were stored.
+   */
+  position: string | null
   /** When this reader last emailed it to their Kindle. */
   last_sent_at: string | null
 }
@@ -70,6 +77,8 @@ export interface BookStateWrite {
   rating?: number
   /** Omit to leave progress as it is. Send 0 to rewind the book. */
   progress?: number
+  /** Omit to leave the reader's place as it is. */
+  position?: string | null
   shelf_id?: number | null
   /** Replaces this reader's personal tags on the book. */
   tag_ids?: number[]
