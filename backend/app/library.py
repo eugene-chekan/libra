@@ -243,6 +243,8 @@ def search_books(
 
     if query and query.strip():
         pattern = f"%{query.strip()}%"
+        # `ilike` is only as case-insensitive as `lower()` is, and SQLite's own
+        # knows 26 letters. `app/db.py` replaces it with one that knows the rest.
         statement = statement.where(
             col(Book.title).ilike(pattern) | col(Book.author).ilike(pattern)
         )

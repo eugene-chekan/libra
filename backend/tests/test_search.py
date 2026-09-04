@@ -52,6 +52,35 @@ def test_query_is_case_insensitive_and_substring(client: TestClient) -> None:
     assert len(client.get("/books?q=guin").json()["items"]) == 1
 
 
+def test_case_is_ignored_in_every_alphabet_not_only_english(client: TestClient) -> None:
+    """SQLite's own `lower()` folds the 26 ASCII letters and leaves the rest alone.
+
+    `app/db.py` replaces it with Python's `casefold`, which is the only reason
+    these pass. A library is not an English-only thing.
+    """
+    _book(client, "Долгая прогулка", "Стивен Кинг")
+    _book(client, "Café Terrace", "Édouard Manet")
+
+    assert _titles(client.get("/books?q=долгая")) == ["Долгая прогулка"]
+    assert _titles(client.get("/books?q=ДОЛГАЯ")) == ["Долгая прогулка"]
+    assert _titles(client.get("/books?q=кинг")) == ["Долгая прогулка"]
+    assert _titles(client.get("/books?q=CAFÉ")) == ["Café Terrace"]
+    assert _titles(client.get("/books?q=édouard")) == ["Café Terrace"]
+
+
+def test_matching_folds_case_rather_than_lowercasing_it(client: TestClient) -> None:
+    """`casefold`, not `lower`: German ß has no capital, and is written SS instead.
+
+    Somebody typing a title on a keyboard without ß should still find the book.
+    This is the one case where the two differ, and it is why `app/db.py` uses
+    the stricter of the pair.
+    """
+    _book(client, "Die Straße", "Rainer Maria Rilke")
+
+    assert _titles(client.get("/books?q=strasse")) == ["Die Straße"]
+    assert _titles(client.get("/books?q=STRASSE")) == ["Die Straße"]
+
+
 def test_a_query_matching_nothing_returns_an_empty_envelope(client: TestClient) -> None:
     _book(client, "Dune")
 
