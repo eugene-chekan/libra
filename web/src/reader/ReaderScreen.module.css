@@ -23,26 +23,32 @@
   justify-content: center;
 }
 
-.page {
-  width: 100%;
-  height: 100%;
-}
-
 /*
   How wide the text runs. Set here, before epub.js ever measures the box, because it works its
   column widths out from this element — and re-measuring after it has rendered throws the page
-  away. In `em`, so the measure holds its width in characters as the text size changes.
+  away.
+
+  Everything the window has, less the room the page turn arrows sit in. A measure is capped in
+  `em` on top of that, so it holds its width in characters as the text size changes; the widest
+  carries no cap at all, because "wide" should mean the whole window on a large monitor rather
+  than a fixed column with the screen empty either side of it.
 */
+.page {
+  width: 100%;
+  height: 100%;
+  --reader-usable: calc(100% - 112px);
+}
+
 .narrow {
-  max-width: 46em;
+  max-width: min(60em, var(--reader-usable));
 }
 
 .medium {
-  max-width: 62em;
+  max-width: min(88em, var(--reader-usable));
 }
 
 .wide {
-  max-width: 84em;
+  max-width: var(--reader-usable);
 }
 
 .overlay {
