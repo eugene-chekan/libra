@@ -199,3 +199,11 @@ export interface Conversation {
   id: number
   messages: LibrarianMessage[]
 }
+
+/** `GET /health` — what this instance is, for the footer and for anyone asking. */
+export interface Health {
+  status: string
+  version: string
+  /** The commit this build came from, when whoever built it said so. */
+  build?: string
+}

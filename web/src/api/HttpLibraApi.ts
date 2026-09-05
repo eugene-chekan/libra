@@ -7,6 +7,7 @@ import type {
   BookSearchParams,
   BookStateWrite,
   CurrentUser,
+  Health,
   KindleDelivery,
   Note,
   NoteDraft,
@@ -30,6 +31,11 @@ export class HttpLibraApi implements LibraApi {
 
   setOnUnauthorized(handler: (() => void) | null): void {
     this.handler = handler
+  }
+
+  /** The one path outside {@link BASE}, so it passes its own empty prefix. */
+  async health(): Promise<Health> {
+    return this.request<Health>('/health', { method: 'GET' }, '')
   }
 
   async login(username: string, password: string): Promise<User> {
@@ -180,10 +186,10 @@ export class HttpLibraApi implements LibraApi {
 
   /** The tail every request shares, JSON or not: the fetch itself, and turning the response into
    *  a value or an {@link ApiError}. */
-  private async request<T>(path: string, init: RequestInit): Promise<T> {
+  private async request<T>(path: string, init: RequestInit, base: string = BASE): Promise<T> {
     let response: Response
     try {
-      response = await fetch(BASE + path, init)
+      response = await fetch(base + path, init)
     } catch {
       throw new ApiError(0, 'Could not reach the server.')
     }

@@ -1,0 +1,12 @@
+/*
+ Quiet on purpose. This matters for the one minute somebody asks which build is
+   serving, and is noise on every other day, so it is the smallest type in the
+   sidebar and the lightest colour the palette has.
+ */
+.version {
+  margin-top: 10px;
+  padding: 0 12px;
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+}

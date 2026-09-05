@@ -112,6 +112,30 @@ this phase.
 - Autonomous multi-step agent planning — the agent stays tool-calling, not
   open-ended planning/execution
 
+## Version numbers
+
+**One number, and it lives in `backend/pyproject.toml`.** `scripts/run.sh`
+builds the client into the wheel, so the two halves are one artifact and one
+thing to name. `web/package.json` still carries a version because npm wants
+one; nothing reads it. `app/version.py` reads the number back out of the
+installed package, so it is never written down twice.
+
+**The minor version moves when a phase completes**, and nothing else moves it.
+`0.1.0` is Phase 1 finished; `0.2.0` will be Phase 4. Five phases, five bumps,
+`1.0.0` when the project is done. A number nobody remembers to change is worse
+than no number, so this rule asks to be remembered five times in total.
+
+**The commit does the fine-grained work.** `scripts/run.sh` and `run.ps1` set
+`LIBRA_BUILD` from `git rev-parse --short HEAD`, and the Dockerfile takes the
+same value as a build argument. So the version answers "which phase" and the
+build answers "which code", and neither has to be bumped per change.
+
+`GET /health` reports both — `{"status": "ok", "version": "0.1.0", "build":
+"44f0320"}` — omitting `build` entirely when nobody set one. It is
+unauthenticated, like the rest of `/health`: on a self-hosted instance being
+able to ask what is running is the point. The client shows the same line under
+the sidebar's account row, read from the server rather than compiled in.
+
 ## Evaluation methodology
 
 Built alongside each phase, not retrofitted afterward — see

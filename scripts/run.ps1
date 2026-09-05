@@ -199,6 +199,15 @@ $DataNative = $Data -replace '\\', '/'
 if (-not $env:LIBRA_DATABASE_URL) { $env:LIBRA_DATABASE_URL = "sqlite:///$DataNative/libra.db" }
 if (-not $env:LIBRA_LIBRARY_DIR)  { $env:LIBRA_LIBRARY_DIR  = "$DataNative/library" }
 
+# Which commit is serving, for /health to report. The version alone moves once
+# a phase, so on any ordinary day this is the half that answers "which build".
+# Quietly empty when git is missing or this is not a checkout — a zip is a fair
+# way to install this, and it should not fail for want of a repository.
+if (-not $env:LIBRA_BUILD -and (Test-OnPath 'git')) {
+    $head = & git -C $Repo rev-parse --short HEAD 2>$null
+    if ($LASTEXITCODE -eq 0) { $env:LIBRA_BUILD = $head }
+}
+
 Write-Step 'Preparing the database'
 # Idempotent: applies what is pending and creates an account only when the
 # installation has none, so this is safe on every boot rather than only the

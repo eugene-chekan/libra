@@ -36,6 +36,16 @@ describe('HttpLibraApi', () => {
     return call
   }
 
+  it('asks for health outside the /api prefix, which no other call does', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { status: 'ok', version: '0.1.0' }))
+
+    await new HttpLibraApi().health()
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/health')
+    expect(init.method).toBe('GET')
+  })
+
   it('logs in against the right endpoint, with the credentials as JSON', async () => {
     const user = { id: 1, username: 'eugene', is_admin: false, kindle_email: null, created_at: 'x' }
     fetchMock.mockResolvedValue(jsonResponse(200, user))

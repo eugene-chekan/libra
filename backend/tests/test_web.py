@@ -62,7 +62,9 @@ def test_the_api_still_wins_over_the_mount(web_root: Path) -> None:
         response = client.get("/health")
 
     assert response.status_code == 200
-    assert response.json() == {"status": "ok"}
+    # The endpoint answered rather than the mount. What it says is
+    # `test_health.py`'s business, not this file's.
+    assert response.json()["status"] == "ok"
 
 
 def test_a_mistyped_endpoint_is_not_quietly_the_app(web_root: Path) -> None:

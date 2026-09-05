@@ -12,6 +12,7 @@ from app.config import get_settings
 from app.db import init_db
 from app.logging_config import configure_logging, get_logger
 from app.routers import auth, books, health, librarian, notes, shelves, tags, users
+from app.version import VERSION
 
 log = get_logger(__name__)
 
@@ -59,7 +60,7 @@ def create_app() -> FastAPI:
     settings = get_settings()
     configure_logging(settings.log_level)
 
-    app = FastAPI(title="libra", lifespan=lifespan)
+    app = FastAPI(title="libra", version=VERSION, lifespan=lifespan)
 
     app.add_middleware(
         CORSMiddleware,
