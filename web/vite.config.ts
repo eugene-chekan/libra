@@ -19,6 +19,10 @@ export default defineConfig({
     // exactly like a backend that is not running.
     proxy: {
       '/api': { target: 'http://localhost:8000', changeOrigin: true },
+      // `/health` is the one endpoint outside `/api`, and the sidebar reads it
+      // for the version. Without this line Vite answers it with index.html and
+      // the version quietly never appears in `npm run dev`.
+      '/health': { target: 'http://localhost:8000', changeOrigin: true },
     },
   },
 

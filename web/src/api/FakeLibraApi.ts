@@ -7,6 +7,7 @@ import type {
   BookSearchParams,
   BookStateWrite,
   CurrentUser,
+  Health,
   KindleDelivery,
   Note,
   NoteDraft,
@@ -130,6 +131,7 @@ interface FakeOptions {
   tags?: Tag[]
   shelves?: Shelf[]
   notes?: FakeNote[]
+  health?: Health
   /** What the mail server does with the next send. */
   kindleFailure?: string | null
   /**
@@ -153,6 +155,8 @@ export class FakeLibraApi implements LibraApi {
   readonly tags: Tag[]
   readonly shelves: Shelf[]
   readonly notes: FakeNote[]
+  /** What `health()` answers. Named apart from the method it feeds. */
+  readonly healthReport: Health
   /** Settable mid-test, so one send can fail and the next succeed. */
   kindleFailure: string | null
   /** Settable mid-test, so each upload in a test can "parse" to something different. */
@@ -171,6 +175,7 @@ export class FakeLibraApi implements LibraApi {
     tags = [],
     shelves = [],
     notes = [],
+    health = { status: 'ok', version: '1.2.3' },
     kindleFailure = null,
     uploadMetadata = null,
     uploadFailure = null,
@@ -182,9 +187,16 @@ export class FakeLibraApi implements LibraApi {
     this.tags = tags
     this.shelves = shelves
     this.notes = notes
+    this.healthReport = health
     this.kindleFailure = kindleFailure
     this.uploadMetadata = uploadMetadata
     this.uploadFailure = uploadFailure
+  }
+
+  /** Answers signed out as well as signed in, as the real one does. */
+  async health(): Promise<Health> {
+    this.calls.push('health')
+    return this.healthReport
   }
 
   setOnUnauthorized(handler: (() => void) | null): void {

@@ -7,6 +7,7 @@ import { primaryNav, routes } from '../routes'
 import { useSession } from '../session/SessionProvider'
 import { Icon } from '../widgets/Icon'
 import { AccountRow } from './AccountRow'
+import { VersionLine } from './VersionLine'
 import { SharedShelvesSection } from './SharedShelvesSection'
 import { ShelvesSection } from './ShelvesSection'
 import styles from './Sidebar.module.css'
@@ -56,6 +57,7 @@ export function Sidebar() {
           Add Book
         </button>
         <AccountRow />
+        <VersionLine />
       </div>
 
       {addBookOpen && <AddBookModal onClose={() => setAddBookOpen(false)} />}

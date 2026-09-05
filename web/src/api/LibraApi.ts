@@ -5,6 +5,7 @@ import type {
   BookSearchParams,
   BookStateWrite,
   CurrentUser,
+  Health,
   KindleDelivery,
   Note,
   NoteDraft,
@@ -23,6 +24,12 @@ import type {
 export interface LibraApi {
   /** Registers the one handler that runs on every 401 the server returns. */
   setOnUnauthorized(handler: (() => void) | null): void
+
+  /**
+   * `GET /health` — outside the `/api` prefix, and the only call that is. It answers before
+   * anyone signs in, which is what makes it usable as a health check at all.
+   */
+  health(): Promise<Health>
 
   /** `POST /api/auth/login`. */
   login(username: string, password: string): Promise<User>

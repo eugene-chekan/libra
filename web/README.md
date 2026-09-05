@@ -50,9 +50,10 @@ whatever the backend was actually seeded with.
 
 ## Running against a real backend
 
-`npm run dev` serves the client on port 5173 and proxies `/api` to
-`http://localhost:8000`. The proxy is the point: it makes the browser see one
-origin, so the session cookie is sent and no CORS preflight happens at all.
+`npm run dev` serves the client on port 5173 and proxies `/api` — and
+`/health`, the one endpoint outside that prefix — to `http://localhost:8000`.
+The proxy is the point: it makes the browser see one origin, so the session
+cookie is sent and no CORS preflight happens at all.
 
 **That means `LIBRA_CORS_ORIGINS` is not needed for normal development.** If
 you bypass the proxy and call the backend directly, it is — the backend's list

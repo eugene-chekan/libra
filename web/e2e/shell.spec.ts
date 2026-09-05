@@ -144,4 +144,23 @@ test.describe('the app frame, in a real browser', () => {
     await page.getByRole('link', { name: 'Back to the library' }).click()
     await expect(page).toHaveURL(/\/library$/)
   })
+
+  /*
+   Read from the server rather than written here, because a number typed into a
+   test is a number that stops being true the day somebody bumps it. What this
+   proves is that the two agree — and that `/health` reaches the backend at all,
+   which it only does through the extra proxy line in `vite.config.ts`.
+  */
+  test('the sidebar names the build that is serving', async ({ page, request }) => {
+    const response = await request.get('/health')
+    expect(response.ok()).toBe(true)
+    const health = (await response.json()) as { version: string; build?: string }
+
+    await page.goto('/library')
+
+    const expected = health.build
+      ? `libra ${health.version} · ${health.build}`
+      : `libra ${health.version}`
+    await expect(page.getByText(expected)).toBeVisible()
+  })
 })

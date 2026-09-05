@@ -145,6 +145,15 @@ DATA_NATIVE="$(native_path "$DATA")"
 export LIBRA_DATABASE_URL="${LIBRA_DATABASE_URL:-sqlite:///$DATA_NATIVE/libra.db}"
 export LIBRA_LIBRARY_DIR="${LIBRA_LIBRARY_DIR:-$DATA_NATIVE/library}"
 
+# Which commit is serving, for /health to report. The version alone moves once
+# a phase, so on any ordinary day this is the half that answers "which build".
+# Quietly empty when git is missing or this is not a checkout — a tarball is a
+# fair way to install this, and it should not fail for want of a repository.
+if [ -z "${LIBRA_BUILD:-}" ] && command -v git >/dev/null 2>&1; then
+  LIBRA_BUILD="$(git -C "$REPO" rev-parse --short HEAD 2>/dev/null || true)"
+  export LIBRA_BUILD
+fi
+
 step "Preparing the database"
 # Idempotent: applies what is pending and creates an account only when the
 # installation has none, so this is safe on every boot rather than only the
