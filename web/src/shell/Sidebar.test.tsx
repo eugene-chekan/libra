@@ -2,7 +2,7 @@ import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { beforeEach, describe, expect, it } from 'vitest'
 
 import { ApiProvider } from '../api/ApiProvider'
 import { fakeShelf, fakeTag, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
@@ -40,6 +40,10 @@ function signedInApi(): FakeLibraApi {
 }
 
 describe('Sidebar', () => {
+  // The collapsed choice is remembered in localStorage, and jsdom keeps one store for the
+  // whole file — so without this a test that collapses would decide what the next one sees.
+  beforeEach(() => localStorage.clear())
+
   it('is a navigation landmark', () => {
     renderAt(routes.library)
 
@@ -167,5 +171,88 @@ describe('Sidebar', () => {
 
     await waitFor(() => expect(screen.getByText('eugene')).toBeInTheDocument())
     expect(screen.queryByRole('link', { name: 'Admin' })).not.toBeInTheDocument()
+  })
+})
+
+describe('Sidebar, collapsed', () => {
+  beforeEach(() => localStorage.clear())
+
+  async function collapse() {
+    const user = userEvent.setup()
+    await user.click(await screen.findByRole('button', { name: 'Collapse sidebar' }))
+    return user
+  }
+
+  /*
+   The lists and the version line go from the DOM entirely; the row labels only stop being drawn,
+   which jsdom cannot see — it has no layout, and the class that hides them works by clipping.
+   That half is checked in a real browser, in `e2e/shell.spec.ts`.
+  */
+  it('drops the lists and the version line', async () => {
+    const reader = fakeUser({ username: 'eugene' })
+    const api = new FakeLibraApi({
+      users: [reader],
+      signedInAs: reader,
+      shelves: [fakeShelf({ name: 'Reading Now', owner_id: reader.id, editable: true })],
+      tags: [fakeTag({ name: 'fantasy' })],
+    })
+    renderAt(routes.library, api)
+    await screen.findByRole('link', { name: 'Reading Now' })
+
+    await collapse()
+
+    expect(screen.queryByRole('link', { name: 'Reading Now' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('link', { name: /fantasy/i })).not.toBeInTheDocument()
+    expect(screen.queryByText(/^libra \d/)).not.toBeInTheDocument()
+  })
+
+  /*
+   The whole point of hiding a label rather than deleting it. A collapsed sidebar that a screen
+   reader cannot read is not a smaller sidebar, it is a broken one.
+  */
+  it('keeps every row nameable, so nothing is lost to a screen reader', async () => {
+    renderAt(routes.library)
+
+    await collapse()
+
+    for (const { label } of primaryNav) {
+      expect(screen.getByRole('link', { name: label })).toBeInTheDocument()
+    }
+    expect(screen.getByRole('button', { name: 'Librarian' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Add Book' })).toBeInTheDocument()
+  })
+
+  it('opens back up, and the toggle says which way it goes', async () => {
+    renderAt(routes.library)
+
+    const user = await collapse()
+    expect(screen.getByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Expand sidebar' }))
+
+    expect(await screen.findByRole('button', { name: 'Collapse sidebar' })).toBeInTheDocument()
+    expect(screen.getByText('Add Book')).toBeInTheDocument()
+  })
+
+  it('remembers the choice, so it is not a decision you make every visit', async () => {
+    const { unmount } = renderAt(routes.library)
+    await collapse()
+    unmount()
+
+    renderAt(routes.library)
+
+    expect(await screen.findByRole('button', { name: 'Expand sidebar' })).toBeInTheDocument()
+  })
+
+  it('shows the account as an avatar alone, with the menu still reachable', async () => {
+    const user = userEvent.setup()
+    renderAt(routes.library)
+    await screen.findByText('eugene')
+
+    await user.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
+
+    expect(screen.queryByText('eugene')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /account/i }))
+    expect(await screen.findByRole('menuitem', { name: /sign out/i })).toBeInTheDocument()
   })
 })

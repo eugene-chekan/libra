@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { useApi } from '../api/ApiProvider'
 import type { Book } from '../api/types'
 import { BookCover } from '../library/BookCover'
+import hidden from '../widgets/visuallyHidden.module.css'
 import styles from './DetailCover.module.css'
 
 /** The detail screen's cover, and the lightbox behind it. */
@@ -40,7 +41,7 @@ export function DetailCover({ book }: { book: Book }) {
             lightbox has to do — one that traps you is one nobody opens twice. */}
         <Dialog.Overlay className={styles.overlay} />
         <Dialog.Content className={styles.lightbox} aria-describedby={undefined}>
-          <Dialog.Title className={styles.lightboxTitle}>Cover of {book.title}</Dialog.Title>
+          <Dialog.Title className={hidden.visuallyHidden}>Cover of {book.title}</Dialog.Title>
           <img className={styles.full} src={api.coverUrl(book.id)} alt={`Cover of ${book.title}`} />
           <Dialog.Close className={styles.close} aria-label="Close">
             &times;

@@ -5,6 +5,7 @@ import { BookCover } from '../library/BookCover'
 import { useBooks } from '../library/useBooks'
 import { bookPath, routes } from '../routes'
 import { CoverTooltip } from '../widgets/CoverTooltip'
+import hidden from '../widgets/visuallyHidden.module.css'
 import { PublicPill } from './PublicPill'
 import styles from './ShelfBlock.module.css'
 
@@ -45,7 +46,7 @@ export function ShelfBlock({ shelf }: { shelf: Shelf }) {
                 {/* The cover is a picture; the link still needs words. Visible
                     text would repeat the title under every cover in a row that
                     is meant to be scanned, so it is read out rather than drawn. */}
-                <span className={styles.label}>
+                <span className={hidden.visuallyHidden}>
                   {book.title} by {book.author}
                 </span>
               </Link>

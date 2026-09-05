@@ -1,0 +1,17 @@
+/*
+ The one way to say something to a screen reader and not to the eye, for every place that needs
+   it. Three surfaces did, each with its own copy, before this file existed.
+
+ A box like this is taken out of the normal flow, so **the element it belongs to has to be
+   positioned** — otherwise the browser places it against the whole page, far from the thing it
+   labels, and the page grows to fit. That cost the Shelves page a scrollbar once; see the
+   comment on `.cover` in `shelves/ShelfBlock.module.css`.
+ */
+.visuallyHidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}

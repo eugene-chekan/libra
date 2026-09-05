@@ -44,25 +44,13 @@
   width: 96px;
   flex-shrink: 0;
   /*
-   Positioned so `.label` below is placed inside this link. An absolute box with no positioned
-     parent is placed against the *page* instead, and `.label`'s place in the row is far down
-     the pane that scrolls. That made the page itself taller than the window, so the window
-     scrolled the whole layout up and showed empty space under it.
+   Positioned so the hidden title inside this link is placed inside it. That title uses
+     `widgets/visuallyHidden.module.css`, and an absolute box with no positioned parent is
+     placed against the *page* instead — where its place in the row is far down the pane that
+     scrolls. That made the page itself taller than the window, so the window scrolled the whole
+     layout up and showed empty space under it.
    */
   position: relative;
-}
-
-/*
- Read out, never drawn: the covers carry the titles visually, and repeating each one under it
-   would clutter a row meant to be scanned.
- */
-.label {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  overflow: hidden;
-  clip-path: inset(50%);
-  white-space: nowrap;
 }
 
 /* The dashed idiom the sidebar's Add Book button uses, for a shelf with nothing on it yet. */

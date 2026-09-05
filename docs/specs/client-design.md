@@ -127,6 +127,37 @@ The sidebar becomes a three-part vertical flex instead of one column with
 
 The footer never scrolls. Sign-out must be reachable without hunting.
 
+### Collapsed, to icons only
+
+A chevron button at the top of the sidebar takes it from
+`--libra-sidebar-width` (240px) to `--libra-sidebar-collapsed-width` (64px),
+with the side padding dropping to 8px so an 18px icon has room to sit in.
+Expanded, the button sits to the right of the `libra` wordmark and points
+left. Collapsed, it is alone in that row, centred, and points right — there is
+no logo mark to fall back to, and Library is one row below it anyway.
+
+Collapsed, each row keeps its icon and nothing else:
+
+- **Primary nav, Add Book** — the label becomes a visually-hidden span, so the
+  accessible name is the same in both states. Hiding it rather than dropping
+  it is the whole point: a sidebar a screen reader cannot read is not a
+  smaller sidebar.
+- **Account row** — the avatar alone, and the row says "Account: {username}"
+  in words only a screen reader hears. The avatar is `aria-hidden` in both
+  states: it draws the first letter of a name that is already read out.
+- **SHELVES, SHARED WITH YOU, TAGS** — gone. A shelf called "Finished 2026"
+  does not reduce to an icon, and every one of those rows is a filter the
+  Shelves page and the search box still reach.
+- **The version line** — gone; it cannot fit in 64px.
+
+**Hovering an icon shows its label**, on the right, in the app's one tooltip
+(`widgets/Tooltip.tsx`). Only while collapsed: a tooltip repeating a label you
+can already read is noise.
+
+**The choice is remembered**, in `localStorage` under
+`libra.sidebar.collapsed`, the same way the reader remembers its text size. It
+is a view preference, not data, so it does not go to the server.
+
 **Primary nav gains a third row: "Librarian"**, message-square icon, placed
 below Shelves. Same 10px/12px padding, 8px radius, active/inactive treatment
 as the others.

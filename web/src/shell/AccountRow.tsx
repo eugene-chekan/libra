@@ -6,13 +6,18 @@ import { useSaveKindleEmail } from '../session/useSaveKindleEmail'
 import { Icon } from '../widgets/Icon'
 import { KindleEmailModal } from '../widgets/KindleEmailModal'
 import menu from '../widgets/dropdownMenu.module.css'
+import hidden from '../widgets/visuallyHidden.module.css'
 import styles from './AccountRow.module.css'
 
 /**
  * The sidebar footer's account area: avatar, username, and the dropdown that holds Kindle Email
  * and Sign Out.
+ *
+ * Collapsed, the avatar is all that is drawn, so the row says who it belongs to in words a
+ * screen reader can hear instead. The avatar itself is a picture of the first letter of a name
+ * that is already read out, so it never counts towards the name.
  */
-export function AccountRow() {
+export function AccountRow({ collapsed = false }: { collapsed?: boolean }) {
   const { status, signOut } = useSession()
   const saveKindleEmail = useSaveKindleEmail()
   const [kindleModalOpen, setKindleModalOpen] = useState(false)
@@ -24,13 +29,24 @@ export function AccountRow() {
     <>
       <DropdownMenu.Root>
         <DropdownMenu.Trigger asChild>
-          <button type="button" className={styles.row}>
-            <span className={styles.avatar}>{user.username.charAt(0).toUpperCase()}</span>
-            <span className={styles.identity}>
-              <span className={styles.username}>{user.username}</span>
-              {user.is_admin && <span className={styles.adminLabel}>Admin</span>}
+          <button
+            type="button"
+            className={collapsed ? `${styles.row} ${styles.iconOnly}` : styles.row}
+          >
+            <span className={styles.avatar} aria-hidden="true">
+              {user.username.charAt(0).toUpperCase()}
             </span>
-            <Icon name="chevron-up" size={14} className={styles.chevron} />
+            {collapsed ? (
+              <span className={hidden.visuallyHidden}>Account: {user.username}</span>
+            ) : (
+              <>
+                <span className={styles.identity}>
+                  <span className={styles.username}>{user.username}</span>
+                  {user.is_admin && <span className={styles.adminLabel}>Admin</span>}
+                </span>
+                <Icon name="chevron-up" size={14} className={styles.chevron} />
+              </>
+            )}
           </button>
         </DropdownMenu.Trigger>
 
