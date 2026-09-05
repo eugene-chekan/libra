@@ -39,6 +39,13 @@ function PhoneShell() {
   // you picked to see the page behind — and every navigation brings a new
   // location key, so the drawer is shut again without an effect watching for
   // it, and without a single row in the sidebar knowing a drawer exists.
+  //
+  // **The librarian row is deliberately not one of them**, even though it also
+  // picks something. Closing the drawer as its panel opens leaves the drawer
+  // unmounted underneath — so it never undoes the `aria-hidden` it put on
+  // `#root`, and once the panel is closed the whole application is missing from
+  // the accessibility tree. Leaving it mounted costs one extra tap and keeps
+  // the page readable; `e2e/shell.spec.ts` holds that down.
   const drawerOpen = openedAt === location.key
 
   return (

@@ -299,6 +299,37 @@ test.describe('the phone layout, in a real browser', () => {
   })
 
   /*
+   The panel covers the whole screen here, so there is no overlay left to tap, and a phone has no
+   Escape key. Its close button is the only way back — and it was missing until a phone made that
+   matter.
+  */
+  test('the librarian panel can be closed again', async ({ page }) => {
+    await page.goto('/library')
+    await page.getByRole('button', { name: 'Menu' }).click()
+    await page.getByRole('button', { name: 'Librarian' }).click()
+
+    const panel = page.getByRole('dialog').filter({ hasText: 'NOT CONNECTED' })
+    await expect(panel).toBeVisible()
+    // It really does cover everything, which is why the button has to exist.
+    const box = await panel.boundingBox()
+    expect(box?.width).toBe(390)
+
+    await panel.getByRole('button', { name: 'Close' }).click()
+    await expect(panel).toHaveCount(0)
+
+    // The drawer is still open underneath, on purpose — see the comment in `AppShell.tsx`. What
+    // matters is that closing both puts the page back in the accessibility tree: closing the
+    // drawer as the panel opened used to leave `#root` hidden for good, and a screen reader on
+    // an empty page is a worse bug than one extra tap.
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0)
+    expect(
+      await page.evaluate(() => document.getElementById('root')?.getAttribute('aria-hidden'))
+    ).toBeNull()
+    await expect(page.getByRole('heading', { name: 'Library' })).toBeVisible()
+  })
+
+  /*
    The breakpoint is written twice — a constant in `theme/breakpoints.ts` for JavaScript, and the
    same number again in every media query, because CSS cannot read a custom property inside one.
    This is what stops the two drifting: a window between them would get the drawer without the
