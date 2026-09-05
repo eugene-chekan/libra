@@ -146,6 +146,34 @@ test.describe('the app frame, in a real browser', () => {
   })
 
   /*
+   Librarian opens a panel rather than going anywhere, so it is a button while the rows around it
+   are links — and a button arrives wearing the browser's own border, grey fill and arrow cursor,
+   which an anchor does not. jsdom applies none of that, so only a real browser can see the row
+   standing out of the list it belongs to. Compared against its neighbour rather than against
+   fixed values, because what matters is that the four rows match, not what they measure.
+  */
+  test('the Librarian row is drawn like the rows around it', async ({ page }) => {
+    await page.goto('/library')
+
+    const nav = page.getByLabel('Main')
+    const look = (locator: ReturnType<typeof nav.getByRole>) =>
+      locator.evaluate((el) => {
+        const style = getComputedStyle(el)
+        return {
+          borderWidth: style.borderTopWidth,
+          background: style.backgroundColor,
+          cursor: style.cursor,
+          height: Math.round(el.getBoundingClientRect().height),
+        }
+      })
+
+    const librarian = await look(nav.getByRole('button', { name: 'Librarian' }))
+    const shelves = await look(nav.getByRole('link', { name: 'Shelves' }))
+
+    expect(librarian).toEqual(shelves)
+  })
+
+  /*
    Read from the server rather than written here, because a number typed into a
    test is a number that stops being true the day somebody bumps it. What this
    proves is that the two agree — and that `/health` reaches the backend at all,
