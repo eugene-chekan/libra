@@ -145,3 +145,11 @@
   color: var(--libra-text-light);
   cursor: default;
 }
+
+/* Phone: `PHONE_MAX_WIDTH` in `theme/breakpoints.ts`, which CSS cannot read. */
+@media (max-width: 767px) {
+  .content {
+    width: 100%;
+    border-left: none;
+  }
+}

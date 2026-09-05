@@ -233,3 +233,92 @@ test.describe('the app frame, in a real browser', () => {
     await expect(page.getByText(expected)).toBeVisible()
   })
 })
+
+/*
+ The phone layout, which jsdom cannot see at all: it has no layout engine, so it cannot say a
+ page overflows sideways, and `matchMedia` is a stub there rather than a real answer about a
+ real window.
+*/
+test.describe('the phone layout, in a real browser', () => {
+  test.use({ viewport: { width: 390, height: 844 } })
+
+  test('no screen scrolls sideways', async ({ page }) => {
+    for (const path of ['/library', '/shelves', '/admin/users']) {
+      await page.goto(path)
+      const overflow = await page.evaluate(() => {
+        const html = document.documentElement
+        return html.scrollWidth - html.clientWidth
+      })
+      expect(overflow, `${path} scrolls sideways`).toBe(0)
+    }
+  })
+
+  test('the sidebar is a drawer, and choosing a page closes it', async ({ page }) => {
+    await page.goto('/library')
+    const sidebar = page.getByRole('navigation', { name: 'Main' })
+    await expect(sidebar).toHaveCount(0)
+
+    await page.getByRole('button', { name: 'Menu' }).click()
+    await expect(sidebar).toBeVisible()
+
+    await page.getByRole('link', { name: 'Shelves' }).click()
+
+    await expect(page).toHaveURL(/\/shelves$/)
+    await expect(sidebar).toHaveCount(0)
+  })
+
+  /*
+   The reason the drawer is a dialog rather than a panel slid in with CSS. Tabbing has to stay
+   inside it while it covers the screen, or the reader is typing into a page they cannot see.
+  */
+  test('the drawer keeps the keyboard inside it', async ({ page }) => {
+    await page.goto('/library')
+    await page.getByRole('button', { name: 'Menu' }).click()
+    await expect(page.getByRole('navigation', { name: 'Main' })).toBeVisible()
+
+    // Straight to the last row and one Tab past it, because that is the only place a trap can be
+    // told from ordinary tab order. Counting keystrokes to get there does not work: the sidebar
+    // grows a row per shelf and per tag, and the scratch database gains both as the suite runs.
+    await page.evaluate(() => {
+      const drawer = document.querySelector('[role="dialog"]')
+      const focusable = drawer?.querySelectorAll<HTMLElement>(
+        'a[href], button:not([disabled]), input, [tabindex]:not([tabindex="-1"])'
+      )
+      focusable?.[focusable.length - 1]?.focus()
+    })
+    await page.keyboard.press('Tab')
+
+    const insideDrawer = await page.evaluate(() => {
+      const active = document.activeElement
+      return active instanceof Element && active.closest('[role="dialog"]') !== null
+    })
+    expect(insideDrawer, 'Tab past the last row left the drawer').toBe(true)
+
+    await page.keyboard.press('Escape')
+    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0)
+  })
+
+  /*
+   The breakpoint is written twice — a constant in `theme/breakpoints.ts` for JavaScript, and the
+   same number again in every media query, because CSS cannot read a custom property inside one.
+   This is what stops the two drifting: a window between them would get the drawer without the
+   phone padding, or the reverse.
+  */
+  test('the drawer and the layout change at the same pixel', async ({ page }) => {
+    const menu = page.getByRole('button', { name: 'Menu' })
+    // Through a locator, which waits for the pane to exist rather than asking the document the
+    // instant the navigation resolves.
+    const panePadding = () =>
+      page.locator('main').evaluate((pane) => getComputedStyle(pane).paddingLeft)
+
+    await page.setViewportSize({ width: 767, height: 844 })
+    await page.goto('/library')
+    await expect(menu).toBeVisible()
+    expect(await panePadding()).toBe('16px')
+
+    await page.setViewportSize({ width: 768, height: 844 })
+    await page.goto('/library')
+    await expect(menu).toHaveCount(0)
+    expect(await panePadding()).not.toBe('16px')
+  })
+})

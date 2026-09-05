@@ -73,3 +73,20 @@
   font-size: 13px;
   color: var(--libra-text-light);
 }
+
+/* Phone: `PHONE_MAX_WIDTH` in `theme/breakpoints.ts`, which CSS cannot read. */
+@media (max-width: 767px) {
+  .layout {
+    flex-direction: column;
+    gap: 24px;
+  }
+
+  /*
+   Held at 200px and centred rather than stretched. A cover the full width of a phone is a wall
+     of art with the title pushed off the bottom of the screen.
+   */
+  .coverColumn {
+    width: 200px;
+    align-self: center;
+  }
+}

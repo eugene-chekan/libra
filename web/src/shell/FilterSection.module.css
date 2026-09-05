@@ -62,3 +62,12 @@
 .manageRow:hover {
   background: var(--libra-accent-lighter);
 }
+
+/* Phone: `PHONE_MAX_WIDTH` in `theme/breakpoints.ts`, which CSS cannot read. */
+@media (max-width: 767px) {
+  .row,
+  .manageRow {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+}
