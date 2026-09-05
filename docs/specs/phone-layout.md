@@ -42,21 +42,32 @@ panel.
 | 768–1023px | tablet, and a narrow desktop window | sidebar column, tighter padding, grid reflows |
 | <768px | phone | top bar and drawer |
 
-Both numbers become tokens beside `--libra-min-width`, which itself is deleted
-rather than lowered — nothing enforces a floor any more.
+`--libra-min-width` is deleted rather than lowered — nothing enforces a floor
+any more.
 
-There is one breakpoint in the markup and one in the CSS, and they are the
-same number. A layout that switches at 768px in CSS while the drawer switches
-at 700px in JavaScript is a bug nobody finds until a 740px window.
+The breakpoint cannot be a token: **a CSS custom property cannot be used
+inside a media query.** So it is a constant in `theme/breakpoints.ts` for the
+JavaScript that needs it, and the same number written again in each `@media`
+rule, every one pointing back there in a comment.
+
+Two copies of a number is exactly the drift this project usually refuses, so
+it is tested rather than trusted: `e2e/shell.spec.ts` drives the window to
+either side of the boundary and checks the layout and the drawer change at the
+same pixel. A layout that switches at 768px in CSS while the drawer switches at
+700px in JavaScript is a bug nobody finds until a 740px window.
 
 ## The phone shell
 
-A **56px top bar**, fixed, holding two things: the menu button on the left and
-the page title beside it. The library screen's search box sits in a second row
-*beneath* the bar rather than inside it — a 56px row cannot hold a menu
-button, a title and a usable text field at once, and the search box is the one
-of the three that needs the width. Below that, the pane, with padding down
-from 36px to 16px.
+A **56px top bar** holding two things: the menu button on the left and the
+`libra` wordmark beside it. Below it, the pane, with padding down from 36px to
+16px.
+
+**The wordmark, not the page title.** Every screen already draws its own `h1`
+as the first thing in the pane, immediately under the bar — putting the title
+in the bar as well would say it twice on the screen with the least room for
+it, and would need either a route-to-title map or a context that every screen
+writes to. The bar reads as the app's own header, which is what the sidebar's
+header does on a desktop.
 
 The **drawer** is the existing `<Sidebar/>` component. Not a copy of it, not a
 phone variant of it — the same component, hosted somewhere else. It holds
@@ -116,9 +127,11 @@ button wraps under the heading.
 on the right. The controls wrap under the name rather than squeezing, because
 squeezing is how a 44px target becomes a 22px one.
 
-**Modals.** Already carry `max-width: 90vw`, so they mostly work. What they
-lack is a height ceiling on a short screen; they gain `max-height: 85vh` with
-the body scrolling inside.
+**Modals.** Nothing to do. They already carry both ceilings —
+`max-width: 90vw` and `max-height: 80vh` — and the comment above them in
+`widgets/Modal.module.css` says why: "a fixed width overflows a narrow window,
+and a tall dialog on a short screen needs somewhere to scroll". Written for a
+desktop that never got narrow, and correct for a phone by accident.
 
 **Librarian panel.** Fixed at 480px, which is wider than the phone. It becomes
 full width below the phone breakpoint.

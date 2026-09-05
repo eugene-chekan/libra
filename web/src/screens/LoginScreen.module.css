@@ -106,3 +106,16 @@
   color: var(--libra-text-light);
   cursor: default;
 }
+
+/* Phone: `PHONE_MAX_WIDTH` in `theme/breakpoints.ts`, which CSS cannot read. */
+@media (max-width: 767px) {
+  .card {
+    width: 100%;
+    max-width: 380px;
+    padding: 28px 20px;
+  }
+
+  .page {
+    padding: 16px;
+  }
+}
