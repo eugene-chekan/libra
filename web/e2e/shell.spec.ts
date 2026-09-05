@@ -146,6 +146,47 @@ test.describe('the app frame, in a real browser', () => {
   })
 
   /*
+   Two halves the component suite cannot reach. jsdom has no layout, so it cannot say the sidebar
+   got narrower or that a label stopped being drawn — the class that hides one works by clipping,
+   which jsdom reports as visible. And the choice is kept in localStorage, which only survives a
+   real reload in a real browser.
+  */
+  test('the sidebar collapses to icons, and is still collapsed after a reload', async ({
+    page,
+  }) => {
+    await page.goto('/library')
+    const sidebar = page.getByLabel('Main')
+    // Polled, not read once: the width is animated, so the first answer after a click is a
+    // number somewhere in the middle of the change.
+    const width = async () => (await sidebar.boundingBox())?.width ?? 0
+    const wide = await width()
+
+    // Asked of the page rather than written here, so the token stays the one place the number
+    // lives. Polled, because the width is animated and settles a moment after the click.
+    const narrow = await page.evaluate(() =>
+      parseFloat(
+        getComputedStyle(document.documentElement).getPropertyValue(
+          '--libra-sidebar-collapsed-width'
+        )
+      )
+    )
+    expect(narrow).toBeLessThan(wide)
+
+    await page.getByRole('button', { name: 'Collapse sidebar' }).click()
+    await expect.poll(width).toBe(narrow)
+
+    // Still named for a screen reader, no longer drawn for the eye.
+    const addBook = page.getByRole('button', { name: 'Add Book' })
+    await expect(addBook).toBeVisible()
+    expect((await addBook.boundingBox())?.width ?? 0).toBeLessThan(narrow)
+
+    await page.reload()
+
+    await expect(page.getByRole('button', { name: 'Expand sidebar' })).toBeVisible()
+    expect(await width()).toBe(narrow)
+  })
+
+  /*
    Librarian opens a panel rather than going anywhere, so it is a button while the rows around it
    are links — and a button arrives wearing the browser's own border, grey fill and arrow cursor,
    which an anchor does not. jsdom applies none of that, so only a real browser can see the row

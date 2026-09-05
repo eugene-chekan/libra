@@ -10,6 +10,58 @@
   padding: var(--libra-sidebar-padding-y) var(--libra-sidebar-padding-x);
   background: var(--libra-bg);
   border-right: 1px solid var(--libra-border);
+  transition: width var(--libra-t-interactive);
+}
+
+/*
+ Icons only. The side padding shrinks with it, or a 64px column would leave 32px for an 18px
+   icon to sit in and the rows would read as cramped rather than as a narrow list.
+ */
+.narrow {
+  width: var(--libra-sidebar-collapsed-width);
+  padding-right: 8px;
+  padding-left: 8px;
+}
+
+/* The wordmark and the toggle. Collapsed there is no wordmark, so the toggle takes the row. */
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.narrow .top {
+  justify-content: center;
+}
+
+.toggle {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--libra-text-light);
+  cursor: pointer;
+  transition:
+    background var(--libra-t-row-hover),
+    color var(--libra-t-row-hover);
+}
+
+.toggle:hover {
+  background: var(--libra-accent-lighter);
+  color: var(--libra-accent);
+}
+
+/* A row wearing its icon and nothing else, in the nav and on Add Book alike. */
+.iconOnly {
+  justify-content: center;
+  padding-right: 0;
+  padding-left: 0;
 }
 
 .logo {
