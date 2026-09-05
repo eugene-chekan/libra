@@ -39,6 +39,10 @@
 /*
  10px/12px padding, 8px radius, and the active/inactive treatment shared by every row in the
    sidebar.
+
+ Three of these rows are links and one — Librarian, which opens a panel rather than going
+   anywhere — is a button, and a button arrives wearing the browser's own border, grey fill and
+   arrow cursor. Saying no to all three here is what makes the four rows look like one list.
  */
 .navRow {
   display: flex;
@@ -46,6 +50,9 @@
   gap: 10px;
   width: 100%;
   padding: 10px 12px;
+  border: none;
+  background: none;
+  cursor: pointer;
   border-radius: var(--libra-radius);
   font-family: var(--libra-sans);
   font-size: 14px;
