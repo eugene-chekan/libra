@@ -100,8 +100,13 @@ Dropdown enter                .15s ease-out   opacity 0→1, translateY(4px)→n
 
 Designed for **≥1280px**. Degrades acceptably to **1024px** — the book detail
 action row splitting into two rows (below) is what makes that width work.
-Below 1024px the layout is undefined; the handoff's desktop-only stance
-stands, and mobile is a Phase 5 design problem.
+
+**Superseded below 1024px, 2026-09-05, by
+[phone-layout.md](phone-layout.md).** This section used to end "below 1024px
+the layout is undefined; the handoff's desktop-only stance stands, and mobile
+is a Phase 5 design problem." That was reversed on request: the client now
+works down to about 390px, and the 768–1023px band with it. The ≥1024px
+design above is unchanged.
 
 ### Icons
 
