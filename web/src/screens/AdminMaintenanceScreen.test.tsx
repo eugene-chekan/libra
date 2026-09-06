@@ -92,6 +92,41 @@ describe('AdminMaintenanceScreen', () => {
     expect(screen.getByText('gone.epub')).toBeInTheDocument()
   })
 
+  /*
+   None of these actions changes anything you can see: a pruned session was already being
+   refused, and a smaller database file looks identical. Without a word back, the button is a
+   guess about whether it did anything.
+  */
+  it('says how much space the vacuum gave back', async () => {
+    const user = userEvent.setup()
+    renderScreen({ reclaimableBytes: 3072 })
+    await screen.findByText('Nothing loose on disk.')
+
+    await user.click(screen.getByRole('button', { name: 'Vacuum' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Reclaimed 3.0 KB.')
+  })
+
+  it('says so when there was nothing to give back', async () => {
+    const user = userEvent.setup()
+    renderScreen({ reclaimableBytes: 0 })
+    await screen.findByText('Nothing loose on disk.')
+
+    await user.click(screen.getByRole('button', { name: 'Vacuum' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Nothing to reclaim.')
+  })
+
+  it('counts the pruned sessions in words that match the number', async () => {
+    const user = userEvent.setup()
+    renderScreen({ expiredSessions: 1 })
+    await screen.findByRole('button', { name: 'Prune' })
+
+    await user.click(screen.getByRole('button', { name: 'Prune' }))
+
+    expect(await screen.findByRole('status')).toHaveTextContent('Removed 1 session.')
+  })
+
   it('shows the server’s own words when an action fails', async () => {
     const user = userEvent.setup()
     const api = renderScreen()

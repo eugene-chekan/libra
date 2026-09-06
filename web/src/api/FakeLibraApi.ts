@@ -152,6 +152,8 @@ interface FakeOptions {
   expiredSessions?: number
   /** Books whose file is gone. Stated rather than derived: the client's `Book` has no path. */
   missingFiles?: MissingFile[]
+  /** What a vacuum would give back. The fake has no file to shrink. */
+  reclaimableBytes?: number
   /** What the mail server does with the next send. */
   kindleFailure?: string | null
   /**
@@ -180,6 +182,7 @@ export class FakeLibraApi implements LibraApi {
   readonly libraryFiles: FakeLibraryFile[]
   readonly expiredSessions: number
   readonly missingFiles: MissingFile[]
+  readonly reclaimableBytes: number
   /** Settable mid-test, so one send can fail and the next succeed. */
   kindleFailure: string | null
   /** Settable mid-test, so each upload in a test can "parse" to something different. */
@@ -202,6 +205,7 @@ export class FakeLibraApi implements LibraApi {
     libraryFiles = [],
     expiredSessions = 0,
     missingFiles = [],
+    reclaimableBytes = 0,
     kindleFailure = null,
     uploadMetadata = null,
     uploadFailure = null,
@@ -217,6 +221,7 @@ export class FakeLibraApi implements LibraApi {
     this.libraryFiles = libraryFiles
     this.expiredSessions = expiredSessions
     this.missingFiles = missingFiles
+    this.reclaimableBytes = reclaimableBytes
     this.kindleFailure = kindleFailure
     this.uploadMetadata = uploadMetadata
     this.uploadFailure = uploadFailure
@@ -252,9 +257,10 @@ export class FakeLibraApi implements LibraApi {
     return this.expiredSessions
   }
 
-  async vacuum(): Promise<void> {
+  async vacuum(): Promise<number> {
     this.calls.push('vacuum')
     this.requireAdmin()
+    return this.reclaimableBytes
   }
 
   /** Refuses a file a book points at, as the server does — the report and this are two requests. */

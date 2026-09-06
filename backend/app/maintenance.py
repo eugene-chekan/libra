@@ -153,11 +153,35 @@ def delete_orphan(session: Session, name: str, settings: Settings) -> None:
     path.unlink()
 
 
-def vacuum(session: Session) -> None:
+def _database_file(settings: Settings) -> Path | None:
+    """The database as a file on disk, or None when it is not one.
+
+    `sqlite:///./libra.db` is a file; `sqlite://` is the in-memory database the
+    test suite runs on, and has no size to measure.
+    """
+    prefix = "sqlite:///"
+    if not settings.database_url.startswith(prefix):
+        return None
+    path = Path(settings.database_url[len(prefix) :])
+    return path if path.is_file() else None
+
+
+def vacuum(session: Session, settings: Settings) -> int:
     """Ask SQLite to give back the space deleted rows left behind.
 
     Args:
         session: Open database session.
+        settings: Supplies `database_url`, to measure the file either side.
+
+    Returns:
+        How many bytes the file shrank by. Zero when there was nothing to
+        reclaim, and zero for an in-memory database, which has no file.
     """
+    database = _database_file(settings)
+    before = database.stat().st_size if database else 0
+
     session.commit()
     session.exec(text("VACUUM"))
+
+    after = database.stat().st_size if database else 0
+    return max(0, before - after)

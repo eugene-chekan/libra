@@ -14,7 +14,7 @@ from sqlmodel import Session, select
 
 from app import maintenance
 from app.config import Settings
-from app.models import User, UserSession, utcnow
+from app.models import Book, User, UserSession, utcnow
 
 BOOK_PAYLOAD = {"title": "Dune", "author": "Frank Herbert", "format": "epub"}
 
@@ -156,14 +156,44 @@ def test_a_name_that_climbs_out_of_the_library_is_refused(
     assert outside.exists()
 
 
-def test_vacuum_answers_and_leaves_the_data_alone(
+def test_vacuum_says_how_much_it_reclaimed_and_leaves_the_data_alone(
     admin_client: TestClient, library_dir: Path
 ) -> None:
+    """The suite runs on an in-memory database, which has no file to measure — hence zero."""
     _file(library_dir, "one.epub")
     book_id = _book(admin_client, "one.epub")
 
-    assert admin_client.post("/maintenance/vacuum").status_code == 204
+    response = admin_client.post("/maintenance/vacuum")
+
+    assert response.status_code == 200
+    assert response.json() == {"reclaimed_bytes": 0}
     assert admin_client.get(f"/books/{book_id}").status_code == 200
+
+
+def test_vacuum_measures_a_real_file_either_side(session: Session, tmp_path: Path) -> None:
+    """The half the in-memory suite cannot see: a database that is a file, and shrinks.
+
+    Written against a database of its own rather than the fixture's, because the
+    fixture's is `sqlite://` — in memory, and never a file.
+    """
+    from sqlmodel import SQLModel, create_engine
+
+    database = tmp_path / "measured.db"
+    engine = create_engine(f"sqlite:///{database}")
+    SQLModel.metadata.create_all(engine)
+    with Session(engine) as own:
+        for index in range(500):
+            own.add(Book(title=f"Book {index}", author="A", format="epub", file_path=f"{index}.e"))
+        own.commit()
+        for book in own.exec(select(Book)).all():
+            own.delete(book)
+        own.commit()
+
+        reclaimed = maintenance.vacuum(
+            own, Settings(database_url=f"sqlite:///{database}", library_dir=tmp_path / "library")
+        )
+
+    assert reclaimed > 0
 
 
 def test_every_maintenance_route_is_admin_only(client: TestClient, library_dir: Path) -> None:

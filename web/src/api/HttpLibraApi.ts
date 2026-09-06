@@ -86,8 +86,12 @@ export class HttpLibraApi implements LibraApi {
     return removed
   }
 
-  async vacuum(): Promise<void> {
-    await this.send<void>('POST', '/maintenance/vacuum')
+  async vacuum(): Promise<number> {
+    const { reclaimed_bytes } = await this.send<{ reclaimed_bytes: number }>(
+      'POST',
+      '/maintenance/vacuum'
+    )
+    return reclaimed_bytes
   }
 
   async deleteOrphan(name: string): Promise<void> {

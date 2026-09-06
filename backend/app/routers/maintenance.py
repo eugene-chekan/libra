@@ -29,14 +29,14 @@ def prune_sessions(
     return {"removed": maintenance.prune_sessions(session)}
 
 
-@router.post("/vacuum", status_code=204)
+@router.post("/vacuum")
 def vacuum(
     session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
     _: User = Depends(require_admin),
-) -> Response:
-    """Give back the space deleted rows left behind."""
-    maintenance.vacuum(session)
-    return Response(status_code=204)
+) -> dict[str, int]:
+    """Give back the space deleted rows left behind, and say how much that was."""
+    return {"reclaimed_bytes": maintenance.vacuum(session, settings)}
 
 
 @router.delete("/orphans/{name}", status_code=204)

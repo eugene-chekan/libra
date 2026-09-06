@@ -71,16 +71,14 @@ test.describe('admin maintenance, in a real browser', () => {
       .toBe(false)
   })
 
-  test('vacuum runs against the real database and the library survives it', async ({
-    page,
-    request,
-  }) => {
+  test('vacuum says what it gave back, and the library survives it', async ({ page, request }) => {
     await page.goto('/admin/maintenance')
 
     await page.getByRole('button', { name: 'Vacuum' }).click()
 
-    // No visible confirmation by design — what matters is that the server answered and the data
-    // is still there afterwards.
+    // The real database is a file here, unlike the in-memory one the backend suite runs on — so
+    // this is the only place the measurement is taken against something that can actually shrink.
+    await expect(page.getByRole('status')).toHaveText(/Reclaimed .+|Nothing to reclaim\./)
     await expect.poll(async () => (await request.get('/api/books')).status()).toBe(200)
   })
 })

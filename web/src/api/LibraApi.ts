@@ -59,8 +59,8 @@ export interface LibraApi {
   /** `POST /api/maintenance/prune-sessions`. Admin only; answers how many went. */
   pruneSessions(): Promise<number>
 
-  /** `POST /api/maintenance/vacuum`. Admin only. */
-  vacuum(): Promise<void>
+  /** `POST /api/maintenance/vacuum`. Admin only; answers how many bytes came back. */
+  vacuum(): Promise<number>
 
   /** `DELETE /api/maintenance/orphans/{name}`. Admin only; refuses a file a book points at. */
   deleteOrphan(name: string): Promise<void>

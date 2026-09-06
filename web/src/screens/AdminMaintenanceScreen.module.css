@@ -158,3 +158,14 @@
     width: 44px;
   }
 }
+
+/*
+ What the last action did. A live region, because none of these change anything you can see: a
+   pruned session was already being refused, and a smaller database file looks the same.
+ */
+.done {
+  margin-bottom: 24px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  color: var(--libra-accent);
+}

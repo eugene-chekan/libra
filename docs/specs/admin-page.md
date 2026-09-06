@@ -45,13 +45,20 @@ Three actions, and the difference between them is the point:
   already refused on use, so removing the row changes no behaviour. Nothing
   else in the app has ever deleted these.
 - **Vacuum.** Safe: SQLite does not shrink its file when rows go, and this asks
-  it to.
+  it to. It answers with how many bytes came back, because otherwise the button
+  does something entirely invisible and says nothing about it.
 - **Delete a file with no book — one at a time, never in bulk.** An orphan is
   by definition referenced by nothing, so removing it cannot break the app. But
   it may be the only copy of a book whose row was lost, so each has its own
   control and its own confirmation naming the file. A single "delete all" was
   considered and rejected for exactly that: the confirmation could not tell you
   what you were about to lose.
+
+**Every action says what it did**, in a live region under the counts:
+"Removed 1 session.", "Reclaimed 3.0 KB.", "Nothing to reclaim.". None of the
+three changes anything a reader can see — a pruned session was already being
+refused, and a smaller database file looks identical — so without a word back
+each button is a guess about whether it worked.
 
 The delete is checked twice over, because the name comes from a caller:
 `storage.resolve` refuses one that climbs out of the library directory, and the

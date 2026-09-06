@@ -28,8 +28,8 @@ export function usePruneSessions(): UseMutationResult<number, Error, void> {
   return useMutation({ mutationFn: () => api.pruneSessions(), onSuccess: refresh })
 }
 
-/** `POST /api/maintenance/vacuum`. */
-export function useVacuum(): UseMutationResult<void, Error, void> {
+/** `POST /api/maintenance/vacuum` — answers how many bytes came back. */
+export function useVacuum(): UseMutationResult<number, Error, void> {
   const api = useApi()
   const refresh = useReportRefresh()
   return useMutation({ mutationFn: () => api.vacuum(), onSuccess: refresh })

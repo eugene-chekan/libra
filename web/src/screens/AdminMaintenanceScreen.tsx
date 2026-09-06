@@ -34,7 +34,20 @@ export function AdminMaintenanceScreen() {
   // A route rather than a modal, so it never unmounts to drop a stale error:
   // this tracks only the most recently settled action, as the Users tab does.
   const [error, setError] = useState<Error | null>(null)
-  const settled = { onSuccess: () => setError(null), onError: (err: Error) => setError(err) }
+  // What the last action did, in words. Both of these change nothing you can see — a pruned
+  // session was already refused, and a smaller database file looks identical — so without this
+  // the buttons are a guess about whether anything happened at all.
+  const [done, setDone] = useState<string | null>(null)
+
+  function announce(said: string) {
+    setError(null)
+    setDone(said)
+  }
+
+  function failed(err: Error) {
+    setDone(null)
+    setError(err)
+  }
 
   if (report.isPending) {
     return (
@@ -62,6 +75,11 @@ export function AdminMaintenanceScreen() {
       </dl>
 
       {error && <ErrorBlock message={messageFor(error)} />}
+      {done && (
+        <p className={styles.done} role="status">
+          {done}
+        </p>
+      )}
 
       <Section
         title="Expired sessions"
@@ -77,7 +95,13 @@ export function AdminMaintenanceScreen() {
             type="button"
             className={styles.action}
             disabled={prune.isPending}
-            onClick={() => prune.mutate(undefined, settled)}
+            onClick={() =>
+              prune.mutate(undefined, {
+                onSuccess: (removed) =>
+                  announce(`Removed ${removed} ${removed === 1 ? 'session' : 'sessions'}.`),
+                onError: failed,
+              })
+            }
           >
             Prune
           </button>
@@ -138,7 +162,13 @@ export function AdminMaintenanceScreen() {
           type="button"
           className={styles.action}
           disabled={vacuum.isPending}
-          onClick={() => vacuum.mutate(undefined, settled)}
+          onClick={() =>
+            vacuum.mutate(undefined, {
+              onSuccess: (bytes) =>
+                announce(bytes > 0 ? `Reclaimed ${formatBytes(bytes)}.` : 'Nothing to reclaim.'),
+              onError: failed,
+            })
+          }
         >
           {vacuum.isPending ? 'Working…' : 'Vacuum'}
         </button>
@@ -151,7 +181,10 @@ export function AdminMaintenanceScreen() {
           confirmLabel="Delete"
           onClose={() => setPendingOrphan(null)}
           onConfirm={() => {
-            removeOrphan.mutate(pendingOrphan.name, settled)
+            removeOrphan.mutate(pendingOrphan.name, {
+              onSuccess: () => announce(`Deleted ${pendingOrphan.name}.`),
+              onError: failed,
+            })
             setPendingOrphan(null)
           }}
         />
