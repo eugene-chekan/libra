@@ -351,6 +351,52 @@ describe('FakeLibraApi.deleteBook', () => {
   })
 })
 
+describe('FakeLibraApi maintenance', () => {
+  const files = () => [
+    { name: 'kept.epub', size_bytes: 10, modified_at: 'x', usedByBook: true },
+    { name: 'stray.epub', size_bytes: 5, modified_at: 'x' },
+  ]
+
+  function adminApi() {
+    const admin = fakeUser({ is_admin: true })
+    return new FakeLibraApi({ users: [admin], signedInAs: admin, libraryFiles: files() })
+  }
+
+  it('refuses a reader who is not an admin, on every one of them', async () => {
+    const reader = fakeUser({ is_admin: false })
+    const api = new FakeLibraApi({ users: [reader], signedInAs: reader, libraryFiles: files() })
+
+    await expect(api.getMaintenance()).rejects.toMatchObject({ status: 403 })
+    await expect(api.pruneSessions()).rejects.toMatchObject({ status: 403 })
+    await expect(api.vacuum()).rejects.toMatchObject({ status: 403 })
+    await expect(api.deleteOrphan('stray.epub')).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('counts only the files no book points at as orphans', async () => {
+    const report = await adminApi().getMaintenance()
+
+    expect(report.orphan_files.map((file) => file.name)).toEqual(['stray.epub'])
+    // Every file counts towards the size, orphan or not.
+    expect(report.library_bytes).toBe(15)
+  })
+
+  it('never deletes a file a book points at, and 404s on one that is not there', async () => {
+    const api = adminApi()
+
+    await expect(api.deleteOrphan('kept.epub')).rejects.toMatchObject({ status: 409 })
+    await expect(api.deleteOrphan('nothing.epub')).rejects.toMatchObject({ status: 404 })
+    expect(api.libraryFiles).toHaveLength(2)
+  })
+
+  it('deletes an orphan, and it is gone from the next report', async () => {
+    const api = adminApi()
+
+    await api.deleteOrphan('stray.epub')
+
+    expect((await api.getMaintenance()).orphan_files).toEqual([])
+  })
+})
+
 describe('FakeLibraApi.sendToKindle', () => {
   const book = () => fakeBook({ id: 7 })
 

@@ -207,3 +207,30 @@ export interface Health {
   /** The commit this build came from, when whoever built it said so. */
   build?: string
 }
+
+/** A file in the library directory that no book row points at. */
+export interface OrphanFile {
+  name: string
+  size_bytes: number
+  modified_at: string
+}
+
+/** A book whose file is not where its row says it is. */
+export interface MissingFile {
+  id: number
+  title: string
+  file_path: string
+}
+
+/** `GET /api/maintenance` — what this installation holds, and what has come loose from it. */
+export interface MaintenanceReport {
+  books: number
+  users: number
+  shelves: number
+  tags: number
+  notes: number
+  library_bytes: number
+  expired_sessions: number
+  orphan_files: OrphanFile[]
+  missing_files: MissingFile[]
+}

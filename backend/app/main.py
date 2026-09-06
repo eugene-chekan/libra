@@ -11,7 +11,17 @@ from starlette.types import Scope
 from app.config import get_settings
 from app.db import init_db
 from app.logging_config import configure_logging, get_logger
-from app.routers import auth, books, health, librarian, notes, shelves, tags, users
+from app.routers import (
+    auth,
+    books,
+    health,
+    librarian,
+    maintenance,
+    notes,
+    shelves,
+    tags,
+    users,
+)
 from app.version import VERSION
 
 log = get_logger(__name__)
@@ -80,6 +90,7 @@ def create_app() -> FastAPI:
     api.include_router(books.router)
     api.include_router(notes.router)
     api.include_router(librarian.router)
+    api.include_router(maintenance.router)
     app.include_router(api)
 
     if settings.web_dir.is_dir():

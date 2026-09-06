@@ -9,6 +9,7 @@ import type {
   CurrentUser,
   Health,
   KindleDelivery,
+  MaintenanceReport,
   Note,
   NoteDraft,
   Shelf,
@@ -74,6 +75,23 @@ export class HttpLibraApi implements LibraApi {
     const body = new FormData()
     body.set('file', file)
     return this.request<Book>('/books/upload', { method: 'POST', credentials: 'include', body })
+  }
+
+  async getMaintenance(): Promise<MaintenanceReport> {
+    return this.send<MaintenanceReport>('GET', '/maintenance')
+  }
+
+  async pruneSessions(): Promise<number> {
+    const { removed } = await this.send<{ removed: number }>('POST', '/maintenance/prune-sessions')
+    return removed
+  }
+
+  async vacuum(): Promise<void> {
+    await this.send<void>('POST', '/maintenance/vacuum')
+  }
+
+  async deleteOrphan(name: string): Promise<void> {
+    await this.send<void>('DELETE', `/maintenance/orphans/${encodeURIComponent(name)}`)
   }
 
   async listBooks(params: BookSearchParams = {}): Promise<BookList> {

@@ -14,12 +14,54 @@ tags — filed separately, see [Out of scope](#out-of-scope)) need real screen
 space, and other admin concerns — database maintenance, server settings —
 are coming later. A modal does not grow well; a page with tabs does.
 
-**Only the Users tab is built now.** No stub tabs for the other sections.
+**Only the Users tab was built first.** No stub tabs for the other sections.
 This project already decided that question once, for RAG management in
 [phase-4-plan.md](phase-4-plan.md#not-built--rag-management): drawing a tab
 for a subsystem nobody has designed yet is inventing requirements, not
 stubbing. When database maintenance or server settings are actually scoped,
 they get their own tab and their own spec.
+
+**The Maintenance tab arrived 2026-09-06 (issue #111)**, which is the first
+time the shell held two. Nothing about the shell had to change, which is what
+it was built for.
+
+## The Maintenance tab
+
+Everything here is about damage, not about normal use. Deleting a book already
+takes its file and its rows with it (#99). What collects instead is the residue
+of a crash between writing a file and inserting its row, of versions before
+that was true, and of sessions that expire and are then never removed by
+anything.
+
+`GET /api/maintenance` answers the whole tab in one read: the row counts, the
+bytes on disk, the files no book points at, the books whose file is gone, and
+how many sessions have lapsed. Its logic lives in `app/maintenance.py` rather
+than in `app/library.py` — that file is the library's own operations, and this
+is about the shape of the installation around them.
+
+Three actions, and the difference between them is the point:
+
+- **Prune expired sessions.** Safe by construction: an expired session is
+  already refused on use, so removing the row changes no behaviour. Nothing
+  else in the app has ever deleted these.
+- **Vacuum.** Safe: SQLite does not shrink its file when rows go, and this asks
+  it to.
+- **Delete a file with no book — one at a time, never in bulk.** An orphan is
+  by definition referenced by nothing, so removing it cannot break the app. But
+  it may be the only copy of a book whose row was lost, so each has its own
+  control and its own confirmation naming the file. A single "delete all" was
+  considered and rejected for exactly that: the confirmation could not tell you
+  what you were about to lose.
+
+The delete is checked twice over, because the name comes from a caller:
+`storage.resolve` refuses one that climbs out of the library directory, and the
+book table is asked again in case a book arrived between the report and the
+click.
+
+**The directory listing is not cached.** A household library is hundreds of
+files in one flat directory — `storage.commit` writes `{uuid}.epub` into the
+root and never makes a subdirectory — so listing it is milliseconds. Caching
+would add invalidation rules with nothing yet to show for them.
 
 ## Scope
 
