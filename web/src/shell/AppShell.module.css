@@ -1,8 +1,72 @@
 .shell {
   display: flex;
   height: 100%;
-  /* Designed for ≥1280px and degrading to 1024px. */
-  min-width: var(--libra-min-width);
+}
+
+/*
+ The phone frame: a bar that stays, and a pane that scrolls under it. A column
+   rather than a fixed bar, so nothing has to reserve space for it.
+ */
+.phoneShell {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.topBar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  /* Clear of the menu button's focus ring, which is drawn 2px outside it. */
+  gap: 8px;
+  height: 56px;
+  padding: 0 8px;
+  background: var(--libra-bg);
+  border-bottom: 1px solid var(--libra-border);
+}
+
+/* 44px, the smallest a thumb should be asked to hit. */
+.menuButton {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: var(--libra-radius);
+  background: none;
+  color: var(--libra-text-mid);
+  cursor: pointer;
+}
+
+.menuButton:hover {
+  background: var(--libra-accent-lighter);
+}
+
+.wordmark {
+  font-family: var(--libra-serif);
+  font-size: 22px;
+  letter-spacing: -0.5px;
+  color: var(--libra-text);
+}
+
+.drawerOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgb(0 0 0 / 40%);
+}
+
+/*
+ Sized by the sidebar it holds rather than given a width of its own — there is
+   one sidebar width in this app, and it is the sidebar's.
+ */
+.drawer {
+  position: fixed;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  display: flex;
+  box-shadow: var(--libra-shadow-modal);
 }
 
 .pane {
@@ -11,6 +75,23 @@
   overflow-y: auto;
   padding: var(--libra-pane-padding-y) var(--libra-pane-padding-x);
   background: var(--libra-card);
+}
+
+/* Breakpoints are `PHONE_MAX_WIDTH` in `theme/breakpoints.ts`; CSS cannot read it. */
+@media (max-width: 1023px) {
+  .pane {
+    padding: 24px;
+  }
+}
+
+@media (max-width: 767px) {
+  .pane {
+    padding: 16px;
+  }
+
+  .pageTitle {
+    font-size: 24px;
+  }
 }
 
 .pageTitle {

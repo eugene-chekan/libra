@@ -15,15 +15,13 @@ body,
 }
 
 /*
- Below `--libra-min-width` the layout is undefined — client-design.md is explicit that mobile is
-   a Phase 5 design problem, and this rule is not an attempt at one.
+ Nothing hides sideways overflow any more. `html { overflow-x: hidden }` lived here while the
+   layout below 1024px was undefined, and it made a page that overflowed look like a page that
+   did not. The layout is now defined down to a phone (see specs/phone-layout.md), so overflow
+   is a bug to see rather than a mess to cover — and `e2e/shell.spec.ts` checks for it, which a
+   clipping rule would have made meaningless.
  */
-html {
-  overflow-x: hidden;
-}
-
 body {
-  overflow-x: auto;
   font-family: var(--libra-sans);
   font-size: 14px;
   font-weight: 400;

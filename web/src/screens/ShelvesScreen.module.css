@@ -2,6 +2,9 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
+  /* Wraps rather than squeezing the button below its 44px on a narrow screen. */
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 24px;
 }
 

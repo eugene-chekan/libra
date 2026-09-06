@@ -49,6 +49,12 @@ export function LibrarianPanel() {
             <div className={styles.header}>
               <Dialog.Title className={styles.title}>Librarian</Dialog.Title>
               <span className={styles.badge}>NOT CONNECTED</span>
+              {/* The only way out that is visible. Clicking outside and Escape both still work,
+                  but a phone has no Escape key and this panel covers the whole screen there, so
+                  without this the librarian is a room with no door. */}
+              <Dialog.Close className={styles.close} aria-label="Close">
+                <Icon name="x" size={18} />
+              </Dialog.Close>
             </div>
             <div className={styles.stubLine}>
               The librarian isn't connected yet — replies below are canned examples.

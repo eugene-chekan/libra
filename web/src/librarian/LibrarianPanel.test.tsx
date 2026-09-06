@@ -82,6 +82,24 @@ describe('LibrarianPanel', () => {
     ).toBeInTheDocument()
   })
 
+  /*
+   The panel's only visible way out. Clicking outside and Escape work too, but on a phone the
+   panel covers the whole screen — there is nothing outside to click — and there is no Escape
+   key, so without this button the librarian is a room with no door.
+  */
+  it('closes from the button in its header', async () => {
+    const user = userEvent.setup()
+    renderPanel()
+    expect(await screen.findByRole('heading', { name: 'Librarian' })).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Close' }))
+
+    await waitFor(() =>
+      expect(screen.queryByRole('heading', { name: 'Librarian' })).not.toBeInTheDocument()
+    )
+    await act(async () => {})
+  })
+
   it('shows suggestion rows with a real book title substituted in', async () => {
     renderPanel({ books: [{ id: 1, title: 'Dune' }] })
     // The book-templated suggestions come from `useBooks()`, an async fetch — give it

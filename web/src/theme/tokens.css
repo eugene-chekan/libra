@@ -109,7 +109,6 @@
 
   /* The width the design was drawn for, and the width it degrades to. */
   --libra-design-width: 1280px;
-  --libra-min-width: 1024px;
   /* Covers are ~1.45 tall relative to their width (160x232, 96x140, 200x292). */
   --libra-cover-aspect: 1 / 1.45;
   --libra-library-cell-min: 160px;

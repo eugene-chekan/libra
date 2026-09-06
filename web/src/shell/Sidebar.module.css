@@ -160,3 +160,17 @@
   border-color: var(--libra-accent);
   background: var(--libra-accent-lighter);
 }
+
+/* Phone: `PHONE_MAX_WIDTH` in `theme/breakpoints.ts`, which CSS cannot read. */
+@media (max-width: 767px) {
+  .navRow,
+  .addBook {
+    padding-top: 13px;
+    padding-bottom: 13px;
+  }
+
+  /* There is nothing to collapse into when the sidebar is already an overlay. */
+  .toggle {
+    display: none;
+  }
+}

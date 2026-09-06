@@ -19,13 +19,37 @@
 
 .header {
   display: flex;
-  justify-content: space-between;
   align-items: center;
+  gap: 10px;
   padding: 18px 20px 12px;
   border-bottom: 1px solid var(--libra-border);
 }
 
+.close {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: none;
+  border-radius: var(--libra-radius);
+  background: none;
+  color: var(--libra-text-light);
+  cursor: pointer;
+  transition:
+    background var(--libra-t-row-hover),
+    color var(--libra-t-row-hover);
+}
+
+.close:hover {
+  background: var(--libra-accent-lighter);
+  color: var(--libra-accent);
+}
+
 .title {
+  /* Pushes the badge and the close button to the far side, together. */
+  margin-right: auto;
   font-family: var(--libra-serif);
   font-size: 19px;
   font-weight: 400;
@@ -144,4 +168,18 @@
   background: var(--libra-border);
   color: var(--libra-text-light);
   cursor: default;
+}
+
+/* Phone: `PHONE_MAX_WIDTH` in `theme/breakpoints.ts`, which CSS cannot read. */
+@media (max-width: 767px) {
+  .content {
+    width: 100%;
+    border-left: none;
+  }
+
+  /* Full width leaves no overlay to tap and no Escape key, so this is the only way out. */
+  .close {
+    width: 44px;
+    height: 44px;
+  }
 }
