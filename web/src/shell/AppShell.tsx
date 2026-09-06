@@ -36,17 +36,27 @@ function PhoneShell() {
   const location = useLocation()
   const { isOpen: librarianOpen } = useLibrarian()
   const [openedAt, setOpenedAt] = useState<string | null>(null)
+  const [librarianWasOpen, setLibrarianWasOpen] = useState(librarianOpen)
+
+  // The librarian counts as picking something, even though it navigates
+  // nowhere: it opens a panel over the page instead. So it dismisses the
+  // drawer for good — not merely while the panel is up, which would spring the
+  // drawer back the moment you closed it, because nothing had recorded that it
+  // was dismissed at all.
+  //
+  // Adjusted during render rather than in an effect. React allows this shape
+  // for "one value changed, so another must", and an effect would put the
+  // drawer back on screen for a frame first.
+  if (librarianOpen !== librarianWasOpen) {
+    setLibrarianWasOpen(librarianOpen)
+    if (librarianOpen) setOpenedAt(null)
+  }
 
   // The drawer belongs to the page it was opened on. Whatever you picked in it,
   // you picked to see the page behind — and every navigation brings a new
   // location key, so the drawer is shut again without an effect watching for
   // it, and without a single row in the sidebar knowing a drawer exists.
-  //
-  // The librarian counts as picking something too, even though it navigates
-  // nowhere: it opens a panel over the page instead, and closing that panel
-  // should return you to the page rather than to the menu you had finished
-  // with. That is only safe because the drawer is not modal — see below.
-  const drawerOpen = openedAt === location.key && !librarianOpen
+  const drawerOpen = openedAt === location.key
 
   return (
     <div className={styles.phoneShell}>

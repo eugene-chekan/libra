@@ -304,8 +304,11 @@ test.describe('the phone layout, in a real browser', () => {
    matter.
   */
   test('the librarian panel can be closed again', async ({ page }) => {
+    const drawer = page.getByRole('navigation', { name: 'Main' })
+
     await page.goto('/library')
     await page.getByRole('button', { name: 'Menu' }).click()
+    await expect(drawer).toBeVisible()
     await page.getByRole('button', { name: 'Librarian' }).click()
 
     const panel = page.getByRole('dialog').filter({ hasText: 'NOT CONNECTED' })
@@ -315,10 +318,16 @@ test.describe('the phone layout, in a real browser', () => {
     expect(box?.width).toBe(390)
 
     // Opening the librarian is picking something, so the drawer has already got out of the way.
-    await expect(page.getByRole('navigation', { name: 'Main' })).toHaveCount(0)
+    await expect(drawer).toHaveCount(0)
 
     await panel.getByRole('button', { name: 'Close' }).click()
     await expect(panel).toHaveCount(0)
+
+    // **And it stays shut.** A first attempt only hid the drawer while the panel was up, so it
+    // sprang back the moment the panel closed — nothing had recorded that it was dismissed. The
+    // assertions below all passed anyway, because a drawer that is back does not stop the page
+    // behind it being visible. This is the one that says what was actually asked for.
+    await expect(drawer).toHaveCount(0)
 
     // Back on the page, and the page is back in the accessibility tree. An earlier version of
     // this closed a *modal* drawer as the panel opened, which left `#root` hidden for good — a
