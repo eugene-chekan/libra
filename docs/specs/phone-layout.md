@@ -74,8 +74,10 @@ phone variant of it — the same component, hosted somewhere else. It holds
 everything it holds on a desktop, because it is the same thing: nav, shelves,
 shared, tags, Add Book, the account row, the version line.
 
-**It closes when you choose something.** A drawer still covering the page you
-just asked for is a drawer that made you tap twice.
+**It closes when you choose something** — including the librarian, which opens
+a panel rather than navigating. A drawer still covering the page you just
+asked for is a drawer that made you tap twice, and closing the librarian
+should put you back on the page you were reading.
 
 **The collapse toggle is not drawn on a phone.** A drawer that is already an
 overlay has nothing to collapse into, and the stored preference is left alone
@@ -94,9 +96,24 @@ exists beats two that do not.
 
 The drawer is a `Dialog`, not a CSS transform. A transform is less code, but a
 panel covering the screen with the page still reachable behind it by Tab is
-not a drawer, it is a decoration. Radix brings the focus trap, Escape, and the
-scroll lock, and there is precedent in this codebase: `LibrarianPanel` is
+not a drawer, it is a decoration. Radix brings the focus trap, Escape and the
+tap outside, and there is precedent in this codebase: `LibrarianPanel` is
 already a slide-over built this way.
+
+**It is a non-modal dialog**, which is not the obvious choice and was arrived
+at the hard way. A modal Radix dialog puts `aria-hidden` on `#root` and takes
+it off when it unmounts. The drawer has to close when the librarian opens —
+otherwise closing that panel drops you back into the menu you had finished
+with — and closing it that way unmounts it while the panel is over it, so the
+bookkeeping never balances and **the whole application stays missing from the
+accessibility tree once the panel closes**. Nothing is visibly wrong; a screen
+reader simply finds an empty page from then on.
+
+Non-modal touches no `aria-hidden` at all, so the leak becomes impossible
+rather than avoided. Measured, not assumed: the focus trap, Escape and the tap
+outside all survive it. What is given up is the drawer hiding the page behind
+it from a screen reader while open — for a navigation drawer, with focus
+trapped inside it, that is the cheaper half of the trade.
 
 That needs the markup to differ by viewport, not only the CSS, so a
 `useIsPhone()` hook over `matchMedia` decides which host renders the sidebar.
