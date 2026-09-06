@@ -54,11 +54,17 @@ Three actions, and the difference between them is the point:
   considered and rejected for exactly that: the confirmation could not tell you
   what you were about to lose.
 
-**Every action says what it did**, in a live region under the counts:
-"Removed 1 session.", "Reclaimed 3.0 KB.", "Nothing to reclaim.". None of the
-three changes anything a reader can see — a pruned session was already being
-refused, and a smaller database file looks identical — so without a word back
-each button is a guess about whether it worked.
+**Every action says what it did, beside the control that did it**: a `success`
+check and a few words — "Removed 1 session.", "Reclaimed 3.0 KB.", "Nothing to
+reclaim." — or a `danger` × and the server's own sentence. None of the three
+changes anything a reader can see, so without a word back each button is a
+guess about whether it worked.
+
+Beside, not collected at the top of the page: a message far from the button
+that caused it has to be matched up by the reader. The orphan delete is the one
+exception — its message sits under the list, because the row it acted on is
+gone. Only the most recently settled action speaks; an older message left
+standing would read as a result of the one just pressed.
 
 The delete is checked twice over, because the name comes from a caller:
 `storage.resolve` refuses one that climbs out of the library directory, and the

@@ -31,22 +31,19 @@ export function AdminMaintenanceScreen() {
   const removeOrphan = useDeleteOrphan()
   const [pendingOrphan, setPendingOrphan] = useState<OrphanFile | null>(null)
 
-  // A route rather than a modal, so it never unmounts to drop a stale error:
-  // this tracks only the most recently settled action, as the Users tab does.
-  const [error, setError] = useState<Error | null>(null)
-  // What the last action did, in words. Both of these change nothing you can see — a pruned
-  // session was already refused, and a smaller database file looks identical — so without this
-  // the buttons are a guess about whether anything happened at all.
-  const [done, setDone] = useState<string | null>(null)
+  // What the last action did, beside the control that did it. None of them changes anything you
+  // can see — a pruned session was already being refused, a smaller database file looks
+  // identical — so without a word back each button is a guess about whether it worked.
+  //
+  // One outcome rather than one per action, and a route rather than a modal, so nothing here
+  // ever unmounts holding a stale message: only the most recently settled action speaks.
+  const [outcome, setOutcome] = useState<ActionOutcome | null>(null)
 
-  function announce(said: string) {
-    setError(null)
-    setDone(said)
-  }
-
-  function failed(err: Error) {
-    setDone(null)
-    setError(err)
+  function settled<T>(action: Action, said: (value: T) => string) {
+    return {
+      onSuccess: (value: T) => setOutcome({ action, ok: true, said: said(value) }),
+      onError: (err: Error) => setOutcome({ action, ok: false, said: messageFor(err) }),
+    }
   }
 
   if (report.isPending) {
@@ -74,13 +71,6 @@ export function AdminMaintenanceScreen() {
         <Count label="On disk" value={formatBytes(data.library_bytes)} />
       </dl>
 
-      {error && <ErrorBlock message={messageFor(error)} />}
-      {done && (
-        <p className={styles.done} role="status">
-          {done}
-        </p>
-      )}
-
       <Section
         title="Expired sessions"
         hint="Signing in creates one; nothing has ever removed them once they lapse. An expired session is already refused, so this only reclaims rows."
@@ -91,20 +81,26 @@ export function AdminMaintenanceScreen() {
             : `${data.expired_sessions} ${data.expired_sessions === 1 ? 'session has' : 'sessions have'} expired.`}
         </p>
         {data.expired_sessions > 0 && (
-          <button
-            type="button"
-            className={styles.action}
-            disabled={prune.isPending}
-            onClick={() =>
-              prune.mutate(undefined, {
-                onSuccess: (removed) =>
-                  announce(`Removed ${removed} ${removed === 1 ? 'session' : 'sessions'}.`),
-                onError: failed,
-              })
-            }
-          >
-            Prune
-          </button>
+          <div className={styles.actionRow}>
+            <button
+              type="button"
+              className={styles.action}
+              disabled={prune.isPending}
+              onClick={() =>
+                prune.mutate(
+                  undefined,
+                  settled(
+                    'prune',
+                    (removed: number) =>
+                      `Removed ${removed} ${removed === 1 ? 'session' : 'sessions'}.`
+                  )
+                )
+              }
+            >
+              Prune
+            </button>
+            <Outcome action="prune" outcome={outcome} />
+          </div>
         )}
       </Section>
 
@@ -132,6 +128,8 @@ export function AdminMaintenanceScreen() {
             ))}
           </ul>
         )}
+        {/* Under the list rather than beside a button: the row it acted on is gone. */}
+        <Outcome action="orphan" outcome={outcome} />
       </Section>
 
       <Section
@@ -158,20 +156,24 @@ export function AdminMaintenanceScreen() {
         title="Reclaim space"
         hint="SQLite does not shrink its file when rows are deleted. This asks it to."
       >
-        <button
-          type="button"
-          className={styles.action}
-          disabled={vacuum.isPending}
-          onClick={() =>
-            vacuum.mutate(undefined, {
-              onSuccess: (bytes) =>
-                announce(bytes > 0 ? `Reclaimed ${formatBytes(bytes)}.` : 'Nothing to reclaim.'),
-              onError: failed,
-            })
-          }
-        >
-          {vacuum.isPending ? 'Working…' : 'Vacuum'}
-        </button>
+        <div className={styles.actionRow}>
+          <button
+            type="button"
+            className={styles.action}
+            disabled={vacuum.isPending}
+            onClick={() =>
+              vacuum.mutate(
+                undefined,
+                settled('vacuum', (bytes: number) =>
+                  bytes > 0 ? `Reclaimed ${formatBytes(bytes)}.` : 'Nothing to reclaim.'
+                )
+              )
+            }
+          >
+            {vacuum.isPending ? 'Working…' : 'Vacuum'}
+          </button>
+          <Outcome action="vacuum" outcome={outcome} />
+        </div>
       </Section>
 
       {pendingOrphan && (
@@ -181,15 +183,37 @@ export function AdminMaintenanceScreen() {
           confirmLabel="Delete"
           onClose={() => setPendingOrphan(null)}
           onConfirm={() => {
-            removeOrphan.mutate(pendingOrphan.name, {
-              onSuccess: () => announce(`Deleted ${pendingOrphan.name}.`),
-              onError: failed,
-            })
+            removeOrphan.mutate(
+              pendingOrphan.name,
+              settled('orphan', () => `Deleted ${pendingOrphan.name}.`)
+            )
             setPendingOrphan(null)
           }}
         />
       )}
     </>
+  )
+}
+
+type Action = 'prune' | 'vacuum' | 'orphan'
+
+interface ActionOutcome {
+  action: Action
+  ok: boolean
+  said: string
+}
+
+/**
+ * What one action did, beside the control that did it: a tick and a word, or the server's own
+ * sentence. A live region, because none of these change anything on screen by themselves.
+ */
+function Outcome({ action, outcome }: { action: Action; outcome: ActionOutcome | null }) {
+  if (!outcome || outcome.action !== action) return null
+  return (
+    <p className={outcome.ok ? styles.succeeded : styles.failed} role="status">
+      <Icon name={outcome.ok ? 'check' : 'x'} size={14} />
+      {outcome.said}
+    </p>
   )
 }
 

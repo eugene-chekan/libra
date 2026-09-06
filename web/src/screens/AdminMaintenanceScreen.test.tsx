@@ -104,7 +104,10 @@ describe('AdminMaintenanceScreen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Vacuum' }))
 
-    expect(await screen.findByRole('status')).toHaveTextContent('Reclaimed 3.0 KB.')
+    const said = await screen.findByRole('status')
+    expect(said).toHaveTextContent('Reclaimed 3.0 KB.')
+    // Beside the button that ran, not adrift at the top of the page.
+    expect(said.parentElement).toContainElement(screen.getByRole('button', { name: 'Vacuum' }))
   })
 
   it('says so when there was nothing to give back', async () => {
@@ -127,7 +130,7 @@ describe('AdminMaintenanceScreen', () => {
     expect(await screen.findByRole('status')).toHaveTextContent('Removed 1 session.')
   })
 
-  it('shows the server’s own words when an action fails', async () => {
+  it('shows the server’s own words when an action fails, in the same place', async () => {
     const user = userEvent.setup()
     const api = renderScreen()
     api.vacuum = () => Promise.reject(new ApiError(409, 'Database is locked'))
@@ -135,7 +138,24 @@ describe('AdminMaintenanceScreen', () => {
 
     await user.click(screen.getByRole('button', { name: 'Vacuum' }))
 
-    expect(await screen.findByText('Database is locked')).toBeInTheDocument()
+    const said = await screen.findByRole('status')
+    expect(said).toHaveTextContent('Database is locked')
+    expect(said.parentElement).toContainElement(screen.getByRole('button', { name: 'Vacuum' }))
+  })
+
+  /* Only the action you just took speaks; an older message would read as a result of this one. */
+  it('replaces the last message rather than stacking them', async () => {
+    const user = userEvent.setup()
+    renderScreen({ expiredSessions: 2, reclaimableBytes: 0 })
+    await screen.findByRole('button', { name: 'Prune' })
+
+    await user.click(screen.getByRole('button', { name: 'Prune' }))
+    expect(await screen.findByText('Removed 2 sessions.')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Vacuum' }))
+
+    expect(await screen.findByText('Nothing to reclaim.')).toBeInTheDocument()
+    expect(screen.queryByText('Removed 2 sessions.')).not.toBeInTheDocument()
   })
 
   /* A file a book points at is never offered for deletion — but a book can arrive between the

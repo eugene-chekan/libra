@@ -95,7 +95,6 @@
 }
 
 .action {
-  margin-top: 12px;
   padding: 9px 18px;
   border: 1.5px solid var(--libra-border);
   border-radius: var(--libra-radius);
@@ -159,13 +158,32 @@
   }
 }
 
+/* The control and what it did, on one line — wrapping rather than squeezing on a narrow screen. */
+.actionRow {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
 /*
- What the last action did. A live region, because none of these change anything you can see: a
-   pruned session was already being refused, and a smaller database file looks the same.
+ What one action did. Both shapes carry an icon as well as a colour, so the difference between
+   "it worked" and "it did not" does not rest on telling green from red.
  */
-.done {
-  margin-bottom: 24px;
+.succeeded,
+.failed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 12px;
   font-family: var(--libra-sans);
   font-size: 13px;
-  color: var(--libra-accent);
+}
+
+.succeeded {
+  color: var(--libra-success);
+}
+
+.failed {
+  color: var(--libra-danger);
 }
