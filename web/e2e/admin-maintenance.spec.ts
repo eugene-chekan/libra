@@ -35,17 +35,33 @@ test.describe('admin maintenance, in a real browser', () => {
   })
 
   test('counts what the installation actually holds', async ({ page, request }) => {
-    const before = await (await request.get('/api/books')).json()
-
-    await page.goto('/admin/maintenance')
-
-    // Read from the API rather than written here: this suite creates books as it runs, so any
-    // number typed in would be stale by the time it ran.
+    // `/api/books` rather than a number written here, and rather than `/api/maintenance`: the
+    // count is worth checking against a different endpoint than the one that drew it, so this
+    // says the report agrees with the book list rather than only with itself.
     //
     // Scoped to the `dt` it is: a bare "Books" also matches the "Books with no file" heading
-    // further down, which is the ambiguity #101 was filed for.
-    const books = page.locator('dt', { hasText: /^Books$/ }).locator('..')
-    await expect(books).toContainText(String(before.total), { timeout: REPORT_LOAD_TIMEOUT })
+    // further down, which is the ambiguity #101 was filed for. The `dd` beside it holds the
+    // number on its own, so the comparison below is exact — `toContainText` was happy to let
+    // a rendered "11" satisfy an expected "1".
+    const shown = page
+      .locator('dt', { hasText: /^Books$/ })
+      .locator('..')
+      .locator('dd')
+
+    // Both numbers read together, with the page loaded again each time. The other specs in this
+    // suite create books throughout the run, so a total read once and compared to a page drawn
+    // later is a race this test cannot win: the page fetches its report once, and retrying an
+    // assertion never moves the number already on screen (#121).
+    await expect
+      .poll(
+        async () => {
+          await page.goto('/admin/maintenance')
+          const { total } = await (await request.get('/api/books')).json()
+          return (await shown.textContent())?.trim() === String(total)
+        },
+        { timeout: REPORT_LOAD_TIMEOUT }
+      )
+      .toBe(true)
   })
 
   /*
