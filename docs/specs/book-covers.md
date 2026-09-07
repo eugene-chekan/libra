@@ -44,16 +44,16 @@ There the control moved out of the form because personal tags are not
 admin-only and the form is. A cover is admin-only, so it belongs where the
 other admin-only fields are.
 
-### The one open decision: when a cover write commits
+### When a cover write commits
 
 The Edit Book form promises Save and Cancel. A cover does not fit that promise
 cleanly: it is a file or a link, it goes to its own endpoint, and it cannot be
 folded into the one `PATCH` the Save button sends.
 
-**Recommended: the cover commits as soon as it is chosen**, with a line of
-feedback beside the control saying what happened — the same shape the tag
-manager uses (it commits per row rather than batching) and the maintenance tab
-uses (every action says what it did, beside the control that did it).
+**Decided: the cover commits as soon as it is chosen**, with a line of feedback
+beside the control saying what happened — the same shape the tag manager uses
+(it commits per row rather than batching) and the maintenance tab uses (every
+action says what it did, beside the control that did it).
 
 The cost is real and worth stating: somebody who sets a cover and then presses
 Cancel will find the cover changed anyway. Two things soften it. The section
