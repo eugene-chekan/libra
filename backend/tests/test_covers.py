@@ -308,3 +308,125 @@ def test_deleting_the_book_takes_its_custom_cover(
 
     assert admin_client.delete(f"/books/{book_id}").status_code == 204
     assert not (library_dir / relative).exists()
+
+
+# --- setting a cover through the endpoints ----------------------------------
+
+
+def _plain_book(session: Session) -> int:
+    """A book row with an empty `book_metadata` — no cover of any kind."""
+    book = Book(title="Bare", author="A", format="epub", file_path="nothing.epub")
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    return book.id
+
+
+def _book_with_epub_cover(session: Session, library_dir: Path) -> int:
+    """A book whose stored EPUB really declares a cover of its own."""
+    source = build_epub(library_dir.parent / "with-cover.epub", cover="epub3")
+    meta = read_metadata(source, fallback_title="x")
+    with source.open("rb") as stream:
+        staged = storage.stage_upload(stream, library_dir, max_bytes=1_000_000)
+    book = Book(
+        title="Real",
+        author="A",
+        format="epub",
+        file_path=storage.commit(staged, library_dir),
+        book_metadata={
+            "cover_href": meta.cover_href,
+            "cover_media_type": meta.cover_media_type,
+        },
+    )
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    return book.id
+
+
+def test_an_admin_can_upload_a_cover(admin_client: TestClient, session, library_dir) -> None:
+    book_id = _plain_book(session)
+
+    response = admin_client.put(
+        f"/books/{book_id}/cover", files={"file": ("c.jpg", JPEG_BYTES, "image/jpeg")}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["has_cover"] is True
+    assert admin_client.get(f"/books/{book_id}/cover").content == JPEG_BYTES
+
+
+def test_a_reader_may_not_set_a_cover(client: TestClient, session) -> None:
+    book_id = _plain_book(session)
+
+    response = client.put(
+        f"/books/{book_id}/cover", files={"file": ("c.jpg", JPEG_BYTES, "image/jpeg")}
+    )
+
+    assert response.status_code == 403
+
+
+def test_an_upload_that_is_not_a_picture_is_refused(admin_client: TestClient, session) -> None:
+    book_id = _plain_book(session)
+
+    response = admin_client.put(
+        f"/books/{book_id}/cover", files={"file": ("c.jpg", b"<html>", "image/jpeg")}
+    )
+
+    assert response.status_code == 415
+
+
+def test_a_cover_can_be_set_from_a_link(monkeypatch, admin_client, session) -> None:
+    monkeypatch.setattr("app.library.covers_from_url.fetch", lambda url, max_bytes: PNG_BYTES)
+    book_id = _plain_book(session)
+
+    response = admin_client.post(
+        f"/books/{book_id}/cover/from-url", json={"url": "https://e/c.png"}
+    )
+
+    assert response.status_code == 200
+    assert response.json()["has_cover"] is True
+
+
+def test_a_link_inside_the_network_is_refused(admin_client: TestClient, session) -> None:
+    book_id = _plain_book(session)
+
+    response = admin_client.post(
+        f"/books/{book_id}/cover/from-url", json={"url": "http://192.168.1.1/c.jpg"}
+    )
+
+    assert response.status_code == 422
+
+
+def test_a_reader_may_not_set_a_cover_from_a_link(client: TestClient, session) -> None:
+    book_id = _plain_book(session)
+
+    response = client.post(f"/books/{book_id}/cover/from-url", json={"url": "https://e/c.png"})
+
+    assert response.status_code == 403
+
+
+def test_deleting_the_custom_cover_brings_back_the_books_own(
+    admin_client: TestClient, session, library_dir
+) -> None:
+    """The custom one shadows the EPUB's rather than replacing it."""
+    book_id = _book_with_epub_cover(session, library_dir)
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("c.jpg", JPEG_BYTES, "image/jpeg")})
+
+    assert admin_client.delete(f"/books/{book_id}/cover").status_code == 200
+    assert admin_client.get(f"/books/{book_id}/cover").content != JPEG_BYTES
+    assert admin_client.get(f"/books/{book_id}").json()["has_cover"] is True
+
+
+def test_replacing_a_cover_removes_the_file_it_replaced(
+    admin_client: TestClient, session, library_dir
+) -> None:
+    book_id = _plain_book(session)
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("c.jpg", JPEG_BYTES, "image/jpeg")})
+    first = session.get(Book, book_id).book_metadata["custom_cover_path"]
+
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("c.png", PNG_BYTES, "image/png")})
+
+    session.expire_all()
+    assert session.get(Book, book_id).book_metadata["custom_cover_path"] != first
+    assert not (library_dir / first).exists()

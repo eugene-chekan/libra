@@ -1,13 +1,15 @@
 """Library operations, independent of HTTP."""
 
+import io
 from collections.abc import Callable
 from datetime import datetime
 from pathlib import Path
+from typing import BinaryIO
 
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
-from app import covers, epub, mailer, naming, storage
+from app import covers, covers_from_url, epub, mailer, naming, storage
 from app.config import Settings
 from app.models import (
     COVER_MEDIA_TYPES,
@@ -188,6 +190,115 @@ def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, 
 
     etag = f'"{book.book_metadata.get("sha256", book.id)}-{href}"'
     return data, media_type, etag
+
+
+def _replace_cover(book: Book, relative: str, media_type: str, settings: Settings) -> None:
+    """Point the book at a new cover file and remove whichever it replaced."""
+    previous = book.book_metadata.get("custom_cover_path")
+    book.book_metadata = {
+        **book.book_metadata,
+        "custom_cover_path": relative,
+        "custom_cover_media_type": media_type,
+    }
+    if previous and previous != relative:
+        covers.remove(previous, settings.library_dir)
+
+
+def _saved(session: Session, book: Book, user: User) -> BookRead:
+    """Commit the row and answer with it as this reader sees it."""
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    # `get_book` is the one way a BookRead is built, and it already merges the
+    # caller's own rating, progress and shelf. A second way here would drift.
+    view = get_book(session, book.id, user)
+    if view is None:  # pragma: no cover - the row was just committed
+        raise BookNotFoundError
+    return view
+
+
+def set_cover(
+    session: Session, book_id: int, source: BinaryIO, user: User, settings: Settings
+) -> BookRead:
+    """Give a book a cover from an uploaded file.
+
+    Args:
+        session: Open database session.
+        book_id: Which book.
+        source: The incoming stream.
+        user: Whose view of the book comes back.
+        settings: Supplies `library_dir` and `max_cover_bytes`.
+
+    Returns:
+        The book, with `has_cover` now true.
+
+    Raises:
+        BookNotFoundError: Nothing has that id.
+        covers.NotAnImageError: The bytes are not an accepted picture.
+        storage.UploadTooLargeError: Over the ceiling.
+    """
+    book = _require_book(session, book_id)
+    relative, media_type = covers.store(source, settings.library_dir, settings.max_cover_bytes)
+    _replace_cover(book, relative, media_type, settings)
+    return _saved(session, book, user)
+
+
+def set_cover_from_url(
+    session: Session, book_id: int, url: str, user: User, settings: Settings
+) -> BookRead:
+    """Give a book a cover fetched from a link.
+
+    Args:
+        session: Open database session.
+        book_id: Which book.
+        url: The address, as it was typed.
+        user: Whose view of the book comes back.
+        settings: Supplies `library_dir` and `max_cover_bytes`.
+
+    Returns:
+        The book, with `has_cover` now true.
+
+    Raises:
+        BookNotFoundError: Nothing has that id.
+        covers_from_url.UnsafeUrlError: An address that must not be fetched.
+        covers_from_url.FetchFailedError: Nothing usable came back.
+    """
+    book = _require_book(session, book_id)
+    # Fetched before anything is written, so a refused link leaves the book's
+    # existing cover exactly as it was.
+    data = covers_from_url.fetch(url, settings.max_cover_bytes)
+    relative, media_type = covers.store(
+        io.BytesIO(data), settings.library_dir, settings.max_cover_bytes
+    )
+    _replace_cover(book, relative, media_type, settings)
+    return _saved(session, book, user)
+
+
+def clear_cover(session: Session, book_id: int, user: User, settings: Settings) -> BookRead:
+    """Drop the custom cover, so the book's own one comes back.
+
+    Args:
+        session: Open database session.
+        book_id: Which book.
+        user: Whose view of the book comes back.
+        settings: Supplies `library_dir`.
+
+    Returns:
+        The book, showing whatever its EPUB declares — which may be nothing.
+
+    Raises:
+        BookNotFoundError: Nothing has that id.
+    """
+    book = _require_book(session, book_id)
+    previous = book.book_metadata.get("custom_cover_path")
+    book.book_metadata = {
+        key: value
+        for key, value in book.book_metadata.items()
+        if key not in ("custom_cover_path", "custom_cover_media_type")
+    }
+    if previous:
+        covers.remove(previous, settings.library_dir)
+    return _saved(session, book, user)
 
 
 def file_for(session: Session, book: Book, settings: Settings) -> tuple[Path, str]:

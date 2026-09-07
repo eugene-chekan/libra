@@ -2,11 +2,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlmodel import Session
 
-from app import library, storage
+from app import covers, library, storage
 from app.auth import current_user, require_admin
 from app.config import Settings, get_settings
+from app.covers_from_url import FetchFailedError, TooLargeError, UnsafeUrlError
 from app.db import get_session
 from app.epub import InvalidEpubError, read_metadata
 from app.logging_config import get_logger
@@ -185,6 +187,68 @@ def get_cover(
             "ETag": etag,
         },
     )
+
+
+class CoverUrl(BaseModel):
+    """Where to fetch a cover from."""
+
+    url: str
+
+
+@router.put("/{book_id}/cover")
+def set_cover(
+    book_id: int,
+    file: UploadFile,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(require_admin),
+) -> BookRead:
+    """Replace a book's cover with an uploaded picture."""
+    try:
+        return library.set_cover(session, book_id, file.file, user, settings)
+    except library.BookNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Book not found") from exc
+    except covers.NotAnImageError as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
+    except UploadTooLargeError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+
+@router.post("/{book_id}/cover/from-url")
+def set_cover_from_url(
+    book_id: int,
+    body: CoverUrl,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(require_admin),
+) -> BookRead:
+    """Replace a book's cover with a picture fetched from a link."""
+    try:
+        return library.set_cover_from_url(session, book_id, body.url, user, settings)
+    except library.BookNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Book not found") from exc
+    # Before FetchFailedError, which it inherits from: caught the other way
+    # round this answers 422 where 413 is meant.
+    except TooLargeError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except (UnsafeUrlError, FetchFailedError) as exc:
+        # The module's own sentence, which names what was wrong with the
+        # address. A generic message here leaves the admin guessing.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.delete("/{book_id}/cover")
+def clear_cover(
+    book_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(require_admin),
+) -> BookRead:
+    """Drop the custom cover, so the book's own one comes back."""
+    try:
+        return library.clear_cover(session, book_id, user, settings)
+    except library.BookNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Book not found") from exc
 
 
 @router.get("/{book_id}/file")
