@@ -405,6 +405,58 @@ describe('HttpLibraApi', () => {
     )
   })
 
+  it('sends a cover as multipart form data to the cover path, with no JSON Content-Type forced on it', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 42, has_cover: true }))
+    const file = new File(['jpeg bytes'], 'cover.jpg', { type: 'image/jpeg' })
+
+    await new HttpLibraApi().setCover(42, file)
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42/cover')
+    expect(init.method).toBe('PUT')
+    expect(init.credentials).toBe('include')
+    // No Content-Type by hand: the browser has to add the multipart boundary
+    // itself, and a hand-set header on a FormData body drops it.
+    expect(init.headers).toBeUndefined()
+    expect(init.body).toBeInstanceOf(FormData)
+    expect((init.body as FormData).get('file')).toBe(file)
+  })
+
+  it('posts a cover link as JSON to the from-url path', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 42, has_cover: true }))
+
+    await new HttpLibraApi().setCoverFromUrl(42, 'https://example.com/c.jpg')
+
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42/cover/from-url')
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body as string)).toEqual({ url: 'https://example.com/c.jpg' })
+  })
+
+  it('raises the server sentence when a cover link is refused', async () => {
+    // The from-url route answers 422 with the reason the address was refused —
+    // the button shows that sentence, so the admin is not left guessing.
+    fetchMock.mockResolvedValue(
+      jsonResponse(422, { detail: 'that address is inside a private network' })
+    )
+
+    await expect(
+      new HttpLibraApi().setCoverFromUrl(42, 'https://sneaky.example/c.jpg')
+    ).rejects.toMatchObject({ status: 422, message: 'that address is inside a private network' })
+  })
+
+  it('clears a cover with a DELETE to the cover path, taking the updated book back', async () => {
+    fetchMock.mockResolvedValue(jsonResponse(200, { id: 42, has_cover: false }))
+
+    const book = await new HttpLibraApi().clearCover(42)
+
+    expect(book).toMatchObject({ id: 42, has_cover: false })
+    const [url, init] = lastFetchCall()
+    expect(url).toBe('/api/books/42/cover')
+    expect(init.method).toBe('DELETE')
+    expect(init.body).toBeUndefined()
+  })
+
   it('lists users from their own endpoint', async () => {
     fetchMock.mockResolvedValue(jsonResponse(200, []))
 

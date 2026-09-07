@@ -104,6 +104,15 @@ export interface LibraApi {
    */
   coverUrl(id: number): string
 
+  /** `PUT /api/books/{id}/cover` — replace the cover with an uploaded picture. Admin only. */
+  setCover(bookId: number, file: File): Promise<Book>
+
+  /** `POST /api/books/{id}/cover/from-url` — replace it with one fetched from a link. Admin only. */
+  setCoverFromUrl(bookId: number, url: string): Promise<Book>
+
+  /** `DELETE /api/books/{id}/cover` — drop it, so the book's own cover comes back. Admin only. */
+  clearCover(bookId: number): Promise<Book>
+
   /** `GET /api/books/{id}`. */
   getBook(id: number): Promise<Book>
 
