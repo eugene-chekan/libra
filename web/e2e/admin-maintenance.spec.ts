@@ -14,6 +14,14 @@ import { expect, test } from '@playwright/test'
  */
 test.describe.configure({ mode: 'serial' })
 
+// Every assertion that waits for `GET /api/maintenance` to load gets this
+// instead of Playwright's 5s default. The report walks the library directory
+// and reads the database; on the single-process test backend that request can
+// queue behind other specs' logins — the same self-inflicted load `workers: 4`
+// caps for, see `playwright.config.ts`. 15s matches `reader.spec.ts` and
+// `librarian.spec.ts`, which raise the timeout for the same reason.
+const REPORT_LOAD_TIMEOUT = 15_000
+
 test.describe('admin maintenance, in a real browser', () => {
   test('reaches the tab from the Users tab', async ({ page }) => {
     await page.goto('/admin/users')
@@ -21,7 +29,9 @@ test.describe('admin maintenance, in a real browser', () => {
     await page.getByRole('link', { name: 'Maintenance' }).click()
 
     await expect(page).toHaveURL(/\/admin\/maintenance$/)
-    await expect(page.getByRole('heading', { name: 'Files with no book' })).toBeVisible()
+    await expect(page.getByRole('heading', { name: 'Files with no book' })).toBeVisible({
+      timeout: REPORT_LOAD_TIMEOUT,
+    })
   })
 
   test('counts what the installation actually holds', async ({ page, request }) => {
@@ -35,7 +45,7 @@ test.describe('admin maintenance, in a real browser', () => {
     // Scoped to the `dt` it is: a bare "Books" also matches the "Books with no file" heading
     // further down, which is the ambiguity #101 was filed for.
     const books = page.locator('dt', { hasText: /^Books$/ }).locator('..')
-    await expect(books).toContainText(String(before.total))
+    await expect(books).toContainText(String(before.total), { timeout: REPORT_LOAD_TIMEOUT })
   })
 
   /*
@@ -53,21 +63,26 @@ test.describe('admin maintenance, in a real browser', () => {
     const report = await (await request.get('/api/maintenance')).json()
     const orphans = report.orphan_files as { name: string }[]
     if (orphans.length === 0) {
-      await expect(page.getByText('Nothing loose on disk.')).toBeVisible()
+      await expect(page.getByText('Nothing loose on disk.')).toBeVisible({
+        timeout: REPORT_LOAD_TIMEOUT,
+      })
       return
     }
 
     const first = orphans[0].name
-    await expect(page.getByText(first)).toBeVisible()
+    await expect(page.getByText(first)).toBeVisible({ timeout: REPORT_LOAD_TIMEOUT })
     await page.getByRole('button', { name: `Delete ${first}` }).click()
     await expect(page.getByRole('dialog', { name: `Delete ${first}?` })).toBeVisible()
     await page.getByRole('button', { name: 'Delete' }).click()
 
     await expect
-      .poll(async () => {
-        const after = await (await request.get('/api/maintenance')).json()
-        return (after.orphan_files as { name: string }[]).some((file) => file.name === first)
-      })
+      .poll(
+        async () => {
+          const after = await (await request.get('/api/maintenance')).json()
+          return (after.orphan_files as { name: string }[]).some((file) => file.name === first)
+        },
+        { timeout: REPORT_LOAD_TIMEOUT }
+      )
       .toBe(false)
   })
 
