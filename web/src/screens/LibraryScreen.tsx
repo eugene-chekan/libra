@@ -59,7 +59,11 @@ export function LibraryScreen() {
     <>
       <div className={gridStyles.headerRow}>
         <h1 className={styles.pageTitle}>Library</h1>
-        {books.data && <span className={gridStyles.count}>{books.data.total} books</span>}
+        {books.data && (
+          <span className={gridStyles.count}>
+            {books.data.total} {books.data.total === 1 ? 'book' : 'books'}
+          </span>
+        )}
       </div>
 
       <SearchBar
