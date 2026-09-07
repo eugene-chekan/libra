@@ -5,12 +5,14 @@ origin — which carries a session cookie. The media-type allowlist is what
 stops that being stored XSS, so it gets a test of its own and a hand mutation.
 """
 
+import io
 from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from app import covers, storage
 from app.covers import SNIFF_BYTES, sniff_media_type
 from app.epub import read_metadata
 from app.models import COVER_MEDIA_TYPES, Book
@@ -208,3 +210,51 @@ def test_anything_else_is_not_a_cover(head: bytes) -> None:
 def test_enough_bytes_are_read_to_decide_webp() -> None:
     """WebP's marker sits at offset 8, further in than the other three."""
     assert SNIFF_BYTES >= 12
+
+
+# --- storing a custom cover ----------------------------------------------
+
+
+def test_a_stored_cover_lands_in_the_covers_subdirectory(tmp_path: Path) -> None:
+    relative, media_type = covers.store(io.BytesIO(JPEG_BYTES), tmp_path, max_bytes=1024)
+
+    assert relative.startswith(f"{covers.COVERS_SUBDIR}/")
+    assert relative.endswith(".jpg")
+    assert media_type == "image/jpeg"
+    assert (tmp_path / relative).read_bytes() == JPEG_BYTES
+
+
+def test_the_covers_directory_is_not_the_library_root(tmp_path: Path) -> None:
+    """`maintenance.report` calls any file in the root that no book points at an
+    orphan and offers to delete it. A cover in the root would be taken."""
+    covers.store(io.BytesIO(JPEG_BYTES), tmp_path, max_bytes=1024)
+
+    assert [path.name for path in tmp_path.iterdir() if path.is_file()] == []
+
+
+def test_something_that_is_not_a_picture_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(covers.NotAnImageError):
+        covers.store(io.BytesIO(b"<!DOCTYPE html>"), tmp_path, max_bytes=1024)
+
+
+def test_a_refused_cover_leaves_nothing_behind(tmp_path: Path) -> None:
+    with pytest.raises(covers.NotAnImageError):
+        covers.store(io.BytesIO(b"<!DOCTYPE html>"), tmp_path, max_bytes=1024)
+
+    assert list((tmp_path / covers.COVERS_SUBDIR).glob("*")) == []
+
+
+def test_a_cover_over_the_ceiling_is_refused(tmp_path: Path) -> None:
+    with pytest.raises(storage.UploadTooLargeError):
+        covers.store(io.BytesIO(JPEG_BYTES + b"\x00" * 500), tmp_path, max_bytes=64)
+
+
+def test_removing_a_cover_takes_the_file(tmp_path: Path) -> None:
+    relative, _ = covers.store(io.BytesIO(PNG_BYTES), tmp_path, max_bytes=1024)
+
+    assert covers.remove(relative, tmp_path) is True
+    assert not (tmp_path / relative).exists()
+
+
+def test_a_path_that_climbs_out_of_the_library_is_refused(tmp_path: Path) -> None:
+    assert covers.remove("../escape.jpg", tmp_path) is False

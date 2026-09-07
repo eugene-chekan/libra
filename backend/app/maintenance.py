@@ -46,8 +46,10 @@ def _count(session: Session, model: type) -> int:
 def _library_files(library_dir: Path) -> list[Path]:
     """Every file sitting directly in the library directory.
 
-    Flat by construction: `storage.commit` writes `{uuid}.epub` into the root
-    and never makes a subdirectory, so there is no tree to walk.
+    Directly, and not a walk: `storage.commit` writes `{uuid}.epub` into the
+    root, and custom covers into `covers/` beside it. A cover is not an orphan
+    and must never be offered for deletion here, so the subdirectory is
+    skipped — `iterdir` lists it, and `is_file` rejects it.
     """
     if not library_dir.is_dir():
         return []
