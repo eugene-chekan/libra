@@ -19,7 +19,9 @@ def _resolve(host: str) -> list[str]:
     """Every address this name answers with. Split out so tests can replace it."""
     try:
         return [info[4][0] for info in socket.getaddrinfo(host, 443, proto=socket.IPPROTO_TCP)]
-    except socket.gaierror:
+    except (OSError, ValueError):
+        # gaierror/herror are OSError; a hostname the IDNA codec rejects raises
+        # UnicodeEncodeError, a ValueError. An empty list means refusal.
         return []
 
 
@@ -35,6 +37,10 @@ def _is_public(address: str) -> bool:
         or parsed.is_multicast
         or parsed.is_reserved
         or parsed.is_unspecified
+        # Catches 100.64.0.0/10 (shared address space: Tailscale, CGNAT), which
+        # ipaddress keeps out of is_private. Kept alongside the clauses above,
+        # not in place of them: multicast and reserved v6 still report is_global.
+        or not parsed.is_global
     )
 
 

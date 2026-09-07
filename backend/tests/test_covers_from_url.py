@@ -46,6 +46,8 @@ def test_an_address_that_is_not_public_https_is_refused(url: str, reason: str) -
         "240.0.0.1",  # reserved
         "fc00::1",  # unique-local, v6
         "fe80::1",  # link-local, v6
+        "100.64.1.1",  # shared address space (Tailscale, CGNAT): not is_private
+        "64:ff9b::7f00:1",  # is_global but reserved; guards against "simplify to is_global"
     ],
 )
 def test_an_address_inside_the_network_is_refused(monkeypatch, address: str) -> None:
@@ -69,3 +71,13 @@ def test_a_name_that_resolves_to_nothing_is_refused(monkeypatch) -> None:
 
     with pytest.raises(UnsafeUrlError):
         check_url("https://nowhere.example/cover.jpg")
+
+
+def test_a_hostname_that_cannot_be_resolved_at_all_is_refused() -> None:
+    """The IDNA codec rejects this before any lookup, so it needs no network.
+
+    No monkeypatch: this exercises the real _resolve, whose broad except is the
+    only reason a typo like this ends in UnsafeUrlError and not a raw crash.
+    """
+    with pytest.raises(UnsafeUrlError):
+        check_url("https://" + "a" * 64 + ".example/c.jpg")
