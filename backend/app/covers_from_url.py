@@ -10,6 +10,10 @@ import ipaddress
 import socket
 from urllib.parse import urlparse
 
+import httpx2 as httpx
+
+from app.covers import SNIFF_BYTES, sniff_media_type
+
 
 class UnsafeUrlError(ValueError):
     """The address is refused, and will not be fetched."""
@@ -73,3 +77,78 @@ def check_url(url: str) -> str:
         raise UnsafeUrlError("that address is inside a private network")
 
     return parsed.hostname
+
+
+MAX_REDIRECTS = 3
+TIMEOUT_SECONDS = 10.0
+
+
+class FetchFailedError(Exception):
+    """The address was allowed, but nothing usable came back."""
+
+
+class TooLargeError(FetchFailedError):
+    """The picture is over the ceiling."""
+
+
+def _transport() -> httpx.BaseTransport | None:
+    """The transport to fetch through. Replaced in tests; None means the real one."""
+    return None
+
+
+def fetch(url: str, max_bytes: int) -> bytes:
+    """Download a picture from a public https address.
+
+    Redirects are followed by hand so that every hop is checked. Following them
+    automatically would let a permitted host redirect into a private address.
+
+    Args:
+        url: The address as it was typed.
+        max_bytes: Ceiling, counted on the stream rather than trusted from a
+            header.
+
+    Returns:
+        The picture's bytes.
+
+    Raises:
+        UnsafeUrlError: An address that must not be fetched, at any hop.
+        TooLargeError: The body went over the ceiling.
+        FetchFailedError: No usable picture came back.
+    """
+    client_args = {"timeout": TIMEOUT_SECONDS, "follow_redirects": False}
+    transport = _transport()
+    if transport is not None:
+        client_args["transport"] = transport
+
+    with httpx.Client(**client_args) as client:
+        for _ in range(MAX_REDIRECTS + 1):
+            check_url(url)
+            try:
+                with client.stream("GET", url, headers={"accept": "image/*"}) as response:
+                    if response.is_redirect:
+                        location = response.headers.get("location")
+                        if not location:
+                            raise FetchFailedError("a redirect with nowhere to go")
+                        url = str(response.url.join(location))
+                        continue
+                    if response.status_code != 200:
+                        raise FetchFailedError(f"the server answered {response.status_code}")
+                    return _read_capped(response, max_bytes)
+            except httpx.HTTPError as exc:
+                raise FetchFailedError(f"could not reach that address: {exc}") from exc
+
+    raise FetchFailedError("too many redirects")
+
+
+def _read_capped(response: httpx.Response, max_bytes: int) -> bytes:
+    """Read the body, stopping at the ceiling, and check it really is a picture."""
+    body = bytearray()
+    for chunk in response.iter_bytes():
+        body.extend(chunk)
+        if len(body) > max_bytes:
+            raise TooLargeError(f"that picture is over {max_bytes} bytes")
+
+    if sniff_media_type(bytes(body[:SNIFF_BYTES])) is None:
+        # The header said what it liked; the bytes are the evidence.
+        raise FetchFailedError("that link is not a JPEG, PNG, GIF or WebP")
+    return bytes(body)

@@ -5,9 +5,10 @@ naively: this server sits inside a home network and can reach things the
 person asking cannot. See docs/specs/book-covers.md.
 """
 
+import httpx2 as httpx
 import pytest
 
-from app.covers_from_url import UnsafeUrlError, check_url
+from app.covers_from_url import FetchFailedError, TooLargeError, UnsafeUrlError, check_url, fetch
 
 
 def test_an_ordinary_public_https_address_is_allowed(monkeypatch) -> None:
@@ -81,3 +82,87 @@ def test_a_hostname_that_cannot_be_resolved_at_all_is_refused() -> None:
     """
     with pytest.raises(UnsafeUrlError):
         check_url("https://" + "a" * 64 + ".example/c.jpg")
+
+
+JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00" + b"\x00" * 64
+
+
+@pytest.fixture(name="allow_any_host")
+def allow_any_host_fixture(monkeypatch):
+    monkeypatch.setattr("app.covers_from_url._resolve", lambda host: ["93.184.216.34"])
+
+
+def _transport(handler) -> httpx.MockTransport:
+    return httpx.MockTransport(handler)
+
+
+def test_a_picture_is_returned(monkeypatch, allow_any_host) -> None:
+    monkeypatch.setattr(
+        "app.covers_from_url._transport",
+        lambda: _transport(lambda request: httpx.Response(200, content=JPEG)),
+    )
+
+    assert fetch("https://example.com/c.jpg", max_bytes=1024) == JPEG
+
+
+def test_a_redirect_into_a_private_address_is_refused(monkeypatch) -> None:
+    """The obvious way past a check that only looks at what was typed."""
+    monkeypatch.setattr(
+        "app.covers_from_url._resolve",
+        lambda host: ["93.184.216.34"] if host == "example.com" else ["127.0.0.1"],
+    )
+    monkeypatch.setattr(
+        "app.covers_from_url._transport",
+        lambda: _transport(
+            lambda request: httpx.Response(302, headers={"location": "https://inside/c.jpg"})
+        ),
+    )
+
+    with pytest.raises(UnsafeUrlError):
+        fetch("https://example.com/c.jpg", max_bytes=1024)
+
+
+def test_a_body_over_the_ceiling_is_refused(monkeypatch, allow_any_host) -> None:
+    monkeypatch.setattr(
+        "app.covers_from_url._transport",
+        lambda: _transport(lambda request: httpx.Response(200, content=JPEG + b"\x00" * 4096)),
+    )
+
+    with pytest.raises(TooLargeError):
+        fetch("https://example.com/c.jpg", max_bytes=64)
+
+
+def test_a_server_lying_about_the_content_type_is_refused(monkeypatch, allow_any_host) -> None:
+    monkeypatch.setattr(
+        "app.covers_from_url._transport",
+        lambda: _transport(
+            lambda request: httpx.Response(
+                200, content=b"<!DOCTYPE html><html>", headers={"content-type": "image/jpeg"}
+            )
+        ),
+    )
+
+    with pytest.raises(FetchFailedError):
+        fetch("https://example.com/c.jpg", max_bytes=1024)
+
+
+def test_a_404_is_refused(monkeypatch, allow_any_host) -> None:
+    monkeypatch.setattr(
+        "app.covers_from_url._transport",
+        lambda: _transport(lambda request: httpx.Response(404)),
+    )
+
+    with pytest.raises(FetchFailedError):
+        fetch("https://example.com/c.jpg", max_bytes=1024)
+
+
+def test_too_many_redirects_is_refused(monkeypatch, allow_any_host) -> None:
+    monkeypatch.setattr(
+        "app.covers_from_url._transport",
+        lambda: _transport(
+            lambda request: httpx.Response(302, headers={"location": "https://example.com/again"})
+        ),
+    )
+
+    with pytest.raises(FetchFailedError):
+        fetch("https://example.com/c.jpg", max_bytes=1024)
