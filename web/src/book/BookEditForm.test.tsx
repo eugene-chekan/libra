@@ -1,11 +1,16 @@
+import { QueryClientProvider } from '@tanstack/react-query'
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { ApiProvider } from '../api/ApiProvider'
 import { ApiError } from '../api/errors'
-import { fakeBook } from '../api/FakeLibraApi'
+import { fakeBook, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
+import { createQueryClient } from '../queryClient'
 import { BookEditForm } from './BookEditForm'
 
+// The nested `CoverSection` reaches the API and the query client, so the form
+// now needs both providers even though its own fields still do not.
 function renderForm(overrides: Partial<Parameters<typeof BookEditForm>[0]> = {}) {
   const props = {
     book: fakeBook({ title: 'Dune', author: 'Frank Herbert', year: 1965, pages: 412 }),
@@ -13,7 +18,15 @@ function renderForm(overrides: Partial<Parameters<typeof BookEditForm>[0]> = {})
     onDone: vi.fn(),
     ...overrides,
   }
-  render(<BookEditForm {...props} />)
+  const admin = fakeUser({ id: 1, is_admin: true })
+  const api = new FakeLibraApi({ users: [admin], signedInAs: admin, books: [props.book] })
+  render(
+    <ApiProvider api={api}>
+      <QueryClientProvider client={createQueryClient()}>
+        <BookEditForm {...props} />
+      </QueryClientProvider>
+    </ApiProvider>
+  )
   return props
 }
 

@@ -1,0 +1,103 @@
+/* The cover, inside the Edit Book form. It commits at once, so it sits a little
+   apart from the fields that wait for Save. */
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--libra-border);
+}
+
+.heading {
+  font-family: var(--libra-sans);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--libra-text);
+}
+
+/* Says the section does not wait for Save. A test asserts this line is here. */
+.hint {
+  max-width: 62ch;
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--libra-text-light);
+  text-wrap: pretty;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-family: var(--libra-sans);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--libra-text-mid);
+}
+
+.field input {
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--libra-text);
+}
+
+.field input[type='url'] {
+  height: 36px;
+  padding: 0 12px;
+  background: var(--libra-bg);
+  border: 1px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  outline: none;
+  transition: border-color var(--libra-t-interactive);
+}
+
+.field input[type='url']:focus {
+  border-color: var(--libra-accent);
+}
+
+.action {
+  align-self: flex-start;
+  padding: 9px 18px;
+  border: 1.5px solid var(--libra-border);
+  border-radius: var(--libra-radius);
+  background: var(--libra-card);
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--libra-text-mid);
+  cursor: pointer;
+  transition:
+    border-color var(--libra-t-interactive),
+    color var(--libra-t-interactive);
+}
+
+.action:hover:not(:disabled) {
+  border-color: var(--libra-accent);
+  color: var(--libra-accent);
+}
+
+.action:disabled {
+  cursor: default;
+  color: var(--libra-text-light);
+}
+
+/* What the last action said. An icon carries the meaning alongside the colour,
+   so the difference does not rest on telling green from red. The two colour
+   tokens are the maintenance screen's outcome-line tokens. */
+.succeeded,
+.failed {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+}
+
+.succeeded {
+  color: var(--libra-success);
+}
+
+.failed {
+  color: var(--libra-danger);
+}
