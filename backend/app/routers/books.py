@@ -227,6 +227,12 @@ def set_cover_from_url(
         return library.set_cover_from_url(session, book_id, body.url, user, settings)
     except library.BookNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Book not found") from exc
+    # The fetched bytes still go through covers.store, so the same two failures
+    # the upload route maps are possible here. Mapped identically.
+    except covers.NotAnImageError as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
+    except UploadTooLargeError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
     # Before FetchFailedError, which it inherits from: caught the other way
     # round this answers 422 where 413 is meant.
     except TooLargeError as exc:

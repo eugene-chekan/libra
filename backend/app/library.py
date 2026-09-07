@@ -262,6 +262,8 @@ def set_cover_from_url(
         BookNotFoundError: Nothing has that id.
         covers_from_url.UnsafeUrlError: An address that must not be fetched.
         covers_from_url.FetchFailedError: Nothing usable came back.
+        covers.NotAnImageError: The fetched bytes are not an accepted picture.
+        storage.UploadTooLargeError: The fetched bytes are over the ceiling.
     """
     book = _require_book(session, book_id)
     # Fetched before anything is written, so a refused link leaves the book's

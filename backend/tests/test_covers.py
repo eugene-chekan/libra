@@ -12,7 +12,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
-from app import covers, storage
+from app import covers, covers_from_url, storage
 from app.covers import SNIFF_BYTES, sniff_media_type
 from app.epub import read_metadata
 from app.models import COVER_MEDIA_TYPES, Book
@@ -430,3 +430,24 @@ def test_replacing_a_cover_removes_the_file_it_replaced(
     session.expire_all()
     assert session.get(Book, book_id).book_metadata["custom_cover_path"] != first
     assert not (library_dir / first).exists()
+
+
+def test_a_refused_link_leaves_the_existing_cover_in_place(
+    monkeypatch, admin_client: TestClient, session, library_dir
+) -> None:
+    """set_cover_from_url fetches before it writes. A link that is refused
+    after fetch has run must leave the cover already on the book untouched."""
+    book_id = _plain_book(session)
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("c.jpg", JPEG_BYTES, "image/jpeg")})
+
+    def _refuse(url: str, max_bytes: int) -> bytes:
+        raise covers_from_url.FetchFailedError("nope")
+
+    monkeypatch.setattr("app.library.covers_from_url.fetch", _refuse)
+    response = admin_client.post(
+        f"/books/{book_id}/cover/from-url", json={"url": "https://e/c.png"}
+    )
+
+    assert 400 <= response.status_code < 500
+    assert admin_client.get(f"/books/{book_id}/cover").content == JPEG_BYTES
+    assert admin_client.get(f"/books/{book_id}").json()["has_cover"] is True
