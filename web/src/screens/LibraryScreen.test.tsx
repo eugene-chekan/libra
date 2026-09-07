@@ -52,7 +52,7 @@ describe('LibraryScreen', () => {
 
     await user.type(screen.getByRole('textbox'), 'dune')
 
-    await waitFor(() => expect(screen.getByText('1 books')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('1 book')).toBeInTheDocument())
     expect(screen.getByText('Dune')).toBeInTheDocument()
     expect(screen.queryByText('Emma')).not.toBeInTheDocument()
   })
@@ -96,7 +96,7 @@ describe('LibraryScreen', () => {
 
     await user.type(screen.getByRole('textbox'), '#sci-fi')
 
-    await waitFor(() => expect(screen.getByText('1 books')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('1 book')).toBeInTheDocument())
     expect(screen.getByText('Dune')).toBeInTheDocument()
   })
 
@@ -105,7 +105,7 @@ describe('LibraryScreen', () => {
     const api = signedInApi({ books: [fakeBook({ title: 'Dune' })] })
 
     renderAt('/library', api)
-    await waitFor(() => expect(screen.getByText('1 books')).toBeInTheDocument())
+    await waitFor(() => expect(screen.getByText('1 book')).toBeInTheDocument())
 
     await user.type(screen.getByRole('textbox'), 'nothing matches this')
 
