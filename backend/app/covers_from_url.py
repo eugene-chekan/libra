@@ -8,6 +8,7 @@ somebody typed is checked before anything connects to it.
 
 import ipaddress
 import socket
+import time
 from urllib.parse import urlparse
 
 import httpx2 as httpx
@@ -104,8 +105,8 @@ def fetch(url: str, max_bytes: int) -> bytes:
 
     Args:
         url: The address as it was typed.
-        max_bytes: Ceiling, counted on the stream rather than trusted from a
-            header.
+        max_bytes: Ceiling, counted on the raw wire bytes rather than trusted
+            from a header.
 
     Returns:
         The picture's bytes.
@@ -113,9 +114,25 @@ def fetch(url: str, max_bytes: int) -> bytes:
     Raises:
         UnsafeUrlError: An address that must not be fetched, at any hop.
         TooLargeError: The body went over the ceiling.
-        FetchFailedError: No usable picture came back.
+        FetchFailedError: No usable picture came back, or the whole fetch ran
+            past TIMEOUT_SECONDS.
     """
-    client_args = {"timeout": TIMEOUT_SECONDS, "follow_redirects": False}
+    # A trailing newline or a leading space off a copy-paste is the likeliest
+    # bad input. urlparse tolerates it; httpx.URL does not.
+    url = url.strip()
+    # One wall-clock budget for the whole call. httpx's read timeout is per
+    # socket read and every successful read resets it, so a server dripping one
+    # byte at a time never trips it. This does.
+    deadline = time.monotonic() + TIMEOUT_SECONDS
+
+    client_args = {
+        "timeout": TIMEOUT_SECONDS,
+        "follow_redirects": False,
+        # No proxy, no env certs. In Docker HTTPS_PROXY/ALL_PROXY are often set,
+        # and a proxy would resolve the host itself, so check_url would have
+        # vetted an address the socket never used.
+        "trust_env": False,
+    }
     transport = _transport()
     if transport is not None:
         client_args["transport"] = transport
@@ -123,8 +140,17 @@ def fetch(url: str, max_bytes: int) -> bytes:
     with httpx.Client(**client_args) as client:
         for _ in range(MAX_REDIRECTS + 1):
             check_url(url)
+            if time.monotonic() > deadline:
+                raise FetchFailedError("that address took too long to answer")
             try:
-                with client.stream("GET", url, headers={"accept": "image/*"}) as response:
+                with client.stream(
+                    "GET",
+                    url,
+                    headers={"accept": "image/*", "accept-encoding": "identity"},
+                ) as response:
+                    # The client keeps a cookie jar and fills it from every
+                    # response. Empty it so nothing a hop set rides to the next.
+                    client.cookies.clear()
                     if response.is_redirect:
                         location = response.headers.get("location")
                         if not location:
@@ -133,17 +159,41 @@ def fetch(url: str, max_bytes: int) -> bytes:
                         continue
                     if response.status_code != 200:
                         raise FetchFailedError(f"the server answered {response.status_code}")
-                    return _read_capped(response, max_bytes)
+                    return _read_capped(response, max_bytes, deadline)
             except httpx.HTTPError as exc:
                 raise FetchFailedError(f"could not reach that address: {exc}") from exc
+            except (httpx.InvalidURL, ValueError) as exc:
+                # httpx.InvalidURL is a bare Exception, and building the request
+                # can raise ValueError for a control byte urlparse let through.
+                # check_url ran outside this try, so its UnsafeUrlError (itself a
+                # ValueError) is never caught here.
+                raise FetchFailedError(f"that address cannot be fetched: {exc}") from exc
 
     raise FetchFailedError("too many redirects")
 
 
-def _read_capped(response: httpx.Response, max_bytes: int) -> bytes:
-    """Read the body, stopping at the ceiling, and check it really is a picture."""
+def _read_capped(response: httpx.Response, max_bytes: int, deadline: float) -> bytes:
+    """Read the body, stopping at the ceiling, and check it really is a picture.
+
+    Args:
+        response: The open streaming response.
+        max_bytes: Ceiling, counted on the raw wire bytes. `iter_raw` is used,
+            not `iter_bytes`, so a `Content-Encoding: gzip` reply cannot
+            decompress each read into memory before the ceiling is tested.
+        deadline: A `time.monotonic()` value. Reading past it fails the fetch,
+            so a slow drip cannot pin the worker.
+
+    Returns:
+        The picture's bytes.
+
+    Raises:
+        TooLargeError: The wire body went over the ceiling.
+        FetchFailedError: The deadline passed, or the bytes are not a picture.
+    """
     body = bytearray()
-    for chunk in response.iter_bytes():
+    for chunk in response.iter_raw():
+        if time.monotonic() > deadline:
+            raise FetchFailedError("that address took too long to send the picture")
         body.extend(chunk)
         if len(body) > max_bytes:
             raise TooLargeError(f"that picture is over {max_bytes} bytes")
