@@ -9,6 +9,8 @@ import type {
   CurrentUser,
   Health,
   KindleDelivery,
+  MaintenanceReport,
+  MissingFile,
   Note,
   NoteDraft,
   Shelf,
@@ -121,6 +123,15 @@ export function fakeShelf(overrides: Partial<Shelf> = {}): Shelf {
   }
 }
 
+/** A file in the library directory, as the fake keeps it. */
+export interface FakeLibraryFile {
+  name: string
+  size_bytes: number
+  modified_at: string
+  /** True when a book points at it, which is what stops it being an orphan. */
+  usedByBook?: boolean
+}
+
 interface FakeOptions {
   users?: FakeUser[]
   /** Who is already signed in when the test starts. */
@@ -132,6 +143,17 @@ interface FakeOptions {
   shelves?: Shelf[]
   notes?: FakeNote[]
   health?: Health
+  /**
+   * What sits in the library directory. `usedByBook` is what makes a file not an orphan — the
+   * real server asks the book table, and the client's `Book` carries no `file_path` to ask with.
+   */
+  libraryFiles?: FakeLibraryFile[]
+  /** How many sessions have expired. The fake keeps no session table to count. */
+  expiredSessions?: number
+  /** Books whose file is gone. Stated rather than derived: the client's `Book` has no path. */
+  missingFiles?: MissingFile[]
+  /** What a vacuum would give back. The fake has no file to shrink. */
+  reclaimableBytes?: number
   /** What the mail server does with the next send. */
   kindleFailure?: string | null
   /**
@@ -157,6 +179,10 @@ export class FakeLibraApi implements LibraApi {
   readonly notes: FakeNote[]
   /** What `health()` answers. Named apart from the method it feeds. */
   readonly healthReport: Health
+  readonly libraryFiles: FakeLibraryFile[]
+  readonly expiredSessions: number
+  readonly missingFiles: MissingFile[]
+  readonly reclaimableBytes: number
   /** Settable mid-test, so one send can fail and the next succeed. */
   kindleFailure: string | null
   /** Settable mid-test, so each upload in a test can "parse" to something different. */
@@ -176,6 +202,10 @@ export class FakeLibraApi implements LibraApi {
     shelves = [],
     notes = [],
     health = { status: 'ok', version: '1.2.3' },
+    libraryFiles = [],
+    expiredSessions = 0,
+    missingFiles = [],
+    reclaimableBytes = 0,
     kindleFailure = null,
     uploadMetadata = null,
     uploadFailure = null,
@@ -188,6 +218,10 @@ export class FakeLibraApi implements LibraApi {
     this.shelves = shelves
     this.notes = notes
     this.healthReport = health
+    this.libraryFiles = libraryFiles
+    this.expiredSessions = expiredSessions
+    this.missingFiles = missingFiles
+    this.reclaimableBytes = reclaimableBytes
     this.kindleFailure = kindleFailure
     this.uploadMetadata = uploadMetadata
     this.uploadFailure = uploadFailure
@@ -197,6 +231,49 @@ export class FakeLibraApi implements LibraApi {
   async health(): Promise<Health> {
     this.calls.push('health')
     return this.healthReport
+  }
+
+  async getMaintenance(): Promise<MaintenanceReport> {
+    this.calls.push('getMaintenance')
+    this.requireAdmin()
+    return {
+      books: this.books.length,
+      users: this.users.length,
+      shelves: this.shelves.length,
+      tags: this.tags.length,
+      notes: this.notes.length,
+      library_bytes: this.libraryFiles.reduce((total, file) => total + file.size_bytes, 0),
+      expired_sessions: this.expiredSessions,
+      orphan_files: this.libraryFiles
+        .filter((file) => !file.usedByBook)
+        .map(({ name, size_bytes, modified_at }) => ({ name, size_bytes, modified_at })),
+      missing_files: this.missingFiles,
+    }
+  }
+
+  async pruneSessions(): Promise<number> {
+    this.calls.push('pruneSessions')
+    this.requireAdmin()
+    return this.expiredSessions
+  }
+
+  async vacuum(): Promise<number> {
+    this.calls.push('vacuum')
+    this.requireAdmin()
+    return this.reclaimableBytes
+  }
+
+  /** Refuses a file a book points at, as the server does — the report and this are two requests. */
+  async deleteOrphan(name: string): Promise<void> {
+    this.calls.push(`deleteOrphan:${name}`)
+    this.requireAdmin()
+
+    const index = this.libraryFiles.findIndex((file) => file.name === name)
+    if (index === -1) throw new ApiError(404, 'No such file in the library')
+    if (this.libraryFiles[index]?.usedByBook) {
+      throw new ApiError(409, 'A book points at that file')
+    }
+    this.libraryFiles.splice(index, 1)
   }
 
   setOnUnauthorized(handler: (() => void) | null): void {
@@ -661,6 +738,13 @@ export class FakeLibraApi implements LibraApi {
     const index = this.notes.findIndex((note) => note.id === noteId && note.user_id === caller.id)
     if (index === -1) throw new ApiError(404, 'Note not found')
     this.notes.splice(index, 1)
+  }
+
+  /** Refused before any lookup, because `require_admin` is a dependency on the server. */
+  private requireAdmin(): FakeUser {
+    const caller = this.requireSession()
+    if (!caller.is_admin) throw new ApiError(403, 'Admin only')
+    return caller
   }
 
   private requireBook(id: number): FakeBook {

@@ -365,3 +365,33 @@ class KindleDeliveryRead(SQLModel):
     book_id: int
     sent_to: str
     attempted_at: datetime
+
+
+class OrphanFile(SQLModel):
+    """A file in the library directory that no book row points at."""
+
+    name: str
+    size_bytes: int
+    modified_at: datetime
+
+
+class MissingFile(SQLModel):
+    """A book whose file is not where its row says it is."""
+
+    id: int
+    title: str
+    file_path: str
+
+
+class MaintenanceReport(SQLModel):
+    """What this installation holds, and what has come loose from it."""
+
+    books: int
+    users: int
+    shelves: int
+    tags: int
+    notes: int
+    library_bytes: int
+    expired_sessions: int
+    orphan_files: list[OrphanFile]
+    missing_files: list[MissingFile]

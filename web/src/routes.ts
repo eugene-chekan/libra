@@ -5,6 +5,7 @@ export const routes = {
   shelves: '/shelves',
   admin: '/admin',
   adminUsers: '/admin/users',
+  adminMaintenance: '/admin/maintenance',
   /** One book. */
   book: '/books/:id',
   /** The reader, which milestone 12 (#36) builds. */

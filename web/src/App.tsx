@@ -14,6 +14,7 @@ import { ReaderScreen } from './reader/ReaderScreen'
 import { createQueryClient } from './queryClient'
 import { routes } from './routes'
 import { AdminLayout } from './screens/AdminLayout'
+import { AdminMaintenanceScreen } from './screens/AdminMaintenanceScreen'
 import { AdminUsersScreen } from './screens/AdminUsersScreen'
 import { BookScreen } from './screens/BookScreen'
 import { LibraryScreen } from './screens/LibraryScreen'
@@ -42,6 +43,7 @@ export function AppRoutes() {
             <Route element={<AdminLayout />}>
               <Route path={routes.admin} element={<Navigate to={routes.adminUsers} replace />} />
               <Route path={routes.adminUsers} element={<AdminUsersScreen />} />
+              <Route path={routes.adminMaintenance} element={<AdminMaintenanceScreen />} />
             </Route>
           </Route>
           <Route path="*" element={<NotFoundScreen />} />

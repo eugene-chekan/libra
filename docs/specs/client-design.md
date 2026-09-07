@@ -41,6 +41,16 @@ custom properties; this table is the source.
 | `accentLighter` | `#f8f3ed` | Row hover background, inline edit field background |
 | `coverBg` | `#e8e4df` | Cover placeholder fallback |
 | `danger` | `#c44` | Destructive icon hover, error accents |
+| `success` | `#3f6b4c` | Confirmation that an action ran, beside the control that ran it |
+
+**`success` was added 2026-09-06**, with the maintenance tab (#111) — the
+first surface whose actions change nothing a reader can see, and so the first
+that had to say "that worked" in its own right. Muted rather than a signal
+green, to sit with a warm palette: 6.1:1 on `card` and 5.6:1 on `bg`, both past
+AA, and better than `danger` manages at 4.7:1.
+
+**It is never the only signal.** Success carries a check icon and failure an ×,
+so the difference does not rest on telling green from red.
 
 Selection highlight: `::selection { background: #8b5e3c33 }`.
 

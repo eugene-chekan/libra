@@ -7,6 +7,7 @@ import type {
   CurrentUser,
   Health,
   KindleDelivery,
+  MaintenanceReport,
   Note,
   NoteDraft,
   Shelf,
@@ -51,6 +52,18 @@ export interface LibraApi {
 
   /** `DELETE /api/users/{id}`. Admin only; refuses the caller's own id. */
   deleteUser(id: number): Promise<void>
+
+  /** `GET /api/maintenance`. Admin only. */
+  getMaintenance(): Promise<MaintenanceReport>
+
+  /** `POST /api/maintenance/prune-sessions`. Admin only; answers how many went. */
+  pruneSessions(): Promise<number>
+
+  /** `POST /api/maintenance/vacuum`. Admin only; answers how many bytes came back. */
+  vacuum(): Promise<number>
+
+  /** `DELETE /api/maintenance/orphans/{name}`. Admin only; refuses a file a book points at. */
+  deleteOrphan(name: string): Promise<void>
 
   /** `GET /api/books`. */
   listBooks(params?: BookSearchParams): Promise<BookList>

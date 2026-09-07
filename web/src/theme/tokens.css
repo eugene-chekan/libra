@@ -55,6 +55,8 @@
   --libra-cover-palette-11-b: #a0b490;
   /* Destructive icon hover, error accents. */
   --libra-danger: #cc4444;
+  /* Confirmation that an action ran, beside the control that ran it. */
+  --libra-success: #3f6b4c;
   /* Selection highlight: the accent at 20% alpha. */
   --libra-selection: #8b5e3c33;
 

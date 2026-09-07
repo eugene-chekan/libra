@@ -4,8 +4,10 @@ import { routes } from '../routes'
 import shellStyles from '../shell/AppShell.module.css'
 import styles from './AdminLayout.module.css'
 
-/** The one tab that exists today — not hidden until a second tab arrives. */
-const TABS = [{ to: routes.adminUsers, label: 'Users' }] as const
+const TABS = [
+  { to: routes.adminUsers, label: 'Users' },
+  { to: routes.adminMaintenance, label: 'Maintenance' },
+] as const
 
 /** `/admin/*` — the tab shell every admin section shares. */
 export function AdminLayout() {
