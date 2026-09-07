@@ -17,6 +17,7 @@ import { expect, test } from '@playwright/test'
 test.describe.configure({ mode: 'serial' })
 
 type Api = import('@playwright/test').APIRequestContext
+type Page = import('@playwright/test').Page
 interface ApiShelf {
   id: number
   name: string
@@ -72,6 +73,21 @@ async function putFirst(request: Api, ids: number[]) {
   expect(response.ok()).toBe(true)
 }
 
+/**
+ * The page's own Manage Shelves, never the sidebar row of the same name.
+ *
+ * Both buttons exist on `/shelves`, and they do not appear at the same moment:
+ * the page draws its button before the shelves arrive, the sidebar's
+ * `ShelvesSection` waits for them. So an unscoped locator matches one element
+ * or two depending on how fast the API answered — it passed through `npm run
+ * dev`, where the proxy hop widens that window, and failed against an instance
+ * serving the client and the API from one origin (#101). A helper rather than
+ * the scope repeated four times: the naked locator is the one that looks right.
+ */
+function manageShelves(page: Page) {
+  return page.getByRole('main').getByRole('button', { name: 'Manage Shelves' })
+}
+
 test.describe('shelves, in a real browser', () => {
   test('a shelf made in the manager appears on the page and in the sidebar', async ({
     page,
@@ -80,9 +96,13 @@ test.describe('shelves, in a real browser', () => {
     const name = `E2E Shelf ${Date.now()}`
 
     await page.goto('/shelves')
+    // Either door into the manager: the header button, or the empty state's New
+    // Shelf when this reader has none yet. Scoped to the page, so exactly one of
+    // the two matches — `.first()` here was picking whichever the DOM happened
+    // to order first, the same latent ambiguity as the four clicks below.
     await page
+      .getByRole('main')
       .getByRole('button', { name: /Manage Shelves|New Shelf/ })
-      .first()
       .click()
     await page.getByLabel('New shelf').fill(name)
     await page.getByRole('button', { name: 'Add', exact: true }).click()
@@ -118,7 +138,7 @@ test.describe('shelves, in a real browser', () => {
     await putFirst(request, [shelf.id])
 
     await page.goto('/shelves')
-    await page.getByRole('button', { name: 'Manage Shelves' }).click()
+    await manageShelves(page).click()
     await page.getByRole('button', { name: `Edit ${name}` }).click()
     await page.getByLabel('Visible to other readers').check()
     await expect(page.getByText(/Anyone with an account can see this shelf/)).toBeVisible()
@@ -147,7 +167,7 @@ test.describe('shelves, in a real browser', () => {
     await putFirst(request, [first.id, second.id])
 
     await page.goto('/shelves')
-    await page.getByRole('button', { name: 'Manage Shelves' }).click()
+    await manageShelves(page).click()
 
     const firstRow = page.getByRole('listitem').filter({ hasText: first.name })
     const secondRow = page.getByRole('listitem').filter({ hasText: second.name })
@@ -180,7 +200,7 @@ test.describe('shelves, in a real browser', () => {
     await putFirst(request, [first.id, second.id])
 
     await page.goto('/shelves')
-    await page.getByRole('button', { name: 'Manage Shelves' }).click()
+    await manageShelves(page).click()
     await page.getByRole('button', { name: `Move ${second.name} up` }).click()
 
     await expect
@@ -199,7 +219,7 @@ test.describe('shelves, in a real browser', () => {
     await putFirst(request, [shelf.id])
 
     await page.goto('/shelves')
-    await page.getByRole('button', { name: 'Manage Shelves' }).click()
+    await manageShelves(page).click()
     await page.getByRole('button', { name: `Delete ${name}` }).click()
 
     await expect(page.getByRole('dialog', { name: `Delete ${name}?` })).toBeVisible()

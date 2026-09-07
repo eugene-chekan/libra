@@ -12,6 +12,7 @@ import { expect, test } from '@playwright/test'
  * whitespace. One test drives that refusal on purpose.
  */
 type Api = import('@playwright/test').APIRequestContext
+type Page = import('@playwright/test').Page
 
 interface ApiTag {
   id: number
@@ -34,12 +35,24 @@ function unique(prefix: string) {
   return `${prefix}-${Date.now()}-${Math.floor(Math.random() * 1000)}`
 }
 
+/**
+ * The sidebar's Manage Tags, which today is the only one.
+ *
+ * Unambiguous as it stands — unlike Manage Shelves, no screen carries a second
+ * button of this name. Scoped anyway, so that adding a tags page later cannot
+ * quietly reopen #101 here: that bug only shows against a real instance, and
+ * the naked locator gives no hint it is fragile.
+ */
+function manageTags(page: Page) {
+  return page.getByLabel('Main').getByRole('button', { name: 'Manage Tags' })
+}
+
 test.describe('tags, in a real browser', () => {
   test('a tag made in the manager appears in the sidebar', async ({ page, request }) => {
     const name = unique('e2e-made')
 
     await page.goto('/library')
-    await page.getByRole('button', { name: 'Manage Tags' }).click()
+    await manageTags(page).click()
     await page.getByLabel('New tag').fill(name)
     await page.getByRole('dialog').getByRole('button', { name: 'Add' }).click()
     await expect(page.getByRole('dialog').getByText(name)).toBeVisible()
@@ -51,7 +64,7 @@ test.describe('tags, in a real browser', () => {
 
   test('the server refuses a name with a space, and the box keeps it', async ({ page }) => {
     await page.goto('/library')
-    await page.getByRole('button', { name: 'Manage Tags' }).click()
+    await manageTags(page).click()
     await page.getByLabel('New tag').fill('lent out')
     await page.getByRole('dialog').getByRole('button', { name: 'Add' }).click()
 
@@ -66,7 +79,7 @@ test.describe('tags, in a real browser', () => {
     await createTag(request, before)
 
     await page.goto('/library')
-    await page.getByRole('button', { name: 'Manage Tags' }).click()
+    await manageTags(page).click()
     await page.getByRole('button', { name: `Rename ${before}` }).click()
     // Not `getByLabel('Name')`: Playwright matches a label by
     // case-insensitive substring, and every "Rename <tag>" button contains
@@ -85,7 +98,7 @@ test.describe('tags, in a real browser', () => {
     await createTag(request, name)
 
     await page.goto('/library')
-    await page.getByRole('button', { name: 'Manage Tags' }).click()
+    await manageTags(page).click()
     await page.getByRole('button', { name: `Delete ${name}` }).click()
 
     // The application's own dialog, never the browser's `confirm()`.
@@ -106,7 +119,7 @@ test.describe('tags, in a real browser', () => {
     await page.goto(`/library?tags=${tag.id}`)
     await expect(page.getByText('Filtered by:')).toBeVisible()
 
-    await page.getByRole('button', { name: 'Manage Tags' }).click()
+    await manageTags(page).click()
     await page.getByRole('button', { name: `Delete ${name}` }).click()
     await page.getByRole('button', { name: 'Delete', exact: true }).click()
     await page.getByRole('button', { name: 'Close' }).click()
