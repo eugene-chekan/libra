@@ -7,7 +7,7 @@ from pathlib import Path
 from sqlalchemy import func
 from sqlmodel import Session, col, select
 
-from app import epub, mailer, naming, storage
+from app import covers, epub, mailer, naming, storage
 from app.config import Settings
 from app.models import (
     COVER_MEDIA_TYPES,
@@ -95,8 +95,11 @@ def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = 
     view = BookRead.model_validate(book, from_attributes=True)
     view.tag_ids = tag_ids or []
     view.has_cover = bool(
-        book.book_metadata.get("cover_href")
-        and book.book_metadata.get("cover_media_type") in COVER_MEDIA_TYPES
+        book.book_metadata.get("custom_cover_media_type") in COVER_MEDIA_TYPES
+        or (
+            book.book_metadata.get("cover_href")
+            and book.book_metadata.get("cover_media_type") in COVER_MEDIA_TYPES
+        )
     )
     if state is not None:
         view.shelf_id = state.shelf_id
@@ -159,6 +162,19 @@ def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, 
     Raises:
         NoCoverError: The book declares no usable cover.
     """
+    custom = book.book_metadata.get("custom_cover_path")
+    custom_type = book.book_metadata.get("custom_cover_media_type")
+    if custom and custom_type in COVER_MEDIA_TYPES:
+        try:
+            path = storage.resolve(custom, settings.library_dir)
+            data = path.read_bytes()
+        except (ValueError, OSError) as exc:
+            raise NoCoverError from exc
+        # The stored name is a fresh uuid on every write, so a replaced cover
+        # gets a new ETag on its own. Without that the response's day-long
+        # private cache would keep showing the old picture.
+        return data, custom_type, f'"{custom}"'
+
     href = book.book_metadata.get("cover_href")
     media_type = book.book_metadata.get("cover_media_type")
     if not href or media_type not in COVER_MEDIA_TYPES:
@@ -361,6 +377,7 @@ def delete_book(session: Session, book_id: int, settings: Settings) -> None:
     """
     book = _require_book(session, book_id)
     file_path = book.file_path
+    custom_cover = book.book_metadata.get("custom_cover_path")
 
     for model, column in (
         (BookTag, BookTag.book_id),
@@ -375,6 +392,8 @@ def delete_book(session: Session, book_id: int, settings: Settings) -> None:
     # The file last. A commit that fails leaves a book with a file, which is a
     # library; the other order leaves a book without one, which is a 404.
     storage.delete(file_path, settings.library_dir)
+    if custom_cover:
+        covers.remove(custom_cover, settings.library_dir)
 
 
 # --- shelves --------------------------------------------------------------

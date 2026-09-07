@@ -258,3 +258,53 @@ def test_removing_a_cover_takes_the_file(tmp_path: Path) -> None:
 
 def test_a_path_that_climbs_out_of_the_library_is_refused(tmp_path: Path) -> None:
     assert covers.remove("../escape.jpg", tmp_path) is False
+
+
+# --- a custom cover wins over the EPUB's --------------------------------------
+
+
+def _book_with_custom_cover(session: Session, library_dir: Path) -> int:
+    """A book row whose cover is a file this test wrote, not one from an EPUB."""
+    relative, media_type = covers.store(io.BytesIO(PNG_BYTES), library_dir, max_bytes=1024)
+    book = Book(
+        title="Covered",
+        author="A",
+        format="epub",
+        file_path="nothing.epub",
+        book_metadata={"custom_cover_path": relative, "custom_cover_media_type": media_type},
+    )
+    session.add(book)
+    session.commit()
+    session.refresh(book)
+    return book.id
+
+
+def test_a_custom_cover_is_served(
+    admin_client: TestClient, session: Session, library_dir: Path
+) -> None:
+    book_id = _book_with_custom_cover(session, library_dir)
+
+    response = admin_client.get(f"/books/{book_id}/cover")
+
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "image/png"
+    assert response.content == PNG_BYTES
+
+
+def test_a_custom_cover_makes_has_cover_true(
+    admin_client: TestClient, session: Session, library_dir: Path
+) -> None:
+    """This is what unlocks the enlarge lightbox — the second report in #84."""
+    book_id = _book_with_custom_cover(session, library_dir)
+
+    assert admin_client.get(f"/books/{book_id}").json()["has_cover"] is True
+
+
+def test_deleting_the_book_takes_its_custom_cover(
+    admin_client: TestClient, session: Session, library_dir: Path
+) -> None:
+    book_id = _book_with_custom_cover(session, library_dir)
+    relative = session.get(Book, book_id).book_metadata["custom_cover_path"]
+
+    assert admin_client.delete(f"/books/{book_id}").status_code == 204
+    assert not (library_dir / relative).exists()

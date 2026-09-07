@@ -166,7 +166,7 @@ def get_cover(
     settings: Settings = Depends(get_settings),
     _: User = Depends(current_user),
 ) -> Response:
-    """The book's cover image, read straight out of the EPUB."""
+    """The book's cover image: the custom one if the book has one, else the EPUB's."""
     book = session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
