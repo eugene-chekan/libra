@@ -11,11 +11,12 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
+from app.covers import SNIFF_BYTES, sniff_media_type
 from app.epub import read_metadata
 from app.models import Book
 from tests.epub_factory import build_epub, epub_bytes
 
-PNG = b"\x89PNG\r\n\x1a\n fake image data"
+PNG_EPUB_COVER = b"\x89PNG\r\n\x1a\n fake image data"
 
 
 def _upload(client: TestClient, tmp_path: Path, **kwargs) -> dict:
@@ -73,7 +74,7 @@ def test_a_cover_is_served_with_its_bytes_and_type(client: TestClient, tmp_path:
     response = client.get(f"/books/{book['id']}/cover")
 
     assert response.status_code == 200
-    assert response.content == PNG
+    assert response.content == PNG_EPUB_COVER
     assert response.headers["content-type"] == "image/png"
 
 
@@ -165,3 +166,44 @@ def test_a_declared_cover_missing_from_the_archive_is_404(
     assert client.get(f"/books/{book_id}").json()["has_cover"] is True
     # ...but reading it fails cleanly rather than 500ing.
     assert client.get(f"/books/{book_id}/cover").status_code == 404
+
+
+# --- sniff media type from bytes -------------------------------------------
+
+
+JPEG = b"\xff\xd8\xff\xe0\x00\x10JFIF\x00"
+PNG = b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR"
+GIF = b"GIF89a\x01\x00\x01\x00"
+WEBP = b"RIFF\x24\x00\x00\x00WEBPVP8 "
+
+
+@pytest.mark.parametrize(
+    ("head", "expected"),
+    [
+        (JPEG, "image/jpeg"),
+        (PNG, "image/png"),
+        (GIF, "image/gif"),
+        (WEBP, "image/webp"),
+    ],
+)
+def test_a_real_image_is_recognised(head: bytes, expected: str) -> None:
+    assert sniff_media_type(head) == expected
+
+
+@pytest.mark.parametrize(
+    "head",
+    [
+        b"",
+        b"\xff\xd8",  # A JPEG's first two bytes, and nothing more.
+        b"<!DOCTYPE html><html>",  # What a server returns when it means 404.
+        b"%PDF-1.7",
+        b"RIFF\x24\x00\x00\x00AVI LIST",  # A RIFF container that is not WebP.
+    ],
+)
+def test_anything_else_is_not_a_cover(head: bytes) -> None:
+    assert sniff_media_type(head) is None
+
+
+def test_enough_bytes_are_read_to_decide_webp() -> None:
+    """WebP's marker sits at offset 8, further in than the other three."""
+    assert SNIFF_BYTES >= 12
