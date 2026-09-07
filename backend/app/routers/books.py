@@ -183,7 +183,11 @@ def get_cover(
         media_type=media_type,
         headers={
             "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "private, max-age=86400",
+            # `no-cache` still lets the browser store the cover; it forbids
+            # reusing it without first revalidating against the ETag. `max-age`
+            # here would hide a replaced cover for a day, since the ETag only
+            # moves the picture on the revalidation `max-age` suppresses.
+            "Cache-Control": "private, no-cache",
             "ETag": etag,
         },
     )

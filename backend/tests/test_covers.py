@@ -451,3 +451,37 @@ def test_a_refused_link_leaves_the_existing_cover_in_place(
     assert 400 <= response.status_code < 500
     assert admin_client.get(f"/books/{book_id}/cover").content == JPEG_BYTES
     assert admin_client.get(f"/books/{book_id}").json()["has_cover"] is True
+
+
+# --- a replaced cover is not hidden by the browser cache --------------------
+
+
+def test_the_cover_response_is_revalidated_not_cached_for_a_day(
+    client: TestClient, tmp_path: Path
+) -> None:
+    """`Cache-Control` is `private, no-cache`, not `max-age`.
+
+    `no-cache` lets the browser store the image but forces it to revalidate
+    against the ETag before every reuse. `max-age=86400` would instead let a
+    replaced cover stay hidden for a day: the ETag moves on every write, but a
+    browser only reads it on the revalidation that `max-age` suppresses.
+    """
+    book = _upload(client, tmp_path, cover="epub3")
+
+    headers = client.get(f"/books/{book['id']}/cover").headers
+
+    assert headers["cache-control"] == "private, no-cache"
+
+
+def test_a_replaced_cover_is_served_at_once(admin_client: TestClient, session, library_dir) -> None:
+    """Set a cover, replace it with different bytes, and the next GET returns
+    the new bytes under the header that makes a real browser re-fetch them."""
+    book_id = _plain_book(session)
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("c.jpg", JPEG_BYTES, "image/jpeg")})
+    assert admin_client.get(f"/books/{book_id}/cover").content == JPEG_BYTES
+
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("c.png", PNG_BYTES, "image/png")})
+
+    second = admin_client.get(f"/books/{book_id}/cover")
+    assert second.content == PNG_BYTES
+    assert second.headers["cache-control"] == "private, no-cache"

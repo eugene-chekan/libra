@@ -188,9 +188,13 @@ a stranger's server; neither is evidence.
 `GET /api/books/{id}/cover` keeps `X-Content-Type-Options: nosniff`. It matters
 more now, not less: the bytes are no longer only from an EPUB the reader chose.
 
-The response also keeps `Cache-Control: private, max-age=86400`, so a replaced
-cover would show the old picture for a day if the ETag did not move. Every
-write stores a new `{uuid}` filename, so it moves on its own.
+The response sends `Cache-Control: private, no-cache`. That does not mean "do
+not store it". It means "store it, but ask the server before using it again".
+The browser then revalidates with the ETag: an unchanged cover comes back as a
+bodyless `304`, a replaced one as a fresh `200` at once. `max-age=86400` was
+here first and was wrong: it lets a stale cover stand for a day, because the
+ETag — which moves on every write, each storing a new `{uuid}` filename — is
+only ever read on the revalidation that `max-age` suppresses.
 
 ## Scope
 
