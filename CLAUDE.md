@@ -12,11 +12,16 @@ first-class concerns — this needs to hold up to committee scrutiny, not just
 "work on my machine."
 
 **Phase 1 (backend core)** is done bar format conversion, and **Phase 4 (the
-web client)** is underway — it was deliberately reordered ahead of RAG and the
-agent, see `docs/specs/phase-4-plan.md` for why. The client is TypeScript and
-React. See `docs/architecture.md` for the full 5-phase roadmap and
-`docs/evaluation.md` for how each phase's evaluation methodology is built
+web client)** has finished all twelve of its milestones — what is left are
+follow-up issues, not planned work. It was deliberately reordered ahead of RAG
+and the agent, see `docs/specs/phase-4-plan.md` for why. The client is
+TypeScript and React. See `docs/architecture.md` for the full 5-phase roadmap
+and `docs/evaluation.md` for how each phase's evaluation methodology is built
 alongside the implementation.
+
+**The version number moves only when a phase completes** — one number, in
+`backend/pyproject.toml`. `0.1.0` is Phase 1; closing Phase 4 makes it
+`0.2.0`. See "Version numbers" in `docs/architecture.md`.
 
 ## How to write here
 
@@ -221,5 +226,7 @@ argument away from the happy path.
 
 **Phase boundaries**: `rag/` and `agent/` exist as empty placeholder packages
 for Phase 2/3 — don't build ahead of the current phase's scope. Calibre-backed
-format conversion and Kindle email delivery are the remaining *Phase 1* items;
+format conversion is the one remaining *Phase 1* item, and it is deferred to
+after Phase 2 — see [`docs/specs/format-conversion.md`](docs/specs/format-conversion.md).
+Kindle email delivery already shipped (#15), verified against a real device.
 RAG ingestion, the vector store, and the librarian agent are Phase 2/3.
