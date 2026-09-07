@@ -60,6 +60,23 @@ def test_duplicate_names_are_rejected_case_insensitively(client: TestClient) -> 
     assert response.status_code == 409
 
 
+def test_duplicate_names_are_rejected_in_any_alphabet(client: TestClient) -> None:
+    """SQLite's NOCASE folded the 26 ASCII letters and nothing else (#103)."""
+    _shelf(client, "Прочитано")
+
+    response = client.post(
+        "/shelves",
+        json={"name": "прочитано", "visibility": "private"},
+    )
+
+    assert response.status_code == 409
+
+
+def test_a_non_english_name_keeps_the_case_it_was_typed_in(client: TestClient) -> None:
+    """Folding decides what clashes; it never changes what is shown."""
+    assert _shelf(client, "Прочитано")["name"] == "Прочитано"
+
+
 def test_the_same_name_is_free_for_a_different_reader(
     client: TestClient, other_client: TestClient
 ) -> None:

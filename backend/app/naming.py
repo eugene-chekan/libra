@@ -1,4 +1,8 @@
-"""Human-readable filenames rebuilt from catalog metadata."""
+"""Turning what somebody typed into a canonical form.
+
+Two unrelated rules, both about names: the filename a book is downloaded as,
+and the folded form that decides when two tag or shelf names are the same one.
+"""
 
 import re
 import unicodedata
@@ -32,3 +36,23 @@ def book_filename(title: str, author: str, suffix: str = ".epub") -> str:
     # A title of nothing but separators sanitises to empty; a nameless file is
     # worse than a dull one.
     return f"{stem or 'book'}{suffix}"
+
+
+def fold_name(name: str) -> str:
+    """The form two tag or shelf names must share to count as the same name.
+
+    `casefold` rather than `lower` because it folds every alphabet, matching
+    the search fix in `app/db.py`; SQLite's own `NOCASE` folded the 26 ASCII
+    letters and left "Фантастика" and "фантастика" as two different tags.
+
+    NFC first because "é" can arrive as one character or as an "e" and a
+    combining accent, depending on the device it was typed on, and those two
+    names look identical to the person reading them.
+
+    Args:
+        name: The name as it was typed.
+
+    Returns:
+        The folded form. For matching only — never shown to anyone.
+    """
+    return unicodedata.normalize("NFC", name).casefold()

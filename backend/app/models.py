@@ -2,8 +2,10 @@ from datetime import UTC, datetime
 from typing import Literal
 
 from sqlalchemy import JSON as SA_JSON
-from sqlalchemy import Column, Index, String, text
+from sqlalchemy import Column, Index, String, event, text
 from sqlmodel import Field, SQLModel
+
+from app.naming import fold_name
 
 SHELF_PRIVATE = "private"
 SHELF_PUBLIC = "public"
@@ -116,11 +118,12 @@ class Shelf(SQLModel, table=True):
     """A named, ordered grouping of books belonging to one reader."""
 
     __tablename__ = "shelf"
-    __table_args__ = (Index("ix_shelf_owner_name", "owner_id", "name", unique=True),)
+    __table_args__ = (Index("ix_shelf_owner_name", "owner_id", "name_folded", unique=True),)
 
     id: int | None = Field(default=None, primary_key=True)
     owner_id: int = Field(foreign_key="user.id", index=True)
-    name: str = Field(sa_column=Column("name", String(collation="NOCASE"), nullable=False))
+    name: str
+    name_folded: str = Field(default="")
     position: int = Field(default=0)
     visibility: str = Field(default=SHELF_PRIVATE)
     created_at: datetime = Field(default_factory=utcnow)
@@ -162,10 +165,10 @@ class Tag(SQLModel, table=True):
 
     __tablename__ = "tag"
     __table_args__ = (
-        Index("ix_tag_owner_name", "owner_id", "name", unique=True),
+        Index("ix_tag_owner_name", "owner_id", "name_folded", unique=True),
         Index(
             "ix_tag_global_name",
-            "name",
+            "name_folded",
             unique=True,
             sqlite_where=text("owner_id IS NULL"),
         ),
@@ -173,8 +176,24 @@ class Tag(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     owner_id: int | None = Field(default=None, foreign_key="user.id", index=True)
-    name: str = Field(sa_column=Column("name", String(collation="NOCASE"), nullable=False))
+    name: str
+    name_folded: str = Field(default="")
     created_at: datetime = Field(default_factory=utcnow)
+
+
+@event.listens_for(Shelf, "before_insert")
+@event.listens_for(Shelf, "before_update")
+@event.listens_for(Tag, "before_insert")
+@event.listens_for(Tag, "before_update")
+def _keep_folded_name_in_step(_mapper: object, _connection: object, target: Shelf | Tag) -> None:
+    """Derive `name_folded` on every write, so no call site can forget it.
+
+    The unique indexes rest on that column, so a stale value does not fail
+    loudly — it quietly lets a duplicate through. Set here rather than in each
+    of the four places that write a name, because the one that is forgotten is
+    the one nobody notices.
+    """
+    target.name_folded = fold_name(target.name)
 
 
 class BookTag(SQLModel, table=True):

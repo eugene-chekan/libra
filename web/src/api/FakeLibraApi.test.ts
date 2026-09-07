@@ -708,11 +708,26 @@ describe('FakeLibraApi shelf writes', () => {
   })
 
   it('refuses a name the reader already used, ignoring case', async () => {
-    // The server's uniqueness index is COLLATE NOCASE, so one reader cannot
-    // hold both "To Read" and "to read".
+    // The server folds the name before comparing it, so one reader cannot hold
+    // both "To Read" and "to read".
     const { api } = signedIn([fakeShelf({ id: 1, owner_id: 1, name: 'To Read' })])
 
     await expect(api.createShelf({ name: 'to read' })).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('folds a name in any alphabet, not only the English one', async () => {
+    // The server's fold was ASCII-only until #103, which is what made
+    // "Фантастика" and "фантастика" two different shelves.
+    const { api } = signedIn([fakeShelf({ id: 1, owner_id: 1, name: 'Прочитано' })])
+
+    await expect(api.createShelf({ name: 'прочитано' })).rejects.toMatchObject({ status: 409 })
+  })
+
+  it('treats a composed and a decomposed accent as one name', async () => {
+    // One "é", or an "e" and a combining accent: the same word to the reader.
+    const { api } = signedIn([fakeShelf({ id: 1, owner_id: 1, name: 'Café' })])
+
+    await expect(api.createShelf({ name: 'Café' })).rejects.toMatchObject({ status: 409 })
   })
 
   it('refuses a blank name', async () => {

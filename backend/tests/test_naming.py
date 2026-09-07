@@ -9,7 +9,7 @@ on a device.
 
 import pytest
 
-from app.naming import MAX_FILENAME_STEM, book_filename
+from app.naming import MAX_FILENAME_STEM, book_filename, fold_name
 
 
 @pytest.mark.parametrize(
@@ -68,3 +68,44 @@ def test_a_combining_sequence_is_normalised_before_filtering() -> None:
 def test_the_suffix_is_caller_supplied() -> None:
     """Format conversion will want the same name with a different extension."""
     assert book_filename("Dune", "Frank Herbert", ".azw3") == "Dune - Frank Herbert.azw3"
+
+
+class TestFoldName:
+    """`fold_name` decides when two tag or shelf names count as the same one.
+
+    SQLite's `NOCASE` folded the 26 ASCII letters and nothing else, so
+    "Фантастика" and "фантастика" were two different tags (#103). This is the
+    rule the unique indexes now rest on.
+    """
+
+    @pytest.mark.parametrize(
+        ("left", "right"),
+        [
+            # The bug this replaces: ASCII was already folded, nothing else was.
+            ("Fantasy", "fantasy"),
+            ("Фантастика", "фантастика"),
+            ("ΣΊΣΥΦΟΣ", "σίσυφος"),
+            # Composed vs decomposed: one "é", or an "e" and a combining
+            # accent. A name typed on a Mac often arrives as the second.
+            ("Café", "Café"),
+            ("CAFÉ", "café"),
+        ],
+    )
+    def test_names_that_mean_the_same_fold_together(self, left: str, right: str) -> None:
+        assert fold_name(left) == fold_name(right)
+
+    @pytest.mark.parametrize(
+        ("left", "right"),
+        [
+            ("Fantasy", "Sci-Fi"),
+            ("Фантастика", "Детектив"),
+            # Folding must not collapse names that are genuinely different.
+            ("lent-out", "lent-in"),
+        ],
+    )
+    def test_different_names_stay_different(self, left: str, right: str) -> None:
+        assert fold_name(left) != fold_name(right)
+
+    def test_the_folded_form_is_not_shown_to_anyone(self) -> None:
+        """Only for matching: the display name keeps whatever was typed."""
+        assert fold_name("Фантастика") == "фантастика"

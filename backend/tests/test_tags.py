@@ -68,6 +68,36 @@ def test_duplicate_personal_names_are_rejected_case_insensitively(client: TestCl
     assert _tag(client, "FAVOURITES").status_code == 409
 
 
+def test_duplicate_personal_names_are_rejected_in_any_alphabet(client: TestClient) -> None:
+    """SQLite's NOCASE folded the 26 ASCII letters and nothing else (#103)."""
+    _tag(client, "Фантастика")
+
+    assert _tag(client, "фантастика").status_code == 409
+
+
+def test_a_name_that_differs_only_by_how_the_accent_is_stored_is_a_duplicate(
+    client: TestClient,
+) -> None:
+    """One "é", or an "e" and a combining accent. The reader sees one name."""
+    _tag(client, "Café")
+
+    assert _tag(client, "Café").status_code == 409
+
+
+def test_renaming_frees_the_old_name_and_takes_the_new_one(client: TestClient) -> None:
+    """The folded form is what uniqueness rests on, so a rename has to move it
+    too. Left behind, it would go on reserving a name nothing is called any
+    more, and stop reserving the one the tag now uses."""
+    tag_id = _tag(client, "Фантастика").json()["id"]
+
+    assert client.patch(f"/tags/{tag_id}", json={"name": "Детектив"}).status_code == 200
+
+    # The name it left is free again.
+    assert _tag(client, "фантастика").status_code == 201
+    # The name it moved to is taken, in either case.
+    assert _tag(client, "детектив").status_code == 409
+
+
 def test_the_same_personal_name_is_free_for_another_reader(
     client: TestClient, other_client: TestClient
 ) -> None:
