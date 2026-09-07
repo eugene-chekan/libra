@@ -412,7 +412,9 @@ def _assert_name_free(
     session: Session, user: User, name: str, exclude_id: int | None = None
 ) -> None:
     """Reject a duplicate before the database does."""
-    query = select(Shelf).where(Shelf.owner_id == user.id, Shelf.name == name)
+    query = select(Shelf).where(
+        Shelf.owner_id == user.id, Shelf.name_folded == naming.fold_name(name)
+    )
     existing = session.exec(query).first()
     if existing is not None and existing.id != exclude_id:
         raise DuplicateShelfNameError
@@ -636,7 +638,9 @@ def list_tags(session: Session, user: User) -> list[TagRead]:
     tags = session.exec(
         select(Tag)
         .where(_visible_tag_filter(user))
-        .order_by(Tag.owner_id.is_(None).desc(), Tag.name)
+        # By the folded name, not the typed one: `name` carried NOCASE until
+        # #103, and plain byte order would put "Zebra" before "apple".
+        .order_by(Tag.owner_id.is_(None).desc(), Tag.name_folded)
     ).all()
     counts = _tag_counts(session, [tag.id for tag in tags])
     return [_tag_to_read(tag, user, counts) for tag in tags]
@@ -646,12 +650,17 @@ def _assert_tag_name_free(
     session: Session, user: User, name: str, is_global: bool, exclude_id: int | None = None
 ) -> None:
     """Reject a clash before the database does, and refuse to shadow a global."""
-    global_match = session.exec(select(Tag).where(Tag.owner_id.is_(None), Tag.name == name)).first()
+    folded = naming.fold_name(name)
+    global_match = session.exec(
+        select(Tag).where(Tag.owner_id.is_(None), Tag.name_folded == folded)
+    ).first()
     if global_match is not None and global_match.id != exclude_id:
         raise ShadowsGlobalTagError if not is_global else DuplicateTagNameError
 
     if not is_global:
-        own = session.exec(select(Tag).where(Tag.owner_id == user.id, Tag.name == name)).first()
+        own = session.exec(
+            select(Tag).where(Tag.owner_id == user.id, Tag.name_folded == folded)
+        ).first()
         if own is not None and own.id != exclude_id:
             raise DuplicateTagNameError
 

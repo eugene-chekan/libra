@@ -22,6 +22,9 @@ import pytest
 PREVIOUS_REVISION = "d34d899bf315"
 # The tag table exists at this revision, and names may still hold spaces.
 BEFORE_TAG_RENAME = "9a8d5d47149e"
+# Names are still unique under NOCASE at this revision, so two that differ
+# only in a non-English letter's case can both be seeded.
+BEFORE_NAME_FOLD = "8be05e88e049"
 BACKEND = Path(__file__).resolve().parent.parent
 
 
@@ -235,3 +238,99 @@ def test_two_readers_keep_their_own_copies_of_a_name(tagged_db: Path) -> None:
     _upgrade(tagged_db)
 
     assert _tag_names(tagged_db) == {1: "lent-out", 2: "lent-out"}
+
+
+# --- folding names in every alphabet --------------------------------------
+
+
+@pytest.fixture(name="unfolded_db")
+def unfolded_db_fixture(tmp_path: Path) -> Generator[Path, None, None]:
+    """A database at the last revision whose names were unique under NOCASE."""
+    db_path = tmp_path / "folding.db"
+    _alembic(db_path, BEFORE_NAME_FOLD)
+    yield db_path
+
+
+def _add_shelf(db_path: Path, shelf_id: int, name: str, owner_id: int = 7) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO shelf (id, owner_id, name, position, visibility, created_at) "
+            "VALUES (?, ?, ?, 0, 'private', '2026-01-01')",
+            (shelf_id, owner_id, name),
+        )
+
+
+def _names(db_path: Path, table: str) -> dict[int, tuple[str, str]]:
+    """Every row's displayed name and its folded form."""
+    with sqlite3.connect(db_path) as conn:
+        return {
+            row[0]: (row[1], row[2])
+            for row in conn.execute(f"SELECT id, name, name_folded FROM {table}")  # noqa: S608
+        }
+
+
+def test_the_folded_name_is_filled_in_for_rows_that_already_existed(
+    unfolded_db: Path,
+) -> None:
+    _add_admin(unfolded_db)
+    _add_tag(unfolded_db, 1, "Фантастика")
+
+    _upgrade(unfolded_db)
+
+    assert _names(unfolded_db, "tag")[1] == (
+        "Фантастика",
+        "фантастика",
+    )
+
+
+def test_two_tags_that_now_clash_keep_the_older_name(unfolded_db: Path) -> None:
+    """The new index cannot be built while both stand. Failing instead would
+    fail during startup, on somebody's real database."""
+    _add_admin(unfolded_db)
+    _add_tag(unfolded_db, 1, "Фантастика")
+    _add_tag(unfolded_db, 2, "фантастика")
+
+    _upgrade(unfolded_db)
+
+    names = _names(unfolded_db, "tag")
+    assert names[1][0] == "Фантастика"
+    assert names[2][0] == "фантастика-2"
+
+
+def test_a_third_clashing_name_counts_up_rather_than_colliding_again(
+    unfolded_db: Path,
+) -> None:
+    _add_admin(unfolded_db)
+    _add_tag(unfolded_db, 1, "Книги")
+    _add_tag(unfolded_db, 2, "книги")
+    _add_tag(unfolded_db, 3, "КНИГИ")
+
+    _upgrade(unfolded_db)
+
+    folded = [pair[1] for pair in _names(unfolded_db, "tag").values()]
+    assert len(set(folded)) == 3
+
+
+def test_shelves_that_now_clash_are_resolved_the_same_way(unfolded_db: Path) -> None:
+    _add_admin(unfolded_db)
+    _add_shelf(unfolded_db, 1, "Прочитано")
+    _add_shelf(unfolded_db, 2, "прочитано")
+
+    _upgrade(unfolded_db)
+
+    names = _names(unfolded_db, "shelf")
+    assert names[1][0] == "Прочитано"
+    assert names[2][0] == "прочитано-2"
+
+
+def test_two_readers_may_still_each_have_the_same_name(unfolded_db: Path) -> None:
+    """Uniqueness is per owner. The fold must not invent a clash across them."""
+    _add_admin(unfolded_db, user_id=7, username="keeper")
+    _add_admin(unfolded_db, user_id=8, username="roommate")
+    _add_shelf(unfolded_db, 1, "Прочитано", owner_id=7)
+    _add_shelf(unfolded_db, 2, "Прочитано", owner_id=8)
+
+    _upgrade(unfolded_db)
+
+    names = _names(unfolded_db, "shelf")
+    assert names[1][0] == names[2][0] == "Прочитано"

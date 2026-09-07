@@ -6,12 +6,33 @@
 (issue #9); cover art in #20 (issue #10). **Fully shipped** — the corrections
 noted below were folded in as each part was built.
 
-One correction from building shelves: case-insensitive uniqueness is spelled
+One correction from building shelves: case-insensitive uniqueness was spelled
 `COLLATE NOCASE` on the column plus a plain unique index, **not** a
 normalised shadow column and not an index over `lower(name)`. It preserves
 display casing, which shelf and tag names need and usernames did not, and
-autogenerate renders it cleanly so `alembic check` stays quiet. Tags use the
+autogenerate renders it cleanly so `alembic check` stays quiet. Tags used the
 same shape. Caveat: SQLite's NOCASE folds ASCII only.
+
+**That caveat came true, and the correction above is reversed** (#103, shipped
+2026-09-07). NOCASE folds the 26 ASCII letters and leaves every other alphabet
+alone, so "Фантастика" and "фантастика" were two different tags. Uniqueness now
+rests on a second column, `name_folded`, holding
+`unicodedata.normalize("NFC", name).casefold()` — the shadow column this
+document first ruled out. `name` is plain text again and nothing compares it.
+
+A custom collation was the obvious alternative and was rejected on evidence:
+SQLite records the collation's *name* in the index, so a connection that has
+not registered it cannot INSERT, UPDATE, DELETE, `ORDER BY name`, `VACUUM`,
+`REINDEX` or run `PRAGMA integrity_check`. For a self-hosted app that is most
+of what somebody would open their own database to do. A folded column needs no
+connection-time setup and a plain `sqlite3` shell opens it normally.
+
+Two consequences worth knowing. The column is derived by a `before_insert` /
+`before_update` mapper event in `app/models.py` rather than at each call site,
+because a stale folded value does not fail loudly — it quietly lets a duplicate
+through. And NFC is part of the fold: "é" arrives as one character or as an "e"
+and a combining accent depending on the device it was typed on, and those two
+names look identical to the reader.
 
 A second correction from building tags: the unique index proposed below as
 `(coalesce(owner_id, 0), lower(name))` is not needed, but a plain composite

@@ -807,19 +807,14 @@ export class FakeLibraApi implements LibraApi {
     isGlobal = false
   ): void {
     const clashesWithGlobal = this.tags.some(
-      (tag) =>
-        tag.owner_id === null &&
-        tag.id !== exceptId &&
-        tag.name.toLowerCase() === name.toLowerCase()
+      (tag) => tag.owner_id === null && tag.id !== exceptId && foldName(tag.name) === foldName(name)
     )
     if (clashesWithGlobal) throw new ApiError(409, 'A global tag already uses that name')
     if (isGlobal) return
 
     const taken = this.tags.some(
       (tag) =>
-        tag.owner_id === caller.id &&
-        tag.id !== exceptId &&
-        tag.name.toLowerCase() === name.toLowerCase()
+        tag.owner_id === caller.id && tag.id !== exceptId && foldName(tag.name) === foldName(name)
     )
     if (taken) throw new ApiError(409, 'You already have a tag with that name')
   }
@@ -854,7 +849,7 @@ export class FakeLibraApi implements LibraApi {
       (shelf) =>
         shelf.owner_id === caller.id &&
         shelf.id !== exceptId &&
-        shelf.name.toLowerCase() === name.toLowerCase()
+        foldName(shelf.name) === foldName(name)
     )
     if (taken) throw new ApiError(409, 'You already have a shelf with that name')
   }
@@ -878,6 +873,19 @@ export class FakeLibraApi implements LibraApi {
 }
 
 /** Drops the fake's own password field, which no endpoint ever returns. */
+/**
+ * When two tag or shelf names count as the same one — the server's `fold_name`.
+ *
+ * NFC first, because "é" reaches here as one character or as an "e" and a combining accent
+ * depending on the device it was typed on. The server folds with Python's `casefold` and this
+ * uses `toLowerCase`, which agree on every alphabet but disagree on a few single characters —
+ * "Straße" and "STRASSE" are one name to the server and two here. Close enough for a double,
+ * and named so the next person knows the edge exists.
+ */
+function foldName(name: string): string {
+  return name.normalize('NFC').toLowerCase()
+}
+
 function publicUser(user: FakeUser): User {
   const { password: _password, ...rest } = user
   return rest
