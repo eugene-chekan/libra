@@ -13,6 +13,10 @@ dependencies = [
     # ahead of migrations.
     "alembic>=1.9",
     "argon2-cffi>=25.1.0",
+    # Fetching a cover from a link. Same library the test client already used
+    # from the dev group; httpx2 rather than httpx because that is the name
+    # its 2.x line ships under.
+    "httpx2>=2.9.0",
 ]
 
 [dependency-groups]

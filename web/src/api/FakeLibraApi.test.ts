@@ -351,6 +351,95 @@ describe('FakeLibraApi.deleteBook', () => {
   })
 })
 
+/**
+ * Covers, added in #84. All three endpoints are admin-only on the server, the
+ * catalog being shared. The rules the fake can mirror without bytes are the
+ * admin gate, the book lookup, and the `https://` scheme of a link; the checks
+ * that need real content — a private address, a body that is not a picture —
+ * are steered through `coverFailure`, the way `kindleFailure` steers a
+ * delivery the fake cannot organically produce.
+ */
+describe('FakeLibraApi cover writes', () => {
+  function signedIn(books: FakeBook[] = []) {
+    const user = fakeUser({ id: 1, is_admin: false })
+    return { user, api: new FakeLibraApi({ users: [user], signedInAs: user, books }) }
+  }
+
+  function signedInAsAdmin(books: FakeBook[] = []) {
+    const user = fakeUser({ id: 1, is_admin: true })
+    return { user, api: new FakeLibraApi({ users: [user], signedInAs: user, books }) }
+  }
+
+  const jpeg = () => new File(['x'], 'c.jpg', { type: 'image/jpeg' })
+
+  it('refuses every one of them for a reader who is not an admin', async () => {
+    const { api } = signedIn([fakeBook({ id: 5 })])
+
+    await expect(api.setCover(5, jpeg())).rejects.toMatchObject({ status: 403 })
+    await expect(api.setCoverFromUrl(5, 'https://example.com/c.jpg')).rejects.toMatchObject({
+      status: 403,
+    })
+    await expect(api.clearCover(5)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('turns has_cover true once a cover is set', async () => {
+    // The server works this out from the stored cover; the fake has no bytes, so
+    // it records the fact instead. What the screen reads is the same either way.
+    const { api } = signedInAsAdmin([fakeBook({ id: 5, has_cover: false })])
+
+    expect((await api.setCover(5, jpeg())).has_cover).toBe(true)
+  })
+
+  it('415s a file whose declared type is not a picture', async () => {
+    const { api } = signedInAsAdmin([fakeBook({ id: 5 })])
+
+    await expect(
+      api.setCover(5, new File(['x'], 'c.txt', { type: 'text/plain' }))
+    ).rejects.toMatchObject({ status: 415 })
+  })
+
+  it('refuses a link that is not https', async () => {
+    const { api } = signedInAsAdmin([fakeBook({ id: 5 })])
+
+    await expect(api.setCoverFromUrl(5, 'http://192.168.1.1/c.jpg')).rejects.toMatchObject({
+      status: 422,
+    })
+  })
+
+  it('sets has_cover from an https link', async () => {
+    const { api } = signedInAsAdmin([fakeBook({ id: 5, has_cover: false })])
+
+    expect((await api.setCoverFromUrl(5, 'https://example.com/c.jpg')).has_cover).toBe(true)
+  })
+
+  it('raises whatever link failure a test configures, for the checks it cannot make itself', async () => {
+    const { api } = signedInAsAdmin([fakeBook({ id: 5 })])
+    api.coverFailure = 'that address is inside a private network'
+
+    await expect(api.setCoverFromUrl(5, 'https://sneaky.example/c.jpg')).rejects.toMatchObject({
+      status: 422,
+      message: 'that address is inside a private network',
+    })
+  })
+
+  it('clears the cover again', async () => {
+    const { api } = signedInAsAdmin([fakeBook({ id: 5, has_cover: false })])
+    await api.setCover(5, jpeg())
+
+    expect((await api.clearCover(5)).has_cover).toBe(false)
+  })
+
+  it('404s an admin on a book that is not there, on every one of them', async () => {
+    const { api } = signedInAsAdmin()
+
+    await expect(api.setCover(999, jpeg())).rejects.toMatchObject({ status: 404 })
+    await expect(api.setCoverFromUrl(999, 'https://example.com/c.jpg')).rejects.toMatchObject({
+      status: 404,
+    })
+    await expect(api.clearCover(999)).rejects.toMatchObject({ status: 404 })
+  })
+})
+
 describe('FakeLibraApi maintenance', () => {
   const files = () => [
     { name: 'kept.epub', size_bytes: 10, modified_at: 'x', usedByBook: true },

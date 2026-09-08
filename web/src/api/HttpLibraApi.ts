@@ -156,6 +156,28 @@ export class HttpLibraApi implements LibraApi {
     return `${BASE}/books/${id}/cover`
   }
 
+  /**
+   * Multipart, like {@link uploadBook}: no `Content-Type` set by hand, so the browser adds the
+   * boundary itself.
+   */
+  async setCover(bookId: number, file: File): Promise<Book> {
+    const body = new FormData()
+    body.set('file', file)
+    return this.request<Book>(`/books/${bookId}/cover`, {
+      method: 'PUT',
+      credentials: 'include',
+      body,
+    })
+  }
+
+  async setCoverFromUrl(bookId: number, url: string): Promise<Book> {
+    return this.send<Book>('POST', `/books/${bookId}/cover/from-url`, { url })
+  }
+
+  async clearCover(bookId: number): Promise<Book> {
+    return this.send<Book>('DELETE', `/books/${bookId}/cover`)
+  }
+
   async getBook(id: number): Promise<Book> {
     return this.send<Book>('GET', `/books/${id}`)
   }

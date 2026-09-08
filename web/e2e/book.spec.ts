@@ -15,6 +15,15 @@ import { expect, test } from '@playwright/test'
  * fake.
  */
 
+/**
+ * A real 1x1 PNG. The cover endpoint reads the format from the bytes, not from
+ * the name or the sent type, so this must genuinely begin with the PNG signature.
+ */
+const PNG_BYTES = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4z8AAAAMBAQDJ/pLvAAAAAElFTkSuQmCC',
+  'base64'
+)
+
 async function createBook(request: import('@playwright/test').APIRequestContext, title: string) {
   const response = await request.post('/api/books', {
     data: { title, author: 'E2E Author', format: 'epub', file_path: `${title}.epub` },
@@ -140,6 +149,27 @@ test.describe('book detail, in a real browser', () => {
     await page.goto('/books/999999')
 
     await expect(page.getByText('That book is not in this library.')).toBeVisible()
+  })
+
+  test('an admin gives a book a cover, and the lightbox unlocks', async ({ page, request }) => {
+    // A book seeded from a row with no cover of its own: the case #84 was filed
+    // for, where the placeholder could never be replaced, so the detail
+    // screen's click-to-enlarge was correctly but confusingly dead.
+    const title = `E2E Cover ${Date.now()}`
+    const book = await createBook(request, title)
+
+    await page.goto(`/books/${book.id}`)
+    await expect(page.getByRole('button', { name: 'Enlarge cover' })).toBeHidden()
+
+    await page.getByRole('button', { name: 'Edit Book' }).click()
+    await page
+      .getByLabel(/choose a picture/i)
+      .setInputFiles({ name: 'c.png', mimeType: 'image/png', buffer: PNG_BYTES })
+
+    await expect(page.getByRole('status')).toHaveText(/cover updated/i)
+
+    await page.reload()
+    await expect(page.getByRole('button', { name: 'Enlarge cover' })).toBeVisible()
   })
 
   /*

@@ -21,7 +21,7 @@ export function useBook(id: number): UseQueryResult<Book> {
 }
 
 /** Marks everything a write to this book can have changed as out of date. */
-function useBookRefresh(id: number): () => void {
+export function useBookRefresh(id: number): () => void {
   const queryClient = useQueryClient()
   return () => {
     void queryClient.invalidateQueries({ queryKey: ['book', id] })

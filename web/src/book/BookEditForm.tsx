@@ -4,6 +4,7 @@ import { messageFor } from '../api/errors'
 import type { Book, BookPatch } from '../api/types'
 import { ErrorBlock } from '../widgets/ErrorBlock'
 import { BookFields, bookFieldsToPatch, bookFieldsValuesFrom, checkBookFields } from './BookFields'
+import { CoverSection } from './CoverSection'
 import buttons from './actionButtons.module.css'
 import styles from './BookEditForm.module.css'
 
@@ -48,6 +49,8 @@ export function BookEditForm({ book, onSave, onDone }: BookEditFormProps) {
       <h2 className={styles.heading}>Edit Book</h2>
 
       <BookFields values={values} onChange={setValues} />
+
+      <CoverSection book={book} />
 
       {error && <ErrorBlock message={error} />}
 

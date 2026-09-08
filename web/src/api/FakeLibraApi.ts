@@ -157,6 +157,12 @@ interface FakeOptions {
   /** What the mail server does with the next send. */
   kindleFailure?: string | null
   /**
+   * What the next cover-from-link request is refused with. Stands in for the checks the fake
+   * cannot make — a private address, a body that is not a picture — the way `kindleFailure`
+   * stands in for a delivery it cannot produce.
+   */
+  coverFailure?: string | null
+  /**
    * What the next `uploadBook` "parses" out of the file, since the fake cannot read real EPUB
    * bytes. Unset fields fall back to a name derived from the filename.
    */
@@ -185,6 +191,8 @@ export class FakeLibraApi implements LibraApi {
   readonly reclaimableBytes: number
   /** Settable mid-test, so one send can fail and the next succeed. */
   kindleFailure: string | null
+  /** Settable mid-test, so a cover link can be refused with a chosen message. */
+  coverFailure: string | null
   /** Settable mid-test, so each upload in a test can "parse" to something different. */
   uploadMetadata: Partial<FakeBook> | null
   /** Settable mid-test, for the one upload that should fail. */
@@ -207,6 +215,7 @@ export class FakeLibraApi implements LibraApi {
     missingFiles = [],
     reclaimableBytes = 0,
     kindleFailure = null,
+    coverFailure = null,
     uploadMetadata = null,
     uploadFailure = null,
   }: FakeOptions = {}) {
@@ -223,6 +232,7 @@ export class FakeLibraApi implements LibraApi {
     this.missingFiles = missingFiles
     this.reclaimableBytes = reclaimableBytes
     this.kindleFailure = kindleFailure
+    this.coverFailure = coverFailure
     this.uploadMetadata = uploadMetadata
     this.uploadFailure = uploadFailure
   }
@@ -633,6 +643,53 @@ export class FakeLibraApi implements LibraApi {
     for (let i = this.notes.length - 1; i >= 0; i--) {
       if (this.notes[i]?.book_id === id) this.notes.splice(i, 1)
     }
+  }
+
+  /**
+   * Admin-only and refused before the book is looked up, as `updateBook` is — `require_admin`
+   * is a dependency on the server. The server decides the picture is one by sniffing its first
+   * bytes; the fake has none, so it trusts the file's declared type and stores `has_cover` as a
+   * plain fact. The screen reads the same field either way.
+   */
+  async setCover(bookId: number, file: File): Promise<Book> {
+    this.calls.push(`setCover:${bookId}`)
+    this.requireAdmin()
+    const book = this.requireBook(bookId)
+    if (!file.type.startsWith('image/')) {
+      throw new ApiError(415, 'not a JPEG, PNG, GIF or WebP')
+    }
+    book.has_cover = true
+    return book
+  }
+
+  /**
+   * Admin-only, refused before the lookup. The server refuses any link that is not a public
+   * https address. The fake cannot resolve a hostname, so it checks only the half it can see —
+   * the `https://` scheme — and leaves the private-network check to the backend tests.
+   * `coverFailure` stands in for the refusals it cannot reach on its own.
+   */
+  async setCoverFromUrl(bookId: number, url: string): Promise<Book> {
+    this.calls.push(`setCoverFromUrl:${bookId}`)
+    this.requireAdmin()
+    const book = this.requireBook(bookId)
+    if (!url.startsWith('https://')) {
+      throw new ApiError(422, 'a cover link must be an https address')
+    }
+    if (this.coverFailure !== null) throw new ApiError(422, this.coverFailure)
+    book.has_cover = true
+    return book
+  }
+
+  /**
+   * Admin-only, refused before the lookup. Drops the custom cover; the fake has no EPUB cover to
+   * fall back to, so `has_cover` goes false.
+   */
+  async clearCover(bookId: number): Promise<Book> {
+    this.calls.push(`clearCover:${bookId}`)
+    this.requireAdmin()
+    const book = this.requireBook(bookId)
+    book.has_cover = false
+    return book
   }
 
   /**

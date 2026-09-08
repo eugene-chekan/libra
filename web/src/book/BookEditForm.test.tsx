@@ -1,11 +1,16 @@
-import { render, screen } from '@testing-library/react'
+import { QueryClientProvider } from '@tanstack/react-query'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
+import { ApiProvider } from '../api/ApiProvider'
 import { ApiError } from '../api/errors'
-import { fakeBook } from '../api/FakeLibraApi'
+import { fakeBook, fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
+import { createQueryClient } from '../queryClient'
 import { BookEditForm } from './BookEditForm'
 
+// The nested `CoverSection` reaches the API and the query client, so the form
+// now needs both providers even though its own fields still do not.
 function renderForm(overrides: Partial<Parameters<typeof BookEditForm>[0]> = {}) {
   const props = {
     book: fakeBook({ title: 'Dune', author: 'Frank Herbert', year: 1965, pages: 412 }),
@@ -13,8 +18,16 @@ function renderForm(overrides: Partial<Parameters<typeof BookEditForm>[0]> = {})
     onDone: vi.fn(),
     ...overrides,
   }
-  render(<BookEditForm {...props} />)
-  return props
+  const admin = fakeUser({ id: 1, is_admin: true })
+  const api = new FakeLibraApi({ users: [admin], signedInAs: admin, books: [props.book] })
+  render(
+    <ApiProvider api={api}>
+      <QueryClientProvider client={createQueryClient()}>
+        <BookEditForm {...props} />
+      </QueryClientProvider>
+    </ApiProvider>
+  )
+  return { ...props, api }
 }
 
 describe('BookEditForm', () => {
@@ -102,6 +115,19 @@ describe('BookEditForm', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('has to be a number')
     expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('takes a cover link on Enter in the field, and does not submit the form', async () => {
+    // Pressing Enter after pasting a URL is a habit. The link field is inside
+    // this form, so an unguarded Enter would submit it and lose the link.
+    const user = userEvent.setup()
+    const { onSave, onDone, api, book } = renderForm()
+
+    await user.type(screen.getByLabelText(/paste a link/i), 'https://example.com/c.jpg{Enter}')
+
+    await waitFor(() => expect(api.calls).toContain(`setCoverFromUrl:${book.id}`))
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onDone).not.toHaveBeenCalled()
   })
 
   it('stays open and reports the reason when the server refuses', async () => {

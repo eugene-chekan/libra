@@ -2,11 +2,13 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
+from pydantic import BaseModel
 from sqlmodel import Session
 
-from app import library, storage
+from app import covers, library, storage
 from app.auth import current_user, require_admin
 from app.config import Settings, get_settings
+from app.covers_from_url import FetchFailedError, TooLargeError, UnsafeUrlError
 from app.db import get_session
 from app.epub import InvalidEpubError, read_metadata
 from app.logging_config import get_logger
@@ -166,7 +168,7 @@ def get_cover(
     settings: Settings = Depends(get_settings),
     _: User = Depends(current_user),
 ) -> Response:
-    """The book's cover image, read straight out of the EPUB."""
+    """The book's cover image: the custom one if the book has one, else the EPUB's."""
     book = session.get(Book, book_id)
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
@@ -181,10 +183,82 @@ def get_cover(
         media_type=media_type,
         headers={
             "X-Content-Type-Options": "nosniff",
-            "Cache-Control": "private, max-age=86400",
+            # `no-cache` still lets the browser store the cover; it forbids
+            # reusing it without first revalidating against the ETag. `max-age`
+            # here would hide a replaced cover for a day, since the ETag only
+            # moves the picture on the revalidation `max-age` suppresses.
+            "Cache-Control": "private, no-cache",
             "ETag": etag,
         },
     )
+
+
+class CoverUrl(BaseModel):
+    """Where to fetch a cover from."""
+
+    url: str
+
+
+@router.put("/{book_id}/cover")
+def set_cover(
+    book_id: int,
+    file: UploadFile,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(require_admin),
+) -> BookRead:
+    """Replace a book's cover with an uploaded picture."""
+    try:
+        return library.set_cover(session, book_id, file.file, user, settings)
+    except library.BookNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Book not found") from exc
+    except covers.NotAnImageError as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
+    except UploadTooLargeError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+
+
+@router.post("/{book_id}/cover/from-url")
+def set_cover_from_url(
+    book_id: int,
+    body: CoverUrl,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(require_admin),
+) -> BookRead:
+    """Replace a book's cover with a picture fetched from a link."""
+    try:
+        return library.set_cover_from_url(session, book_id, body.url, user, settings)
+    except library.BookNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Book not found") from exc
+    # The fetched bytes still go through covers.store, so the same two failures
+    # the upload route maps are possible here. Mapped identically.
+    except covers.NotAnImageError as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
+    except UploadTooLargeError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    # Before FetchFailedError, which it inherits from: caught the other way
+    # round this answers 422 where 413 is meant.
+    except TooLargeError as exc:
+        raise HTTPException(status_code=413, detail=str(exc)) from exc
+    except (UnsafeUrlError, FetchFailedError) as exc:
+        # The module's own sentence, which names what was wrong with the
+        # address. A generic message here leaves the admin guessing.
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+
+@router.delete("/{book_id}/cover")
+def clear_cover(
+    book_id: int,
+    session: Session = Depends(get_session),
+    settings: Settings = Depends(get_settings),
+    user: User = Depends(require_admin),
+) -> BookRead:
+    """Drop the custom cover, so the book's own one comes back."""
+    try:
+        return library.clear_cover(session, book_id, user, settings)
+    except library.BookNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Book not found") from exc
 
 
 @router.get("/{book_id}/file")

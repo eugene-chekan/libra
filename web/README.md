@@ -93,12 +93,21 @@ the prefix that request would reach the endpoint returning the shelf list and
 the reader would get JSON instead of the app. The backend's `SpaStaticFiles`
 serves `index.html` for client routes and keeps `/api/*` a 404.
 
-**Two kinds of write, two endpoints.** A book's rating, progress and shelf
-belong to one reader and save the moment they change, through
-`PUT /api/books/{id}/state`. Its title, author, year, pages and blurb are the
-shared catalog: they change what everyone sees, so they sit behind Save and
-Cancel and go through `PATCH /api/books/{id}`, which is admin-only. The screen
-is built around that split — see `src/screens/BookScreen.tsx`.
+**Three kinds of write.** A book's rating, progress and shelf belong to one
+reader and save the moment they change, through `PUT /api/books/{id}/state`.
+Its title, author, year, pages and blurb are the shared catalog: they change
+what everyone sees, so they sit behind Save and Cancel and go through
+`PATCH /api/books/{id}`, which is admin-only. The screen is built around that
+split — see `src/screens/BookScreen.tsx`.
+
+**A cover is the third kind.** A book's cover is shared catalog data and
+admin-only, exactly like its title and blurb. But it does not sit behind Save
+and Cancel. It saves as soon as the admin picks a file or pastes a link, with
+a line of feedback next to the control. The reason is the endpoint: a cover is
+a file. An upload goes to `PUT /api/books/{id}/cover`. A link goes to
+`POST /api/books/{id}/cover/from-url`. Neither can be part of the single
+`PATCH /api/books/{id}` that Save sends. `docs/specs/book-covers.md` has the
+full reasoning.
 
 **`PUT /state` is a PUT.** A body that leaves `rating` or `progress` out does
 not keep the old value, it sets it to zero. `BookStateWrite` makes both

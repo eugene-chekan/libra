@@ -66,19 +66,28 @@ def stage_upload(source: BinaryIO, library_dir: Path, max_bytes: int) -> StagedU
     return StagedUpload(path=temp_path, size_bytes=size, sha256=digest.hexdigest())
 
 
-def commit(staged: StagedUpload, library_dir: Path, suffix: str = ".epub") -> str:
+def commit(
+    staged: StagedUpload,
+    library_dir: Path,
+    suffix: str = ".epub",
+    subdir: str | None = None,
+) -> str:
     """Promote a staged upload to its permanent name; returns the relative path.
 
     Args:
         staged: What `stage_upload` produced.
         library_dir: The library root.
         suffix: File extension to store it under.
+        subdir: Folder inside the library to place it in, or None for the root.
 
     Returns:
-        The stored name, relative to `library_dir`.
+        The stored path, relative to `library_dir`, using forward slashes.
     """
     stored_name = f"{uuid.uuid4().hex}{suffix}"
-    destination = library_dir / stored_name
+    parent = library_dir if subdir is None else library_dir / subdir
+    parent.mkdir(parents=True, exist_ok=True)
+    destination = parent / stored_name
+    relative = stored_name if subdir is None else f"{subdir}/{stored_name}"
     # Same-filesystem rename by construction (see stage_upload), but fall back
     # to a copy so an exotic setup with a bind-mounted tmpdir still works.
     try:
@@ -96,7 +105,7 @@ def commit(staged: StagedUpload, library_dir: Path, suffix: str = ".epub") -> st
             staged.path,
         )
         shutil.move(str(staged.path), str(destination))
-    return stored_name
+    return relative
 
 
 def resolve(relative_path: str, library_dir: Path) -> Path:

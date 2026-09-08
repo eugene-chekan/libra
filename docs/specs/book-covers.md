@@ -1,7 +1,9 @@
 # Spec: Setting a Book's Cover
 
-**Status:** Designed 2026-09-07, not started. Issue #84, plus setting a cover
-from a link, added when the feature was scoped.
+**Status:** Shipped 2026-09-07 (issue #84). Both reports in the issue are
+closed — `has_cover` can now turn true for any book, and the detail screen's
+click-to-enlarge works once a book has a cover. Setting a cover from a link
+was added when the feature was planned, and shipped with it.
 
 ## Why
 
@@ -14,7 +16,7 @@ generated gradient placeholder and there is no way to give it a real picture.
 A second report looked separate at first and is the same bug. The detail
 screen's click-to-enlarge only works when `has_cover` is true
 (`DetailCover.tsx`), so those books are not clickable. A placeholder has
-nothing real to enlarge into. Once a cover can be set, both reports close.
+nothing real to enlarge into. Setting a cover closes both reports.
 
 ## Who can do this
 
@@ -168,6 +170,19 @@ For an admin-only control on a household instance this is judged proportionate.
 It is written down rather than left implied, because the guard reads airtight
 and is not.
 
+### A deployment behind an egress proxy cannot use the link path
+
+The fetch client is built with `trust_env=False`. That makes it ignore the
+`HTTPS_PROXY` and `ALL_PROXY` environment variables. This is on purpose. If
+those variables were honoured, the fetch would run through a proxy, and the
+proxy would resolve the host name itself. `check_url` would then have vetted
+an address that the real connection never used.
+
+The cost is real and belongs here. A deployment that reaches the internet
+only through an egress proxy cannot fetch a cover from a link. libra ships in
+Docker, where `HTTPS_PROXY` and `ALL_PROXY` are often set. Uploading a cover
+file still works, because that opens no outward connection.
+
 **Dependency:** `httpx2` moves from the dev group to the runtime dependencies.
 No new library — it is already there for `starlette.testclient`.
 
@@ -188,9 +203,13 @@ a stranger's server; neither is evidence.
 `GET /api/books/{id}/cover` keeps `X-Content-Type-Options: nosniff`. It matters
 more now, not less: the bytes are no longer only from an EPUB the reader chose.
 
-The response also keeps `Cache-Control: private, max-age=86400`, so a replaced
-cover would show the old picture for a day if the ETag did not move. Every
-write stores a new `{uuid}` filename, so it moves on its own.
+The response sends `Cache-Control: private, no-cache`. That does not mean "do
+not store it". It means "store it, but ask the server before using it again".
+The browser then revalidates with the ETag: an unchanged cover comes back as a
+bodyless `304`, a replaced one as a fresh `200` at once. `max-age=86400` was
+here first and was wrong: it lets a stale cover stand for a day, because the
+ETag — which moves on every write, each storing a new `{uuid}` filename — is
+only ever read on the revalidation that `max-age` suppresses.
 
 ## Scope
 
