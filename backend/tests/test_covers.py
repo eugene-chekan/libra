@@ -388,11 +388,16 @@ def test_a_cover_can_be_set_from_a_link(monkeypatch, admin_client, session) -> N
     assert response.json()["has_cover"] is True
 
 
-def test_a_link_inside_the_network_is_refused(admin_client: TestClient, session) -> None:
+def test_a_link_inside_the_network_is_refused(
+    monkeypatch, admin_client: TestClient, session
+) -> None:
+    """The address guard, not the scheme check: a well-formed https link whose
+    host resolves to a private address is refused before any fetch."""
+    monkeypatch.setattr("app.covers_from_url._resolve", lambda host: ["192.168.1.1"])
     book_id = _plain_book(session)
 
     response = admin_client.post(
-        f"/books/{book_id}/cover/from-url", json={"url": "http://192.168.1.1/c.jpg"}
+        f"/books/{book_id}/cover/from-url", json={"url": "https://sneaky.example/c.jpg"}
     )
 
     assert response.status_code == 422
@@ -485,3 +490,39 @@ def test_a_replaced_cover_is_served_at_once(admin_client: TestClient, session, l
     second = admin_client.get(f"/books/{book_id}/cover")
     assert second.content == PNG_BYTES
     assert second.headers["cache-control"] == "private, no-cache"
+
+
+# --- the format list cannot drift out of step ------------------------------
+
+
+def test_every_accepted_media_type_has_a_stored_suffix() -> None:
+    """`covers.store` does `SUFFIXES[media_type]`, so a type accepted by
+    `COVER_MEDIA_TYPES` with no entry here would be a 500. Pin them equal."""
+    assert set(covers.SUFFIXES) == COVER_MEDIA_TYPES
+
+
+# --- the old cover file outlives a commit that fails -----------------------
+
+
+def test_a_failed_commit_leaves_the_previous_cover_file_on_disk(
+    monkeypatch, admin_client: TestClient, session: Session, library_dir: Path
+) -> None:
+    """The replaced file is removed only after the commit that dropped the row's
+    reference to it. If that commit fails the metadata rolls back to the old
+    path, so the file it names must still be there — otherwise the book shows a
+    broken image for good."""
+    book_id = _plain_book(session)
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("c.jpg", JPEG_BYTES, "image/jpeg")})
+    first = session.get(Book, book_id).book_metadata["custom_cover_path"]
+
+    def _locked() -> None:
+        raise RuntimeError("database is locked")
+
+    monkeypatch.setattr(session, "commit", _locked)
+
+    with pytest.raises(RuntimeError, match="database is locked"):
+        admin_client.put(
+            f"/books/{book_id}/cover", files={"file": ("c.png", PNG_BYTES, "image/png")}
+        )
+
+    assert (library_dir / first).exists()

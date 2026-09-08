@@ -71,8 +71,31 @@ describe('CoverSection', () => {
     )
   })
 
-  it('offers the book’s own cover again only when a custom one is set', async () => {
+  it('sets the cover when Enter is pressed in the link field', async () => {
+    const { api } = renderSection()
+
+    await userEvent.type(screen.getByLabelText(/link/i), 'https://example.com/c.jpg{Enter}')
+
+    await waitFor(() => expect(screen.getByRole('status')).toHaveTextContent(/cover updated/i))
+    expect(api.calls).toContain('setCoverFromUrl:1')
+  })
+
+  it('always offers the book’s own cover again, set or not', async () => {
     renderSection({ book: { has_cover: false } })
-    expect(screen.queryByRole('button', { name: /book’s own cover/i })).not.toBeInTheDocument()
+
+    expect(
+      screen.getByRole('button', { name: /use the book’s own cover again/i })
+    ).toBeInTheDocument()
+  })
+
+  it('drops the custom cover when the undo button is used', async () => {
+    const { api } = renderSection()
+
+    await userEvent.click(screen.getByRole('button', { name: /use the book’s own cover again/i }))
+
+    await waitFor(() =>
+      expect(screen.getByRole('status')).toHaveTextContent(/using the book’s own cover again/i)
+    )
+    expect(api.calls).toContain('clearCover:1')
   })
 })

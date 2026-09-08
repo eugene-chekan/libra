@@ -38,12 +38,12 @@ class NotAnImageError(ValueError):
     """The bytes are not a picture this app accepts."""
 
 
-COVERS_SUBDIR = "covers"
-
 # Kept apart from the library root on purpose: `maintenance.report` treats any
 # file sitting directly in the root that no book row points at as an orphan and
 # offers to delete it. A cover stored beside the books would be offered, and
 # taken. See docs/specs/book-covers.md.
+COVERS_SUBDIR = "covers"
+
 SUFFIXES = {
     "image/jpeg": ".jpg",
     "image/png": ".png",

@@ -4,6 +4,7 @@ import { messageFor } from '../api/errors'
 import type { Book } from '../api/types'
 import { Icon } from '../widgets/Icon'
 import { useClearCover, useSetCover, useSetCoverFromUrl } from './useCover'
+import buttons from './actionButtons.module.css'
 import styles from './CoverSection.module.css'
 
 /** The cover, inside the Edit Book form — the one part of it that applies at once. */
@@ -54,27 +55,31 @@ export function CoverSection({ book }: { book: Book }) {
           placeholder="https://…"
           disabled={busy}
           onChange={(event) => setLink(event.target.value)}
+          onKeyDown={(event) => {
+            // Enter here would otherwise submit the Edit Book form and drop the link.
+            if (event.key !== 'Enter') return
+            event.preventDefault()
+            if (link.trim() && !busy) setFromUrl.mutate(link.trim(), settled('Cover updated.'))
+          }}
         />
       </label>
       <button
         type="button"
-        className={styles.action}
+        className={`${buttons.outlined} ${buttons.small}`}
         disabled={busy || !link.trim()}
         onClick={() => setFromUrl.mutate(link.trim(), settled('Cover updated.'))}
       >
         Use this link
       </button>
 
-      {book.has_cover && (
-        <button
-          type="button"
-          className={styles.action}
-          disabled={busy}
-          onClick={() => clear.mutate(undefined, settled('Using the book’s own cover again.'))}
-        >
-          Use the book’s own cover again
-        </button>
-      )}
+      <button
+        type="button"
+        className={`${buttons.outlined} ${buttons.small}`}
+        disabled={busy}
+        onClick={() => clear.mutate(undefined, settled('Using the book’s own cover again.'))}
+      >
+        Use the book’s own cover again
+      </button>
 
       {said && (
         <p className={said.ok ? styles.succeeded : styles.failed} role="status">

@@ -56,30 +56,11 @@
   border-color: var(--libra-accent);
 }
 
-.action {
+/* The two buttons wear the shared `.outlined`/`.small` treatment from
+   actionButtons.module.css. Those assume a flex-start parent; this column is
+   not one, so stop them stretching the full width of it. */
+.section > button {
   align-self: flex-start;
-  padding: 9px 18px;
-  border: 1.5px solid var(--libra-border);
-  border-radius: var(--libra-radius);
-  background: var(--libra-card);
-  font-family: var(--libra-sans);
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--libra-text-mid);
-  cursor: pointer;
-  transition:
-    border-color var(--libra-t-interactive),
-    color var(--libra-t-interactive);
-}
-
-.action:hover:not(:disabled) {
-  border-color: var(--libra-accent);
-  color: var(--libra-accent);
-}
-
-.action:disabled {
-  cursor: default;
-  color: var(--libra-text-light);
 }
 
 /* What the last action said. An icon carries the meaning alongside the colour,

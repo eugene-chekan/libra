@@ -1,5 +1,5 @@
 import { QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -27,7 +27,7 @@ function renderForm(overrides: Partial<Parameters<typeof BookEditForm>[0]> = {})
       </QueryClientProvider>
     </ApiProvider>
   )
-  return props
+  return { ...props, api }
 }
 
 describe('BookEditForm', () => {
@@ -115,6 +115,19 @@ describe('BookEditForm', () => {
 
     expect(await screen.findByRole('alert')).toHaveTextContent('has to be a number')
     expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('takes a cover link on Enter in the field, and does not submit the form', async () => {
+    // Pressing Enter after pasting a URL is a habit. The link field is inside
+    // this form, so an unguarded Enter would submit it and lose the link.
+    const user = userEvent.setup()
+    const { onSave, onDone, api, book } = renderForm()
+
+    await user.type(screen.getByLabelText(/paste a link/i), 'https://example.com/c.jpg{Enter}')
+
+    await waitFor(() => expect(api.calls).toContain(`setCoverFromUrl:${book.id}`))
+    expect(onSave).not.toHaveBeenCalled()
+    expect(onDone).not.toHaveBeenCalled()
   })
 
   it('stays open and reports the reason when the server refuses', async () => {

@@ -173,8 +173,8 @@ def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, 
         except (ValueError, OSError) as exc:
             raise NoCoverError from exc
         # The stored name is a fresh uuid on every write, so a replaced cover
-        # gets a new ETag on its own. Without that the response's day-long
-        # private cache would keep showing the old picture.
+        # gets a new ETag on its own. That is what the `no-cache` response makes
+        # the browser revalidate against before it reuses the picture.
         return data, custom_type, f'"{custom}"'
 
     href = book.book_metadata.get("cover_href")
@@ -192,16 +192,15 @@ def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, 
     return data, media_type, etag
 
 
-def _replace_cover(book: Book, relative: str, media_type: str, settings: Settings) -> None:
-    """Point the book at a new cover file and remove whichever it replaced."""
+def _replace_cover(book: Book, relative: str, media_type: str) -> str | None:
+    """Point the book at a new cover file; return the one it replaces, to drop after the commit."""
     previous = book.book_metadata.get("custom_cover_path")
     book.book_metadata = {
         **book.book_metadata,
         "custom_cover_path": relative,
         "custom_cover_media_type": media_type,
     }
-    if previous and previous != relative:
-        covers.remove(previous, settings.library_dir)
+    return previous if previous and previous != relative else None
 
 
 def _saved(session: Session, book: Book, user: User) -> BookRead:
@@ -239,8 +238,11 @@ def set_cover(
     """
     book = _require_book(session, book_id)
     relative, media_type = covers.store(source, settings.library_dir, settings.max_cover_bytes)
-    _replace_cover(book, relative, media_type, settings)
-    return _saved(session, book, user)
+    replaced = _replace_cover(book, relative, media_type)
+    view = _saved(session, book, user)
+    if replaced:
+        covers.remove(replaced, settings.library_dir)
+    return view
 
 
 def set_cover_from_url(
@@ -272,8 +274,11 @@ def set_cover_from_url(
     relative, media_type = covers.store(
         io.BytesIO(data), settings.library_dir, settings.max_cover_bytes
     )
-    _replace_cover(book, relative, media_type, settings)
-    return _saved(session, book, user)
+    replaced = _replace_cover(book, relative, media_type)
+    view = _saved(session, book, user)
+    if replaced:
+        covers.remove(replaced, settings.library_dir)
+    return view
 
 
 def clear_cover(session: Session, book_id: int, user: User, settings: Settings) -> BookRead:
@@ -298,9 +303,12 @@ def clear_cover(session: Session, book_id: int, user: User, settings: Settings) 
         for key, value in book.book_metadata.items()
         if key not in ("custom_cover_path", "custom_cover_media_type")
     }
+    # The file last, as in `delete_book`: a commit that fails must not leave the
+    # book pointing at a cover file that is already gone.
+    view = _saved(session, book, user)
     if previous:
         covers.remove(previous, settings.library_dir)
-    return _saved(session, book, user)
+    return view
 
 
 def file_for(session: Session, book: Book, settings: Settings) -> tuple[Path, str]:
