@@ -8,14 +8,13 @@ import {
 
 import { useApi } from '../api/ApiProvider'
 import type { Note, NoteDraft } from '../api/types'
-
-/** Notes and highlights for one book. */
+import { queryKeys } from '../queryKeys'
 
 /** `GET /api/books/{id}/notes`. */
 export function useNotes(bookId: number): UseQueryResult<Note[]> {
   const api = useApi()
   return useQuery({
-    queryKey: ['notes', bookId],
+    queryKey: queryKeys.notes(bookId),
     queryFn: () => api.listNotes(bookId),
   })
 }
@@ -27,7 +26,7 @@ export function useCreateNote(bookId: number): UseMutationResult<Note, Error, No
   return useMutation({
     mutationFn: (draft: NoteDraft) => api.createNote(bookId, draft),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notes', bookId] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(bookId) })
     },
   })
 }
@@ -39,7 +38,7 @@ export function useDeleteNote(bookId: number): UseMutationResult<void, Error, nu
   return useMutation({
     mutationFn: (noteId: number) => api.deleteNote(noteId),
     onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notes', bookId] })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notes(bookId) })
     },
   })
 }

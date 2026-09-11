@@ -2,6 +2,7 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 
 import { useApi } from '../api/ApiProvider'
 import type { Book } from '../api/types'
+import { queryKeys } from '../queryKeys'
 
 /** `POST /api/books/upload`. */
 export function useUploadBook(): UseMutationResult<Book, Error, File> {
@@ -13,8 +14,8 @@ export function useUploadBook(): UseMutationResult<Book, Error, File> {
       // Seeds the detail query so the confirmation step renders with no extra
       // round trip — the response already carries everything `GET /books/{id}`
       // would return.
-      queryClient.setQueryData(['book', book.id], book)
-      void queryClient.invalidateQueries({ queryKey: ['books'] })
+      queryClient.setQueryData(queryKeys.book(book.id), book)
+      void queryClient.invalidateQueries({ queryKey: queryKeys.books })
     },
   })
 }

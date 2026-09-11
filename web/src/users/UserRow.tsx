@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type FormEvent } from 'react'
 
 import type { User, UserPatch } from '../api/types'
 import { Icon } from '../widgets/Icon'
@@ -9,7 +9,8 @@ interface UserRowProps {
   /** True for the signed-in caller's own row. */
   isSelf: boolean
   busy: boolean
-  onSave: (patch: UserPatch) => void
+  /** Calls `done` once the server accepts the change, so a refusal keeps the editor open. */
+  onSave: (patch: UserPatch, done: () => void) => void
   onDelete: () => void
 }
 
@@ -23,11 +24,9 @@ export function UserRow({ user, isSelf, busy, onSave, onDelete }: UserRowProps) 
         <UserEditor
           user={user}
           isSelf={isSelf}
+          busy={busy}
           onCancel={() => setEditing(false)}
-          onSave={(patch) => {
-            setEditing(false)
-            onSave(patch)
-          }}
+          onSave={(patch) => onSave(patch, () => setEditing(false))}
         />
       </li>
     )
@@ -76,11 +75,13 @@ export function UserRow({ user, isSelf, busy, onSave, onDelete }: UserRowProps) 
 function UserEditor({
   user,
   isSelf,
+  busy,
   onSave,
   onCancel,
 }: {
   user: User
   isSelf: boolean
+  busy: boolean
   onSave: (patch: UserPatch) => void
   onCancel: () => void
 }) {
@@ -91,7 +92,8 @@ function UserEditor({
   const adminId = `user-admin-${user.id}`
   const passwordId = `user-password-${user.id}`
 
-  function save() {
+  function submit(event: FormEvent) {
+    event.preventDefault()
     const patch: UserPatch = {
       kindle_email: kindleEmail.trim() === '' ? null : kindleEmail.trim(),
       is_admin: isAdmin,
@@ -101,7 +103,7 @@ function UserEditor({
   }
 
   return (
-    <div className={styles.editor}>
+    <form className={styles.editor} onSubmit={submit}>
       <label className={styles.label} htmlFor={kindleId}>
         Kindle address
       </label>
@@ -140,10 +142,10 @@ function UserEditor({
         <button type="button" className={styles.cancel} onClick={onCancel}>
           Cancel
         </button>
-        <button type="button" className={styles.save} onClick={save}>
+        <button type="submit" className={styles.save} disabled={busy}>
           Save
         </button>
       </div>
-    </div>
+    </form>
   )
 }

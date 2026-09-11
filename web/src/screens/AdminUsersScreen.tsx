@@ -2,6 +2,7 @@ import { useState } from 'react'
 
 import { messageFor } from '../api/errors'
 import type { User } from '../api/types'
+import { useLastWriteError } from '../api/useLastWriteError'
 import { useSession } from '../session/SessionProvider'
 import { AddUserRow } from '../users/AddUserRow'
 import { UserRow } from '../users/UserRow'
@@ -21,13 +22,10 @@ export function AdminUsersScreen() {
   const create = useCreateUser()
   const update = useUpdateUser()
   const remove = useDeleteUser()
+  const { error, settle, clear } = useLastWriteError()
   const [pendingDelete, setPendingDelete] = useState<User | null>(null)
-  // This page is a route, not a modal, so it never unmounts to drop a stale
-  // error on its own: `error` tracks only the most recently settled mutation.
-  const [error, setError] = useState<Error | null>(null)
 
   const busy = create.isPending || update.isPending || remove.isPending
-  const settled = { onSuccess: () => setError(null), onError: (err: Error) => setError(err) }
 
   return (
     <>
@@ -49,7 +47,7 @@ export function AdminUsersScreen() {
               user={user}
               isSelf={user.id === callerId}
               busy={busy}
-              onSave={(patch) => update.mutate({ id: user.id, patch }, settled)}
+              onSave={(patch, done) => update.mutate({ id: user.id, patch }, settle(done))}
               onDelete={() => setPendingDelete(user)}
             />
           ))}
@@ -58,8 +56,8 @@ export function AdminUsersScreen() {
 
       <AddUserRow
         busy={create.isPending}
-        onCreate={(newUser) => create.mutate(newUser, settled)}
-        onCancel={() => setError(null)}
+        onCreate={(newUser, done) => create.mutate(newUser, settle(done))}
+        onCancel={clear}
       />
 
       {error && <ErrorBlock message={messageFor(error)} />}
@@ -71,7 +69,7 @@ export function AdminUsersScreen() {
           confirmLabel="Delete"
           onClose={() => setPendingDelete(null)}
           onConfirm={() => {
-            remove.mutate(pendingDelete.id, settled)
+            remove.mutate(pendingDelete.id, settle())
             setPendingDelete(null)
           }}
         />

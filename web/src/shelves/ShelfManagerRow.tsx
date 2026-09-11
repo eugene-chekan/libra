@@ -1,4 +1,4 @@
-import { useState, type PointerEvent as ReactPointerEvent } from 'react'
+import { useState, type FormEvent, type PointerEvent as ReactPointerEvent } from 'react'
 
 import type { Shelf, ShelfPatch } from '../api/types'
 import { Icon } from '../widgets/Icon'
@@ -15,7 +15,8 @@ interface ShelfManagerRowProps {
   /** True while any write is in flight, which disables every control at once. */
   busy: boolean
   onMove: (direction: -1 | 1) => void
-  onSave: (patch: ShelfPatch) => void
+  /** Calls `done` once the server accepts the change, so a refusal keeps the editor open. */
+  onSave: (patch: ShelfPatch, done: () => void) => void
   onDelete: () => void
   dragHandleProps: { onPointerDown: (event: ReactPointerEvent) => void }
 }
@@ -39,11 +40,9 @@ export function ShelfManagerRow({
       <li className={styles.row} data-drag-id={shelf.id}>
         <ShelfEditor
           shelf={shelf}
+          busy={busy}
           onCancel={() => setEditing(false)}
-          onSave={(patch) => {
-            setEditing(false)
-            onSave(patch)
-          }}
+          onSave={(patch) => onSave(patch, () => setEditing(false))}
         />
       </li>
     )
@@ -109,10 +108,12 @@ export function ShelfManagerRow({
 /** The row's edit state: the name, and who can see it. */
 function ShelfEditor({
   shelf,
+  busy,
   onSave,
   onCancel,
 }: {
   shelf: Shelf
+  busy: boolean
   onSave: (patch: ShelfPatch) => void
   onCancel: () => void
 }) {
@@ -121,8 +122,13 @@ function ShelfEditor({
   const nameId = `shelf-name-${shelf.id}`
   const publicId = `shelf-public-${shelf.id}`
 
+  function submit(event: FormEvent) {
+    event.preventDefault()
+    onSave({ name: name.trim(), visibility: isPublic ? 'public' : 'private' })
+  }
+
   return (
-    <div className={styles.editor}>
+    <form className={styles.editor} onSubmit={submit}>
       <label className={styles.label} htmlFor={nameId}>
         Name
       </label>
@@ -156,15 +162,10 @@ function ShelfEditor({
         <button type="button" className={styles.cancel} onClick={onCancel}>
           Cancel
         </button>
-        <button
-          type="button"
-          className={styles.save}
-          disabled={name.trim() === ''}
-          onClick={() => onSave({ name: name.trim(), visibility: isPublic ? 'public' : 'private' })}
-        >
+        <button type="submit" className={styles.save} disabled={busy || name.trim() === ''}>
           Save
         </button>
       </div>
-    </div>
+    </form>
   )
 }

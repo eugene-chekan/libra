@@ -1,6 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 
 import { useApi } from '../api/ApiProvider'
+import { queryKeys } from '../queryKeys'
 import styles from './VersionLine.module.css'
 
 /**
@@ -13,7 +14,7 @@ import styles from './VersionLine.module.css'
 export function VersionLine() {
   const api = useApi()
   const health = useQuery({
-    queryKey: ['health'],
+    queryKey: queryKeys.health,
     queryFn: () => api.health(),
     // A running server cannot change its version under the page, so asking a
     // second time is asking for an answer already on screen.

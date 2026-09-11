@@ -8,7 +8,7 @@ export const routes = {
   adminMaintenance: '/admin/maintenance',
   /** One book. */
   book: '/books/:id',
-  /** The reader, which milestone 12 (#36) builds. */
+  /** The reader. */
   reader: '/books/:id/read',
 } as const
 

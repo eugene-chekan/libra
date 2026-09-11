@@ -2,13 +2,14 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 
 import { useApi } from '../api/ApiProvider'
 import type { User, UserCreate, UserPatch } from '../api/types'
+import { queryKeys } from '../queryKeys'
 import { useSession } from '../session/SessionProvider'
 
-/** Creating, changing and deleting accounts. */
+/** Marks the account list as out of date. */
 function useUserRefresh(): () => void {
   const queryClient = useQueryClient()
   return () => {
-    void queryClient.invalidateQueries({ queryKey: ['users'] })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.users })
   }
 }
 

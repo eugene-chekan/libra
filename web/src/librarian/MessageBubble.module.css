@@ -59,15 +59,7 @@
   font-size: 12px;
   font-style: italic;
   color: var(--libra-text-light);
-  background: none;
-  border: none;
-  padding: 0;
   margin-bottom: 8px;
-  cursor: default;
-}
-
-.toolStatus[data-collapsible] {
-  cursor: pointer;
 }
 
 .citation {

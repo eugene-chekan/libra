@@ -96,4 +96,22 @@ describe('NotesPanel', () => {
     expect(await screen.findByRole('alert')).toBeInTheDocument()
     expect(screen.getByLabelText('New note')).toHaveValue('Worth keeping')
   })
+
+  it('drops a failed delete once a later note is saved', async () => {
+    const user = userEvent.setup()
+    const api = apiWith()
+    renderPanel(api)
+    await screen.findByText('A first thought')
+
+    // Deleted somewhere else while this screen still shows it.
+    api.notes.splice(0, 1)
+    await user.click(screen.getByRole('button', { name: 'Delete note: A first thought' }))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+    await user.type(screen.getByLabelText('New note'), 'A second thought')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+
+    expect(await screen.findByText('A second thought')).toBeInTheDocument()
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
 })

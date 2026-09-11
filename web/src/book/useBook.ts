@@ -8,14 +8,13 @@ import {
 
 import { useApi } from '../api/ApiProvider'
 import type { Book, BookPatch, BookStateWrite, KindleDelivery } from '../api/types'
-
-/** The book detail screen's reads and writes. */
+import { queryKeys } from '../queryKeys'
 
 /** `GET /api/books/{id}`. */
 export function useBook(id: number): UseQueryResult<Book> {
   const api = useApi()
   return useQuery({
-    queryKey: ['book', id],
+    queryKey: queryKeys.book(id),
     queryFn: () => api.getBook(id),
   })
 }
@@ -24,9 +23,9 @@ export function useBook(id: number): UseQueryResult<Book> {
 export function useBookRefresh(id: number): () => void {
   const queryClient = useQueryClient()
   return () => {
-    void queryClient.invalidateQueries({ queryKey: ['book', id] })
-    void queryClient.invalidateQueries({ queryKey: ['books'] })
-    void queryClient.invalidateQueries({ queryKey: ['shelves'] })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.book(id) })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.books })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.shelves })
   }
 }
 
@@ -40,17 +39,13 @@ export function useSetBookState(id: number): UseMutationResult<Book, Error, Book
   })
 }
 
-/**
- * The reader's progress write. Deliberately does not refresh the book: the reader writes every
- * time scrolling pauses, and refetching the value it just sent would change `book.data` under
- * the screen that is reading from it, reopening the book mid-sentence. Nothing else on screen
- * shows this progress, and the detail screen refetches on mount anyway.
- */
 /** Writes the reader's place. Sends only what is known: either may be unknown on its own. */
 export function useWriteProgress(
   id: number
 ): UseMutationResult<Book, Error, { progress: number | null; position: string | null }> {
   const api = useApi()
+  // No refresh on success. The reader writes every time scrolling pauses, and refetching the
+  // value it just sent would change `book.data` under the reader, reopening the book mid-sentence.
   return useMutation({
     mutationFn: ({ progress, position }: { progress: number | null; position: string | null }) =>
       api.setBookState(id, {
@@ -82,9 +77,9 @@ export function useDeleteBook(id: number): UseMutationResult<void, Error, void> 
   return useMutation({
     mutationFn: () => api.deleteBook(id),
     onSuccess: () => {
-      queryClient.removeQueries({ queryKey: ['book', id] })
-      void queryClient.invalidateQueries({ queryKey: ['books'] })
-      void queryClient.invalidateQueries({ queryKey: ['shelves'] })
+      queryClient.removeQueries({ queryKey: queryKeys.book(id) })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.books })
+      void queryClient.invalidateQueries({ queryKey: queryKeys.shelves })
     },
   })
 }

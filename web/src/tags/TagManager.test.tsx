@@ -190,6 +190,54 @@ describe('TagManager', () => {
     expect(api.tags[0]?.name).toBe('keepers')
   })
 
+  it('keeps a refused rename open, with the name still typed', async () => {
+    const user = userEvent.setup()
+    renderManager([own(2, 'favourites'), own(3, 'keepers')])
+    await screen.findByText('keepers')
+
+    await user.click(screen.getByRole('button', { name: 'Rename keepers' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'Favourites')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByText(/already have a tag with that name/)).toBeInTheDocument()
+    expect(screen.getByLabelText('Name')).toHaveValue('Favourites')
+  })
+
+  it('sends a rename once, even when Save is pressed again while it is on its way', async () => {
+    const user = userEvent.setup()
+    const api = renderManager([own(2, 'favourites')])
+    await screen.findByText('favourites')
+    const sent = vi.spyOn(api, 'updateTag').mockReturnValue(new Promise<Tag>(() => {}))
+
+    await user.click(screen.getByRole('button', { name: 'Rename favourites' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'keepers{Enter}')
+    await user.type(screen.getByLabelText('Name'), '{Enter}')
+
+    expect(sent).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
+  it('drops a refusal once a later write succeeds', async () => {
+    const user = userEvent.setup()
+    renderManager([own(2, 'favourites'), own(3, 'keepers')])
+    await screen.findByText('keepers')
+
+    await user.type(screen.getByLabelText('New tag'), 'Favourites')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByText(/already have a tag with that name/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Rename keepers' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'shelved')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    await waitFor(() =>
+      expect(screen.queryByText(/already have a tag with that name/)).not.toBeInTheDocument()
+    )
+  })
+
   it('throws away a rename when it is cancelled', async () => {
     const user = userEvent.setup()
     const api = renderManager([own(2, 'favourites')])

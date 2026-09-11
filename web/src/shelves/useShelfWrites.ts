@@ -2,13 +2,14 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 
 import { useApi } from '../api/ApiProvider'
 import type { Shelf, ShelfCreate, ShelfPatch } from '../api/types'
+import { queryKeys } from '../queryKeys'
 
-/** Creating, changing, deleting and reordering shelves. */
+/** Marks what a shelf write changes as out of date: the shelves, and the books that show one. */
 function useShelfRefresh(): () => void {
   const queryClient = useQueryClient()
   return () => {
-    void queryClient.invalidateQueries({ queryKey: ['shelves'] })
-    void queryClient.invalidateQueries({ queryKey: ['books'] })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.shelves })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.books })
   }
 }
 

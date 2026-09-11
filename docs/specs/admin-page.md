@@ -206,7 +206,8 @@ unchanged, exactly how `UserPatch.password` already works. The
 Administrator checkbox is disabled on the caller's own row, the same
 courtesy as the missing trash button above, and backed by the same kind of
 guard: the endpoint refuses it with a `409`. Save writes
-`PATCH /users/{id}` and collapses back to the view row. Writes commit
+`PATCH /users/{id}`. The row collapses back to the view once the server
+accepts it; a refused save stays open with what was typed. Writes commit
 **per row, immediately** — no batch, no page-level Save. This is not a new
 decision; it is the same one milestones 6 and 7 already made for shelves and
 tags, recorded in [phase-4-plan.md](phase-4-plan.md#milestones): a batch
@@ -218,7 +219,9 @@ transaction either way.
 the dashed-button treatment already used elsewhere (the sidebar's own
 disabled-then-real Add Book button was this same visual language). Clicking
 it expands an inline form — Username, Password, an Administrator checkbox —
-with Cancel and Create. Collapses on either. Posts `POST /users`.
+with Cancel and Create. Create posts `POST /users`. The form collapses on
+Cancel, or once the server accepts Create; a refused create stays open with
+what was typed.
 
 **Delete** opens the existing `ConfirmDialog`, reused as-is, stating exactly
 what the backend does:

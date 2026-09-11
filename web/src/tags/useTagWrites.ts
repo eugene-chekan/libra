@@ -2,13 +2,14 @@ import { useMutation, useQueryClient, type UseMutationResult } from '@tanstack/r
 
 import { useApi } from '../api/ApiProvider'
 import type { Tag, TagCreate, TagPatch } from '../api/types'
+import { queryKeys } from '../queryKeys'
 
-/** Creating, renaming and deleting tags. */
+/** Marks what a tag write changes as out of date: the tags, and the books that carry them. */
 function useTagRefresh(): () => void {
   const queryClient = useQueryClient()
   return () => {
-    void queryClient.invalidateQueries({ queryKey: ['tags'] })
-    void queryClient.invalidateQueries({ queryKey: ['books'] })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.tags })
+    void queryClient.invalidateQueries({ queryKey: queryKeys.books })
   }
 }
 

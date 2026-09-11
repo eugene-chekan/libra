@@ -4,12 +4,6 @@ import { useApi } from '../api/ApiProvider'
 import type { Book } from '../api/types'
 import { useBookRefresh } from './useBook'
 
-/**
- * The Edit Book form's cover writes: choose a file, paste a link, or undo both.
- * A cover shows wherever a book does, so each write invalidates the same views
- * as any other book write — hence the shared `useBookRefresh`.
- */
-
 /** `PUT /api/books/{id}/cover` — set the cover from an uploaded picture. Admin only. */
 export function useSetCover(bookId: number): UseMutationResult<Book, Error, File> {
   const api = useApi()
