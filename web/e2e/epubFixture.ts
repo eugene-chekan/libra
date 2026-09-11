@@ -135,7 +135,7 @@ export function buildMalformedEpub(): Buffer {
   return buildZip([{ name: 'readme.txt', data: Buffer.from('not an epub', 'utf8') }])
 }
 
-function chapterXhtml(label: string, index: number, length: number): string {
+function chapterXhtml(label: string, index: number, length: number, lead = ''): string {
   // Long enough that a chapter spans several of epub.js's location marks. A chapter shorter
   // than one mark cannot show progress moving inside it, which is the thing worth testing.
   const paragraphs = Array.from(
@@ -162,6 +162,7 @@ function chapterXhtml(label: string, index: number, length: number): string {
   <head><title>${label}</title></head>
   <body>
     <h1 id="chapter-${index}">${label}</h1>
+    ${lead}
     ${paragraphs.join('\n    ')}
   </body>
 </html>`
@@ -184,7 +185,17 @@ function navXhtml(labels: string[]): string {
 </html>`
 }
 
-function readableOpfXml(title: string, author: string, labels: string[]): string {
+/** The notes section a note link points at: a heading, and the note itself. */
+const NOTES_XHTML = `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head><title>Notes</title></head>
+  <body>
+    <h1 id="notes">Notes</h1>
+    <p id="note-1">1. The note, which a reader reads and then leaves.</p>
+  </body>
+</html>`
+
+function readableOpfXml(title: string, author: string, labels: string[], note: boolean): string {
   const manifest = [
     `<item id="front" href="titlepage.xhtml" media-type="application/xhtml+xml"/>`,
     ...labels.map(
@@ -192,10 +203,12 @@ function readableOpfXml(title: string, author: string, labels: string[]): string
         `<item id="ch${index + 1}" href="chapter${index + 1}.xhtml" ` +
         `media-type="application/xhtml+xml"/>`
     ),
+    ...(note ? [`<item id="notes" href="notes.xhtml" media-type="application/xhtml+xml"/>`] : []),
   ].join('\n    ')
   const spine = [
     `<itemref idref="front"/>`,
     ...labels.map((_, index) => `<itemref idref="ch${index + 1}"/>`),
+    ...(note ? [`<itemref idref="notes"/>`] : []),
   ].join('\n    ')
   return `<?xml version="1.0" encoding="UTF-8"?>
 <package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid">
@@ -226,6 +239,7 @@ export function buildReadableEpub({
   author,
   chapters,
   paragraphs = 60,
+  note = false,
 }: {
   title: string
   author: string
@@ -236,17 +250,27 @@ export function buildReadableEpub({
    * short one a single position is worth two points, and an error that size hides inside it.
    */
   paragraphs?: number
+  /** Starts the first chapter with a note link, which points at a notes section at the end. */
+  note?: boolean
 }): Buffer {
+  const noteLink = `<p>This sentence has a note.<a id="ref-1" href="notes.xhtml#note-1">1</a></p>`
   return buildZip([
     { name: 'META-INF/container.xml', data: Buffer.from(CONTAINER_XML, 'utf8') },
-    { name: 'content.opf', data: Buffer.from(readableOpfXml(title, author, chapters), 'utf8') },
+    {
+      name: 'content.opf',
+      data: Buffer.from(readableOpfXml(title, author, chapters, note), 'utf8'),
+    },
     { name: 'nav.xhtml', data: Buffer.from(navXhtml(chapters), 'utf8') },
     // Front matter, first in the spine and absent from the contents — the shape of a real
     // book, and the reason a contents entry's position is not its spine position.
     { name: 'titlepage.xhtml', data: Buffer.from(chapterXhtml(title, 0, 4), 'utf8') },
     ...chapters.map((label, index) => ({
       name: `chapter${index + 1}.xhtml`,
-      data: Buffer.from(chapterXhtml(label, index + 1, paragraphs), 'utf8'),
+      data: Buffer.from(
+        chapterXhtml(label, index + 1, paragraphs, note && index === 0 ? noteLink : ''),
+        'utf8'
+      ),
     })),
+    ...(note ? [{ name: 'notes.xhtml', data: Buffer.from(NOTES_XHTML, 'utf8') }] : []),
   ])
 }

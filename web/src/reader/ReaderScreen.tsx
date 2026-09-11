@@ -14,6 +14,7 @@ import { ContentsDrawer } from './ContentsDrawer'
 import { PageArrows } from './PageArrows'
 import { ReaderBar } from './ReaderBar'
 import styles from './ReaderScreen.module.css'
+import { ReturnToPlace } from './ReturnToPlace'
 import { usePageKeys } from './usePageKeys'
 
 /** How long after the last page turn the new place is worth a request. */
@@ -46,6 +47,8 @@ export function ReaderScreen() {
   const [panel, setPanel] = useState<'contents' | 'appearance' | null>(null)
   const [appearance, setAppearance] = useState<Appearance>(loadAppearance)
   const [position, setPosition] = useState<ReaderPosition>(NOWHERE)
+  /** The page a link inside the book left, while the reader is still away from it. */
+  const [returnTo, setReturnTo] = useState<ReaderPosition | null>(null)
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const resumed = useRef(false)
 
@@ -104,24 +107,56 @@ export function ReaderScreen() {
     []
   )
 
+  /** Stores one place. The last page finishes the book, which stamps `finished_at`. */
+  const write = useCallback(
+    (at: ReaderPosition) =>
+      writeProgress({ progress: at.atEnd ? 1 : at.progress, position: at.mark }),
+    [writeProgress]
+  )
+
   /**
-   * The one write rule: turning a page saves where the turn landed, a second after the last
-   * one. Opening a book is not turning a page, so a resume can never overwrite the place it is
-   * restoring. The last page finishes the book, which is what stamps `finished_at`.
+   * The one write rule: a move the reader makes saves where it landed, a second after the last
+   * one. Opening a book is not such a move, so a resume can never overwrite the place it is
+   * restoring, and neither is a page turned while a link has taken the reader away.
    */
   const save = useCallback(() => {
     if (timer.current !== null) clearTimeout(timer.current)
     timer.current = setTimeout(() => {
-      const now = reader.position()
-      writeProgress({ progress: now.atEnd ? 1 : now.progress, position: now.mark })
+      timer.current = null
+      write(reader.position())
     }, WRITE_AFTER_MS)
-  }, [reader, writeProgress])
+  }, [reader, write])
 
-  const turn = useCallback(
+  // A second link keeps the first way back, so a note that links on still returns to the page
+  // the reading was on. A save still waiting from a turn just before the link was meant for the
+  // page the link leaves, so that page is written now.
+  useEffect(() => {
+    if (!open) return
+    return reader.onLinkFollowed((from) => {
+      if (timer.current !== null) {
+        clearTimeout(timer.current)
+        timer.current = null
+        write(from)
+      }
+      setReturnTo((kept) => kept ?? from)
+    })
+  }, [open, reader, write])
+
+  const moveAndSave = useCallback(
     (move: () => Promise<void>) => {
       void move().then(save)
     },
     [save]
+  )
+
+  // While a link has taken the reader away, turning pages saves nothing, so the book still opens
+  // at the page they left.
+  const turn = useCallback(
+    (move: () => Promise<void>) => {
+      if (returnTo === null) moveAndSave(move)
+      else void move()
+    },
+    [moveAndSave, returnTo]
   )
 
   const goNext = useCallback(() => turn(() => reader.next()), [turn, reader])
@@ -143,8 +178,20 @@ export function ReaderScreen() {
   const title = open?.title ?? book.data?.title ?? 'Book'
 
   function chooseChapter(index: number) {
-    turn(() => reader.goToChapter(index))
+    setReturnTo(null)
+    moveAndSave(() => reader.goToChapter(index))
     setPanel(null)
+  }
+
+  function goBackToPlace() {
+    const mark = returnTo?.mark
+    setReturnTo(null)
+    if (mark) moveAndSave(() => reader.goTo(mark))
+  }
+
+  function stayHere() {
+    setReturnTo(null)
+    save()
   }
 
   function chooseAppearance(next: Appearance) {
@@ -209,6 +256,9 @@ export function ReaderScreen() {
             onPrevious={goPrevious}
             onNext={goNext}
           />
+        )}
+        {open !== null && failure === null && returnTo !== null && (
+          <ReturnToPlace pages={returnTo.pages} onReturn={goBackToPlace} onStay={stayHere} />
         )}
         {(failure !== null || open === null) && (
           <div className={styles.overlay}>

@@ -1,4 +1,4 @@
-import ePub, { type Book, type NavItem, type Rendition } from 'epubjs'
+import ePub, { type Book, type Contents, type NavItem, type Rendition } from 'epubjs'
 
 import type { LibraApi } from '../api/LibraApi'
 import {
@@ -76,6 +76,7 @@ export class EpubBookReader implements BookReader {
   private watcher: ResizeObserver | null = null
   private listeners: ((position: ReaderPosition) => void)[] = []
   private tapListeners: ((fraction: number) => void)[] = []
+  private linkListeners: ((from: ReaderPosition) => void)[] = []
   private current: ReaderPosition = NOWHERE
   private measured: Promise<boolean> = Promise.resolve(false)
   private isMeasured = false
@@ -113,6 +114,15 @@ export class EpubBookReader implements BookReader {
       const fraction = tapFraction(event, contents?.window ?? null, host.getBoundingClientRect())
       if (fraction === null) return
       for (const listener of this.tapListeners) listener(fraction)
+    })
+    // epub.js follows a link inside the book by itself. Its own `linkClicked` handler is added
+    // to each chapter before this one and only queues the jump, so when this runs the place on
+    // record is still the page the link leaves.
+    rendition.hooks.content.register((contents: Contents) => {
+      contents.on('linkClicked', () => {
+        const from = this.current
+        for (const listener of this.linkListeners) listener(from)
+      })
     })
     await rendition.display()
 
@@ -166,6 +176,13 @@ export class EpubBookReader implements BookReader {
     this.tapListeners.push(listener)
     return () => {
       this.tapListeners = this.tapListeners.filter((each) => each !== listener)
+    }
+  }
+
+  onLinkFollowed(listener: (from: ReaderPosition) => void): () => void {
+    this.linkListeners.push(listener)
+    return () => {
+      this.linkListeners = this.linkListeners.filter((each) => each !== listener)
     }
   }
 
@@ -229,6 +246,7 @@ export class EpubBookReader implements BookReader {
     this.watcher = null
     this.listeners = []
     this.tapListeners = []
+    this.linkListeners = []
     this.current = NOWHERE
     this.rendition?.destroy()
     this.book?.destroy()

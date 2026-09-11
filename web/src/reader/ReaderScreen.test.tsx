@@ -375,4 +375,120 @@ describe('ReaderScreen', () => {
       expect(reader.calls).not.toContain('next')
     })
   })
+
+  describe('coming back after following a link inside the book', () => {
+    /** Opens the book on page 4, the page a link will leave. Opening saves nothing. */
+    async function readingPageFour() {
+      const reader = new FakeBookReader()
+      const api = signedInApi()
+      onlyBook(api).position = 'page:3'
+      renderReader(reader, api)
+      await opened()
+      await waitFor(() => expect(reader.calls).toContain('goTo:page:3'))
+      return { reader, api }
+    }
+
+    it('offers no way back before a link is followed', async () => {
+      await readingPageFour()
+
+      expect(screen.queryByRole('button', { name: /^Back to/ })).not.toBeInTheDocument()
+    })
+
+    it('offers the way back after a link, naming the page it left', async () => {
+      const { reader } = await readingPageFour()
+
+      act(() => reader.followLink(8))
+
+      expect(await screen.findByRole('button', { name: 'Back to page 4' })).toBeInTheDocument()
+    })
+
+    it('goes back to the exact page it left, saves it, and puts the button away', async () => {
+      const { reader, api } = await readingPageFour()
+      act(() => reader.followLink(8))
+
+      await userEvent.click(await screen.findByRole('button', { name: 'Back to page 4' }))
+      await settle()
+
+      expect(reader.position().index).toBe(3)
+      expect(api.calls).toContain('setBookState:1')
+      expect(onlyBook(api).position).toBe('page:3')
+      expect(screen.queryByRole('button', { name: /^Back to/ })).not.toBeInTheDocument()
+    })
+
+    it('saves nothing while away, even when a page is turned there', async () => {
+      // A note can run over several pages. The saved place stays the page the link left, so
+      // opening the book again goes back there rather than to the notes.
+      const { reader, api } = await readingPageFour()
+      act(() => reader.followLink(8))
+      await screen.findByRole('button', { name: 'Back to page 4' })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
+      await settle()
+
+      expect(reader.position().index).toBe(9)
+      expect(api.calls).not.toContain('setBookState:1')
+      expect(screen.getByRole('button', { name: 'Back to page 4' })).toBeInTheDocument()
+    })
+
+    it('saves the page a link leaves when a page turn just before it is still waiting', async () => {
+      // A turn saves a second after it lands. A link followed inside that second must not let
+      // the waiting save store the notes instead of the page that turn landed on.
+      const { reader, api } = await readingPageFour()
+
+      await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
+      await waitFor(() => expect(reader.position().index).toBe(4))
+      act(() => reader.followLink(8))
+      await settle()
+
+      expect(onlyBook(api).position).toBe('page:4')
+    })
+
+    it('writes nothing more when a link follows a save that has already landed', async () => {
+      const { reader, api } = await readingPageFour()
+      await userEvent.click(screen.getByRole('button', { name: 'Next page' }))
+      await settle()
+      expect(api.calls.filter((call) => call === 'setBookState:1')).toHaveLength(1)
+
+      act(() => reader.followLink(8))
+      await settle()
+
+      expect(api.calls.filter((call) => call === 'setBookState:1')).toHaveLength(1)
+    })
+
+    it('keeps the first way back when a second link is followed', async () => {
+      const { reader } = await readingPageFour()
+      act(() => reader.followLink(8))
+      await screen.findByRole('button', { name: 'Back to page 4' })
+
+      act(() => reader.followLink(6))
+      await settle(0)
+
+      expect(screen.getByRole('button', { name: 'Back to page 4' })).toBeInTheDocument()
+    })
+
+    it('stays on the page on screen when asked to, and saves it', async () => {
+      const { reader, api } = await readingPageFour()
+      act(() => reader.followLink(8))
+      await screen.findByRole('button', { name: 'Back to page 4' })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Stay here' }))
+      await settle()
+
+      expect(screen.queryByRole('button', { name: /^Back to/ })).not.toBeInTheDocument()
+      expect(onlyBook(api).position).toBe('page:8')
+    })
+
+    it('drops the way back when a chapter is chosen from the contents', async () => {
+      const { reader, api } = await readingPageFour()
+      act(() => reader.followLink(8))
+      await screen.findByRole('button', { name: 'Back to page 4' })
+
+      await userEvent.click(screen.getByRole('button', { name: 'Contents' }))
+      await userEvent.click(await screen.findByRole('button', { name: 'The End' }))
+      await settle()
+
+      expect(screen.queryByRole('button', { name: /^Back to/ })).not.toBeInTheDocument()
+      expect(onlyBook(api).position).toBe('page:5')
+    })
+  })
 })

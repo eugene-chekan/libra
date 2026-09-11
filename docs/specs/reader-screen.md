@@ -4,7 +4,8 @@
 on a paginated engine after the scrolling one proved it could not hold a
 reader's place, and **checked by hand against three real books on
 2026-09-04** — see "Position, progress, and turning pages" for why, and "What a
-real book changed" for what was learned on the way.
+real book changed" for what was learned on the way. A way back after following
+a link inside the book was added on 2026-09-11 (issue #137).
 
 That check is part of the work, not a formality: three earlier rounds of this
 reader passed every test and were still broken for the person using it. Слон,
@@ -340,10 +341,12 @@ pass over the book, a second or two, and its result is cached in
 nothing else — it never decides where to go. Until it lands, the bar shows no
 number rather than a wrong one.
 
-**Writing** is one rule: on `relocated`, debounced one second, send `progress`
-and `position` together. A single flag stops writes until the resume has
-settled. There is no second guard, because there is nothing left to drift —
-resuming to a CFI reports the same CFI back.
+**Writing** is one rule: a move the reader makes — a page turn, or a chapter
+chosen from the contents — sends `progress` and `position` together, one second
+after the last move. Opening a book is not such a move, so a resume writes
+nothing, and there is nothing left to drift: resuming to a CFI reports the same
+CFI back. A page turned after following a link inside the book is not such a
+move either; see "Following a link inside the book".
 
 **The last page finishes the book.** `set_reading_state` already stamps
 `finished_at` when `progress` reaches 1, so the reader needs no new field and
@@ -367,6 +370,42 @@ write `rating` unconditionally from a field defaulting to `0`, so a write of
 field is left alone when the caller does not send it. That rule is why
 `position` can be added beside `progress` safely.
 
+## Following a link inside the book
+
+A book can link to another place in itself. The usual one is a note: a small
+number in the text that jumps to the notes at the end. epub.js follows such a
+link by itself, and before issue #137 nothing remembered the page the reader
+left.
+
+**The way back.** After a link inside the book, a button shows at the bottom
+of the page: "Back to page 12", or "Back to where you were" while the book has
+not been measured. Pressing it returns to that exact page. Its × ("Stay here")
+closes it instead.
+
+- A page turn keeps the button, because a note can run over several pages.
+- A second link keeps the first way back, so a note that links on still
+  returns to where the reading was.
+- The button goes away when it is pressed, when it is closed with ×, when a
+  chapter is chosen from the contents, or when the reader leaves.
+- It sits outside the book's iframe, so tapping it never turns a page.
+
+**While the reader is away, page turns save nothing.** The stored place stays
+the page the link left, so opening the book again goes back there, not to the
+notes. Going back, choosing a chapter, and "Stay here" each save the page on
+screen, as a page turn does. One edge case: a turn saves a second after it
+lands. If a link is followed inside that second, the page the link leaves is
+saved at once, not the notes.
+
+**How the link is caught.** epub.js adds its own `linkClicked` handler to each
+chapter, and that handler only queues the jump. `EpubBookReader` adds a second
+listener at the same point, `rendition.hooks.content`. When it runs, the place
+on record is still the page the link leaves, and that place reaches the screen
+through `onLinkFollowed` on the `BookReader` seam. epub.js raises `linkClicked`
+only for links inside the book, not for links to other websites.
+
+Each rule above has a component test against the fake. One end-to-end test
+uses a real book whose first chapter links to a notes section: it follows the
+link, turns a page, checks the stored place did not move, and goes back.
 
 ## Data and API
 

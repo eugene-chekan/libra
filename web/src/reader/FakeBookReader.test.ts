@@ -38,6 +38,20 @@ describe('FakeBookReader', () => {
     expect(seen).toEqual([0.1, 0.9])
   })
 
+  it('tells link listeners the place a link left, then goes where it points', async () => {
+    await reader.open(1, host())
+    await reader.goTo('page:3')
+    const left: (string | null)[] = []
+
+    const stop = reader.onLinkFollowed((from) => left.push(from.mark))
+    reader.followLink(8)
+    stop()
+    reader.followLink(2)
+
+    expect(left).toEqual(['page:3'])
+    expect(reader.position().index).toBe(2)
+  })
+
   it('opens a book with its title and its own contents', async () => {
     const book = await reader.open(7, host())
 

@@ -45,6 +45,7 @@ export class FakeBookReader implements BookReader {
   private page = 0
   private listeners: ((position: ReaderPosition) => void)[] = []
   private tapListeners: ((fraction: number) => void)[] = []
+  private linkListeners: ((from: ReaderPosition) => void)[] = []
   private releaseResume: (() => void) | null = null
 
   constructor(private readonly options: FakeOptions = {}) {}
@@ -141,6 +142,20 @@ export class FakeBookReader implements BookReader {
     for (const listener of this.tapListeners) listener(fraction)
   }
 
+  onLinkFollowed(listener: (from: ReaderPosition) => void): () => void {
+    this.linkListeners.push(listener)
+    return () => {
+      this.linkListeners = this.linkListeners.filter((each) => each !== listener)
+    }
+  }
+
+  /** Test-only: follow a link inside the book to a page, the way epub.js jumps to a note. */
+  followLink(page: number): void {
+    const from = this.position()
+    for (const listener of this.linkListeners) listener(from)
+    this.moveTo(page)
+  }
+
   setAppearance(appearance: Appearance): void {
     this.appearance = appearance
   }
@@ -149,6 +164,7 @@ export class FakeBookReader implements BookReader {
     this.destroyed = true
     this.listeners = []
     this.tapListeners = []
+    this.linkListeners = []
   }
 
   /** Test-only: let a held `goTo` land, the way measuring the book eventually lets it. */
