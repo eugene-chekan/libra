@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
 import type { Appearance } from './BookReader'
+import { setViewportWidth } from '../test/viewport'
 import { AppearanceMenu } from './AppearanceMenu'
 
 const VALUE: Appearance = { textSize: 'medium', width: 'medium' }
@@ -13,6 +14,17 @@ function renderMenu(value: Appearance = VALUE, onChange = vi.fn(), onClose = vi.
 }
 
 describe('AppearanceMenu', () => {
+  it('hides the width on a phone, where all three of its values are the same', () => {
+    // A phone is narrower than the narrowest cap, so Narrow, Medium and Wide all produce the
+    // same column. A control that changes nothing is worse than no control.
+    setViewportWidth(390)
+
+    renderMenu()
+
+    expect(screen.queryByRole('group', { name: 'Page width' })).not.toBeInTheDocument()
+    expect(screen.getByRole('group', { name: 'Text size' })).toBeInTheDocument()
+  })
+
   it('offers three text sizes and three widths, in named groups', () => {
     // Both groups hold a "Medium", so the names are what tell them apart — for a screen reader
     // and for anything else asking which control it is looking at.

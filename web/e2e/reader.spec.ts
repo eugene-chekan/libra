@@ -149,6 +149,49 @@ test.describe('the reader, in a real browser', () => {
     await expect.poll(() => columnCount(page), { timeout: 15_000 }).toBe(1)
   })
 
+  /*
+    On a phone the page turns when you tap the outer thirds of the book. epub.js draws the book in
+    an iframe as wide as the whole chapter, and turns a page by sliding that iframe to the left. So
+    one spot on the screen is a different spot inside the iframe on every page. Three taps on the
+    same side must reach three different pages: that is what failed on a real phone.
+  */
+  test('on a phone, each tap on the same side turns one more page', async ({ page, request }) => {
+    const title = `E2E Reader Tap ${Date.now()}`
+    const id = await uploadBook(request, title, { paragraphs: 40 })
+    await page.setViewportSize({ width: 390, height: 844 })
+
+    await openReader(page, id, title)
+    await waitForMeasured(page)
+    const box = await page.getByRole('region', { name: title }).boundingBox()
+    expect(box).not.toBeNull()
+    if (!box) return
+    const { x, y, width, height } = box
+
+    /** Taps a fraction across the page, then waits until the reader saves a new place. */
+    async function tapAndWait(fraction: number, last: string | null): Promise<string | null> {
+      await page.mouse.click(x + width * fraction, y + height / 2)
+      let saved = last
+      await expect
+        .poll(
+          async () => {
+            saved = (await storedState(request, id)).position
+            return saved
+          },
+          { timeout: 15_000 }
+        )
+        .not.toBe(last)
+      return saved
+    }
+
+    const first = await tapAndWait(0.85, null)
+    const second = await tapAndWait(0.85, first)
+    const third = await tapAndWait(0.85, second)
+    expect(new Set([first, second, third]).size).toBe(3)
+
+    expect(await tapAndWait(0.15, third)).toBe(second)
+    expect(await tapAndWait(0.15, second)).toBe(first)
+  })
+
   test('turns a page forward and back to the same place', async ({ page, request }) => {
     const title = `E2E Reader Turn ${Date.now()}`
     const id = await uploadBook(request, title)

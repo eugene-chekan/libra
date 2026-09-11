@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom'
 
 import { useLibrarian } from '../librarian/LibrarianProvider'
+import { useIsPhone } from '../shell/useIsPhone'
 import { Icon } from '../widgets/Icon'
 import type { Pages } from './pages'
 import styles from './ReaderBar.module.css'
@@ -16,6 +17,19 @@ interface ReaderBarProps {
   backTo: string
   onContents: () => void
   onAppearance: () => void
+  /**
+   * The page turns, when they belong here rather than beside the text — which is a phone,
+   * where there is no room in the margin for them. Null on a wider window.
+   */
+  pageTurns: PageTurns | null
+}
+
+/** What the bar needs to turn a page, when it is the one holding those controls. */
+export interface PageTurns {
+  atStart: boolean
+  atEnd: boolean
+  onPrevious: () => void
+  onNext: () => void
 }
 
 /** The reader's only chrome: always visible, and carrying the progress rule. */
@@ -27,8 +41,10 @@ export function ReaderBar({
   backTo,
   onContents,
   onAppearance,
+  pageTurns,
 }: ReaderBarProps) {
   const { open: openLibrarian } = useLibrarian()
+  const isPhone = useIsPhone()
   // Measuring a book takes a second or two. A number nobody knows yet is left blank rather
   // than guessed at.
   const percent = progress === null ? null : Math.round(progress * 100)
@@ -48,13 +64,36 @@ export function ReaderBar({
       )}
       {percent !== null && <span className={styles.percent}>{percent}%</span>}
       <div className={styles.controls}>
+        {pageTurns && (
+          <>
+            <button
+              type="button"
+              className={styles.control}
+              aria-label="Previous page"
+              disabled={pageTurns.atStart}
+              onClick={pageTurns.onPrevious}
+            >
+              <Icon name="chevron-left" size={18} />
+            </button>
+            <button
+              type="button"
+              className={styles.control}
+              aria-label="Next page"
+              disabled={pageTurns.atEnd}
+              onClick={pageTurns.onNext}
+            >
+              <Icon name="chevron-right" size={18} />
+            </button>
+          </>
+        )}
         <button type="button" className={styles.control} aria-label="Contents" onClick={onContents}>
           <Icon name="list" size={18} />
         </button>
         <button
           type="button"
           className={styles.control}
-          aria-label="Text size and width"
+          // On a phone the menu has no width choice, so the name leaves it out.
+          aria-label={isPhone ? 'Text size' : 'Text size and width'}
           onClick={onAppearance}
         >
           <Icon name="type" size={18} />

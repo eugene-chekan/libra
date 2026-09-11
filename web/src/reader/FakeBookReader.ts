@@ -44,6 +44,7 @@ export class FakeBookReader implements BookReader {
 
   private page = 0
   private listeners: ((position: ReaderPosition) => void)[] = []
+  private tapListeners: ((fraction: number) => void)[] = []
   private releaseResume: (() => void) | null = null
 
   constructor(private readonly options: FakeOptions = {}) {}
@@ -128,6 +129,18 @@ export class FakeBookReader implements BookReader {
     }
   }
 
+  onTap(listener: (fraction: number) => void): () => void {
+    this.tapListeners.push(listener)
+    return () => {
+      this.tapListeners = this.tapListeners.filter((each) => each !== listener)
+    }
+  }
+
+  /** Test-only: tap the book a fraction of the way across it. */
+  tapAt(fraction: number): void {
+    for (const listener of this.tapListeners) listener(fraction)
+  }
+
   setAppearance(appearance: Appearance): void {
     this.appearance = appearance
   }
@@ -135,6 +148,7 @@ export class FakeBookReader implements BookReader {
   destroy(): void {
     this.destroyed = true
     this.listeners = []
+    this.tapListeners = []
   }
 
   /** Test-only: let a held `goTo` land, the way measuring the book eventually lets it. */

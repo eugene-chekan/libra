@@ -7,6 +7,7 @@ import { ErrorBlock } from '../widgets/ErrorBlock'
 import { AppearanceMenu } from './AppearanceMenu'
 import { loadAppearance, saveAppearance } from './appearance'
 import { ReaderError, type Appearance, type OpenBook, type ReaderPosition } from './BookReader'
+import { useIsPhone } from '../shell/useIsPhone'
 import { useBookReader } from './BookReaderContext'
 import { chapterAt } from './chapterAt'
 import { ContentsDrawer } from './ContentsDrawer'
@@ -27,11 +28,15 @@ const NOWHERE: ReaderPosition = {
   atEnd: false,
 }
 
+/** How much of each edge turns a page. A third either side, leaving the middle alone. */
+const TAP_ZONE = 1 / 3
+
 /** `/books/:id/read` — the whole window, with no application furniture. */
 export function ReaderScreen() {
   const { id } = useParams()
   const bookId = Number(id)
   const reader = useBookReader()
+  const isPhone = useIsPhone()
   const book = useBook(bookId)
   const host = useRef<HTMLDivElement>(null)
 
@@ -123,6 +128,17 @@ export function ReaderScreen() {
   const goPrevious = useCallback(() => turn(() => reader.previous()), [turn, reader])
   usePageKeys(goPrevious, goNext, open !== null && panel === null)
 
+  // Tap the outer thirds to turn a page. Phone only: a mouse has the arrows and the keyboard,
+  // and clicking the text to turn there would be a surprise rather than a shortcut. The middle
+  // third is left alone because that is where a thumb rests and where a menu is dismissed.
+  useEffect(() => {
+    if (!isPhone || !open || panel !== null) return
+    return reader.onTap((fraction) => {
+      if (fraction < TAP_ZONE) goPrevious()
+      else if (fraction > 1 - TAP_ZONE) goNext()
+    })
+  }, [isPhone, open, panel, reader, goPrevious, goNext])
+
   const retry = useCallback(() => setAttempt((n) => n + 1), [])
   const title = open?.title ?? book.data?.title ?? 'Book'
 
@@ -146,6 +162,16 @@ export function ReaderScreen() {
         backTo={bookPath(bookId)}
         onContents={() => setPanel('contents')}
         onAppearance={() => setPanel('appearance')}
+        pageTurns={
+          isPhone && open !== null && failure === null
+            ? {
+                atStart: position.atStart,
+                atEnd: position.atEnd,
+                onPrevious: goPrevious,
+                onNext: goNext,
+              }
+            : null
+        }
       />
       {panel === 'contents' && (
         <ContentsDrawer
@@ -176,7 +202,7 @@ export function ReaderScreen() {
           aria-busy={open === null}
           hidden={failure !== null}
         />
-        {open !== null && failure === null && (
+        {open !== null && failure === null && !isPhone && (
           <PageArrows
             atStart={position.atStart}
             atEnd={position.atEnd}

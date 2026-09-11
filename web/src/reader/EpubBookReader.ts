@@ -12,6 +12,7 @@ import {
 } from './BookReader'
 import { loadLocations, saveLocations } from './locationsCache'
 import { pagesAt, type Pages } from './pages'
+import { tapFraction } from './tapFraction'
 
 const FONT_SIZES: Record<TextSize, string> = {
   small: '95%',
@@ -74,6 +75,7 @@ export class EpubBookReader implements BookReader {
   private rendition: Rendition | null = null
   private watcher: ResizeObserver | null = null
   private listeners: ((position: ReaderPosition) => void)[] = []
+  private tapListeners: ((fraction: number) => void)[] = []
   private current: ReaderPosition = NOWHERE
   private measured: Promise<boolean> = Promise.resolve(false)
   private isMeasured = false
@@ -104,6 +106,14 @@ export class EpubBookReader implements BookReader {
     })
     this.rendition = rendition
     rendition.on('relocated', (location: RelocatedLocation) => this.report(location))
+    // A page in an iframe is a separate document, so a tap on it never reaches the app.
+    // epub.js forwards it: `Rendition` registers `passEvents`, which relays every entry in
+    // its `DOM_EVENTS` list — `click` among them — back out to here.
+    rendition.on('click', (event: MouseEvent, contents: { window: Window | null }) => {
+      const fraction = tapFraction(event, contents?.window ?? null, host.getBoundingClientRect())
+      if (fraction === null) return
+      for (const listener of this.tapListeners) listener(fraction)
+    })
     await rendition.display()
 
     // epub.js watches the window for resizes itself, but its own handler calls `resize()` with
@@ -150,6 +160,13 @@ export class EpubBookReader implements BookReader {
 
   position(): ReaderPosition {
     return this.current
+  }
+
+  onTap(listener: (fraction: number) => void): () => void {
+    this.tapListeners.push(listener)
+    return () => {
+      this.tapListeners = this.tapListeners.filter((each) => each !== listener)
+    }
   }
 
   onMove(listener: (position: ReaderPosition) => void): () => void {
@@ -211,6 +228,7 @@ export class EpubBookReader implements BookReader {
     this.watcher?.disconnect()
     this.watcher = null
     this.listeners = []
+    this.tapListeners = []
     this.current = NOWHERE
     this.rendition?.destroy()
     this.book?.destroy()

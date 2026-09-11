@@ -24,6 +24,20 @@ describe('FakeBookReader', () => {
     reader = new FakeBookReader()
   })
 
+  it('passes a tap on to whoever is listening, and stops when they let go', () => {
+    // The screen decides what a fraction across the page means; the reader only reports it.
+    const reader = new FakeBookReader()
+    const seen: number[] = []
+
+    const stop = reader.onTap((fraction) => seen.push(fraction))
+    reader.tapAt(0.1)
+    reader.tapAt(0.9)
+    stop()
+    reader.tapAt(0.5)
+
+    expect(seen).toEqual([0.1, 0.9])
+  })
+
   it('opens a book with its title and its own contents', async () => {
     const book = await reader.open(7, host())
 

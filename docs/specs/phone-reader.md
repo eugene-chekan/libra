@@ -1,6 +1,6 @@
 # Spec: The Reader on a Phone
 
-**Status:** Designed 2026-09-08, not started. Issue #113.
+**Status:** Shipped 2026-09-11 (issue #113).
 
 Split out of [phone-layout.md](phone-layout.md), which deliberately stopped at
 the shell and the browsing screens and named the reader as its own problem.
@@ -56,6 +56,23 @@ This is worth stating because it rules out the obvious alternative: laying an
 invisible layer over the book and catching taps there. That layer would also
 swallow every tap meant for the text, so selecting a quote and following a
 footnote link would both stop working.
+
+It works with the iframe's sandbox as it is. A sandbox is a list of what the
+iframe may do. Here it has `allow-same-origin` and not `allow-scripts`, so the
+book still cannot run scripts of its own. The end-to-end test at a phone width
+proves the tap still reaches the app.
+
+**A tap is measured against the page you can see, not against the iframe.**
+epub.js makes the iframe as wide as the whole chapter — a four-page chapter is
+four screens wide — and turns a page by sliding that iframe to the left. So a
+tap's `clientX`, which is measured from the iframe's own left edge, is not a
+place on the screen.
+
+The first version divided `clientX` by the iframe's width. A tap at 85% of the
+screen then counted as 21% of a four-page chapter, and turned the page back. On
+a real phone, every second tap on the same side went the wrong way.
+`tapFraction` now adds where the iframe's left edge is on the screen, and
+divides by the width of the visible page.
 
 `BookReader` gains one method, and `FakeBookReader` implements it too:
 
@@ -113,6 +130,10 @@ same column there, so it is a control that does nothing. Hiding it is honest;
 redefining what "Wide" means on a small screen would be inventing a setting
 nobody asked for.
 
+**On a phone the bar's button is named "Text size".** On a wider window it
+stays "Text size and width". A button's name is what a screen reader says, so
+it must not promise a control that is not there.
+
 **Text size stays, unchanged.** It is the setting that matters most on a small
 screen, and its three values — 95%, 110% and 130% — need no adjustment that
 anybody has evidence for.
@@ -142,7 +163,9 @@ anybody has evidence for.
   and a tap is ignored while text is selected and when it lands on a link.
 - **Component tests** for the arrows appearing in the bar below the breakpoint
   and beside the text above it, and for the width control being hidden.
-- **One end-to-end test** at a phone viewport: tap the right third, and the
-  page moves. This is the only place a real iframe and a real forwarded event
+- **One end-to-end test** at a phone viewport: tap the right third three times
+  and reach three different pages, then the left third twice to come back.
+  Tapping each side only once hid the bug above, because forward then back
+  looks the same as a page turn that works. This is the only place a real iframe and a real forwarded event
   exist, so it is the only place the central mechanism is proven.
 - Every guard mutation-tested by hand, per the house rule.
