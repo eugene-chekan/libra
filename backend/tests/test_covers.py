@@ -526,3 +526,73 @@ def test_a_failed_commit_leaves_the_previous_cover_file_on_disk(
         )
 
     assert (library_dir / first).exists()
+
+
+# --- the cover's version: which picture the cover is (#124) ---
+
+
+def _version(client: TestClient, book_id: int) -> str | None:
+    body = client.get(f"/books/{book_id}").json()
+    assert "cover_version" in body
+    return body["cover_version"]
+
+
+def test_a_book_with_no_cover_has_no_version(admin_client: TestClient, session) -> None:
+    book_id = _plain_book(session)
+
+    assert _version(admin_client, book_id) is None
+
+
+def test_the_version_is_the_same_on_every_read(
+    admin_client: TestClient, session, library_dir
+) -> None:
+    # A version that moved on every read would put a new address in every <img>, and the
+    # browser would download every cover again on every page.
+    book_id = _book_with_epub_cover(session, library_dir)
+
+    first = _version(admin_client, book_id)
+
+    assert first is not None
+    assert _version(admin_client, book_id) == first
+
+
+def test_replacing_a_cover_changes_its_version(admin_client: TestClient, session) -> None:
+    book_id = _plain_book(session)
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("a.jpg", JPEG_BYTES, "image/jpeg")})
+    first = _version(admin_client, book_id)
+
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("b.png", PNG_BYTES, "image/png")})
+
+    assert first is not None
+    assert _version(admin_client, book_id) not in (None, first)
+
+
+def test_clearing_back_to_the_books_own_cover_changes_its_version(
+    admin_client: TestClient, session, library_dir
+) -> None:
+    # has_cover stays true the whole time, because the EPUB has a cover of its own. Only the
+    # version can tell the client that the picture changed back.
+    book_id = _book_with_epub_cover(session, library_dir)
+    own = _version(admin_client, book_id)
+    admin_client.put(f"/books/{book_id}/cover", files={"file": ("a.jpg", JPEG_BYTES, "image/jpeg")})
+    custom = _version(admin_client, book_id)
+
+    admin_client.delete(f"/books/{book_id}/cover")
+
+    assert own is not None
+    assert custom not in (None, own)
+    assert _version(admin_client, book_id) == own
+
+
+def test_has_cover_is_true_exactly_when_there_is_a_version(
+    admin_client: TestClient, session, library_dir
+) -> None:
+    books = (
+        _plain_book(session),
+        _book_with_epub_cover(session, library_dir),
+        _book_with_custom_cover(session, library_dir),
+    )
+
+    for book_id in books:
+        body = admin_client.get(f"/books/{book_id}").json()
+        assert body["has_cover"] is (body.get("cover_version") is not None)

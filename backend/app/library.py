@@ -1,5 +1,6 @@
 """Library operations, independent of HTTP."""
 
+import hashlib
 import io
 from collections.abc import Callable
 from datetime import datetime
@@ -92,17 +93,41 @@ class AttachmentTooLargeError(Exception):
         self.limit_bytes = limit_bytes
 
 
+def _custom_cover(book: Book) -> str | None:
+    """The stored custom cover's path, when the book has a usable one."""
+    path = book.book_metadata.get("custom_cover_path")
+    usable = path and book.book_metadata.get("custom_cover_media_type") in COVER_MEDIA_TYPES
+    return path if usable else None
+
+
+def _epub_cover(book: Book) -> str | None:
+    """Where the EPUB's own cover sits inside the archive, when it declares a usable one."""
+    href = book.book_metadata.get("cover_href")
+    usable = href and book.book_metadata.get("cover_media_type") in COVER_MEDIA_TYPES
+    return href if usable else None
+
+
+def _cover_identity(book: Book) -> str | None:
+    """What the cover is, as a string: the cover's ETag and its version are both made from it."""
+    if custom := _custom_cover(book):
+        return custom
+    if href := _epub_cover(book):
+        return f"{book.book_metadata.get('sha256', book.id)}-{href}"
+    return None
+
+
+def _cover_version(book: Book) -> str | None:
+    """A short string that changes whenever the cover's picture does, or None for no cover."""
+    identity = _cover_identity(book)
+    return hashlib.sha256(identity.encode()).hexdigest()[:12] if identity else None
+
+
 def _merge(book: Book, state: UserBookState | None, tag_ids: list[int] | None = None) -> BookRead:
     """Combine a shared catalog row with one reader's state."""
     view = BookRead.model_validate(book, from_attributes=True)
     view.tag_ids = tag_ids or []
-    view.has_cover = bool(
-        book.book_metadata.get("custom_cover_media_type") in COVER_MEDIA_TYPES
-        or (
-            book.book_metadata.get("cover_href")
-            and book.book_metadata.get("cover_media_type") in COVER_MEDIA_TYPES
-        )
-    )
+    view.cover_version = _cover_version(book)
+    view.has_cover = view.cover_version is not None
     if state is not None:
         view.shelf_id = state.shelf_id
         view.rating = state.rating
@@ -164,32 +189,24 @@ def cover_for(session: Session, book: Book, settings: Settings) -> tuple[bytes, 
     Raises:
         NoCoverError: The book declares no usable cover.
     """
-    custom = book.book_metadata.get("custom_cover_path")
-    custom_type = book.book_metadata.get("custom_cover_media_type")
-    if custom and custom_type in COVER_MEDIA_TYPES:
+    etag = f'"{_cover_identity(book)}"'
+
+    if custom := _custom_cover(book):
         try:
-            path = storage.resolve(custom, settings.library_dir)
-            data = path.read_bytes()
+            data = storage.resolve(custom, settings.library_dir).read_bytes()
         except (ValueError, OSError) as exc:
             raise NoCoverError from exc
-        # The stored name is a fresh uuid on every write, so a replaced cover
-        # gets a new ETag on its own. That is what the `no-cache` response makes
-        # the browser revalidate against before it reuses the picture.
-        return data, custom_type, f'"{custom}"'
+        return data, book.book_metadata["custom_cover_media_type"], etag
 
-    href = book.book_metadata.get("cover_href")
-    media_type = book.book_metadata.get("cover_media_type")
-    if not href or media_type not in COVER_MEDIA_TYPES:
-        raise NoCoverError
+    if href := _epub_cover(book):
+        path = storage.resolve(book.file_path, settings.library_dir)
+        try:
+            data = epub.read_cover(path, href, settings.max_cover_bytes)
+        except (epub.InvalidEpubError, FileNotFoundError) as exc:
+            raise NoCoverError from exc
+        return data, book.book_metadata["cover_media_type"], etag
 
-    path = storage.resolve(book.file_path, settings.library_dir)
-    try:
-        data = epub.read_cover(path, href, settings.max_cover_bytes)
-    except (epub.InvalidEpubError, FileNotFoundError) as exc:
-        raise NoCoverError from exc
-
-    etag = f'"{book.book_metadata.get("sha256", book.id)}-{href}"'
-    return data, media_type, etag
+    raise NoCoverError
 
 
 def _replace_cover(book: Book, relative: str, media_type: str) -> str | None:

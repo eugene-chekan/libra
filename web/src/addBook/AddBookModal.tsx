@@ -157,7 +157,7 @@ function ConfirmForm({ book, onDone }: { book: Book; onDone: () => void }) {
     <>
       <div className={styles.scroller}>
         <div className={styles.cover}>
-          <BookCover id={book.id} title={book.title} hasCover={book.has_cover} />
+          <BookCover id={book.id} title={book.title} coverVersion={book.cover_version} />
         </div>
 
         <form className={styles.fieldsForm} onSubmit={(event) => void save(event)}>

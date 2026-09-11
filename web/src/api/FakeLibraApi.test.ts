@@ -422,6 +422,35 @@ describe('FakeLibraApi cover writes', () => {
     })
   })
 
+  it('keeps has_cover and the version in agreement, as the server does', () => {
+    // The server works has_cover out from the version, so the two can never disagree.
+    expect(typeof fakeBook({ has_cover: true }).cover_version).toBe('string')
+    expect(fakeBook({ cover_version: 'v1' }).has_cover).toBe(true)
+    expect(fakeBook({}).cover_version).toBeNull()
+  })
+
+  it('gives the cover a new version on every write', async () => {
+    // The version is what puts a new picture at a new address (#124). The same version twice
+    // would leave the old picture on screen.
+    const { api } = signedInAsAdmin([fakeBook({ id: 5 })])
+
+    const first = (await api.setCover(5, jpeg())).cover_version
+    const second = (await api.setCoverFromUrl(5, 'https://example.com/c.jpg')).cover_version
+
+    expect(first).toEqual(expect.any(String))
+    expect(second).toEqual(expect.any(String))
+    expect(second).not.toBe(first)
+  })
+
+  it('drops the version when the cover is cleared', async () => {
+    const { api } = signedInAsAdmin([fakeBook({ id: 5, has_cover: true })])
+
+    const cleared = await api.clearCover(5)
+
+    expect(cleared.cover_version).toBeNull()
+    expect(cleared.has_cover).toBe(false)
+  })
+
   it('clears the cover again', async () => {
     const { api } = signedInAsAdmin([fakeBook({ id: 5, has_cover: false })])
     await api.setCover(5, jpeg())

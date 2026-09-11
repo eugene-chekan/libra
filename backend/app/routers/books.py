@@ -184,9 +184,9 @@ def get_cover(
         headers={
             "X-Content-Type-Options": "nosniff",
             # `no-cache` still lets the browser store the cover; it forbids
-            # reusing it without first revalidating against the ETag. `max-age`
-            # here would hide a replaced cover for a day, since the ETag only
-            # moves the picture on the revalidation `max-age` suppresses.
+            # reusing it without first revalidating against the ETag. The client
+            # puts `cover_version` in the address, but this route ignores it, so
+            # one address can still come to name a replaced picture.
             "Cache-Control": "private, no-cache",
             "ETag": etag,
         },

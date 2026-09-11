@@ -24,6 +24,12 @@ const PNG_BYTES = Buffer.from(
   'base64'
 )
 
+/** A second picture, two pixels wide, so the page can tell it from the first one. */
+const WIDE_PNG_BYTES = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAIAAAABCAIAAAB7QOjdAAAADUlEQVR4nGP4z8AARAAI/gH/xp559wAAAABJRU5ErkJggg==',
+  'base64'
+)
+
 async function createBook(request: import('@playwright/test').APIRequestContext, title: string) {
   const response = await request.post('/api/books', {
     data: { title, author: 'E2E Author', format: 'epub', file_path: `${title}.epub` },
@@ -149,6 +155,29 @@ test.describe('book detail, in a real browser', () => {
     await page.goto('/books/999999')
 
     await expect(page.getByText('That book is not in this library.')).toBeVisible()
+  })
+
+  /*
+    #124. Every picture a book ever had used one fixed address, so replacing a cover left the old
+    picture on screen until the page was reloaded. This replaces a cover without reloading, and
+    checks that the picture drawn is the new one — by its width, not only by its address.
+  */
+  test('replacing a cover shows the new picture without a reload', async ({ page, request }) => {
+    const title = `E2E Recover ${Date.now()}`
+    const book = await createBook(request, title)
+    await page.goto(`/books/${book.id}`)
+    await page.getByRole('button', { name: 'Edit Book' }).click()
+    const choose = page.getByLabel(/choose a picture/i)
+    const cover = page.getByRole('img', { name: title })
+    const width = () => cover.evaluate((img: HTMLImageElement) => img.naturalWidth)
+
+    await choose.setInputFiles({ name: 'a.png', mimeType: 'image/png', buffer: PNG_BYTES })
+    await expect.poll(width).toBe(1)
+    const first = await cover.getAttribute('src')
+
+    await choose.setInputFiles({ name: 'b.png', mimeType: 'image/png', buffer: WIDE_PNG_BYTES })
+    await expect.poll(width).toBe(2)
+    expect(await cover.getAttribute('src')).not.toBe(first)
   })
 
   test('an admin gives a book a cover, and the lightbox unlocks', async ({ page, request }) => {

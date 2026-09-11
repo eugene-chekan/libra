@@ -44,6 +44,8 @@ export interface Book {
   pages: number | null
   /** Whether `GET /books/{id}/cover` will answer with an image. */
   has_cover: boolean
+  /** Which picture the cover is, or null for none. It changes whenever the picture does. */
+  cover_version: string | null
   tag_ids: number[]
   /** The shelf this reader put it on, or null for none. */
   shelf_id: number | null

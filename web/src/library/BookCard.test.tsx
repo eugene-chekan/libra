@@ -29,11 +29,11 @@ describe('BookCard', () => {
   })
 
   it("shows the book's cover", () => {
-    renderCard({ id: 3, has_cover: true })
+    renderCard({ id: 3, cover_version: 'v1' })
 
     expect(screen.getByRole('img', { name: 'Piranesi' })).toHaveAttribute(
       'src',
-      '/api/books/3/cover'
+      new FakeLibraApi().coverUrl(3, 'v1')
     )
   })
 

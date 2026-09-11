@@ -7,24 +7,28 @@ import styles from './BookCover.module.css'
 interface BookCoverProps {
   id: number
   title: string
-  hasCover: boolean
+  /** The book's `cover_version`, or null when it has no cover. */
+  coverVersion: string | null
   /** Called when the image the server promised does not load. */
   onError?: () => void
 }
 
 /** A book's cover, or the procedural gradient standing in for one. */
-export function BookCover({ id, title, hasCover, onError }: BookCoverProps) {
+export function BookCover({ id, title, coverVersion, onError }: BookCoverProps) {
   const api = useApi()
-  const [broken, setBroken] = useState(false)
+  const src = coverVersion === null ? null : api.coverUrl(id, coverVersion)
+  // A failure is remembered for one address only, so a new cover is still tried after an old
+  // one failed to load.
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
 
-  if (hasCover && !broken) {
+  if (src !== null && src !== failedSrc) {
     return (
       <img
         className={styles.cover}
-        src={api.coverUrl(id)}
+        src={src}
         alt={title}
         onError={() => {
-          setBroken(true)
+          setFailedSrc(src)
           onError?.()
         }}
       />

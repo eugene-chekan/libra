@@ -62,6 +62,8 @@ class BookRead(BookBase):
     id: int
     uploaded_by: int | None = None
     has_cover: bool = False
+    # Changes whenever the cover's picture does; the client puts it in the cover address.
+    cover_version: str | None = None
     shelf_id: int | None = None
     tag_ids: list[int] = []
     rating: int = 0
