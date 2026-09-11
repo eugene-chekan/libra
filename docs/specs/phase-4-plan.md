@@ -1,6 +1,7 @@
 # Phase 4 — Client: Scope and Plan
 
-**Status:** Active. Written 2026-08-09, the day after Phase 1 completed.
+**Status:** Complete 2026-09-11 (version 0.2.0). Written 2026-08-09, the day
+after Phase 1 completed.
 
 The client is built in TypeScript and React, with Vite. The scope, the
 milestones and the design below are unchanged from when this plan was

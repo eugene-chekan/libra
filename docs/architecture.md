@@ -63,7 +63,7 @@ this phase.
   two is why library operations are written outside route handlers from
   Phase 1 onward — see [specs/layering.md](specs/layering.md).
 
-**Phase 4 — Web client** — *building now, ahead of Phases 2 and 3*
+**Phase 4 — Web client — COMPLETE** — *built ahead of Phases 2 and 3*
 - TypeScript + React web client: library browsing, search, chat interface to
   the agent. It builds real page elements, so the accessibility this client
   promises can be tested, and so a real browser can drive it end-to-end — see
@@ -121,7 +121,7 @@ one; nothing reads it. `app/version.py` reads the number back out of the
 installed package, so it is never written down twice.
 
 **The minor version moves when a phase completes**, and nothing else moves it.
-`0.1.0` is Phase 1 finished; `0.2.0` will be Phase 4. Five phases, five bumps,
+`0.1.0` is Phase 1 finished; `0.2.0` is Phase 4 finished. Five phases, five bumps,
 `1.0.0` when the project is done. A number nobody remembers to change is worse
 than no number, so this rule asks to be remembered five times in total.
 
@@ -130,7 +130,7 @@ than no number, so this rule asks to be remembered five times in total.
 same value as a build argument. So the version answers "which phase" and the
 build answers "which code", and neither has to be bumped per change.
 
-`GET /health` reports both — `{"status": "ok", "version": "0.1.0", "build":
+`GET /health` reports both — `{"status": "ok", "version": "0.2.0", "build":
 "44f0320"}` — omitting `build` entirely when nobody set one. It is
 unauthenticated, like the rest of `/health`: on a self-hosted instance being
 able to ask what is running is the point. The client shows the same line under

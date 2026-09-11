@@ -182,7 +182,7 @@ $VenvPy = Get-VenvPython
 if (-not $VenvPy) { Stop-WithError "could not find the interpreter in $Venv" }
 
 # --reinstall so a rebuilt wheel of the same version actually replaces the
-# installed one; pip would otherwise see 0.1.0 already present and do nothing,
+# installed one; pip would otherwise see that version already present and do nothing,
 # and every run would serve the first build forever.
 Invoke-Native { uv pip install --quiet --python $VenvPy --reinstall $Wheel.FullName } 'uv pip install'
 
