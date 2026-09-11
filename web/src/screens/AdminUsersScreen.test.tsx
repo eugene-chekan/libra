@@ -3,11 +3,12 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import type { ReactNode } from 'react'
 import { MemoryRouter } from 'react-router-dom'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { ApiProvider } from '../api/ApiProvider'
 import { fakeUser, FakeLibraApi } from '../api/FakeLibraApi'
 import type { FakeUser } from '../api/FakeLibraApi'
+import type { User } from '../api/types'
 import { createQueryClient } from '../queryClient'
 import { SessionProvider, useSession } from '../session/SessionProvider'
 import { AdminUsersScreen } from './AdminUsersScreen'
@@ -178,7 +179,7 @@ describe('AdminUsersScreen', () => {
     expect(api.users.map((u) => u.username)).toEqual(['admin'])
   })
 
-  it("shows the server's refusal when creating a taken username", async () => {
+  it("keeps the Add User form open with what was typed, and the server's refusal", async () => {
     const user = userEvent.setup()
     const admin = fakeUser({ id: 1, username: 'admin', is_admin: true })
     renderScreen(admin, [admin])
@@ -190,6 +191,39 @@ describe('AdminUsersScreen', () => {
     await user.click(screen.getByRole('button', { name: 'Create' }))
 
     expect(await screen.findByText('Username already taken')).toBeInTheDocument()
+    expect(screen.getByLabelText('Username')).toHaveValue('admin')
+  })
+
+  it('keeps a refused edit open, with what was typed', async () => {
+    const user = userEvent.setup()
+    const admin = fakeUser({ id: 1, username: 'admin', is_admin: true })
+    const reader = fakeUser({ id: 2, username: 'reader', kindle_email: null })
+    const api = renderScreen(admin, [admin, reader])
+    await screen.findByText('reader')
+
+    await user.click(screen.getByRole('button', { name: 'Edit reader' }))
+    await user.type(screen.getByLabelText('Kindle address'), 'reader@kindle.com')
+    // Another admin deletes the account while this one is still typing.
+    api.users.splice(api.users.indexOf(reader), 1)
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(screen.getByLabelText('Kindle address')).toHaveValue('reader@kindle.com')
+  })
+
+  it('saves an edit with Enter', async () => {
+    const user = userEvent.setup()
+    const admin = fakeUser({ id: 1, username: 'admin', is_admin: true })
+    const reader = fakeUser({ id: 2, username: 'reader', kindle_email: null })
+    const api = renderScreen(admin, [admin, reader])
+    await screen.findByText('reader')
+
+    await user.click(screen.getByRole('button', { name: 'Edit reader' }))
+    await user.type(screen.getByLabelText('Kindle address'), 'reader@kindle.com{Enter}')
+
+    await waitFor(() =>
+      expect(api.users.find((u) => u.username === 'reader')?.kindle_email).toBe('reader@kindle.com')
+    )
   })
 
   it('updates the session when the admin edits their own row, not just the users list', async () => {
@@ -211,7 +245,23 @@ describe('AdminUsersScreen', () => {
     )
   })
 
-  it('clears a failed create error once the Add row is opened again and cancelled', async () => {
+  it('sends an edit once, even when Save is pressed again while it is on its way', async () => {
+    const user = userEvent.setup()
+    const admin = fakeUser({ id: 1, username: 'admin', is_admin: true })
+    const reader = fakeUser({ id: 2, username: 'reader', kindle_email: null })
+    const api = renderScreen(admin, [admin, reader])
+    await screen.findByText('reader')
+    const sent = vi.spyOn(api, 'updateUser').mockReturnValue(new Promise<User>(() => {}))
+
+    await user.click(screen.getByRole('button', { name: 'Edit reader' }))
+    await user.type(screen.getByLabelText('Kindle address'), 'reader@kindle.com{Enter}')
+    await user.type(screen.getByLabelText('Kindle address'), '{Enter}')
+
+    expect(sent).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
+  it('clears a failed create error when the form is cancelled', async () => {
     const user = userEvent.setup()
     const admin = fakeUser({ id: 1, username: 'admin', is_admin: true })
     renderScreen(admin, [admin])
@@ -223,7 +273,6 @@ describe('AdminUsersScreen', () => {
     await user.click(screen.getByRole('button', { name: 'Create' }))
     expect(await screen.findByText('Username already taken')).toBeInTheDocument()
 
-    await user.click(screen.getByRole('button', { name: '+ Add User' }))
     await user.click(screen.getByRole('button', { name: 'Cancel' }))
 
     expect(screen.queryByText('Username already taken')).not.toBeInTheDocument()

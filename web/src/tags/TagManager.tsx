@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 
 import { messageFor } from '../api/errors'
 import type { Tag } from '../api/types'
+import { useLastWriteError } from '../api/useLastWriteError'
 import { useTags } from '../library/useTags'
 import { useSession } from '../session/SessionProvider'
 import { ConfirmDialog } from '../widgets/ConfirmDialog'
@@ -29,6 +30,7 @@ export function TagManager({ onClose }: { onClose: () => void }) {
     else next.delete('tags')
     setSearchParams(next, { replace: true })
   })
+  const { error, settle } = useLastWriteError()
 
   const [newName, setNewName] = useState('')
   const [newIsShared, setNewIsShared] = useState(false)
@@ -42,25 +44,22 @@ export function TagManager({ onClose }: { onClose: () => void }) {
   const mine = all.filter((tag) => !tag.is_global)
 
   const busy = create.isPending || update.isPending || remove.isPending
-  const error = create.error ?? update.error ?? remove.error
 
   function addTag(event: FormEvent) {
     event.preventDefault()
     const name = newName.trim()
-    if (name === '' || busy) return
+    if (name === '') return
     create.mutate(
       { tag: { name }, makeGlobal: newIsShared },
-      {
-        onSuccess: () => {
-          setNewName('')
-          setNewIsShared(false)
-        },
-      }
+      settle(() => {
+        setNewName('')
+        setNewIsShared(false)
+      })
     )
   }
 
   function deleteTag(tag: Tag) {
-    remove.mutate(tag.id)
+    remove.mutate(tag.id, settle())
   }
 
   return (
@@ -81,7 +80,9 @@ export function TagManager({ onClose }: { onClose: () => void }) {
                     key={tag.id}
                     tag={tag}
                     busy={busy}
-                    onSave={(name) => update.mutate({ id: tag.id, patch: { name } })}
+                    onSave={(name, done) =>
+                      update.mutate({ id: tag.id, patch: { name } }, settle(done))
+                    }
                     onDelete={() => setPendingDelete(tag)}
                   />
                 ))}
@@ -99,7 +100,9 @@ export function TagManager({ onClose }: { onClose: () => void }) {
                   key={tag.id}
                   tag={tag}
                   busy={busy}
-                  onSave={(name) => update.mutate({ id: tag.id, patch: { name } })}
+                  onSave={(name, done) =>
+                    update.mutate({ id: tag.id, patch: { name } }, settle(done))
+                  }
                   onDelete={() => setPendingDelete(tag)}
                 />
               ))}

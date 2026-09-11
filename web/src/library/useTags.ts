@@ -2,12 +2,13 @@ import { useQuery, type UseQueryResult } from '@tanstack/react-query'
 
 import { useApi } from '../api/ApiProvider'
 import type { Tag } from '../api/types'
+import { queryKeys } from '../queryKeys'
 
 /** `GET /api/tags`. */
 export function useTags(): UseQueryResult<Tag[]> {
   const api = useApi()
   return useQuery({
-    queryKey: ['tags'],
+    queryKey: queryKeys.tags,
     queryFn: () => api.listTags(),
   })
 }

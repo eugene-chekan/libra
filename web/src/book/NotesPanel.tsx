@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from 'react'
 
 import { messageFor } from '../api/errors'
+import { useLastWriteError } from '../api/useLastWriteError'
 import { Icon } from '../widgets/Icon'
 import { ErrorBlock } from '../widgets/ErrorBlock'
 import { SkeletonDelay, SkeletonRows } from '../widgets/Skeleton'
@@ -13,21 +14,18 @@ export function NotesPanel({ bookId }: { bookId: number }) {
   const notes = useNotes(bookId)
   const create = useCreateNote(bookId)
   const remove = useDeleteNote(bookId)
+  const { error: writeError, settle } = useLastWriteError()
   const [draft, setDraft] = useState('')
 
   function add(event: FormEvent) {
     event.preventDefault()
     const text = draft.trim()
-    if (text === '' || create.isPending) return
+    if (text === '') return
     create.mutate(
       { text },
-      {
-        onSuccess: () => setDraft(''),
-      }
+      settle(() => setDraft(''))
     )
   }
-
-  const writeError = create.error ?? remove.error
 
   return (
     <section className={styles.panel} aria-labelledby="notes-label">
@@ -74,7 +72,7 @@ export function NotesPanel({ bookId }: { bookId: number }) {
               type="button"
               className={styles.delete}
               aria-label={`Delete note: ${note.text}`}
-              onClick={() => remove.mutate(note.id)}
+              onClick={() => remove.mutate(note.id, settle())}
             >
               <Icon name="trash" size={14} />
             </button>

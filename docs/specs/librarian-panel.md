@@ -34,6 +34,10 @@ spec otherwise has no use for.
 - Everything Gap 5 already designed for the chat's content, unchanged:
   empty state, message rendering, streaming, tool-call status, citations,
   the three failure shapes, the composer.
+- One part of that design waits for Phase 3. Gap 5 expands the finished
+  tool-call status into the titles it matched, but the stub sends no titles.
+  So the finished status is plain text, with no arrow and nothing to click
+  (#131). The expanding list comes with Phase 3, together with the titles.
 - One rule the panel adds that a page didn't need: clicking a citation
   navigates the page underneath while the panel stays open.
 - The backend: `Conversation`/`Message` tables, one migration, and real

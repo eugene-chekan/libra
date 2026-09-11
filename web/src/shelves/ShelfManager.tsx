@@ -2,6 +2,7 @@ import { useState, type FormEvent } from 'react'
 
 import { messageFor } from '../api/errors'
 import type { Shelf } from '../api/types'
+import { useLastWriteError } from '../api/useLastWriteError'
 import { useShelves } from '../library/useShelves'
 import { ConfirmDialog } from '../widgets/ConfirmDialog'
 import { ErrorBlock } from '../widgets/ErrorBlock'
@@ -20,15 +21,15 @@ export function ShelfManager({ onClose }: { onClose: () => void }) {
   const update = useUpdateShelf()
   const remove = useDeleteShelf()
   const reorder = useReorderShelves()
+  const { error, settle } = useLastWriteError()
 
   const [newName, setNewName] = useState('')
   const [pendingDelete, setPendingDelete] = useState<Shelf | null>(null)
 
   const ids = mine.map((shelf) => shelf.id)
-  const drag = useDragReorder(ids, (next) => reorder.mutate(next))
+  const drag = useDragReorder(ids, (next) => reorder.mutate(next, settle()))
 
   const busy = create.isPending || update.isPending || remove.isPending || reorder.isPending
-  const error = create.error ?? update.error ?? remove.error ?? reorder.error
 
   const byId = new Map(mine.map((shelf) => [shelf.id, shelf]))
   const rows = drag.order.map((id) => byId.get(id)).filter((shelf) => shelf !== undefined)
@@ -36,8 +37,11 @@ export function ShelfManager({ onClose }: { onClose: () => void }) {
   function addShelf(event: FormEvent) {
     event.preventDefault()
     const name = newName.trim()
-    if (name === '' || busy) return
-    create.mutate({ name }, { onSuccess: () => setNewName('') })
+    if (name === '') return
+    create.mutate(
+      { name },
+      settle(() => setNewName(''))
+    )
   }
 
   function moveBy(index: number, direction: -1 | 1) {
@@ -47,7 +51,7 @@ export function ShelfManager({ onClose }: { onClose: () => void }) {
     const [moved] = next.splice(index, 1)
     if (moved === undefined) return
     next.splice(target, 0, moved)
-    reorder.mutate(next)
+    reorder.mutate(next, settle())
   }
 
   return (
@@ -72,7 +76,7 @@ export function ShelfManager({ onClose }: { onClose: () => void }) {
                 busy={busy}
                 dragHandleProps={drag.handleProps(shelf.id)}
                 onMove={(direction) => moveBy(index, direction)}
-                onSave={(patch) => update.mutate({ id: shelf.id, patch })}
+                onSave={(patch, done) => update.mutate({ id: shelf.id, patch }, settle(done))}
                 onDelete={() => setPendingDelete(shelf)}
               />
             ))}
@@ -113,7 +117,7 @@ export function ShelfManager({ onClose }: { onClose: () => void }) {
           confirmLabel="Delete"
           onClose={() => setPendingDelete(null)}
           onConfirm={() => {
-            remove.mutate(pendingDelete.id)
+            remove.mutate(pendingDelete.id, settle())
             setPendingDelete(null)
           }}
         />

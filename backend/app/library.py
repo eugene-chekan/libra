@@ -795,8 +795,8 @@ def list_tags(session: Session, user: User) -> list[TagRead]:
     tags = session.exec(
         select(Tag)
         .where(_visible_tag_filter(user))
-        # By the folded name, not the typed one: `name` carried NOCASE until
-        # #103, and plain byte order would put "Zebra" before "apple".
+        # By the folded name, not the typed one: plain byte order would put
+        # "Zebra" before "apple".
         .order_by(Tag.owner_id.is_(None).desc(), Tag.name_folded)
     ).all()
     counts = _tag_counts(session, [tag.id for tag in tags])

@@ -16,8 +16,7 @@ ShelfVisibility = Literal["private", "public"]
 
 # What a cover may claim to be. Anything else is treated as "no cover":
 # serving `text/html` out of a user-uploaded archive from the API's own
-# origin is stored XSS, and since #12 there is a session cookie on that
-# origin to steal.
+# origin is stored XSS, and there is a session cookie on that origin to steal.
 COVER_MEDIA_TYPES = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
 
 SORT_TITLE = "title"

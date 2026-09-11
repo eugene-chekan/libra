@@ -92,6 +92,66 @@ describe('ShelfManager', () => {
     expect(api.shelves[0]?.name).toBe('New name')
   })
 
+  it('keeps a refused rename open, with the name still typed', async () => {
+    const user = userEvent.setup()
+    renderManager([mine(1, 'To Read'), mine(2, 'Someday')])
+    await screen.findByText('Someday')
+
+    await user.click(screen.getByRole('button', { name: 'Edit Someday' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'to read')
+    await user.click(screen.getByRole('button', { name: 'Save' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent(
+      'already have a shelf with that name'
+    )
+    expect(screen.getByLabelText('Name')).toHaveValue('to read')
+  })
+
+  it('saves a rename with Enter, as the New shelf box does', async () => {
+    const user = userEvent.setup()
+    const api = renderManager([mine(1, 'Old name')])
+    await screen.findByText('Old name')
+
+    await user.click(screen.getByRole('button', { name: 'Edit Old name' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'New name{Enter}')
+
+    expect(await screen.findByText('New name')).toBeInTheDocument()
+    expect(api.shelves[0]?.name).toBe('New name')
+  })
+
+  it('sends a rename once, even when Save is pressed again while it is on its way', async () => {
+    const user = userEvent.setup()
+    const api = renderManager([mine(1, 'Old name')])
+    await screen.findByText('Old name')
+    const sent = vi.spyOn(api, 'updateShelf').mockReturnValue(new Promise<Shelf>(() => {}))
+
+    await user.click(screen.getByRole('button', { name: 'Edit Old name' }))
+    await user.clear(screen.getByLabelText('Name'))
+    await user.type(screen.getByLabelText('Name'), 'New name{Enter}')
+    await user.type(screen.getByLabelText('Name'), '{Enter}')
+
+    expect(sent).toHaveBeenCalledTimes(1)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
+  })
+
+  it('drops a refusal once a later write succeeds', async () => {
+    // Each write keeps its own error until that same write runs again. Without keeping only
+    // the latest, the refused name would still be on screen after a move that worked.
+    const user = userEvent.setup()
+    renderManager([mine(1, 'To Read'), mine(2, 'Someday')])
+    await screen.findByText('Someday')
+
+    await user.type(screen.getByLabelText('New shelf'), 'to read')
+    await user.click(screen.getByRole('button', { name: 'Add' }))
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Move To Read down' }))
+
+    await waitFor(() => expect(screen.queryByRole('alert')).not.toBeInTheDocument())
+  })
+
   it('throws away an edit when it is cancelled, and writes nothing', async () => {
     const user = userEvent.setup()
     const api = renderManager([mine(1, 'Old name')])

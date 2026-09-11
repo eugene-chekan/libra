@@ -5,7 +5,8 @@ import styles from './AddUserRow.module.css'
 
 interface AddUserRowProps {
   busy: boolean
-  onCreate: (user: UserCreate) => void
+  /** Calls `done` once the server creates the account, so a refusal keeps what was typed. */
+  onCreate: (user: UserCreate, done: () => void) => void
   /** Fires when Cancel closes the form, so a caller can drop a stale error alongside it. */
   onCancel: () => void
 }
@@ -31,9 +32,8 @@ export function AddUserRow({ busy, onCreate, onCancel }: AddUserRowProps) {
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (username.trim() === '' || password === '' || busy) return
-    onCreate({ username: username.trim(), password, is_admin: isAdmin })
-    reset()
+    if (username.trim() === '' || password === '') return
+    onCreate({ username: username.trim(), password, is_admin: isAdmin }, reset)
   }
 
   if (!open) {

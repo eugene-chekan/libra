@@ -143,13 +143,16 @@ describe('LibrarianPanel', () => {
     )
   })
 
-  it('shows the tool-call status while searching, then collapses it', async () => {
+  it('shows the tool-call status while searching, then a plain line with nothing to expand', async () => {
+    // The design expands it to the matched titles. The stub sends none, so a button here
+    // would open nothing.
     const user = userEvent.setup()
     renderPanel({ books: [{ id: 1, title: 'Dune' }] })
 
     await user.click(screen.getByRole('button', { name: 'What should I read next?' }))
 
     await waitFor(() => expect(screen.getByText(/Searched your library/)).toBeInTheDocument())
+    expect(screen.queryByRole('button', { name: /Searched your library/ })).not.toBeInTheDocument()
   })
 
   it('renders a citation chip that navigates to the book, keeping the panel open', async () => {

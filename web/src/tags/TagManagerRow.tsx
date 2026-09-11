@@ -9,7 +9,8 @@ interface TagManagerRowProps {
   tag: Tag
   /** True while any write is in flight, which disables every control at once. */
   busy: boolean
-  onSave: (name: string) => void
+  /** Calls `done` once the server accepts the new name, so a refusal keeps the editor open. */
+  onSave: (name: string, done: () => void) => void
   onDelete: () => void
 }
 
@@ -27,11 +28,9 @@ export function TagManagerRow({ tag, busy, onSave, onDelete }: TagManagerRowProp
       {editing ? (
         <TagEditor
           tag={tag}
+          busy={busy}
           onCancel={() => setEditing(false)}
-          onSave={(name) => {
-            setEditing(false)
-            onSave(name)
-          }}
+          onSave={(name) => onSave(name, () => setEditing(false))}
         />
       ) : (
         <>
@@ -71,10 +70,12 @@ export function TagManagerRow({ tag, busy, onSave, onDelete }: TagManagerRowProp
 /** The row's edit state. */
 function TagEditor({
   tag,
+  busy,
   onSave,
   onCancel,
 }: {
   tag: Tag
+  busy: boolean
   onSave: (name: string) => void
   onCancel: () => void
 }) {
@@ -83,7 +84,6 @@ function TagEditor({
 
   function submit(event: FormEvent) {
     event.preventDefault()
-    if (name.trim() === '') return
     onSave(name.trim())
   }
 
@@ -101,7 +101,7 @@ function TagEditor({
       <button type="button" className={styles.cancel} onClick={onCancel}>
         Cancel
       </button>
-      <button type="submit" className={styles.save} disabled={name.trim() === ''}>
+      <button type="submit" className={styles.save} disabled={busy || name.trim() === ''}>
         Save
       </button>
     </form>

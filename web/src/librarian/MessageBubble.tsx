@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Link } from 'react-router-dom'
 
 import type { LibrarianMessage } from '../api/types'
@@ -14,7 +13,9 @@ export function MessageBubble({ message }: { message: LibrarianMessage }) {
 
   return (
     <div className={styles.librarian}>
-      {message.meta.tool_call && <ToolStatusLine summary={message.meta.tool_call.summary} />}
+      {message.meta.tool_call && (
+        <div className={styles.toolStatus}>{message.meta.tool_call.summary}</div>
+      )}
       <div className={styles.label}>Librarian</div>
       <div className={styles.body}>{message.content}</div>
       {message.meta.citation && (
@@ -28,23 +29,6 @@ export function MessageBubble({ message }: { message: LibrarianMessage }) {
         </Link>
       )}
     </div>
-  )
-}
-
-/** The collapsed "Searched your library · N books" line, expandable to nothing more today — the
- * matched titles it would list are not part of this stub. */
-function ToolStatusLine({ summary }: { summary: string }) {
-  const [expanded, setExpanded] = useState(false)
-  return (
-    <button
-      type="button"
-      className={styles.toolStatus}
-      onClick={() => setExpanded((e) => !e)}
-      data-collapsible
-    >
-      {summary}
-      <Icon name={expanded ? 'chevron-up' : 'chevron-down'} size={12} />
-    </button>
   )
 }
 

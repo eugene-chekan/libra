@@ -22,7 +22,7 @@ function entryCovering(chapters: Chapter[], index: number): Chapter | undefined 
   return covering
 }
 
-/** The book's own table of contents, from the left, where the sidebar used to be. */
+/** The book's own table of contents, in a drawer from the left. */
 export function ContentsDrawer({ chapters, currentIndex, onChoose, onClose }: ContentsDrawerProps) {
   const current = entryCovering(chapters, currentIndex)
   return (
