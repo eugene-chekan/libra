@@ -19,10 +19,12 @@ client is TypeScript and React. See `docs/architecture.md` for the full
 5-phase roadmap and `docs/evaluation.md` for how each phase's evaluation
 methodology is built alongside the implementation.
 
-**The version number moves only when a phase completes** — one number, in
-`backend/pyproject.toml`. `0.1.0` was Phase 1 and `0.2.0` is Phase 4; the next
-phase to finish makes it `0.3.0`. See "Version numbers" in
-`docs/architecture.md`.
+**The version number** is one number, in `backend/pyproject.toml`. The minor
+part moves when a phase completes: `0.1.0` was Phase 1 and `0.2.0` was Phase 4,
+and the next phase to finish makes it `0.3.0`. The patch part moves once for
+each group of fixes merged after that, in its own small PR: `0.2.1` is the
+first group after Phase 4. A fix PR never changes the version itself. See
+"Version numbers" in `docs/architecture.md`.
 
 ## How to write here
 

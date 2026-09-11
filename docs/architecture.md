@@ -120,17 +120,23 @@ thing to name. `web/package.json` still carries a version because npm wants
 one; nothing reads it. `app/version.py` reads the number back out of the
 installed package, so it is never written down twice.
 
-**The minor version moves when a phase completes**, and nothing else moves it.
-`0.1.0` is Phase 1 finished; `0.2.0` is Phase 4 finished. Five phases, five bumps,
-`1.0.0` when the project is done. A number nobody remembers to change is worse
-than no number, so this rule asks to be remembered five times in total.
+**The minor version moves when a phase completes.** `0.1.0` is Phase 1
+finished; `0.2.0` is Phase 4 finished. Five phases, five minor bumps, `1.0.0`
+when the project is done. The patch goes back to `0` each time.
+
+**The patch version moves once for each group of fixes** merged after a phase
+completes, in its own small PR: `0.2.1` is the first group after Phase 4. A fix
+PR never changes the version itself, so two open fix PRs never edit the same
+line. The patch moves at all because the build id below is there only when
+something set it. An instance started without it reports no build, and then
+the version is the only way to tell code with the fixes from code without them.
 
 **The commit does the fine-grained work.** `scripts/run.sh` and `run.ps1` set
 `LIBRA_BUILD` from `git rev-parse --short HEAD`, and the Dockerfile takes the
-same value as a build argument. So the version answers "which phase" and the
-build answers "which code", and neither has to be bumped per change.
+same value as a build argument. So the version answers "which phase, and which
+group of fixes", and the build answers "which exact code".
 
-`GET /health` reports both — `{"status": "ok", "version": "0.2.0", "build":
+`GET /health` reports both — `{"status": "ok", "version": "0.2.1", "build":
 "44f0320"}` — omitting `build` entirely when nobody set one. It is
 unauthenticated, like the rest of `/health`: on a self-hosted instance being
 able to ask what is running is the point. The client shows the same line under
