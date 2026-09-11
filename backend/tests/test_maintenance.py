@@ -5,6 +5,7 @@ Nothing here is about normal use. Deleting a book already cleans up after itself
 that nobody ever swept up.
 """
 
+import io
 from datetime import timedelta
 from pathlib import Path
 
@@ -12,7 +13,7 @@ import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session, select
 
-from app import maintenance
+from app import maintenance, storage
 from app.config import Settings
 from app.models import Book, User, UserSession, utcnow
 
@@ -76,6 +77,38 @@ def test_report_finds_a_book_whose_file_is_gone(
 
     assert [book["id"] for book in body["missing_files"]] == [missing_id]
     assert body["missing_files"][0]["file_path"] == "gone.epub"
+
+
+def test_a_file_that_goes_away_while_the_report_is_built_is_left_out(
+    admin_client: TestClient, library_dir: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """An upload's staging file goes away by itself: renamed if kept, deleted if refused."""
+    _file(library_dir, "stray.epub", b"12345")
+    staged = storage.stage_upload(io.BytesIO(b"half a book"), library_dir, max_bytes=1024)
+    list_files = maintenance._library_files
+
+    def list_then_refuse_the_upload(directory: Path) -> list[Path]:
+        listed = list_files(directory)
+        staged.discard()
+        return listed
+
+    monkeypatch.setattr(maintenance, "_library_files", list_then_refuse_the_upload)
+
+    body = _report(admin_client)
+
+    assert [orphan["name"] for orphan in body["orphan_files"]] == ["stray.epub"]
+    assert body["library_bytes"] == 5
+
+
+def test_an_upload_left_half_written_by_a_crash_is_still_an_orphan(
+    admin_client: TestClient, library_dir: Path
+) -> None:
+    """Its staging file is the residue this tab exists to show, so it is not hidden."""
+    staged = storage.stage_upload(io.BytesIO(b"half a book"), library_dir, max_bytes=1024)
+
+    body = _report(admin_client)
+
+    assert [orphan["name"] for orphan in body["orphan_files"]] == [staged.path.name]
 
 
 def test_report_counts_only_the_sessions_that_have_expired(

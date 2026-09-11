@@ -48,7 +48,8 @@ Three actions, and the difference between them is the point:
   it to. It answers with how many bytes came back, because otherwise the button
   does something entirely invisible and says nothing about it.
 - **Delete a file with no book — one at a time, never in bulk.** An orphan is
-  by definition referenced by nothing, so removing it cannot break the app. But
+  by definition referenced by nothing, so removing it cannot break the app
+  (with one exception: an upload still in progress, see below). But
   it may be the only copy of a book whose row was lost, so each has its own
   control and its own confirmation naming the file. A single "delete all" was
   considered and rejected for exactly that: the confirmation could not tell you
@@ -73,8 +74,22 @@ click.
 
 **The directory listing is not cached.** A household library is hundreds of
 files in one flat directory — `storage.commit` writes `{uuid}.epub` into the
-root and never makes a subdirectory — so listing it is milliseconds. Caching
-would add invalidation rules with nothing yet to show for them.
+root, and custom covers into `covers/`, which the listing skips — so listing it
+is milliseconds. Caching would add invalidation rules with nothing yet to show
+for them.
+
+**A file can go away while the report is being built** (#127). An upload
+first writes a temporary `tmp….part` file into the library directory
+(`storage.stage_upload`). Its own request then renames that file when the
+upload is kept, or deletes it when the upload is refused, and that can happen
+at any moment. So the report reads each listed file once, and leaves out any
+file that is gone by then. Before this, one such file made the whole report
+fail with a 500.
+
+**A `.part` file still counts as an orphan.** One left behind by a crash is
+exactly the leftover this tab is for, so it is not hidden. The cost: an admin
+could delete the `.part` file of an upload that is running at that moment.
+That upload then fails, and has to be tried again.
 
 ## Scope
 
