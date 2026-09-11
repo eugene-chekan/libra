@@ -9,6 +9,7 @@ crash between writing a file and inserting its row, of versions before that was
 true, and of sessions that expire and are then never removed by anything.
 """
 
+import os
 from datetime import datetime
 from pathlib import Path
 
@@ -56,6 +57,18 @@ def _library_files(library_dir: Path) -> list[Path]:
     return sorted(path for path in library_dir.iterdir() if path.is_file())
 
 
+def _still_there(paths: list[Path]) -> list[tuple[Path, os.stat_result]]:
+    """Each file with its size and times, read once, leaving out any that is gone by then."""
+    found = []
+    for path in paths:
+        try:
+            found.append((path, path.stat()))
+        except FileNotFoundError:
+            # An upload renames or deletes its own `.part` file when it finishes, at any moment.
+            continue
+    return found
+
+
 def report(session: Session, settings: Settings) -> MaintenanceReport:
     """Everything the maintenance tab shows, in one read.
 
@@ -65,15 +78,15 @@ def report(session: Session, settings: Settings) -> MaintenanceReport:
     """
     books = session.exec(select(Book)).all()
     stored_names = {book.file_path for book in books}
-    files = _library_files(settings.library_dir)
+    files = _still_there(_library_files(settings.library_dir))
 
     orphans = [
         OrphanFile(
             name=path.name,
-            size_bytes=path.stat().st_size,
-            modified_at=datetime.fromtimestamp(path.stat().st_mtime),
+            size_bytes=info.st_size,
+            modified_at=datetime.fromtimestamp(info.st_mtime),
         )
-        for path in files
+        for path, info in files
         if path.name not in stored_names
     ]
 
@@ -89,7 +102,7 @@ def report(session: Session, settings: Settings) -> MaintenanceReport:
         shelves=_count(session, Shelf),
         tags=_count(session, Tag),
         notes=_count(session, Note),
-        library_bytes=sum(path.stat().st_size for path in files),
+        library_bytes=sum(info.st_size for _, info in files),
         expired_sessions=len(_expired(session)),
         orphan_files=orphans,
         missing_files=missing,
