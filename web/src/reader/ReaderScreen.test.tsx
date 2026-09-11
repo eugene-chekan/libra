@@ -10,6 +10,7 @@ import { FakeLibrarianService } from '../librarian/FakeLibrarianService'
 import { LibrarianProvider } from '../librarian/LibrarianProvider'
 import { LibrarianServiceProvider } from '../librarian/LibrarianServiceContext'
 import { createQueryClient } from '../queryClient'
+import { setViewportWidth } from '../test/viewport'
 import { readerPath, routes } from '../routes'
 import { SessionProvider } from '../session/SessionProvider'
 import type { BookReader } from './BookReader'
@@ -286,5 +287,92 @@ describe('ReaderScreen', () => {
     await opened()
 
     await waitFor(() => expect(screen.getByRole('button', { name: 'Next page' })).toBeDisabled())
+  })
+
+  describe('tapping to turn the page on a phone', () => {
+    /** Opens the reader at a phone width and hands back the fake to tap. */
+    async function onAPhone() {
+      setViewportWidth(390)
+      const reader = new FakeBookReader()
+      renderReader(reader)
+      await opened()
+      return reader
+    }
+
+    it('turns forward when the tap lands in the right third', async () => {
+      const reader = await onAPhone()
+
+      act(() => reader.tapAt(0.9))
+
+      await waitFor(() => expect(reader.calls).toContain('next'))
+    })
+
+    it('turns back when the tap lands in the left third', async () => {
+      const reader = await onAPhone()
+      act(() => reader.tapAt(0.9))
+      await waitFor(() => expect(reader.calls).toContain('next'))
+
+      act(() => reader.tapAt(0.1))
+
+      await waitFor(() => expect(reader.calls).toContain('previous'))
+    })
+
+    it('does nothing anywhere in the middle third', async () => {
+      // The middle is where somebody reading rests a thumb, and where they tap to dismiss a
+      // menu. Turning the page there would move the book when they meant to hold it still.
+      //
+      // 0.4 and 0.6 rather than only 0.5: dead centre is the one point that stays still
+      // however wide the zones grow, so a test using it alone pins nothing about where the
+      // edges are. These two are inside the middle third and outside a wider one.
+      const reader = await onAPhone()
+
+      act(() => {
+        reader.tapAt(0.4)
+        reader.tapAt(0.5)
+        reader.tapAt(0.6)
+      })
+
+      await settle(0)
+      expect(reader.calls).not.toContain('next')
+      expect(reader.calls).not.toContain('previous')
+    })
+
+    it('puts the page turns in the bar, where a screen reader can still reach them', async () => {
+      // A tap zone is a listener, not an element, so nothing finds it without sight. The
+      // arrows are what keep the reader usable, and on a phone they move out of the margin
+      // rather than disappearing.
+      const reader = await onAPhone()
+
+      const bar = within(screen.getByRole('banner'))
+      expect(bar.getByRole('button', { name: 'Previous page' })).toBeInTheDocument()
+      expect(bar.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
+      void reader
+    })
+
+    it('leaves the page turns beside the text on a wider window', async () => {
+      setViewportWidth(1280)
+      renderReader(new FakeBookReader())
+      await opened()
+
+      // Still reachable by name — they have only moved.
+      expect(screen.getByRole('button', { name: 'Next page' })).toBeInTheDocument()
+      expect(
+        within(screen.getByRole('banner')).queryByRole('button', { name: 'Next page' })
+      ).not.toBeInTheDocument()
+    })
+
+    it('ignores taps on a window wider than a phone', async () => {
+      // A mouse has the arrows and the keyboard. Clicking the text to turn the page there
+      // would be a surprise, not a shortcut.
+      setViewportWidth(1280)
+      const reader = new FakeBookReader()
+      renderReader(reader)
+      await opened()
+
+      act(() => reader.tapAt(0.9))
+
+      await settle(0)
+      expect(reader.calls).not.toContain('next')
+    })
   })
 })

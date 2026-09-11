@@ -51,6 +51,16 @@
   max-width: var(--reader-usable);
 }
 
+/*
+  On a phone the page-turn arrows sit in the bar, not beside the text. So the text keeps only
+  16px on each side. 767px is PHONE_MAX_WIDTH in src/theme/breakpoints.ts.
+*/
+@media (max-width: 767px) {
+  .page {
+    --reader-usable: calc(100% - 32px);
+  }
+}
+
 .overlay {
   position: absolute;
   inset: 0;

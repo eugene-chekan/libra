@@ -11,6 +11,7 @@ import { LibrarianPanel } from '../librarian/LibrarianPanel'
 import { LibrarianProvider } from '../librarian/LibrarianProvider'
 import { LibrarianServiceProvider } from '../librarian/LibrarianServiceContext'
 import { createQueryClient } from '../queryClient'
+import { setViewportWidth } from '../test/viewport'
 import { ReaderBar } from './ReaderBar'
 
 /** Mirrors App: the panel sits beside the provider, not inside any one screen. */
@@ -28,6 +29,7 @@ function renderBar(props: Partial<Parameters<typeof ReaderBar>[0]> = {}) {
                 pages={null}
                 progress={0.38}
                 backTo="/books/1"
+                pageTurns={null}
                 onContents={vi.fn()}
                 onAppearance={vi.fn()}
                 {...props}
@@ -42,6 +44,17 @@ function renderBar(props: Partial<Parameters<typeof ReaderBar>[0]> = {}) {
 }
 
 describe('ReaderBar', () => {
+  it('names the menu button for the text size alone on a phone, where the width is hidden', () => {
+    // A button's name is what a screen reader says. On a phone the menu has no width choice,
+    // so the name must not promise one.
+    setViewportWidth(390)
+
+    renderBar()
+
+    expect(screen.getByRole('button', { name: 'Text size' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Text size and width' })).not.toBeInTheDocument()
+  })
+
   it('names the book and links back to it', () => {
     renderBar()
 

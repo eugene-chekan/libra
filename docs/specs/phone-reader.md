@@ -1,6 +1,6 @@
 # Spec: The Reader on a Phone
 
-**Status:** Designed 2026-09-08, not started. Issue #113.
+**Status:** Shipped 2026-09-11 (issue #113).
 
 Split out of [phone-layout.md](phone-layout.md), which deliberately stopped at
 the shell and the browsing screens and named the reader as its own problem.
@@ -57,6 +57,11 @@ invisible layer over the book and catching taps there. That layer would also
 swallow every tap meant for the text, so selecting a quote and following a
 footnote link would both stop working.
 
+It works with the iframe's sandbox as it is. A sandbox is a list of what the
+iframe may do. Here it has `allow-same-origin` and not `allow-scripts`, so the
+book still cannot run scripts of its own. The end-to-end test at a phone width
+proves the tap still reaches the app.
+
 `BookReader` gains one method, and `FakeBookReader` implements it too:
 
 ```ts
@@ -112,6 +117,10 @@ quarter more words per line.
 same column there, so it is a control that does nothing. Hiding it is honest;
 redefining what "Wide" means on a small screen would be inventing a setting
 nobody asked for.
+
+**On a phone the bar's button is named "Text size".** On a wider window it
+stays "Text size and width". A button's name is what a screen reader says, so
+it must not promise a control that is not there.
 
 **Text size stays, unchanged.** It is the setting that matters most on a small
 screen, and its three values — 95%, 110% and 130% — need no adjustment that

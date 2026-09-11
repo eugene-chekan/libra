@@ -1,5 +1,6 @@
 import * as Dialog from '@radix-ui/react-dialog'
 
+import { useIsPhone } from '../shell/useIsPhone'
 import type { Appearance, ReadingWidth, TextSize } from './BookReader'
 import styles from './AppearanceMenu.module.css'
 
@@ -23,6 +24,8 @@ interface AppearanceMenuProps {
 
 /** Text size and measure, three steps each: a slider implies a precision nobody wants. */
 export function AppearanceMenu({ value, onChange, onClose }: AppearanceMenuProps) {
+  const isPhone = useIsPhone()
+
   return (
     <Dialog.Root open onOpenChange={(open) => !open && onClose()}>
       <Dialog.Portal>
@@ -43,20 +46,25 @@ export function AppearanceMenu({ value, onChange, onClose }: AppearanceMenuProps
             ))}
           </div>
 
-          <p className={styles.heading}>Page width</p>
-          <div className={styles.group} role="group" aria-label="Page width">
-            {WIDTHS.map((choice) => (
-              <button
-                key={choice.value}
-                type="button"
-                className={styles.choice}
-                aria-current={choice.value === value.width ? 'true' : undefined}
-                onClick={() => onChange({ ...value, width: choice.value })}
-              >
-                {choice.label}
-              </button>
-            ))}
-          </div>
+          {/* On a phone all three widths give the same column, so the choice would do nothing. */}
+          {!isPhone && (
+            <>
+              <p className={styles.heading}>Page width</p>
+              <div className={styles.group} role="group" aria-label="Page width">
+                {WIDTHS.map((choice) => (
+                  <button
+                    key={choice.value}
+                    type="button"
+                    className={styles.choice}
+                    aria-current={choice.value === value.width ? 'true' : undefined}
+                    onClick={() => onChange({ ...value, width: choice.value })}
+                  >
+                    {choice.label}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>

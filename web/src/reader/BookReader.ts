@@ -90,6 +90,14 @@ export interface BookReader {
   position(): ReaderPosition
   /** Watch the position change. Returns an unsubscribe. */
   onMove(listener: (position: ReaderPosition) => void): () => void
+  /**
+   * Watch for a tap on the book, as a fraction across its width. Returns an unsubscribe.
+   *
+   * A fraction rather than a pixel: the book renders in an iframe of its own, so only the
+   * reader knows how wide it is, and only the screen knows what a third of the way across
+   * should mean.
+   */
+  onTap(listener: (fraction: number) => void): () => void
   /** Text size and measure. */
   setAppearance(appearance: Appearance): void
   /** Release the book and its iframe. */

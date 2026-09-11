@@ -149,6 +149,39 @@ test.describe('the reader, in a real browser', () => {
     await expect.poll(() => columnCount(page), { timeout: 15_000 }).toBe(1)
   })
 
+  /*
+    On a phone the page turns when you tap the outer thirds of the book. The book is drawn in an
+    iframe, which is a separate page, so a tap there never reaches the app by itself. This is the
+    only test where a real iframe and a real tap exist, so it is the only proof that epub.js
+    passes the tap back out.
+  */
+  test('on a phone, tapping the right and left thirds turns the page', async ({
+    page,
+    request,
+  }) => {
+    const title = `E2E Reader Tap ${Date.now()}`
+    const id = await uploadBook(request, title)
+    await page.setViewportSize({ width: 390, height: 844 })
+
+    await openReader(page, id, title)
+    await waitForMeasured(page)
+    const first = await page.getByRole('progressbar').getAttribute('aria-valuenow')
+    const box = await page.getByRole('region', { name: title }).boundingBox()
+    expect(box).not.toBeNull()
+    if (!box) return
+    const middle = box.y + box.height / 2
+
+    await page.mouse.click(box.x + box.width * 0.85, middle)
+    await expect
+      .poll(async () => page.getByRole('progressbar').getAttribute('aria-valuenow'))
+      .not.toBe(first)
+
+    await page.mouse.click(box.x + box.width * 0.15, middle)
+    await expect
+      .poll(async () => page.getByRole('progressbar').getAttribute('aria-valuenow'))
+      .toBe(first)
+  })
+
   test('turns a page forward and back to the same place', async ({ page, request }) => {
     const title = `E2E Reader Turn ${Date.now()}`
     const id = await uploadBook(request, title)
