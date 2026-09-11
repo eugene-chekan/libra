@@ -133,7 +133,7 @@ VENV_PY="$(venv_python)"
 [ -n "$VENV_PY" ] || die "could not find the interpreter in $VENV"
 
 # --reinstall so a rebuilt wheel of the same version actually replaces the
-# installed one; pip would otherwise see 0.1.0 already present and do nothing,
+# installed one; pip would otherwise see that version already present and do nothing,
 # and every run would serve the first build forever.
 uv pip install --quiet --python "$VENV_PY" --reinstall "$WHEEL"
 

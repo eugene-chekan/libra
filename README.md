@@ -14,11 +14,16 @@ metadata extraction, Alembic migrations, multi-user accounts with password
 auth, per-user reading state, shelves, tags, search, cover art, and Kindle
 delivery over SMTP.
 
-Next: the web client (Phase 4), then the RAG pipeline (Phase 2) and the
-librarian agent (Phase 3) — the client is deliberately built first, in
-TypeScript and React. Format conversion was deferred out of Phase 1 — see
-[docs/specs/phase-1-plan.md](docs/specs/phase-1-plan.md) for that decision and
-[docs/architecture.md](docs/architecture.md) for the roadmap.
+**Phase 4 — Web client: complete (version 0.2.0, 2026-09-11).** A TypeScript
+and React client, served by the same server as the API: the library grid,
+book details with covers, shelves, tags, uploads, notes, an in-browser EPUB
+reader that also works on a phone, the librarian chat screen against a stubbed
+service, and an admin page for users and maintenance.
+
+Next: the RAG pipeline (Phase 2), then the librarian agent (Phase 3). The
+client was deliberately built first. Format conversion was deferred out of
+Phase 1 — see [docs/specs/phase-1-plan.md](docs/specs/phase-1-plan.md) for
+that decision and [docs/architecture.md](docs/architecture.md) for the roadmap.
 
 ### API
 
