@@ -100,9 +100,10 @@ export interface LibraApi {
 
   /**
    * `GET /api/books/{id}/cover`, as a URL rather than a fetch — the caller hands this straight
-   * to an `<img src>`.
+   * to an `<img src>`. `version` is the book's `cover_version`. A new picture gets a new
+   * address; with one fixed address, the browser keeps drawing the picture it already has.
    */
-  coverUrl(id: number): string
+  coverUrl(id: number, version: string): string
 
   /** `PUT /api/books/{id}/cover` — replace the cover with an uploaded picture. Admin only. */
   setCover(bookId: number, file: File): Promise<Book>

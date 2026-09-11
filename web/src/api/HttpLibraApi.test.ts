@@ -197,8 +197,12 @@ describe('HttpLibraApi', () => {
     expect(lastFetchCall()[0]).toBe('/api/shelves')
   })
 
-  it('builds the cover URL without making a request', () => {
-    expect(new HttpLibraApi().coverUrl(42)).toBe('/api/books/42/cover')
+  it('builds the cover URL with its version, without making a request', () => {
+    // The version is in the address so that a new picture gets a new address. With one fixed
+    // address the browser keeps drawing the picture it already has (#124).
+    expect(new HttpLibraApi().coverUrl(42, 'ab12cd34ef56')).toBe(
+      '/api/books/42/cover?v=ab12cd34ef56'
+    )
     expect(fetchMock).not.toHaveBeenCalled()
   })
 

@@ -13,7 +13,7 @@ export function BookCard({ book }: { book: Book }) {
     <Link className={styles.cell} to={bookPath(book.id)}>
       {/* The title below is cut at two lines. The tooltip is where a long one can be read. */}
       <CoverTooltip title={book.title} author={book.author}>
-        <BookCover id={book.id} title={book.title} hasCover={book.has_cover} />
+        <BookCover id={book.id} title={book.title} coverVersion={book.cover_version} />
       </CoverTooltip>
       <div>
         <p className={styles.title}>{book.title}</p>

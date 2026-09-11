@@ -10,19 +10,20 @@ import styles from './DetailCover.module.css'
 /** The detail screen's cover, and the lightbox behind it. */
 export function DetailCover({ book }: { book: Book }) {
   const api = useApi()
-  const [broken, setBroken] = useState(false)
-  const enlargeable = book.has_cover && !broken
+  const version = book.cover_version
+  // The version whose picture did not load. A new version is a new picture, and gets a new try.
+  const [failedVersion, setFailedVersion] = useState<string | null>(null)
 
   const cover = (
     <BookCover
       id={book.id}
       title={book.title}
-      hasCover={book.has_cover}
-      onError={() => setBroken(true)}
+      coverVersion={version}
+      onError={() => setFailedVersion(version)}
     />
   )
 
-  if (!enlargeable) {
+  if (version === null || version === failedVersion) {
     return <div className={styles.frame}>{cover}</div>
   }
 
@@ -42,7 +43,11 @@ export function DetailCover({ book }: { book: Book }) {
         <Dialog.Overlay className={styles.overlay} />
         <Dialog.Content className={styles.lightbox} aria-describedby={undefined}>
           <Dialog.Title className={hidden.visuallyHidden}>Cover of {book.title}</Dialog.Title>
-          <img className={styles.full} src={api.coverUrl(book.id)} alt={`Cover of ${book.title}`} />
+          <img
+            className={styles.full}
+            src={api.coverUrl(book.id, version)}
+            alt={`Cover of ${book.title}`}
+          />
           <Dialog.Close className={styles.close} aria-label="Close">
             &times;
           </Dialog.Close>

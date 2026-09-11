@@ -41,7 +41,7 @@ export function ShelfBlock({ shelf }: { shelf: Shelf }) {
             <li key={book.id}>
               <Link className={styles.cover} to={bookPath(book.id)}>
                 <CoverTooltip title={book.title} author={book.author}>
-                  <BookCover id={book.id} title={book.title} hasCover={book.has_cover} />
+                  <BookCover id={book.id} title={book.title} coverVersion={book.cover_version} />
                 </CoverTooltip>
                 {/* The cover is a picture; the link still needs words. Visible
                     text would repeat the title under every cover in a row that

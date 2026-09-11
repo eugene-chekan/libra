@@ -50,8 +50,10 @@ export type FakeBook = Book
 
 let nextBookId = 1
 
+/** Builds a book for a test. `has_cover` and `cover_version` always agree, as on the server. */
 export function fakeBook(overrides: Partial<FakeBook> = {}): FakeBook {
   const id = overrides.id ?? nextBookId++
+  const coverVersion = overrides.cover_version ?? (overrides.has_cover ? `fake-cover-${id}` : null)
   return {
     id,
     title: `Book ${id}`,
@@ -60,7 +62,6 @@ export function fakeBook(overrides: Partial<FakeBook> = {}): FakeBook {
     year: null,
     blurb: null,
     pages: null,
-    has_cover: false,
     tag_ids: [],
     shelf_id: null,
     rating: 0,
@@ -68,6 +69,8 @@ export function fakeBook(overrides: Partial<FakeBook> = {}): FakeBook {
     position: null,
     last_sent_at: null,
     ...overrides,
+    cover_version: coverVersion,
+    has_cover: coverVersion !== null,
   }
 }
 
@@ -193,6 +196,8 @@ export class FakeLibraApi implements LibraApi {
   kindleFailure: string | null
   /** Settable mid-test, so a cover link can be refused with a chosen message. */
   coverFailure: string | null
+  /** Covers written so far, so each write gets a version that no earlier write had. */
+  private coverWrites = 0
   /** Settable mid-test, so each upload in a test can "parse" to something different. */
   uploadMetadata: Partial<FakeBook> | null
   /** Settable mid-test, for the one upload that should fail. */
@@ -594,8 +599,8 @@ export class FakeLibraApi implements LibraApi {
     return this.listShelves()
   }
 
-  coverUrl(id: number): string {
-    return `/api/books/${id}/cover`
+  coverUrl(id: number, version: string): string {
+    return `/api/books/${id}/cover?v=${encodeURIComponent(version)}`
   }
 
   fileUrl(id: number): string {
@@ -648,8 +653,8 @@ export class FakeLibraApi implements LibraApi {
   /**
    * Admin-only and refused before the book is looked up, as `updateBook` is — `require_admin`
    * is a dependency on the server. The server decides the picture is one by sniffing its first
-   * bytes; the fake has none, so it trusts the file's declared type and stores `has_cover` as a
-   * plain fact. The screen reads the same field either way.
+   * bytes; the fake has none, so it trusts the file's declared type. Every write gives the book
+   * a new cover version, because on the server every write stores a new file.
    */
   async setCover(bookId: number, file: File): Promise<Book> {
     this.calls.push(`setCover:${bookId}`)
@@ -658,7 +663,7 @@ export class FakeLibraApi implements LibraApi {
     if (!file.type.startsWith('image/')) {
       throw new ApiError(415, 'not a JPEG, PNG, GIF or WebP')
     }
-    book.has_cover = true
+    this.giveNewCover(book)
     return book
   }
 
@@ -676,18 +681,19 @@ export class FakeLibraApi implements LibraApi {
       throw new ApiError(422, 'a cover link must be an https address')
     }
     if (this.coverFailure !== null) throw new ApiError(422, this.coverFailure)
-    book.has_cover = true
+    this.giveNewCover(book)
     return book
   }
 
   /**
    * Admin-only, refused before the lookup. Drops the custom cover; the fake has no EPUB cover to
-   * fall back to, so `has_cover` goes false.
+   * fall back to, so the cover version goes to null and `has_cover` goes false.
    */
   async clearCover(bookId: number): Promise<Book> {
     this.calls.push(`clearCover:${bookId}`)
     this.requireAdmin()
     const book = this.requireBook(bookId)
+    book.cover_version = null
     book.has_cover = false
     return book
   }
@@ -795,6 +801,13 @@ export class FakeLibraApi implements LibraApi {
     const index = this.notes.findIndex((note) => note.id === noteId && note.user_id === caller.id)
     if (index === -1) throw new ApiError(404, 'Note not found')
     this.notes.splice(index, 1)
+  }
+
+  /** Records a cover write on the book, with a version that no earlier write had. */
+  private giveNewCover(book: FakeBook): void {
+    this.coverWrites += 1
+    book.cover_version = `fake-cover-write-${this.coverWrites}`
+    book.has_cover = true
   }
 
   /** Refused before any lookup, because `require_admin` is a dependency on the server. */

@@ -87,6 +87,7 @@ describe('AddBookModal, drop step', () => {
       blurb: null,
       pages: null,
       has_cover: false,
+      cover_version: null,
       tag_ids: [],
       shelf_id: null,
       rating: 0,

@@ -152,8 +152,8 @@ export class HttpLibraApi implements LibraApi {
     return this.send<Shelf[]>('PUT', '/shelves/order', { shelf_ids: shelfIds })
   }
 
-  coverUrl(id: number): string {
-    return `${BASE}/books/${id}/cover`
+  coverUrl(id: number, version: string): string {
+    return `${BASE}/books/${id}/cover?v=${encodeURIComponent(version)}`
   }
 
   /**

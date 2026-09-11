@@ -3,7 +3,8 @@
 **Status:** Shipped 2026-09-07 (issue #84). Both reports in the issue are
 closed — `has_cover` can now turn true for any book, and the detail screen's
 click-to-enlarge works once a book has a cover. Setting a cover from a link
-was added when the feature was planned, and shipped with it.
+was added when the feature was planned, and shipped with it. A replaced cover
+shows without a page reload since 2026-09-11 (issue #124).
 
 ## Why
 
@@ -94,7 +95,8 @@ Two new keys sit beside them:
 - `custom_cover_media_type` — what it is, decided from the bytes.
 
 `library.cover_for` then resolves in order: the custom cover, then the EPUB's
-declared one, then `NoCoverError`. `has_cover` is true when either exists.
+declared one, then `NoCoverError`. `has_cover` is true when either exists, and
+`cover_version` says which picture it is (see below).
 
 Keeping the original costs nothing, because it is already in the same JSON
 blob and nothing has to move. `DELETE` removes the file and the two keys, and
@@ -211,6 +213,29 @@ here first and was wrong: it lets a stale cover stand for a day, because the
 ETag — which moves on every write, each storing a new `{uuid}` filename — is
 only ever read on the revalidation that `max-age` suppresses.
 
+### A replaced cover shows without a reload
+
+Added for issue #124. `no-cache` alone did not do it. When the address of an
+`<img>` (the HTML tag for a picture) does not change, the browser does not
+load it again. The browser also keeps an in-memory copy of each picture for as
+long as the page is open, and reuses it without asking the server. So the Edit
+Book form went on showing the old cover until the page was reloaded.
+
+The fix gives each picture its own address:
+
+- `BookRead` carries `cover_version`: the first 12 hex characters of a sha256
+  of the cover's identity, or `null` when there is no cover.
+- The identity comes from one helper, `library._cover_identity`. For a custom
+  cover it is the stored file name, which is new on every write. For the
+  EPUB's own cover it is the book's sha256 and `cover_href`.
+- The ETag is made from the same helper, so the two cannot disagree.
+  `has_cover` stays, and is exactly `cover_version is not None`.
+- The client asks for `/api/books/{id}/cover?v={cover_version}`. A new cover
+  is a new address, so the browser fetches it. The server ignores `v`.
+
+A picture that fails to load is remembered for its own address only, in
+`BookCover` and `DetailCover`. A cover set after a failed one is still tried.
+
 ## Scope
 
 **In scope:**
@@ -242,4 +267,7 @@ only ever read on the revalidation that `max-age` suppresses.
 - **Fake** enforces the same refusals, so the component suite meets them.
 - **One e2e**: set a cover on a real instance, watch `has_cover` turn true and
   the enlarge lightbox unlock — which is the second report in #84 closing.
+- **One e2e for #124**: replace a cover with a picture of a different width,
+  without a reload, and read the width the browser drew. A changed address
+  alone would not prove the new picture is on screen.
 - Every guard mutation-tested by hand, per the house rule.
