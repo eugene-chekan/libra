@@ -22,7 +22,7 @@ const LONG_BOOK = Array.from({ length: 12 }, (_, n) => `Chapter ${n + 1}`)
 async function uploadBook(
   request: APIRequestContext,
   title: string,
-  shape: { chapters?: string[]; paragraphs?: number } = {}
+  shape: { chapters?: string[]; paragraphs?: number; note?: boolean } = {}
 ): Promise<number> {
   const response = await request.post('/api/books/upload', {
     multipart: {
@@ -34,6 +34,7 @@ async function uploadBook(
           author: 'E2E Author',
           chapters: shape.chapters ?? CHAPTERS,
           paragraphs: shape.paragraphs,
+          note: shape.note,
         }),
       },
     },
@@ -440,5 +441,35 @@ test.describe('the reader, in a real browser', () => {
     await expect
       .poll(async () => (await storedState(request, id)).progress, { timeout: 15_000 })
       .toBe(1)
+  })
+
+  test('comes back to the page it left after following a note link', async ({ page, request }) => {
+    const title = `E2E Reader Note ${Date.now()}`
+    const id = await uploadBook(request, title, { note: true })
+
+    await openReader(page, id, title)
+    await waitForMeasured(page)
+    await page.getByRole('button', { name: 'Contents' }).click()
+    await page.getByRole('button', { name: 'The Beginning' }).click()
+    await expect
+      .poll(async () => (await storedState(request, id)).position, { timeout: 15_000 })
+      .not.toBeNull()
+    const left = (await storedState(request, id)).position
+
+    await page.frameLocator('iframe').first().getByRole('link', { name: '1', exact: true }).click()
+    const back = page.getByRole('button', { name: /^Back to/ })
+    await expect(back).toBeVisible({ timeout: 15_000 })
+    await expect.poll(() => renderedHeadings(page)).toContain('Notes')
+
+    // A page turned while away saves nothing: the place stays the page the link left.
+    await page.getByRole('button', { name: 'Previous page' }).click()
+    await page.waitForTimeout(2500)
+    expect((await storedState(request, id)).position).toBe(left)
+
+    await back.click()
+
+    await expect.poll(() => renderedHeadings(page)).toContain('The Beginning')
+    await expect(back).toHaveCount(0)
+    expect((await storedState(request, id)).position).toBe(left)
   })
 })

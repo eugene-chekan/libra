@@ -1,0 +1,53 @@
+/* Over the bottom of the page, in the middle, above the book's iframe. */
+.bar {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 1;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 4px;
+  border-radius: var(--libra-radius-pill);
+  background: var(--libra-card);
+  box-shadow: var(--libra-shadow-dropdown);
+}
+
+.back,
+.stay {
+  display: flex;
+  align-items: center;
+  border: none;
+  border-radius: var(--libra-radius-pill);
+  background: transparent;
+  font-family: var(--libra-sans);
+  cursor: pointer;
+}
+
+.back {
+  gap: 4px;
+  padding: 8px 14px 8px 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--libra-text);
+  white-space: nowrap;
+}
+
+.stay {
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  color: var(--libra-text-light);
+}
+
+.back:hover,
+.stay:hover {
+  background: var(--libra-bg);
+}
+
+.back:focus-visible,
+.stay:focus-visible {
+  outline: 2px solid var(--libra-accent);
+  outline-offset: 2px;
+}

@@ -98,6 +98,8 @@ export interface BookReader {
    * should mean.
    */
   onTap(listener: (fraction: number) => void): () => void
+  /** Watch for a link inside the book being followed; hands over the place it leaves. */
+  onLinkFollowed(listener: (from: ReaderPosition) => void): () => void
   /** Text size and measure. */
   setAppearance(appearance: Appearance): void
   /** Release the book and its iframe. */
