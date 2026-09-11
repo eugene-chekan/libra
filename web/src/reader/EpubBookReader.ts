@@ -110,7 +110,7 @@ export class EpubBookReader implements BookReader {
     // epub.js forwards it: `Rendition` registers `passEvents`, which relays every entry in
     // its `DOM_EVENTS` list — `click` among them — back out to here.
     rendition.on('click', (event: MouseEvent, contents: { window: Window | null }) => {
-      const fraction = tapFraction(event, contents?.window ?? null)
+      const fraction = tapFraction(event, contents?.window ?? null, host.getBoundingClientRect())
       if (fraction === null) return
       for (const listener of this.tapListeners) listener(fraction)
     })

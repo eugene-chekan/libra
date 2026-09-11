@@ -62,6 +62,18 @@ iframe may do. Here it has `allow-same-origin` and not `allow-scripts`, so the
 book still cannot run scripts of its own. The end-to-end test at a phone width
 proves the tap still reaches the app.
 
+**A tap is measured against the page you can see, not against the iframe.**
+epub.js makes the iframe as wide as the whole chapter — a four-page chapter is
+four screens wide — and turns a page by sliding that iframe to the left. So a
+tap's `clientX`, which is measured from the iframe's own left edge, is not a
+place on the screen.
+
+The first version divided `clientX` by the iframe's width. A tap at 85% of the
+screen then counted as 21% of a four-page chapter, and turned the page back. On
+a real phone, every second tap on the same side went the wrong way.
+`tapFraction` now adds where the iframe's left edge is on the screen, and
+divides by the width of the visible page.
+
 `BookReader` gains one method, and `FakeBookReader` implements it too:
 
 ```ts
@@ -151,7 +163,9 @@ anybody has evidence for.
   and a tap is ignored while text is selected and when it lands on a link.
 - **Component tests** for the arrows appearing in the bar below the breakpoint
   and beside the text above it, and for the width control being hidden.
-- **One end-to-end test** at a phone viewport: tap the right third, and the
-  page moves. This is the only place a real iframe and a real forwarded event
+- **One end-to-end test** at a phone viewport: tap the right third three times
+  and reach three different pages, then the left third twice to come back.
+  Tapping each side only once hid the bug above, because forward then back
+  looks the same as a page turn that works. This is the only place a real iframe and a real forwarded event
   exist, so it is the only place the central mechanism is proven.
 - Every guard mutation-tested by hand, per the house rule.

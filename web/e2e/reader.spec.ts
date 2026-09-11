@@ -150,36 +150,46 @@ test.describe('the reader, in a real browser', () => {
   })
 
   /*
-    On a phone the page turns when you tap the outer thirds of the book. The book is drawn in an
-    iframe, which is a separate page, so a tap there never reaches the app by itself. This is the
-    only test where a real iframe and a real tap exist, so it is the only proof that epub.js
-    passes the tap back out.
+    On a phone the page turns when you tap the outer thirds of the book. epub.js draws the book in
+    an iframe as wide as the whole chapter, and turns a page by sliding that iframe to the left. So
+    one spot on the screen is a different spot inside the iframe on every page. Three taps on the
+    same side must reach three different pages: that is what failed on a real phone.
   */
-  test('on a phone, tapping the right and left thirds turns the page', async ({
-    page,
-    request,
-  }) => {
+  test('on a phone, each tap on the same side turns one more page', async ({ page, request }) => {
     const title = `E2E Reader Tap ${Date.now()}`
-    const id = await uploadBook(request, title)
+    const id = await uploadBook(request, title, { paragraphs: 40 })
     await page.setViewportSize({ width: 390, height: 844 })
 
     await openReader(page, id, title)
     await waitForMeasured(page)
-    const first = await page.getByRole('progressbar').getAttribute('aria-valuenow')
     const box = await page.getByRole('region', { name: title }).boundingBox()
     expect(box).not.toBeNull()
     if (!box) return
-    const middle = box.y + box.height / 2
+    const { x, y, width, height } = box
 
-    await page.mouse.click(box.x + box.width * 0.85, middle)
-    await expect
-      .poll(async () => page.getByRole('progressbar').getAttribute('aria-valuenow'))
-      .not.toBe(first)
+    /** Taps a fraction across the page, then waits until the reader saves a new place. */
+    async function tapAndWait(fraction: number, last: string | null): Promise<string | null> {
+      await page.mouse.click(x + width * fraction, y + height / 2)
+      let saved = last
+      await expect
+        .poll(
+          async () => {
+            saved = (await storedState(request, id)).position
+            return saved
+          },
+          { timeout: 15_000 }
+        )
+        .not.toBe(last)
+      return saved
+    }
 
-    await page.mouse.click(box.x + box.width * 0.15, middle)
-    await expect
-      .poll(async () => page.getByRole('progressbar').getAttribute('aria-valuenow'))
-      .toBe(first)
+    const first = await tapAndWait(0.85, null)
+    const second = await tapAndWait(0.85, first)
+    const third = await tapAndWait(0.85, second)
+    expect(new Set([first, second, third]).size).toBe(3)
+
+    expect(await tapAndWait(0.15, third)).toBe(second)
+    expect(await tapAndWait(0.15, second)).toBe(first)
   })
 
   test('turns a page forward and back to the same place', async ({ page, request }) => {
