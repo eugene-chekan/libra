@@ -209,6 +209,13 @@ test.describe('book detail, in a real browser', () => {
   test('an admin deletes a book, and the server agrees it is gone', async ({ page, request }) => {
     const title = `E2E Delete ${Date.now()}`
     const book = await createBook(request, title)
+    // Asked by title, not by id. SQLite gives a freed id to the next new book, and other specs
+    // create books at the same time, so the old address can answer for somebody else's book.
+    const booksWithTitle = async () => {
+      const response = await request.get('/api/books', { params: { q: title } })
+      return ((await response.json()) as { total: number }).total
+    }
+    expect(await booksWithTitle()).toBe(1)
 
     await page.goto(`/books/${book.id}`)
     await page.getByRole('button', { name: 'Delete Book' }).click()
@@ -218,6 +225,6 @@ test.describe('book detail, in a real browser', () => {
 
     await expect(page).toHaveURL(/\/library$/)
     await expect(page.getByRole('link', { name: new RegExp(title) })).toHaveCount(0)
-    expect((await request.get(`/api/books/${book.id}`)).status()).toBe(404)
+    expect(await booksWithTitle()).toBe(0)
   })
 })
