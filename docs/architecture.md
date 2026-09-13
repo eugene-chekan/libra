@@ -4,8 +4,12 @@
 
 A local-first, self-hosted ebook library manager, simpler in scope than
 Calibre-web, built specifically around Kindle delivery workflows, supporting
-EPUB in the first iteration, with a RAG-backed AI "librarian" agent that can
-answer questions about and across the library.
+EPUB in the first iteration.
+
+Its AI part is search over the text of the books: a reader asks a question and
+gets the passages that answer it. In the diploma, that search is built and
+measured as a retrieval experiment. An AI "librarian" agent that reasons across
+the whole library comes after the diploma.
 
 One instance serves a household: the catalog of books is shared, while
 reading progress, ratings, shelves, and personal tags belong to individual
@@ -13,12 +17,17 @@ users.
 
 ## Phased scope
 
-**Execution order is 1 → 4 → 2 → 3.** The phase numbers below are unchanged,
-because they are referenced throughout the specs, but the client is being
-built before the RAG pipeline and the agent. Phase 1 finished in twelve days
-against a two-month budget, and the slack is better spent proving the API
-against a real client — nothing else has ever exercised it — than held in
-reserve. See [specs/phase-4-plan.md](specs/phase-4-plan.md), including which
+**The diploma scope changed on 2026-09-13.** The supervisor turned Phase 2 into
+a retrieval experiment, the user study left the diploma, and the librarian
+agent (Phase 3) moved to after it. See
+[specs/phase-2-plan.md](specs/phase-2-plan.md).
+
+**Execution order is 1 → 4 → 2, then 3 after the diploma.** The phase numbers
+below are unchanged, because they are referenced throughout the specs, but the
+client was built before the RAG pipeline and the agent. Phase 1 finished in
+twelve days against a two-month budget, and the slack was better spent proving
+the API against a real client — nothing else had ever exercised it — than held
+in reserve. See [specs/phase-4-plan.md](specs/phase-4-plan.md), including which
 parts are stubbed and why RAG management is not among them.
 
 **Phase 1 — Backend core (diploma months 1–2) — COMPLETE**
@@ -44,13 +53,23 @@ and the sequencing that replaced it are in
 [specs/phase-1-plan.md](specs/phase-1-plan.md), which is the working plan for
 this phase.
 
-**Phase 2 — RAG (diploma months 2–4)**
-- EPUB/text ingestion and chunking pipeline
-- Vector store (Chroma, local-first) + embedding model
-- Retrieval endpoint, integrated with book metadata
-- Evaluation: constructed QA benchmark per book (retrieval precision/recall@k)
+**Phase 2 — Retrieval experiment (Sep 2026 – Jan 2027)** — see
+[specs/phase-2-plan.md](specs/phase-2-plan.md)
+- **Part 1, for the practice defense (9–14 Nov):** compare ways to find the
+  passage that answers a question — BM25, text embeddings, LLM-written semantic
+  descriptors, and hybrids — on 40 public-domain books, split into fiction and
+  non-fiction
+- Chunks over the EPUB spine. Chunks, the FTS5 index and the vectors live in
+  the same SQLite database, and vector search is exact, in memory
+- Evaluation: reviewed test questions, each with one known source chunk;
+  recall@5, recall@10 and MRR@10, with confidence intervals
+- **Part 2, for the pre-defense demo (6–9 Jan):** the librarian panel shows the
+  passages search finds, in place of its canned replies. It does not write
+  answers
 
-**Phase 3 — Librarian agent (diploma months 4–5)**
+**Phase 3 — Librarian agent (after the diploma)**
+- Moved out of the diploma on 2026-09-13. Written answers built from the
+  passages Phase 2 finds come first, then the agent below
 - Anthropic SDK agent with tools: `search_library`, `get_book_metadata`,
   `answer_about_book` (RAG-backed), `recommend_similar`
 - Evaluation: task success rate on a defined scenario set
@@ -109,8 +128,12 @@ this phase.
   see every book. Reading state, shelves, and personal tags are private.
 - Full DRM handling (explicitly out of scope, not silently ignored)
 - Desktop/mobile builds
-- Autonomous multi-step agent planning — the agent stays tool-calling, not
-  open-ended planning/execution
+- Written answers from the librarian, and the librarian agent. Both come after
+  the diploma. In the diploma the librarian panel shows search results only
+- A user study. It was removed from the diploma on 2026-09-13; the retrieval
+  experiment replaces it
+- Autonomous multi-step agent planning — when the agent comes, it stays
+  tool-calling, not open-ended planning and execution
 
 ## Version numbers
 
@@ -147,11 +170,12 @@ the sidebar's account row, read from the server rather than compiled in.
 Built alongside each phase, not retrofitted afterward — see
 [evaluation.md](evaluation.md) for the live benchmark definitions.
 
-- **RAG**: hand-built QA pairs per ingested book, measuring retrieval
-  precision/recall@k
-- **Agent**: a scenario set (e.g. "find a book matching this vague
-  description", "summarize themes in book X") with pass/fail or graded
-  scoring
+- **Retrieval (Phase 2)**: reviewed test questions, each with one known source
+  chunk; recall@5, recall@10 and MRR@10 per genre, with confidence intervals.
+  The protocol is frozen in `experiment/protocol.md` before the full run
+- **Agent (after the diploma)**: a scenario set (e.g. "find a book matching
+  this vague description", "summarize themes in book X") with pass/fail or
+  graded scoring
 
 ## Tech stack
 
@@ -162,9 +186,10 @@ Built alongside each phase, not retrofitted afterward — see
 | Migrations | Alembic | needed once `create_all()` can no longer add columns |
 | Auth | Argon2id + server-side sessions | revocable; JWT statelessness buys nothing with one server |
 | Format conversion | Calibre `ebook-convert` CLI | don't reimplement |
-| Vector store | Chroma | local-first, low ops overhead |
-| Embeddings | TBD (evaluate local vs API-based) | decide in Phase 2 |
-| Agent | Anthropic SDK, tool use | keep tool set small initially |
+| Search index | SQLite: FTS5 for BM25, vectors stored as bytes, exact search with numpy | one database for books and chunks; replaces the planned Chroma — see [specs/phase-2-plan.md](specs/phase-2-plan.md#why-sqlite-not-chroma) |
+| Embeddings | `BAAI/bge-base-en-v1.5` through `fastembed` | runs on the CPU with ONNX Runtime; no PyTorch, no GPU |
+| Descriptors | DeepSeek `deepseek-v4-pro`, OpenAI-compatible API | every response is saved, so the evaluation never calls the API |
+| Agent | Anthropic SDK, tool use | after the diploma; keep the tool set small at first |
 | Client | TypeScript + React, built by Vite | real page elements, so screen readers and browser tests both work |
 | CI | GitHub Actions | lint + test on push |
 

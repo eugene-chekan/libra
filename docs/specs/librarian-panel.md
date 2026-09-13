@@ -9,6 +9,12 @@ status, citations, the three error shapes, the composer, one conversation
 per reader — carries over unchanged and is not repeated here except where
 the panel changes it.
 
+**Update 2026-09-13:** the canned replies are now replaced in Phase 2 part 2,
+by the passages search finds — not by an agent in Phase 3, which moved to after
+the diploma. See
+[phase-2-plan.md](phase-2-plan.md#part-2--the-librarian-panel-sketch). Where
+this spec says "Phase 3 swaps" the generation, read "Phase 2 part 2".
+
 ## Why a panel, not a page
 
 Gap 5 designed the librarian as its own page, `/chat`, and considered a

@@ -14,10 +14,18 @@ first-class concerns — this needs to hold up to committee scrutiny, not just
 **Phase 1 (backend core)** is done bar format conversion, and **Phase 4 (the
 web client)** is complete: all twelve of its milestones and their follow-up
 issues are closed. It was deliberately reordered ahead of RAG and the agent,
-see `docs/specs/phase-4-plan.md` for why, so Phase 2 (RAG) comes next. The
-client is TypeScript and React. See `docs/architecture.md` for the full
-5-phase roadmap and `docs/evaluation.md` for how each phase's evaluation
-methodology is built alongside the implementation.
+see `docs/specs/phase-4-plan.md` for why. The client is TypeScript and React.
+
+**Phase 2 is next, and it is a retrieval experiment.** On 2026-09-08 the
+supervisor narrowed the diploma: compare BM25, text embeddings and LLM-written
+semantic descriptors for finding the passage that answers a question, on 40
+public-domain books. The user study is out of the diploma, and the librarian
+agent (Phase 3) comes after it. Part 1, the experiment, is due for the practice
+defense on 9–14 November. Part 2, the librarian panel showing the passages
+search finds, is due for the pre-defense demo on 6 January. See
+`docs/specs/phase-2-plan.md`, `docs/architecture.md` for the full roadmap, and
+`docs/evaluation.md` for how each phase's evaluation methodology is built
+alongside the implementation.
 
 **The version number** is one number, in `backend/pyproject.toml`. The minor
 part moves when a phase completes: `0.1.0` was Phase 1 and `0.2.0` was Phase 4,
@@ -227,9 +235,13 @@ programmatically, rather than committing binary fixtures, so a malformed
 variant (bad mimetype, missing container, entity-bomb OPF) is one keyword
 argument away from the happy path.
 
-**Phase boundaries**: `rag/` and `agent/` exist as empty placeholder packages
-for Phase 2/3 — don't build ahead of the current phase's scope. Calibre-backed
+**Phase boundaries**: `rag/` is where Phase 2 goes; `agent/` stays an empty
+placeholder until after the diploma — don't build ahead of the current phase's
+scope. The experiment's data (book list, protocol, questions, descriptor log,
+runs) lives in `experiment/` at the repo root and, like docs, goes straight to
+`main`. Calibre-backed
 format conversion is the one remaining *Phase 1* item, and it is deferred to
 after Phase 2 — see [`docs/specs/format-conversion.md`](docs/specs/format-conversion.md).
 Kindle email delivery already shipped (#15), verified against a real device.
-RAG ingestion, the vector store, and the librarian agent are Phase 2/3.
+Written answers from the librarian, and the librarian agent, come after the
+diploma.

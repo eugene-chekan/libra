@@ -9,23 +9,36 @@ alongside the implementation rather than being written retroactively. See
 No model-facing evaluation yet. Correctness is covered by the pytest suite
 in `backend/tests/` (one test per endpoint, plus edge cases like 404s).
 
-## Phase 2 — RAG (planned)
+## Phase 2 — Retrieval experiment
 
-**Method**: for each ingested book, hand-build a small set of QA pairs
-(question, expected answer, expected supporting passage(s)).
+The full design is in [specs/phase-2-plan.md](specs/phase-2-plan.md). The
+protocol is frozen in `experiment/protocol.md`, committed and tagged
+`experiment-protocol-v1` before the full run.
+
+**Method**: about 340 test questions over 40 public-domain books. Each question
+comes from one known source chunk, and that chunk is its correct answer. About
+40 are written by hand. The rest are drafted by DeepSeek and reviewed by hand.
 
 **Metrics**:
-- Retrieval precision@k / recall@k — does the retriever surface the
-  passage(s) that support the expected answer within the top-k results?
-- Tracked per book and in aggregate, so regressions in the chunking or
-  embedding strategy are visible book-by-book.
+- recall@5 and recall@10: the share of questions whose source chunk is in the
+  top k. recall@10 is the main metric.
+- MRR@10.
+- Split by genre (fiction, non-fiction) and by question kind (factual,
+  interpretive).
+- Paired bootstrap confidence intervals and paired randomisation tests, with
+  the Holm correction across the main hypotheses.
+- precision@k only on a 50-question sample where every relevant chunk is
+  judged. With one correct chunk per question, precision@k always equals
+  recall@k ÷ k.
 
-**Open questions to resolve in Phase 2**: chunk size/overlap strategy,
-choice of embedding model (local vs API-based), and how many QA pairs per
-book are enough to be statistically meaningful without being a burden to
-hand-author.
+The earlier open questions are answered in the plan: chunks of about 250–300
+words with no overlap; `bge-base-en-v1.5` run locally; about 10 drafted
+questions per book, with the hand-written set as a check on the drafted ones.
 
-## Phase 3 — Librarian agent (planned)
+## Phase 3 — Librarian agent (after the diploma)
+
+Moved out of the diploma on 2026-09-13. The method below is kept for when the
+agent is built.
 
 **Method**: a fixed scenario set exercising the agent's tools, e.g.:
 - "Find a book matching this vague description" (tests `search_library`)
