@@ -159,7 +159,7 @@ the version is the only way to tell code with the fixes from code without them.
 same value as a build argument. So the version answers "which phase, and which
 group of fixes", and the build answers "which exact code".
 
-`GET /health` reports both — `{"status": "ok", "version": "0.2.2", "build":
+`GET /health` reports both — `{"status": "ok", "version": "0.2.3", "build":
 "44f0320"}` — omitting `build` entirely when nobody set one. It is
 unauthenticated, like the rest of `/health`: on a self-hosted instance being
 able to ask what is running is the point. The client shows the same line under
