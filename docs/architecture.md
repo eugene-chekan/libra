@@ -241,6 +241,14 @@ Neither file uses one in practice, which closes off billion-laughs style
 expansion without adding a third-party parser. Zip member reads are also
 size-capped against a member that claims to be small and expands hugely.
 
+**The description is untrusted too.** `dc:description` is stored exactly as the
+file wrote it, and Standard Ebooks writes HTML there. The client never puts it
+into the page as raw HTML. `web/src/book/Description.tsx` reads it with the
+browser's `DOMParser` and rebuilds only `p`, `br`, `i`, `em`, `b`, `strong`, and
+links whose address is `http` or `https`. Every other tag keeps only its text,
+`script` and `style` lose their text too, and no attribute is copied. So a book
+cannot run code in the page (stored XSS).
+
 **Storage layout**: files are stored flat in `library_dir` under generated
 UUID names (`{uuid4hex}.epub`), never the client-supplied filename — that
 sidesteps path traversal, collisions, and cross-platform unicode/case oddities

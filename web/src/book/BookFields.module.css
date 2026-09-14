@@ -57,3 +57,26 @@
   color: var(--libra-text-mid);
   cursor: default;
 }
+
+.hint {
+  font-family: var(--libra-sans);
+  font-size: 11px;
+  color: var(--libra-text-light);
+}
+
+.preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+}
+
+.previewText {
+  padding: 10px 12px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--libra-text);
+  border: 1px dashed var(--libra-border);
+  border-radius: var(--libra-radius);
+}

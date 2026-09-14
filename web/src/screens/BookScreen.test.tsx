@@ -60,7 +60,7 @@ const dune = () =>
   })
 
 describe('BookScreen', () => {
-  it('shows the book, its metadata line and its blurb', async () => {
+  it('shows the book, its metadata line and its description', async () => {
     const api = apiFor(fakeUser(), { books: [dune()] })
 
     renderScreen(api, bookPath(4))
@@ -69,6 +69,20 @@ describe('BookScreen', () => {
     expect(screen.getByText('Frank Herbert')).toBeInTheDocument()
     expect(screen.getByText(/EPUB/)).toHaveTextContent('EPUB · 1965 · 412 pages')
     expect(screen.getByText(/A desert planet/)).toBeInTheDocument()
+  })
+
+  it('shows a description the file wrote as HTML with its formatting, not its tags', async () => {
+    const book = fakeBook({
+      id: 4,
+      title: 'Dune',
+      blurb: '<p>A desert planet, and the <i>empire</i>.</p>',
+    })
+    const api = apiFor(fakeUser(), { books: [book] })
+
+    renderScreen(api, bookPath(4))
+
+    expect((await screen.findByText('empire')).tagName).toBe('I')
+    expect(screen.queryByText(/<p>|<i>/)).not.toBeInTheDocument()
   })
 
   it('leaves out what the file never declared, rather than inventing it', async () => {

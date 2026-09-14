@@ -1,4 +1,7 @@
+import { useId } from 'react'
+
 import type { BookPatch } from '../api/types'
+import { Description } from './Description'
 import styles from './BookFields.module.css'
 
 /** Title, author, year, pages and blurb, as the text boxes hold them — every number a string. */
@@ -20,6 +23,9 @@ interface BookFieldsProps {
 /** The shared catalog fields: title, author, year, pages, blurb. Used by `BookEditForm` and the
  *  Add Book confirmation step, so the fields and their validation live in one place. */
 export function BookFields({ values, onChange, disabled = false }: BookFieldsProps) {
+  const hintId = useId()
+  const previewId = useId()
+
   function set<K extends keyof BookFieldsValues>(key: K, value: string) {
     onChange({ ...values, [key]: value })
   }
@@ -70,17 +76,32 @@ export function BookFields({ values, onChange, disabled = false }: BookFieldsPro
         </label>
       </div>
 
-      <label className={styles.field}>
-        <span className={styles.label}>Blurb</span>
-        <textarea
-          className={styles.textarea}
-          rows={4}
-          value={values.blurb}
-          disabled={disabled}
-          placeholder="A short description of what this book is about…"
-          onChange={(event) => set('blurb', event.target.value)}
-        />
-      </label>
+      <div className={styles.field}>
+        <label className={styles.field}>
+          <span className={styles.label}>Description</span>
+          <textarea
+            className={styles.textarea}
+            rows={4}
+            value={values.blurb}
+            disabled={disabled}
+            placeholder="A short description of what this book is about…"
+            aria-describedby={hintId}
+            onChange={(event) => set('blurb', event.target.value)}
+          />
+        </label>
+        <p id={hintId} className={styles.hint}>
+          {'Formatting: <p>, <i>, <b> and <a href="https://…">'}
+        </p>
+
+        {values.blurb.trim() !== '' && (
+          <div role="group" aria-labelledby={previewId} className={styles.preview}>
+            <span id={previewId} className={styles.label}>
+              Preview
+            </span>
+            <Description html={values.blurb} className={styles.previewText} />
+          </div>
+        )}
+      </div>
     </div>
   )
 }

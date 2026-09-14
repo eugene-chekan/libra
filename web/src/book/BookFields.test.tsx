@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
@@ -45,7 +45,31 @@ describe('BookFields', () => {
     expect(screen.getByLabelText('Author')).toBeDisabled()
     expect(screen.getByLabelText('Year')).toBeDisabled()
     expect(screen.getByLabelText('Pages')).toBeDisabled()
-    expect(screen.getByLabelText('Blurb')).toBeDisabled()
+    expect(screen.getByLabelText('Description')).toBeDisabled()
+  })
+
+  it('previews the description with its formatting under the box', () => {
+    render(
+      <BookFields
+        values={{ ...filled, blurb: '<p>A <i>desert</i> planet.</p>' }}
+        onChange={vi.fn()}
+      />
+    )
+
+    const preview = screen.getByRole('group', { name: 'Preview' })
+    expect(within(preview).getByText('desert').tagName).toBe('I')
+  })
+
+  it('shows no preview while the description box is empty', () => {
+    render(<BookFields values={filled} onChange={vi.fn()} />)
+
+    expect(screen.queryByRole('group', { name: 'Preview' })).not.toBeInTheDocument()
+  })
+
+  it('tells a screen reader which tags the description box allows', () => {
+    render(<BookFields values={filled} onChange={vi.fn()} />)
+
+    expect(screen.getByLabelText('Description')).toHaveAccessibleDescription(/<i>/)
   })
 })
 
