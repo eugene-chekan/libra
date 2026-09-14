@@ -5,8 +5,9 @@ Each test seeds a database at the revision *before* the one under test,
 upgrades, and inspects what happened to data that already existed — the case a
 fresh-install test can never reach.
 
-Two migrations do this: the reading-state backfill, and the tag rename that
-follows it.
+Four migrations do this: the reading-state backfill, the tag rename that
+follows it, the name fold, and the clearing of years that were really a file's
+own timestamp.
 """
 
 import json
@@ -25,6 +26,8 @@ BEFORE_TAG_RENAME = "9a8d5d47149e"
 # Names are still unique under NOCASE at this revision, so two that differ
 # only in a non-English letter's case can both be seeded.
 BEFORE_NAME_FOLD = "8be05e88e049"
+# The last revision whose books still kept a year read from a file timestamp.
+BEFORE_FILE_DATE_YEARS = "fcb90b64ac72"
 BACKEND = Path(__file__).resolve().parent.parent
 
 
@@ -334,3 +337,98 @@ def test_two_readers_may_still_each_have_the_same_name(unfolded_db: Path) -> Non
 
     names = _names(unfolded_db, "shelf")
     assert names[1][0] == names[2][0] == "Прочитано"
+
+
+# --- years that were really a file's own timestamp ------------------------
+
+
+@pytest.fixture(name="timestamped_db")
+def timestamped_db_fixture(tmp_path: Path) -> Generator[Path, None, None]:
+    """A database at the last revision that kept a build year as the year."""
+    db_path = tmp_path / "years.db"
+    _alembic(db_path, BEFORE_FILE_DATE_YEARS)
+    yield db_path
+
+
+def _add_dated_book(db_path: Path, book_id: int, year: int, metadata: dict) -> None:
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO book (id, title, author, format, file_path, year, book_metadata) "
+            "VALUES (?, 'T', 'A', 'epub', ?, ?, ?)",
+            (book_id, f"{book_id}.epub", year, json.dumps(metadata)),
+        )
+
+
+@pytest.mark.parametrize("publisher", ["Standard Ebooks", "standard ebooks"])
+def test_a_build_year_is_cleared(timestamped_db: Path, publisher: str) -> None:
+    """The year this publisher's books arrived with is the moment the file was
+    built, not the year the work came out."""
+    raw = {"publisher": publisher, "published": "2023-02-21T03:11:20Z"}
+    _add_dated_book(timestamped_db, 1, year=2023, metadata=raw)
+
+    _upgrade(timestamped_db)
+
+    book = _book(timestamped_db, 1)
+    assert book["year"] is None
+    # The date the file gave stays, so a blank year is still traceable.
+    assert json.loads(book["book_metadata"]) == raw
+
+
+def test_another_publishers_year_is_left_alone(timestamped_db: Path) -> None:
+    _add_dated_book(
+        timestamped_db, 1, year=1965, metadata={"publisher": "Ace Books", "published": "1965-08-01"}
+    )
+
+    _upgrade(timestamped_db)
+
+    assert _book(timestamped_db, 1)["year"] == 1965
+
+
+def test_another_publishers_timestamp_is_left_alone(timestamped_db: Path) -> None:
+    """The everyday Calibre row: a real publication date written as a midnight
+    timestamp. Only the named publisher's timestamps are the build's."""
+    _add_dated_book(
+        timestamped_db,
+        1,
+        year=1965,
+        metadata={"publisher": "Ace Books", "published": "1965-08-01T00:00:00+00:00"},
+    )
+
+    _upgrade(timestamped_db)
+
+    assert _book(timestamped_db, 1)["year"] == 1965
+
+
+def test_a_year_corrected_by_hand_is_kept(timestamped_db: Path) -> None:
+    """1839 is not the year in the file, so somebody typed it. A migration
+    must not undo a reader's own work."""
+    _add_dated_book(
+        timestamped_db,
+        1,
+        year=1839,
+        metadata={"publisher": "Standard Ebooks", "published": "2023-09-23T15:21:00Z"},
+    )
+
+    _upgrade(timestamped_db)
+
+    assert _book(timestamped_db, 1)["year"] == 1839
+
+
+def test_a_date_without_a_time_of_day_is_kept(timestamped_db: Path) -> None:
+    """A plain year was typed by a person; only a timestamp is the build's."""
+    _add_dated_book(
+        timestamped_db, 1, year=1839, metadata={"publisher": "Standard Ebooks", "published": "1839"}
+    )
+
+    _upgrade(timestamped_db)
+
+    assert _book(timestamped_db, 1)["year"] == 1839
+
+
+def test_a_book_with_no_stored_date_survives_the_upgrade(timestamped_db: Path) -> None:
+    """The blob holds whatever the file said, which can be nothing at all."""
+    _add_dated_book(timestamped_db, 1, year=1965, metadata={})
+
+    _upgrade(timestamped_db)  # must not raise
+
+    assert _book(timestamped_db, 1)["year"] == 1965

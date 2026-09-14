@@ -235,6 +235,27 @@ no `dc:title` falls back to the filename and a missing `dc:creator` to
 `"Unknown"`, because real libraries are full of imperfectly tagged files.
 A broken container or unparseable OPF is still a hard `422`.
 
+**The year** is refused rather than guessed at. Many files put the moment the
+*file* was built in `dc:date`, and that is not the year the book came out.
+Three signals say a date is about the file, and each one leaves `year` empty:
+
+- `opf:event="creation"` or `"modification"`, which OPF 2 files label plainly.
+- A date with a time of day in it that is the same instant as the file's
+  `dcterms:modified`. One tool wrote both.
+- A date with a time of day in it, in a file from a publisher that is known to
+  stamp its build there. Standard Ebooks is the only one so far: their
+  `se prepare-release` writes the ebook's first release moment, so "The Secret
+  History" by Procopius, a sixth-century work, arrived as a 2023 book. Nothing
+  anywhere else in their OPF states the original year, so there is nothing to
+  read instead.
+
+A date with no time of day is never suspected: a book can be published on the
+day its file was built, and a plain year in one of these files was typed by a
+person. An empty year is the standing answer to "the file did not say" — a
+blank year can be corrected, a wrong one cannot even be noticed. Alembic
+revision `ede8e57ae05c` clears the years already stored this way, and only
+those that still match the date the file gave.
+
 **Untrusted XML**: `ElementTree` expands internal DTD entities, so a doctype
 or entity declaration in `container.xml` or the OPF is rejected outright.
 Neither file uses one in practice, which closes off billion-laughs style
