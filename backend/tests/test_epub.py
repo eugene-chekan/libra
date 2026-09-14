@@ -83,6 +83,90 @@ def test_ignores_file_lifecycle_dates(tmp_path: Path) -> None:
     assert "published" not in meta.extra
 
 
+def test_ignores_a_date_stamped_from_the_files_own_timestamp(tmp_path: Path) -> None:
+    """The same instant in dc:date and in dcterms:modified is one tool writing
+    the moment it built the file into both. That is not a publication year."""
+    path = build_epub(
+        tmp_path / "stamped.epub",
+        published="2023-09-23T15:21:00Z",
+        modified="2023-09-23T15:21:00Z",
+    )
+    meta = read_metadata(path, fallback_title="x")
+
+    assert meta.year is None
+    # Dropped like any other date about the file, so nothing later mistakes it
+    # for something the file said about the book.
+    assert "published" not in meta.extra
+
+
+def test_keeps_a_date_that_shares_only_its_day_with_dcterms_modified(tmp_path: Path) -> None:
+    """A book really can come out on the day its file was built. With no time
+    of day there is no machine moment to suspect, so the year stays."""
+    path = build_epub(tmp_path / "same-day.epub", published="2024-03-01", modified="2024-03-01")
+
+    assert read_metadata(path, fallback_title="x").year == 2024
+
+
+def test_keeps_a_date_that_differs_from_dcterms_modified(tmp_path: Path) -> None:
+    """The everyday Calibre shape: a real publication date at midnight, plus a
+    separate moment when the file was last written."""
+    path = build_epub(
+        tmp_path / "calibre.epub",
+        published="1965-08-01T00:00:00+00:00",
+        modified="2026-07-01T09:15:00Z",
+    )
+
+    assert read_metadata(path, fallback_title="x").year == 1965
+
+
+def test_a_stated_publication_date_outlives_the_files_timestamp(tmp_path: Path) -> None:
+    """A file can carry both. Dropping its own timestamp must leave the date
+    the file does claim as a publication date."""
+    path = build_epub(
+        tmp_path / "both.epub",
+        published="2023-09-23T15:21:00Z",
+        modified="2023-09-23T15:21:00Z",
+        extra_meta=['<dc:date opf:event="publication">1839</dc:date>'],
+    )
+
+    assert read_metadata(path, fallback_title="x").year == 1839
+
+
+@pytest.mark.parametrize("publisher", ["Standard Ebooks", "standard ebooks", "STANDARD EBOOKS"])
+def test_a_production_publishers_timestamp_is_not_the_works_year(
+    tmp_path: Path, publisher: str
+) -> None:
+    """Standard Ebooks write the moment they released the ebook into dc:date.
+    "The Secret History" was written in the sixth century, so 2023 is the file.
+    A later release moves dcterms:modified on and the two stop matching, which
+    leaves the publisher as the only thing that gives the date away."""
+    path = build_epub(
+        tmp_path / "se.epub",
+        titles=["The Secret History"],
+        creators=["Procopius"],
+        publisher=publisher,
+        published="2023-02-21T03:11:20Z",
+        modified="2025-01-05T10:00:00Z",
+    )
+    meta = read_metadata(path, fallback_title="x")
+
+    assert meta.year is None
+    assert "published" not in meta.extra
+    # Only the year is refused. Everything else the file says still lands.
+    assert meta.title == "The Secret History"
+    assert meta.extra["publisher"] == publisher
+
+
+def test_a_production_publishers_plain_year_is_kept(tmp_path: Path) -> None:
+    """A year with no time of day was typed by a person, not stamped by the
+    build. Their correction is the best answer the file has."""
+    path = build_epub(
+        tmp_path / "se-fixed.epub", publisher="Standard Ebooks", published="1839", modified=None
+    )
+
+    assert read_metadata(path, fallback_title="x").year == 1839
+
+
 def test_reads_declared_page_count(tmp_path: Path) -> None:
     assert (
         read_metadata(build_epub(tmp_path / "p.epub", pages="412"), fallback_title="p").pages == 412

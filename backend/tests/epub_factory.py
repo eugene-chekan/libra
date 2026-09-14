@@ -42,6 +42,7 @@ def _metadata_block(
     language: str | None,
     publisher: str | None,
     published: str | None,
+    modified: str | None,
     description: str | None,
     identifiers: list[str],
     subjects: list[str],
@@ -57,6 +58,8 @@ def _metadata_block(
         lines.append(f"    <dc:publisher>{publisher}</dc:publisher>")
     if published:
         lines.append(f"    <dc:date>{published}</dc:date>")
+    if modified:
+        lines.append(f'    <meta property="dcterms:modified">{modified}</meta>')
     if description:
         lines.append(f"    <dc:description>{description}</dc:description>")
     if pages is not None:
@@ -75,6 +78,9 @@ def build_epub(
     language: str | None = "en",
     publisher: str | None = "Ace Books",
     published: str | None = "1965-08-01",
+    # The moment the file itself was last written. EPUB 3 requires it, but it
+    # defaults to None so that only the tests about it have to think about it.
+    modified: str | None = None,
     description: str | None = "Desert planet politics.",
     identifiers: list[str] | None = None,
     subjects: list[str] | None = None,
@@ -137,6 +143,7 @@ def build_epub(
                         language,
                         publisher,
                         published,
+                        modified,
                         description,
                         identifiers,
                         subjects,

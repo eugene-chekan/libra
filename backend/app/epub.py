@@ -32,6 +32,19 @@ DATE_EVENT_ATTR = f"{{{NS['opf']}}}event"
 IGNORED_DATE_EVENTS = frozenset({"creation", "modification"})
 DATE_EVENT_RANK = {"publication": 0, "original-publication": 1, "": 2}
 
+# EPUB 3 requires this: the moment the file itself was last written. Like
+# NUMBER_OF_PAGES below it is a prefix inside an attribute *value*, so it is
+# compared as a literal string rather than resolved through NS.
+DCTERMS_MODIFIED = "dcterms:modified"
+
+# Publishers whose dc:date timestamp is the moment they built the file.
+# Standard Ebooks typesets public-domain books, and `se prepare-release` writes
+# the ebook's own first release moment there — "The Secret History" by
+# Procopius carries 2023-02-21T03:11:20Z. Their files state the work's real
+# year nowhere, in any field, so there is nothing to fall back to and the year
+# stays empty. Compared case-folded against dc:publisher.
+FILE_DATE_PUBLISHERS = frozenset({"standard ebooks"})
+
 # dc:date is W3C-DTF, so the year is the leading four-digit run. The negative
 # lookahead refuses "20110101", which is a malformed date rather than 2011.
 _ISO_YEAR = re.compile(r"^\s*(\d{4})(?!\d)")
@@ -127,8 +140,57 @@ def _dc_values(metadata: ET.Element, tag: str) -> list[str]:
     ]
 
 
+def _meta_values(metadata: ET.Element, property_name: str) -> list[str]:
+    """Collect non-empty EPUB 3 `<meta property=...>` values about the book itself."""
+    values = []
+    for el in metadata.findall("opf:meta", NS):
+        # `property` is absent on EPUB 2 `<meta name=... content=.../>`, which
+        # coexists with EPUB 3 `<meta>` in most Calibre output. Calling
+        # .strip() on that None is an AttributeError, i.e. a 500 on upload of
+        # a very ordinary book.
+        if (el.get("property") or "").strip() != property_name:
+            continue
+        # `refines` scopes the statement to another element — a chapter or a
+        # collection — so only the unrefined one describes the book itself.
+        if el.get("refines"):
+            continue
+
+        text = (el.text or "").strip()
+        if text:
+            values.append(text)
+    return values
+
+
+def _is_file_date(value: str, modified: str | None, publisher: str | None) -> bool:
+    """Say whether a `dc:date` value is about the file rather than the work.
+
+    Args:
+        value: The raw `dc:date` text.
+        modified: The file's `dcterms:modified` value, when it declares one.
+        publisher: The file's `dc:publisher`, when it declares one.
+    """
+    # A book is published on a day, never at 15:21:00. A time of day means a
+    # machine wrote down a moment, so only those values are ever suspected —
+    # a plain "1839" in one of these files is somebody's correction, and it
+    # stays. "T" is what W3C-DTF puts between the day and the time.
+    if "T" not in value:
+        return False
+
+    # This publisher's own tool writes the ebook's release moment here, and
+    # the work's year is nowhere else in the file.
+    if publisher is not None and publisher.casefold() in FILE_DATE_PUBLISHERS:
+        return True
+
+    # The same instant in both places is one tool stamping the moment it wrote
+    # the file into every date field it knows.
+    return value == modified
+
+
 def _publication_date(metadata: ET.Element) -> str | None:
     """Pick the `dc:date` describing the edition, as its raw string."""
+    modified = next(iter(_meta_values(metadata, DCTERMS_MODIFIED)), None)
+    publisher = next(iter(_dc_values(metadata, "publisher")), None)
+
     candidates: list[tuple[int, str]] = []
     for el in metadata.findall("dc:date", NS):
         if not (el.text and el.text.strip()):
@@ -136,7 +198,10 @@ def _publication_date(metadata: ET.Element) -> str | None:
         event = (el.get(DATE_EVENT_ATTR) or "").strip().lower()
         if event in IGNORED_DATE_EVENTS:
             continue
-        candidates.append((DATE_EVENT_RANK.get(event, 3), el.text.strip()))
+        value = el.text.strip()
+        if _is_file_date(value, modified, publisher):
+            continue
+        candidates.append((DATE_EVENT_RANK.get(event, 3), value))
 
     if not candidates:
         return None
@@ -158,19 +223,7 @@ def _parse_year(value: str) -> int | None:
 
 def _declared_pages(metadata: ET.Element) -> int | None:
     """Read the print page count the file declares, or None."""
-    for el in metadata.findall("opf:meta", NS):
-        # `property` is absent on EPUB 2 `<meta name=... content=.../>`, which
-        # coexists with EPUB 3 `<meta>` in most Calibre output. Calling
-        # .strip() on that None is an AttributeError, i.e. a 500 on upload of
-        # a very ordinary book.
-        if (el.get("property") or "").strip() != NUMBER_OF_PAGES:
-            continue
-        # `refines` scopes the statement to another element — a chapter or a
-        # collection — so only the unrefined one describes the book itself.
-        if el.get("refines"):
-            continue
-
-        text = (el.text or "").strip()
+    for text in _meta_values(metadata, NUMBER_OF_PAGES):
         if _PAGE_COUNT.fullmatch(text) and int(text) > 0:
             return int(text)
     return None
