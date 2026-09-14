@@ -6,6 +6,7 @@ import type { Book } from '../api/types'
 import { BookActions } from '../book/BookActions'
 import { BookEditForm } from '../book/BookEditForm'
 import { BookTags } from '../book/BookTags'
+import { Description } from '../book/Description'
 import { DetailCover } from '../book/DetailCover'
 import { NotesPanel } from '../book/NotesPanel'
 import { ProgressPanel } from '../book/ProgressPanel'
@@ -80,7 +81,7 @@ function LoadedBookScreen({ bookId }: { bookId: number }) {
       <div className={styles.layout}>
         <div className={styles.coverColumn}>
           <DetailCover book={book.data} />
-          {book.data.blurb && <p className={styles.blurb}>{book.data.blurb}</p>}
+          {book.data.blurb && <Description html={book.data.blurb} className={styles.description} />}
         </div>
 
         <div className={styles.details}>

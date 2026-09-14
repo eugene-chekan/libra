@@ -1,0 +1,12 @@
+.description p {
+  margin: 0;
+}
+
+.description p + p {
+  margin-top: 0.6em;
+}
+
+.description a {
+  color: var(--libra-accent);
+  text-decoration: underline;
+}
