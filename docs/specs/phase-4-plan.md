@@ -605,6 +605,14 @@ but cannot type into them — the same reasoning as "Edit Book is admin-only"
 above: `PATCH /books/{id}` would 403, so the box that reaches it is not
 offered.
 
+**Done saves the fields (#146).** The confirm step first had its own Save
+Changes button, and Done only closed the dialog. So a year typed in and then
+closed with Done was lost without a word. The shelf picker and the tags save
+the moment they change, so Done looked like it saved everything. Now there is
+one button. Done saves the fields that differ from what the upload parsed, and
+then closes. If nothing changed, it only closes. If a field fails its check, or
+the server refuses the save, the dialog stays open and shows why.
+
 Building it also found a bug component tests cannot see. `Modal`'s card caps
 itself at 80vh with no scroll of its own, and the confirm step — cover,
 fields, shelf picker, tags — is tall enough to hit that ceiling. In a real

@@ -145,24 +145,55 @@ describe('AddBookModal, confirm step', () => {
     expect(screen.getByLabelText('Year')).toHaveValue('1965')
   })
 
-  it('lets an admin correct a field and save it', async () => {
-    const { user, api } = await uploadAndConfirm({
+  it('saves a field an admin changed when Done is clicked, and then closes', async () => {
+    const { user, api, onClose } = await uploadAndConfirm({
       admin: true,
-      uploadMetadata: { title: 'Wrong Title' },
+      uploadMetadata: { title: 'The Secret History', year: null },
     })
 
-    await user.clear(screen.getByLabelText('Title'))
-    await user.type(screen.getByLabelText('Title'), 'Dune')
-    await user.click(screen.getByRole('button', { name: 'Save Changes' }))
+    await user.type(screen.getByLabelText('Year'), '1839')
+    await user.click(screen.getByRole('button', { name: 'Done' }))
 
-    await waitFor(() => expect(api.books[0]?.title).toBe('Dune'))
+    await waitFor(() => expect(api.books[0]?.year).toBe(1839))
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+  })
+
+  it('stays open and says why when a changed field fails the check', async () => {
+    const { user, api, onClose } = await uploadAndConfirm({ admin: true })
+
+    await user.type(screen.getByLabelText('Year'), '19x5')
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('The year has to be a number.')
+    expect(onClose).not.toHaveBeenCalled()
+    expect(api.calls.some((call) => call.startsWith('updateBook'))).toBe(false)
+  })
+
+  it('stays open and shows the refusal when the server does not save the change', async () => {
+    const { user, api, onClose } = await uploadAndConfirm({ admin: true })
+    api.books.splice(0)
+
+    await user.type(screen.getByLabelText('Year'), '1839')
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    expect(await screen.findByRole('alert')).toBeInTheDocument()
+    expect(onClose).not.toHaveBeenCalled()
+  })
+
+  it('disables Done while the change is saving, so a second click cannot save twice', async () => {
+    const { user, api } = await uploadAndConfirm({ admin: true })
+    vi.spyOn(api, 'updateBook').mockReturnValue(new Promise(() => {}))
+
+    await user.type(screen.getByLabelText('Year'), '1839')
+    await user.click(screen.getByRole('button', { name: 'Done' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Done' })).toBeDisabled())
   })
 
   it('shows the parsed fields read-only for a reader who is not an admin', async () => {
     await uploadAndConfirm({ admin: false })
 
     expect(screen.getByLabelText('Title')).toBeDisabled()
-    expect(screen.queryByRole('button', { name: 'Save Changes' })).not.toBeInTheDocument()
   })
 
   it('puts the freshly uploaded book on a shelf', async () => {
@@ -185,11 +216,12 @@ describe('AddBookModal, confirm step', () => {
     await waitFor(() => expect(api.books[0]?.tag_ids).toEqual([8]))
   })
 
-  it('closes the modal on Done', async () => {
-    const { user, onClose } = await uploadAndConfirm()
+  it('closes on Done without saving when nothing was changed', async () => {
+    const { user, api, onClose } = await uploadAndConfirm({ admin: true })
 
     await user.click(screen.getByRole('button', { name: 'Done' }))
 
-    expect(onClose).toHaveBeenCalled()
+    await waitFor(() => expect(onClose).toHaveBeenCalled())
+    expect(api.calls.some((call) => call.startsWith('updateBook'))).toBe(false)
   })
 })

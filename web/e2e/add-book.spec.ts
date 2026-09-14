@@ -28,10 +28,14 @@ test.describe('Add Book, in a real browser', () => {
     await expect(page.getByLabel('Title')).toHaveValue(title)
     await expect(page.getByLabel('Author')).toHaveValue('E2E Author')
 
+    // The file declares no year, so this is typed by hand, and Done alone has to save it.
+    await expect(page.getByLabel('Year')).toHaveValue('')
+    await page.getByLabel('Year').fill('1839')
     await page.getByRole('button', { name: 'Done' }).click()
 
     await expect(page).toHaveURL(/\/library$/)
-    await expect(page.getByRole('link', { name: new RegExp(title) })).toBeVisible()
+    await page.getByRole('link', { name: new RegExp(title) }).click()
+    await expect(page.getByText(/EPUB\s+·\s+1839/)).toBeVisible()
   })
 
   test('refuses a non-EPUB with the server’s own sentence', async ({ page }) => {

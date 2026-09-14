@@ -1,4 +1,4 @@
-import { useState, type DragEvent, type FormEvent } from 'react'
+import { useState, type DragEvent } from 'react'
 
 import { messageFor } from '../api/errors'
 import type { Book } from '../api/types'
@@ -7,6 +7,7 @@ import {
   bookFieldsToPatch,
   bookFieldsValuesFrom,
   checkBookFields,
+  type BookFieldsValues,
 } from '../book/BookFields'
 import { BookTags } from '../book/BookTags'
 import { MoveToShelfButton } from '../book/MoveToShelfButton'
@@ -132,12 +133,16 @@ function ConfirmForm({ book, onDone }: { book: Book; onDone: () => void }) {
   const update = useUpdateBook(book.id)
   const isAdmin = status.status === 'signed-in' && status.user.is_admin
 
-  const [values, setValues] = useState(() => bookFieldsValuesFrom(book))
+  const [parsed] = useState(() => bookFieldsValuesFrom(book))
+  const [values, setValues] = useState(parsed)
   const [saveError, setSaveError] = useState<string | null>(null)
 
-  async function save(event: FormEvent) {
-    event.preventDefault()
-    if (update.isPending) return
+  /** Shelf and tags save the moment they change, so Done is where the fields save too. */
+  async function finish() {
+    if (!changedFrom(parsed, values)) {
+      onDone()
+      return
+    }
 
     const problem = checkBookFields(values)
     if (problem) {
@@ -150,7 +155,9 @@ function ConfirmForm({ book, onDone }: { book: Book; onDone: () => void }) {
       await update.mutateAsync(bookFieldsToPatch(values))
     } catch (caught) {
       setSaveError(messageFor(caught))
+      return
     }
+    onDone()
   }
 
   return (
@@ -160,17 +167,10 @@ function ConfirmForm({ book, onDone }: { book: Book; onDone: () => void }) {
           <BookCover id={book.id} title={book.title} coverVersion={book.cover_version} />
         </div>
 
-        <form className={styles.fieldsForm} onSubmit={(event) => void save(event)}>
+        <div className={styles.fields}>
           <BookFields values={values} onChange={setValues} disabled={!isAdmin} />
-
-          {isAdmin && (
-            <button type="submit" className={styles.save} disabled={update.isPending}>
-              Save Changes
-            </button>
-          )}
-
           {saveError && <ErrorBlock message={saveError} />}
-        </form>
+        </div>
 
         <div className={styles.row}>
           <MoveToShelfButton
@@ -186,10 +186,21 @@ function ConfirmForm({ book, onDone }: { book: Book; onDone: () => void }) {
       </div>
 
       <ModalFooter>
-        <button type="button" className={styles.done} onClick={onDone}>
+        <button
+          type="button"
+          className={styles.done}
+          disabled={update.isPending}
+          onClick={() => void finish()}
+        >
           Done
         </button>
       </ModalFooter>
     </>
+  )
+}
+
+function changedFrom(before: BookFieldsValues, after: BookFieldsValues): boolean {
+  return (Object.keys(before) as (keyof BookFieldsValues)[]).some(
+    (key) => before[key] !== after[key]
   )
 }

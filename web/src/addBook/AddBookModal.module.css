@@ -49,7 +49,7 @@
   margin: 0 auto 16px;
 }
 
-.fieldsForm {
+.fields {
   display: flex;
   flex-direction: column;
   gap: 12px;
@@ -61,8 +61,7 @@
 }
 
 .cancel,
-.done,
-.save {
+.done {
   font-family: var(--libra-sans);
   font-size: 13px;
   font-weight: 600;
@@ -84,15 +83,6 @@
   border: none;
 }
 
-.save {
-  align-self: flex-start;
-  padding: 6px 12px;
-  color: var(--libra-text);
-  background: none;
-  border: 1px solid var(--libra-border);
-}
-
-.save:disabled,
 .done:disabled {
   opacity: 0.6;
   cursor: default;
