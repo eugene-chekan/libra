@@ -42,8 +42,8 @@ packages = ["app", "rag", "agent"]
 # directory — and because `script_location = %(here)s/alembic` then resolves
 # relative to the package, wherever it was installed.
 #
-# The built client needs no entry here: `scripts/run.sh` writes it to
-# `app/web`, which is already inside the package and therefore already
+# The built client needs no entry here: `scripts/run.sh` and the Dockerfile
+# write it to `app/web`, which is already inside the package and therefore already
 # included. Listing it as well makes hatchling add every file twice and fail.
 [tool.hatch.build.targets.wheel.force-include]
 "alembic" = "app/alembic"

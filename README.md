@@ -173,7 +173,7 @@ libra/
 │   ├── agent/             # librarian agent + tools (Phase 3)
 │   ├── tests/
 │   ├── pyproject.toml
-│   └── Dockerfile
+│   └── Dockerfile     # builds from the repository root; see .dockerignore
 ├── docs/
 │   ├── architecture.md
 │   ├── evaluation.md
@@ -182,7 +182,8 @@ libra/
 │   ├── run.sh             # build both halves and serve them on one origin
 │   └── docker-compose.yml
 └── .github/workflows/
-    └── ci.yml
+    ├── ci.yml
+    └── release.yml    # image to GHCR + GitHub Release on a version bump
 ```
 
 ## Setup
@@ -228,8 +229,7 @@ deleting a real library.
 
 ### Backend only
 
-The API runs perfectly well on its own — useful while working on it, and the
-only thing the Docker image currently serves.
+The API runs perfectly well on its own — useful while working on it.
 
 ```bash
 cd backend
@@ -394,9 +394,41 @@ is the last thing libra can observe.
 
 ### Running with Docker
 
+The image holds the API and the web client, so it works like `scripts/run.sh`:
+one port, one address.
+
 ```bash
 docker compose -f scripts/docker-compose.yml up --build
 ```
+
+`--build` builds the image from this checkout. Open `http://localhost:8000`. The
+database and the books live in the `libra_data` volume, so they survive
+restarts and rebuilds.
+
+**Create the first account.** Unlike `run.sh`, the image does not make one. Run
+this once. It asks for a password:
+
+```bash
+docker compose -f scripts/docker-compose.yml exec backend python -m app.cli create-admin --username yourname
+```
+
+**Run a published release instead of building.** Each release is pushed to
+`ghcr.io/eugene-chekan/libra` for `linux/amd64` and `linux/arm64`, so a
+Raspberry Pi or a NAS can run it. The tags are `0.2.4` (exactly that release),
+`0.2` (the newest patch of it) and `latest`. Compose pulls the image when it is
+not on the machine yet:
+
+```bash
+LIBRA_VERSION=0.2.4 docker compose -f scripts/docker-compose.yml up -d
+```
+
+Pin a version rather than using `latest`. To upgrade, back up the volume, change
+`LIBRA_VERSION`, then run `docker compose -f scripts/docker-compose.yml pull`
+and `up -d` again. The app applies migrations when it starts, and an older image
+may not run on a newer database, so keep the backup until the new one works.
+
+How a release is made is in
+[`docs/architecture.md`](docs/architecture.md#version-numbers).
 
 ### Tests and lint
 

@@ -1,8 +1,13 @@
 services:
   backend:
+    # `up` pulls this from GHCR when it is not on the machine yet, and
+    # `up --build` builds it from this checkout instead. Set LIBRA_VERSION to
+    # run a fixed release: `LIBRA_VERSION=0.2.4 docker compose ... up -d`.
+    image: ghcr.io/eugene-chekan/libra:${LIBRA_VERSION:-latest}
     build:
-      context: ../backend
-      dockerfile: Dockerfile
+      # The repository root, not backend/: the image builds the client from web/.
+      context: ..
+      dockerfile: backend/Dockerfile
     ports:
       - "8000:8000"
     volumes:

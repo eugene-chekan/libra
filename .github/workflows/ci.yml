@@ -5,6 +5,8 @@ on:
     branches: [main]
   pull_request:
     branches: [main]
+  # Lets release.yml run all of this before it publishes anything.
+  workflow_call:
 
 jobs:
   lint-and-test:
@@ -149,3 +151,60 @@ jobs:
 
       - name: Run end-to-end tests
         run: npm run e2e
+
+  # Builds the image that the release publishes, so a broken Dockerfile shows
+  # up on the pull request and not on release day. Only amd64 here: the arm64
+  # half runs under emulation and is slow, so release.yml builds it.
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      # The context is the repository root because the image builds the client
+      # from web/. See the top of backend/Dockerfile.
+      - name: Build the image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: backend/Dockerfile
+          load: true
+          tags: libra:ci
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # A short health interval, so the wait below is seconds rather than the
+      # 30 in the Dockerfile. It also runs the image's own HEALTHCHECK command.
+      - name: Start the image
+        run: |
+          docker run -d --name libra -p 8000:8000 \
+            --health-interval 2s --health-start-period 1s \
+            -e LIBRA_DATABASE_URL=sqlite:////tmp/libra.db \
+            -e LIBRA_LIBRARY_DIR=/tmp/library \
+            libra:ci
+          for i in $(seq 1 30); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' libra)" = healthy ] && exit 0
+            sleep 2
+          done
+          echo "the container never became healthy:" >&2
+          docker logs libra >&2
+          exit 1
+
+      # The version comes from the installed wheel, so this fails if the image
+      # was built from anything but this commit's pyproject.toml. The page
+      # check fails for an image without the client, which the old Dockerfile
+      # produced.
+      - name: Check the version and the client
+        run: |
+          expected=$(python3 -c "import tomllib; print(tomllib.load(open('backend/pyproject.toml', 'rb'))['project']['version'])")
+          actual=$(curl -sf http://localhost:8000/health | jq -r .version)
+          if [ "$actual" != "$expected" ]; then
+            echo "/health reports $actual, pyproject.toml says $expected" >&2
+            exit 1
+          fi
+          curl -sf http://localhost:8000/ | grep -q '<div id="root"></div>' || {
+            echo "/ did not return the client page" >&2
+            exit 1
+          }

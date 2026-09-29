@@ -20,9 +20,10 @@ class Settings(BaseSettings):
 
     max_cover_bytes: int = 10 * 1024 * 1024
 
-    # Set by the run scripts and the Dockerfile from `git rev-parse --short
-    # HEAD`. Empty everywhere else, including a wheel built from a source tree
-    # with no repository, which is why nothing may assume it is there.
+    # Set by the run scripts, and by the release workflow through the
+    # Dockerfile's build argument, to the short commit. Empty everywhere else,
+    # including a wheel built from a source tree with no repository, which is
+    # why nothing may assume it is there.
     build: str = ""
 
     log_level: str = "INFO"

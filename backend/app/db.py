@@ -16,8 +16,8 @@ from app.logging_config import get_logger
 # the same whether invoked by uvicorn, pytest, or a container entrypoint.
 #
 # Two locations, in order. A wheel carries the revision scripts *inside* the
-# package, so an installed copy is self-contained. A source checkout — and the
-# Docker image, which copies them beside the package — keeps them one level up.
+# package, so an installed copy is self-contained, and so is the Docker image,
+# which installs the wheel. A source checkout keeps them one level up.
 # Checking the packaged path first means an installed wheel never reaches past
 # itself into whatever happens to sit next to site-packages.
 _PACKAGED_ALEMBIC_INI = Path(__file__).resolve().parent / "alembic.ini"
@@ -63,8 +63,8 @@ def run_migrations() -> None:
         # path it wanted nor the reason, so say both.
         raise RuntimeError(
             f"Alembic config not found at {ALEMBIC_INI}. alembic.ini and "
-            "alembic/ must be deployed alongside the app package; see the "
-            "Dockerfile for the expected layout."
+            "alembic/ must be deployed alongside the app package; see "
+            "[tool.hatch.build.targets.wheel.force-include] in pyproject.toml."
         )
 
     config = Config(ALEMBIC_INI)

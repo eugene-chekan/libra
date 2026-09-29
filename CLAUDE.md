@@ -34,6 +34,10 @@ each group of fixes merged after that, in its own small PR: `0.2.1` is the
 first group after Phase 4. A fix PR never changes the version itself. See
 "Version numbers" in `docs/architecture.md`.
 
+**Merging the version PR publishes a release.** `.github/workflows/release.yml`
+sees a version with no tag, pushes the Docker image to GHCR, and creates the tag
+and the GitHub Release. So change the version only when you mean to release.
+
 ## How to write here
 
 Use the simplest English possible, at all times. This applies everywhere:
@@ -114,6 +118,8 @@ uv run ruff format .               # format
 ```
 
 Docker: `docker compose -f scripts/docker-compose.yml up --build` (from repo root).
+The image builds the client too, and it has no admin account until you run
+`exec backend python -m app.cli create-admin --username <name>` (see the README).
 
 ### Client
 
