@@ -154,6 +154,30 @@ line. The patch moves at all because the build id below is there only when
 something set it. An instance started without it reports no build, and then
 the version is the only way to tell code with the fixes from code without them.
 
+**Merging the version PR publishes a release.**
+`.github/workflows/release.yml` runs on every push to `main`. It reads the
+version from `backend/pyproject.toml` and looks for the tag `v<version>`.
+
+- **The tag exists:** it stops. A docs push or a fix PR costs a few seconds.
+- **The tag is missing:** it runs the whole CI, then builds the image for
+  `linux/amd64` and `linux/arm64`. It pushes the image to
+  `ghcr.io/eugene-chekan/libra` as `<version>`, `<major.minor>` and `latest`.
+  Last, it creates the tag and a GitHub Release. A failed push leaves no tag, so
+  a re-run tries again.
+
+The Actions tab can run it by hand as a dry run. It does the same build and
+publishes nothing.
+
+The image is built from `backend/Dockerfile`, with the repository root as the
+build context, because the image builds the client from `web/`. It installs the
+same wheel that `scripts/run.sh` builds. The `docker` job in `ci.yml` builds it
+for `amd64` on every pull request and checks that `/health` reports the version
+in `pyproject.toml` and that `/` serves the client. Only the release builds
+`arm64`, because emulation makes it slow.
+
+GitHub makes a new package private. After the first release, a maintainer sets
+the package to public in its settings on GitHub. This happens once.
+
 **The commit does the fine-grained work.** `scripts/run.sh` and `run.ps1` set
 `LIBRA_BUILD` from `git rev-parse --short HEAD`, and the Dockerfile takes the
 same value as a build argument. So the version answers "which phase, and which

@@ -1,0 +1,35 @@
+# What the Docker build may not see. The context is the repository root, so
+# without this the builder would copy .git, node_modules and every local build.
+
+.git
+.github
+.claude
+.run
+docs
+
+**/__pycache__
+**/*.py[cod]
+**/.venv
+**/.pytest_cache
+**/.ruff_cache
+
+# Data, never part of an image.
+**/*.db
+**/*.sqlite3
+library
+backend/library
+
+# Tests and their scratch output. The wheel does not contain them.
+backend/tests
+backend/e2e-scratch
+
+# The image builds its own client and wheel. A copy left here by
+# scripts/run.sh must not slip in, or the image could ship a stale client.
+backend/app/web
+backend/dist
+
+web/node_modules
+web/dist
+web/e2e
+web/playwright-report
+web/test-results
