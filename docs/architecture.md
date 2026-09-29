@@ -165,8 +165,11 @@ version from `backend/pyproject.toml` and looks for the tag `v<version>`.
   Last, it creates the tag and a GitHub Release. A failed push leaves no tag, so
   a re-run tries again.
 
-The Actions tab can run it by hand as a dry run. It does the same build and
-publishes nothing.
+Anything that is not a push is a dry run. It does the same build for both
+platforms and publishes nothing. A pull request gets one when it changes
+`release.yml`, `backend/Dockerfile`, `backend/uv.lock` or `.dockerignore`, so
+the `arm64` build is tried before the merge. "Run workflow" in the Actions
+tab starts one by hand, once `release.yml` is on `main`.
 
 The image is built from `backend/Dockerfile`, with the repository root as the
 build context, because the image builds the client from `web/`. It installs the

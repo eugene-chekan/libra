@@ -4,17 +4,29 @@ name: Release
 # backend/pyproject.toml has no tag yet. So merging the version-bump PR is the
 # release. Every other push to main stops after the first job.
 #
-# Run it by hand (Actions tab, "Run workflow") for a dry run: it builds both
-# platforms and publishes nothing.
+# Anything that is not a push is a dry run: it builds both platforms and
+# publishes nothing. A pull request that changes the release, the Dockerfile or
+# the locked dependencies gets one, so the arm64 build is tried before the
+# merge and not on release day. "Run workflow" in the Actions tab starts one by
+# hand, once this file is on main.
 on:
   push:
     branches: [main]
+  pull_request:
+    branches: [main]
+    paths:
+      - .github/workflows/release.yml
+      - backend/Dockerfile
+      - backend/uv.lock
+      - .dockerignore
   workflow_dispatch:
 
 # One release at a time. A second push waits, then finds the tag and stops.
+# Each pull request has its own group, so a dry run can never make a release
+# wait or replace it in the queue.
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: release-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 permissions:
   contents: read
@@ -44,7 +56,7 @@ jobs:
             echo "build=${GITHUB_SHA::7}"
           } >> "$GITHUB_OUTPUT"
 
-          if [ "$GITHUB_EVENT_NAME" = workflow_dispatch ] ||
+          if [ "$GITHUB_EVENT_NAME" != push ] ||
              ! git ls-remote --exit-code --tags origin "refs/tags/v$version" > /dev/null; then
             echo "release=true" >> "$GITHUB_OUTPUT"
           else
@@ -52,14 +64,18 @@ jobs:
             echo "v$version is already released; nothing to do."
           fi
 
+  # Not on a pull request: ci.yml already runs there.
   ci:
     needs: version
-    if: needs.version.outputs.release == 'true'
+    if: needs.version.outputs.release == 'true' && github.event_name != 'pull_request'
     uses: ./.github/workflows/ci.yml
 
+  # `ci` is skipped on a pull request, and a plain `if` would skip this job
+  # with it. The status checks keep it running then, and still stop it when
+  # `version` or `ci` fails.
   publish:
     needs: [version, ci]
-    if: needs.version.outputs.release == 'true'
+    if: ${{ !failure() && !cancelled() && needs.version.outputs.release == 'true' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write   # the tag and the release
