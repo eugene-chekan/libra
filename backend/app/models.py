@@ -1,6 +1,7 @@
 from datetime import UTC, datetime
 from typing import Literal
 
+from pydantic import NaiveDatetime
 from sqlalchemy import JSON as SA_JSON
 from sqlalchemy import Column, Index, String, event, text
 from sqlmodel import Field, SQLModel
@@ -26,6 +27,8 @@ SORT_ADDED = "added"
 BookSort = Literal["title", "added"]
 
 
+# A table field that holds this value is annotated `NaiveDatetime`. SQLModel 0.0.48 and newer read
+# a plain `datetime` as timezone-aware, and refuse the naive values made here.
 def utcnow() -> datetime:
     """Current UTC time as a naive datetime."""
     return datetime.now(UTC).replace(tzinfo=None)
@@ -100,7 +103,7 @@ class User(SQLModel, table=True):
     password_hash: str
     is_admin: bool = Field(default=False)
     kindle_email: str | None = Field(default=None)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class UserSession(SQLModel, table=True):
@@ -111,8 +114,8 @@ class UserSession(SQLModel, table=True):
     token_hash: str = Field(primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     kind: str = Field(default="browser")
-    expires_at: datetime
-    created_at: datetime = Field(default_factory=utcnow)
+    expires_at: NaiveDatetime
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class Shelf(SQLModel, table=True):
@@ -127,7 +130,7 @@ class Shelf(SQLModel, table=True):
     name_folded: str = Field(default="")
     position: int = Field(default=0)
     visibility: str = Field(default=SHELF_PRIVATE)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class ShelfCreate(SQLModel):
@@ -179,7 +182,7 @@ class Tag(SQLModel, table=True):
     owner_id: int | None = Field(default=None, foreign_key="user.id", index=True)
     name: str
     name_folded: str = Field(default="")
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 @event.listens_for(Shelf, "before_insert")
@@ -242,10 +245,10 @@ class UserBookState(SQLModel, table=True):
     # the book taken from a different parse of it than the one on screen, and on some real books
     # the answer lands nowhere. Opaque to the server, which never reads it.
     position: str | None = Field(default=None)
-    started_at: datetime | None = Field(default=None)
-    finished_at: datetime | None = Field(default=None)
-    last_sent_at: datetime | None = Field(default=None)
-    updated_at: datetime = Field(default_factory=utcnow)
+    started_at: NaiveDatetime | None = Field(default=None)
+    finished_at: NaiveDatetime | None = Field(default=None)
+    last_sent_at: NaiveDatetime | None = Field(default=None)
+    updated_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class UserBookStateWrite(SQLModel):
@@ -266,7 +269,7 @@ class Note(SQLModel, table=True):
     book_id: int = Field(foreign_key="book.id", index=True)
     text: str
     page: int | None = Field(default=None)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class NoteCreate(SQLModel):
@@ -304,7 +307,7 @@ class Conversation(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     title: str | None = Field(default=None)
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 
 class Message(SQLModel, table=True):
@@ -312,13 +315,13 @@ class Message(SQLModel, table=True):
 
     id: int | None = Field(default=None, primary_key=True)
     conversation_id: int = Field(foreign_key="conversation.id", index=True)
-    # `sa_type` explicit: SQLModel 0.0.39 cannot derive a column type from a
-    # bare `Literal` annotation on a table model (it isn't a subclass of
-    # `Enum`), and raises a `TypeError` at class-creation time without this.
+    # `sa_type` explicit: SQLModel cannot derive a column type from a bare
+    # `Literal` annotation on a table model (it isn't a subclass of `Enum`),
+    # and raises a `TypeError` at class-creation time without this.
     # Does not restore validation — table=True classes never enforce a Literal.
     role: MessageRole = Field(sa_type=String)
     content: str
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
     # Tool-call status and citation, so Phase 3 can add to this shape
     # without a migration — the same reasoning as `book_metadata`.
     meta: dict = Field(default_factory=dict, sa_column=Column(SA_JSON))
