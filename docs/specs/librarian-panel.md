@@ -145,7 +145,7 @@ class Conversation(SQLModel, table=True):
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
     title: str | None = None
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
 
 MessageRole = Literal["user", "librarian"]
 
@@ -154,7 +154,7 @@ class Message(SQLModel, table=True):
     conversation_id: int = Field(foreign_key="conversation.id", index=True)
     role: MessageRole
     content: str
-    created_at: datetime = Field(default_factory=utcnow)
+    created_at: NaiveDatetime = Field(default_factory=utcnow)
     meta: dict = Field(default_factory=dict, sa_column=Column(SA_JSON))
 ```
 
