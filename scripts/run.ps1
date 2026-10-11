@@ -181,10 +181,24 @@ if (-not (Get-VenvPython)) { Invoke-Native { uv venv --quiet $Venv } 'uv venv' }
 $VenvPy = Get-VenvPython
 if (-not $VenvPy) { Stop-WithError "could not find the interpreter in $Venv" }
 
+# The libraries come from uv.lock, as in the Docker image, so what runs here is
+# what the tests ran against. Installing the wheel alone takes the newest
+# release of every library on each run, and a newer SQLModel broke every login.
+$Requirements = Join-Path $Runtime 'requirements.txt'
+Push-Location $Backend
+try {
+    Invoke-Native {
+        uv export --frozen --no-dev --no-emit-project --no-hashes --quiet --output-file $Requirements
+    } 'uv export'
+} finally {
+    Pop-Location
+}
+Invoke-Native { uv pip sync --quiet --python $VenvPy $Requirements } 'uv pip sync'
+
 # --reinstall so a rebuilt wheel of the same version actually replaces the
 # installed one; pip would otherwise see that version already present and do nothing,
 # and every run would serve the first build forever.
-Invoke-Native { uv pip install --quiet --python $VenvPy --reinstall $Wheel.FullName } 'uv pip install'
+Invoke-Native { uv pip install --quiet --python $VenvPy --reinstall --no-deps $Wheel.FullName } 'uv pip install'
 
 # ------------------------------------------------------------------- the data
 # Kept out of the source tree and out of the venv, so rebuilding either never

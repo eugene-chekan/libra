@@ -132,10 +132,17 @@ venv_python() {
 VENV_PY="$(venv_python)"
 [ -n "$VENV_PY" ] || die "could not find the interpreter in $VENV"
 
+# The libraries come from uv.lock, as in the Docker image, so what runs here is
+# what the tests ran against. Installing the wheel alone takes the newest
+# release of every library on each run, and a newer SQLModel broke every login.
+REQUIREMENTS="$RUNTIME/requirements.txt"
+(cd "$BACKEND" && uv export --frozen --no-dev --no-emit-project --no-hashes --quiet --output-file "$REQUIREMENTS")
+uv pip sync --quiet --python "$VENV_PY" "$REQUIREMENTS"
+
 # --reinstall so a rebuilt wheel of the same version actually replaces the
 # installed one; pip would otherwise see that version already present and do nothing,
 # and every run would serve the first build forever.
-uv pip install --quiet --python "$VENV_PY" --reinstall "$WHEEL"
+uv pip install --quiet --python "$VENV_PY" --reinstall --no-deps "$WHEEL"
 
 # ------------------------------------------------------------------- the data
 # Kept out of the source tree and out of the venv, so rebuilding either never
