@@ -1,6 +1,8 @@
 # Phase 2 — Retrieval Experiment: Scope and Plan
 
-**Status:** Design approved 2026-09-13. Part 1 not started.
+**Status:** Design approved 2026-09-13. Revised 2026-10-11 against the topic
+application: a four-week schedule, the main comparisons tested in both genres,
+and a written genre rule. Part 1 starts 2026-10-12.
 
 This plan replaces the earlier Phase 2 outline in
 [architecture.md](../architecture.md), which planned a Chroma vector store and
@@ -41,7 +43,7 @@ Decisions made on 2026-09-13:
 |---|---|---|
 | until 20 Sep | Topic application, agreed with the supervisor | — |
 | 28 Sep – 14 Nov | Practice. **Practice defense 9–14 Nov.** A failed defense ends the diploma. | Part 1 finished by about 7 Nov |
-| 15 Nov – 6 Jan | Diploma project and thesis text, 95% done | Part 2, and the thesis |
+| 15 Nov – 6 Jan | Diploma project and thesis text, 95% done | Part 2, the thesis, the business analysis document and the ER diagram |
 | **6–9 Jan** | **Pre-defense, in English, with a demo** | The panel must work |
 | 10 Jan – 6 Feb | Format check, external review, defense | No new code |
 
@@ -54,6 +56,40 @@ So the work has two parts:
    results are known.
 
 Phase 2 is complete when part 2 ships. The version then becomes `0.3.0`.
+
+## What the topic application promises
+
+The committee checks the diploma against the topic application (dated
+2026-09-16). Its title, as the dean's office approved it on 2026-09-23: "A
+Passage Retrieval System for an E-book Library Using LLM-Generated Semantic
+Descriptors". The application names no model and no provider. Those belong in
+the technical assignment and in the experiment protocol.
+
+| The application says | Where this plan does it |
+|---|---|
+| Six configurations: BM25, embeddings, descriptors, and three hybrids merged with RRF | [Methods](#methods) |
+| The main comparison: embeddings + descriptors against embeddings alone, and against BM25 + embeddings | [Hypotheses](#hypotheses): H1 and H2, in each genre |
+| Public-domain books in English, and questions in English | [Books](#books) |
+| Each question comes from one known passage, which is its reference answer | [Test questions](#test-questions) |
+| Some questions written by hand; the rest drafted by a language model and checked by hand | [Two sets](#two-sets) |
+| All relevant passages marked by hand on a random sample of questions | [The weakness of one correct chunk](#the-weakness-of-one-correct-chunk) |
+| The descriptor prompt tuned on books outside the test corpus | [Descriptor procedure](#descriptor-procedure-protocol-v1) |
+| No method settings tuned on test questions; the protocol fixed before the final run | [The protocol is frozen](#the-protocol-is-frozen-before-the-full-run) |
+| Recall@5, Recall@10 and MRR@10, for fiction and non-fiction separately | [Metrics](#metrics) |
+| Paired bootstrap 95% intervals, a randomisation test, and the Holm correction | [Statistics](#statistics) |
+| The librarian panel shows the passages that the best configuration finds | [Part 2](#part-2--the-librarian-panel-sketch) |
+
+The application also claims seven complexity criteria. Two of them need work
+that this plan's code does not produce:
+
+- **Business Analysis:** a document with the vision, the problem, the
+  stakeholders (reader, administrator, Kindle owner), the scope and features,
+  and a comparison with Calibre-web.
+- **Database:** an ER diagram, including the new chunk, vector and descriptor
+  tables.
+
+Neither exists yet. Both are due with the thesis text, by 6 Jan. The ER
+diagram waits until the part 1 tables exist.
 
 ---
 
@@ -87,23 +123,35 @@ Phase 2 is complete when part 2 ships. The version then becomes `0.3.0`.
 
 ## Schedule
 
-Weeks start on Monday.
+**Revised 2026-10-11.** Part 1 did not start in September, so the first
+schedule's eight weeks are now four. There is no spare week. Weeks start on
+Monday.
 
 | Week | Dates | Work |
 |---|---|---|
-| 1 | 14–20 Sep | #35 spine reader, the chunker, the book list |
-| 2 | 21–27 Sep | Chunk tables, the BM25 and embedding indexes, metrics code, a small smoke test. **The chunker is frozen at the end of this week.** |
-| 3 | 28 Sep – 4 Oct | Descriptors: trial on 2 pilot books, tune the prompt, then query descriptors and hybrids |
-| 4 | 5–11 Oct | The 40 hand questions **first**, before any draft or result exists. Then drafting, and the review starts. |
-| 5 | 12–18 Oct | Finish the review. Freeze the protocol. The full run. |
-| 6 | 19–25 Oct | Analysis: genres, statistics, the checked samples, the failure review |
-| 7 | 26 Oct – 1 Nov | Practice report and slides |
-| 8 | 2–8 Nov | Spare time, supervisor feedback, rehearsal |
+| 1 | 12–18 Oct | #35 spine reader, the chunker, `add_book_from_file`, `load-corpus`, `corpus.csv`. **The chunker is frozen at the end of this week.** |
+| 2 | 19–25 Oct | The 40 hand questions **first**, before any draft or result exists. Chunk tables, BM25 and embedding search, RRF, the metrics code, a smoke test. The DeepSeek client, and the prompt pilot on the 2 pilot books. |
+| 3 | 26 Oct – 1 Nov | Descriptors for every chunk and every question. Drafting, and the review. **Freeze the protocol.** The full run and the statistics. |
+| 4 | 2–8 Nov | The checked sample. The genre analysis. The practice report and slides. |
+| — | 9–14 Nov | Practice defense |
 
 The hand questions come first because a person who has seen which method wins
-can write questions that favour it without noticing.
+can write questions that favour it without noticing. They need only the frozen
+chunker, so they can start on the first day of week 2.
 
-Week 8 is empty on purpose. A delay must cost spare time, not the defense.
+**Needed from the author before week 2:** the 40 books and the 2 pilot books,
+downloaded; a DeepSeek API key with a balance.
+
+**If the work runs late**, these move to the thesis period (15 Nov – 6 Jan), in
+this order. The application promises none of them:
+
+1. The descriptor accuracy check ([validity check](#validity-checks) 5).
+2. The [failure review](#failure-review).
+3. H4, the question-kind analysis. The `kind` tag is still recorded, so it can
+   be done later on the same data.
+
+The checked sample *is* promised in the application. It moves only if the full
+run itself is late, and then the practice report says so.
 
 ## Books
 
@@ -138,10 +186,19 @@ the same link can later give a different file.
 - **Prefer less famous books.** DeepSeek may know famous plots from training.
   When it turns a question into descriptors, it could describe the answer scene
   from memory, and the descriptor method would win for the wrong reason.
-- **"Non-fiction" means explanatory non-fiction:** science, history, essays.
-  Standard Ebooks has little pure popular science, so the report says
-  "non-fiction", not "popular science". This label needs the supervisor's
-  agreement.
+- **The genre rule.** The supervisor agreed the label "non-fiction"
+  («нехудожественная литература»), not "popular science". Standard Ebooks has
+  little pure popular science, and essays and philosophical or political works
+  are not popular science.
+  - **Fiction:** novels and short stories.
+  - **Non-fiction:** books that explain or argue: science, history,
+    philosophy, politics, essays.
+  - **Not used:** poetry and plays, whose short lines and layout would chunk
+    differently. Also not used: memoirs, biographies and travel books. They
+    tell a story the way fiction does, and would blur the genre comparison
+    (H3).
+  - Each book's genre is written in `corpus.csv` before any question exists.
+    The protocol repeats this rule.
 
 **One index for all 40 books**, like the panel's "your library". Results are
 reported by the genre of the question.
@@ -169,7 +226,7 @@ Expect about **10,000–15,000 chunks**.
 
 **Chunk identity** is the book's `sha256`, the chunk's position in the book,
 and `CHUNKER_VERSION`. Changing the chunker raises the version and makes every
-question label invalid. That is why the chunker is frozen in week 2, before any
+question label invalid. That is why the chunker is frozen in week 1, before any
 question exists.
 
 ## Search
@@ -249,7 +306,8 @@ methods.
 
 **Cost.** About $8–12 off-peak for all chunks, at DeepSeek's September 2026
 prices ($0.66 per million input tokens and $1.98 per million output tokens,
-off-peak).
+off-peak). The pilot checks the prices and the model name again before the
+full run.
 
 ## Test questions
 
@@ -260,8 +318,8 @@ is the correct answer.
 
 | Set | Size | Written by | When |
 |---|---|---|---|
-| Hand | 40 (20 fiction, 20 non-fiction) | the author | Week 4, before any draft or result |
-| Drafted | 10 per book = 400 drafts, about 300 kept | DeepSeek, then reviewed by the author | Weeks 4–5 |
+| Hand | 40 (20 fiction, 20 non-fiction) | the author | Week 2, before any draft or result |
+| Drafted | 10 per book = 400 drafts, about 300 kept | DeepSeek, then reviewed by the author | Week 3 |
 
 For the hand set, `rag hand-question` shows a random chunk and the author
 writes a question about it. That is the same pattern as the drafts, so the two
@@ -308,7 +366,7 @@ Keep a draft only if all of these hold:
 5. The kind tag is right.
 
 Every drop records a reason, and the report shows the counts. Budget: about
-400 × 45 seconds ≈ 5 hours, spread over two weeks.
+400 × 45 seconds ≈ 5 hours, in week 3.
 
 ### The weakness of one correct chunk
 
@@ -319,7 +377,7 @@ method that finds that chunk is scored as wrong.
   "known-item search" setup, and the report uses that name.
 - **A checked sample.** After the full run: 50 random questions; the top 5
   chunks of every method; the author judges each unlabelled chunk relevant or
-  not. About 600 judgements, 4–5 hours, in week 6. It measures how much the
+  not. About 600 judgements, 4–5 hours, in week 4. It measures how much the
   main scores under-count, and **whether the order of methods changes**.
 
 ### Bias checks on the drafts
@@ -335,7 +393,7 @@ and kind.
 
 ### The protocol is frozen before the full run
 
-In week 5, `experiment/protocol.md` is committed and tagged
+In week 3, `experiment/protocol.md` is committed and tagged
 `experiment-protocol-v1`. It records the `corpus.csv` hash, `CHUNKER_VERSION`,
 the embedding model, the descriptor prompt and settings, the methods, k, the
 metrics, the hypotheses and the tests. The tag shows the analysis was fixed
@@ -348,10 +406,16 @@ The main metric is **recall@10**.
 
 | | Hypothesis | Comparison |
 |---|---|---|
-| H1 | On fiction, adding descriptors helps | `dense+descriptors` vs `dense` |
-| H2 | On fiction, the supervisor's method beats the usual hybrid | `dense+descriptors` vs `bm25+dense` |
+| H1 | Adding descriptors helps | `dense+descriptors` vs `dense` |
+| H2 | The supervisor's method beats the usual hybrid | `dense+descriptors` vs `bm25+dense` |
 | H3 | Descriptors help fiction more than non-fiction | H1's gain on fiction vs on non-fiction |
 | H4 (secondary) | Descriptors help interpretive questions more than factual ones | H1's gain per kind |
+
+**H1 and H2 are tested in each genre separately**, because the application
+promises the main comparison and a separate analysis for each genre. So the
+main family has five tests: H1 and H2 on fiction, H1 and H2 on non-fiction,
+and H3. The expectation behind the method — descriptors help most where the
+question's words differ from the text's, as in fiction — is H3.
 
 A negative result is a valid result. The report answers each hypothesis with a
 confidence interval, whatever the outcome.
@@ -377,7 +441,8 @@ With one correct chunk per question:
 - **p-values** from a paired randomisation test. Both follow Smucker, Allan &
   Carterette (2007), "A comparison of statistical significance tests for
   information retrieval evaluation".
-- **Holm correction** across H1–H3.
+- **Holm correction** across the five main tests: H1 and H2 in each genre, and
+  H3. H4 is secondary and outside the family.
 - H3 compares gains between genres with a bootstrap of the difference.
 - The report leads with intervals: "the gain is between −2 and +6 points" still
   says something when nothing is significant.
@@ -506,6 +571,10 @@ All are `uv run python -m app.cli rag <command>`:
 - **`experiment` dependency group** (not in the wheel): `scipy`, `matplotlib`.
   CI runs `uv sync --all-groups`, so it installs and tests these too.
 
+The PR that adds them changes `uv.lock`, so it gets the `arm64` dry-run build
+of the release image ([architecture.md](../architecture.md#version-numbers)).
+That shows early whether ONNX Runtime installs on `arm64`.
+
 ## Errors
 
 | Case | Behaviour |
@@ -553,9 +622,10 @@ The API key never appears in a log line or an error message.
 | Drafts copy the chunk's wording and favour BM25 | The 4-word check; word overlap reported per set |
 | One correct chunk under-counts | The 50-question checked sample |
 | "Non-fiction" is broader than popular science | The label is agreed with the supervisor |
-| JSON mode on `v4-pro` is not documented | Confirmed in the week 3 pilot |
+| JSON mode on `v4-pro` is not documented | Confirmed in the week 2 pilot |
+| The model or its price changed since September | The week 2 pilot checks both; the protocol records the model version that served the run |
 | DeepSeek serves different output later | Every response saved; evaluation never calls the API |
-| The schedule slips | Week 8 is spare |
+| The schedule slips | No spare week is left. A fixed order of what moves to the thesis period, none of it promised in the application ([Schedule](#schedule)) |
 
 ---
 
@@ -580,9 +650,18 @@ ready:
   are cheap; descriptors cost API calls.) And when DeepSeek is down and the
   method needs query descriptors — fall back to `bm25+dense` and say so in the
   status line?
+- **Also open: the model file in Docker.** The application claims
+  Containerization, so search must work in the image too. The embedding model
+  is a 420 MB file. Either the image contains it, or the container downloads
+  it into the data volume on first use. The image is built for `amd64` and
+  `arm64`.
 
 # Open questions
 
-- The supervisor agrees the second genre is called "non-fiction", not "popular
-  science".
-- Part 2's two questions above.
+- Part 2's three questions above.
+- The supervisor has not seen the detailed genre rule in [Books](#books),
+  written on 2026-10-11. He sees it with the technical assignment, before
+  `corpus.csv` is final.
+
+Settled since 2026-09-13: the label "non-fiction", agreed with the supervisor
+in September.
