@@ -90,10 +90,11 @@ the app should be able to damage it.
 
 The script installs the wheel into a throwaway venv at `.run/` and runs
 *that*, not the source tree — so anything missing from the wheel fails here
-rather than on someone else's machine. It is idempotent, and creates an admin
-only when the installation has no users at all. `LIBRA_ADMIN_PASSWORD` seeds
-that admin non-interactively, which is what makes a scratch instance
-scriptable.
+rather than on someone else's machine. The libraries in that venv come from
+`backend/uv.lock`, the same as the tests and Docker. It is idempotent, and
+creates an admin only when the installation has no users at all.
+`LIBRA_ADMIN_PASSWORD` seeds that admin non-interactively, which is what makes
+a scratch instance scriptable.
 
 `run.sh` ends in `exec uvicorn`, so uvicorn replaces the shell — stop it by
 port, not by killing the launching job. `run.ps1` has no `exec`, so Ctrl-C
