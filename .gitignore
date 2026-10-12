@@ -24,6 +24,9 @@ venv/
 # The embedding model fastembed downloads on first use.
 /backend/models/
 /.run/
+# The corpus files. They are public domain, attached to a GitHub release, and
+# checked against experiment/corpus.csv; the repository keeps only the list.
+/experiment/files/
 
 # The scratch backend CI starts for web/e2e/auth.spec.ts.
 /backend/e2e-scratch/
