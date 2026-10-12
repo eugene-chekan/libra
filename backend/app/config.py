@@ -28,6 +28,10 @@ class Settings(BaseSettings):
 
     log_level: str = "INFO"
 
+    # A fastembed model name, and where fastembed keeps the files it downloads.
+    embedding_model: str = "BAAI/bge-base-en-v1.5"
+    model_cache_dir: Path = Path("./models")
+
     auto_upgrade_db: bool = True
 
     cors_origins: list[str] = []

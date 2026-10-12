@@ -245,7 +245,12 @@ question exists.
 
 - `fastembed` uses ONNX Runtime, not PyTorch. It runs on the CPU, so the server
   and Docker need no GPU, and there is one code path everywhere.
-- 768 dimensions, input limit 512 tokens, MIT licence, model file 420 MB.
+- 768 dimensions, input limit 512 tokens, MIT licence. `fastembed` 0.9
+  serves a quantized ONNX export, `Qdrant/bge-base-en-v1.5-onnx-Q`, of
+  0.21 GB. Its vectors differ slightly from the original model's, so the
+  protocol names this exact source.
+- Token counts come from `TextEmbedding.token_count`. They include the two
+  special tokens the model adds to every input.
   Citation: Xiao et al., "C-Pack", arXiv:2309.07597.
 - Indexing every book takes minutes. One question takes milliseconds.
 - Questions get the prefix
@@ -611,7 +616,7 @@ The API key never appears in a log line or an error message.
   reuses the id**.
 - **A fake embedder** with fixed vectors in all ordinary tests. One test against
   the real model runs only with `LIBRA_TEST_MODELS=1`, so CI and the pre-push
-  hook never download 420 MB.
+  hook never download the model.
 - **A fake DeepSeek client** that behaves like the real server: empty content,
   invalid JSON, 401, 429. Tests: retries, stopping, resuming without a second
   call, and the key absent from logs and errors.
@@ -660,7 +665,7 @@ ready:
   status line?
 - **Also open: the model file in Docker.** The application claims
   Containerization, so search must work in the image too. The embedding model
-  is a 420 MB file. Either the image contains it, or the container downloads
+  is a 0.21 GB file. Either the image contains it, or the container downloads
   it into the data volume on first use. The image is built for `amd64` and
   `arm64`.
 

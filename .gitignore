@@ -21,6 +21,8 @@ venv/
 # the throwaway venv plus its data. All reproducible, none of it source.
 /backend/app/web/
 /backend/dist/
+# The embedding model fastembed downloads on first use.
+/backend/models/
 /.run/
 
 # The scratch backend CI starts for web/e2e/auth.spec.ts.
