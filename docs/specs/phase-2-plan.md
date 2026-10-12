@@ -213,16 +213,24 @@ After #35 reads the spine:
 3. Pack whole paragraphs into chunks of about **250–300 words**. The hard limit
    is **450 tokens, counted by the embedding model's own tokenizer**, so no
    chunk is ever cut short when it is embedded.
-4. A chunk never crosses a chapter. A paragraph over the limit is split at a
-   sentence end.
+4. A chunk never crosses a chapter. Here a chapter is one spine item: every
+   test book keeps one chapter per file. A paragraph over the limit is split
+   at a sentence end, and a sentence over it is split between words.
 5. **No overlap.** With overlap, one answer sits in two chunks, and "the
    correct chunk" stops being one chunk.
+
+Chunk text is the paragraphs only. Headings, the chapter title, note
+reference numbers and figures are left out; a line break inside a paragraph
+becomes a space; a table row is one paragraph. A chunk closes once it has
+250 words, or earlier when the next paragraph would take it over 450 tokens.
+A bodymatter file with only a heading in it, such as a part title page,
+gives no chunk.
 
 A book with no `epub:type` labels (not from Standard Ebooks) keeps every spine
 item except the navigation document. The experiment does not need this, but
 part 2 does.
 
-Expect about **10,000–15,000 chunks**.
+Expect about **9,300 chunks** for the 40 test books.
 
 **Chunk identity** is the book's `sha256`, the chunk's position in the book,
 and `CHUNKER_VERSION`. Changing the chunker raises the version and makes every
