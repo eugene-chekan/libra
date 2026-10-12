@@ -207,8 +207,9 @@ reported by the genre of the question.
 
 After #35 reads the spine:
 
-1. Keep only `bodymatter`. Drop the title page, colophon, imprint, licence
-   page, table of contents and endnotes.
+1. Leave out the files labelled `frontmatter` or `backmatter` (title page,
+   colophon, imprint, licence page, table of contents, endnotes) and the nav
+   document. Keep everything else.
 2. Turn XHTML into paragraphs with the existing guarded XML parsing.
 3. Pack whole paragraphs into chunks of about **250–300 words**. The hard limit
    is **450 tokens, counted by the embedding model's own tokenizer**, so no
@@ -221,7 +222,12 @@ After #35 reads the spine:
 
 Chunk text is the paragraphs only. Headings, the chapter title, note
 reference numbers and figures are left out; a line break inside a paragraph
-becomes a space; a table row is one paragraph. A chunk closes once it has
+becomes a space; a table row is one paragraph. Everything inside `<header>`
+is left out too: Standard Ebooks puts chapter synopses, epigraphs and
+datelines there, 1,174 words in the corpus. So is a `<cite>` line beside the
+paragraphs of a quotation, 473 characters. A no-break space (U+00A0) stays in
+the text: Standard Ebooks writes one after "Mr." and "St.", and it stops the
+sentence split from cutting a name off its title. A chunk closes once it has
 250 words, or earlier when the next paragraph would take it over 450 tokens.
 A bodymatter file with only a heading in it, such as a part title page,
 gives no chunk.
@@ -230,12 +236,17 @@ A book with no `epub:type` labels (not from Standard Ebooks) keeps every spine
 item except the navigation document. The experiment does not need this, but
 part 2 does.
 
-Expect about **9,300 chunks** for the 40 test books.
+The 40 test books give **9,476 chunks** with chunker version 1.
 
 **Chunk identity** is the book's `sha256`, the chunk's position in the book,
 and `CHUNKER_VERSION`. Changing the chunker raises the version and makes every
 question label invalid. That is why the chunker is frozen in week 1, before any
 question exists.
+
+The boundaries also depend on the tokenizer, and `fastembed` downloads the
+model's newest revision. So `experiment/corpus-stats.csv` keeps each book's
+`chunks_sha256`, a hash of its chunk texts, and `index` and `evaluate` check
+it. The protocol records the model revision the run used.
 
 ## Search
 
@@ -249,16 +260,16 @@ question exists.
   serves a quantized ONNX export, `Qdrant/bge-base-en-v1.5-onnx-Q`, of
   0.21 GB. Its vectors differ slightly from the original model's, so the
   protocol names this exact source.
+- Citation: Xiao et al., "C-Pack", arXiv:2309.07597.
 - Token counts come from `TextEmbedding.token_count`. They include the two
   special tokens the model adds to every input.
-  Citation: Xiao et al., "C-Pack", arXiv:2309.07597.
 - Indexing every book takes minutes. One question takes milliseconds.
 - Questions get the prefix
   `Represent this sentence for searching relevant passages: `. Chunks and
   descriptors get none. (v1.5 makes the prefix optional; the protocol fixes
   it.)
-- All vectors fit in memory: about 15,000 chunk vectors and 120,000 descriptor
-  vectors, roughly 400 MB.
+- All vectors fit in memory: about 9,500 chunk vectors and 76,000 descriptor
+  vectors (8 per chunk), roughly 260 MB.
 
 ### Methods
 
@@ -564,7 +575,8 @@ All are `uv run python -m app.cli rag <command>`:
 
 | Command | Does |
 |---|---|
-| `load-corpus <folder>` | Uploads each file through `add_book_from_file`; checks every `sha256` against `corpus.csv` |
+| `load-corpus <corpus.csv> <folder>` | Checks every file's `sha256` against `corpus.csv`, then adds the 40 test books (not the pilot books) through `add_book_from_file`. Refuses a database that holds any other book, before migrating it. |
+| `corpus-stats <corpus.csv> <folder> --out <file>` | Chunks every book and writes one row per book: words, chunks, the largest chunk in tokens, chunks under 100 words, and `chunks_sha256`. Exits 1 and names each corpus rule that breaks. |
 | `index` | Chunks, fills FTS5, embeds chunk text. Skips books already indexed at this `CHUNKER_VERSION`. |
 | `describe` | Descriptors for chunks that have none; appends to the log, imports into the database; resumes |
 | `import-descriptors` | Loads the log into the database, no API |
@@ -597,7 +609,7 @@ That shows early whether ONNX Runtime installs on `arm64`.
 | 429, 5xx, timeout | Retried by the SDK |
 | Empty or invalid JSON | Retried up to 3 times, then recorded as a failure |
 | A crash mid-run | Nothing is lost: each response is written and flushed before the next request, and the next run skips finished chunks |
-| A broken chapter file | That book is skipped with a message; the others go on |
+| A broken chapter file | `index`: that book is skipped with a message; the others go on. `corpus-stats`: it stops and names the book, because a broken corpus file is a corpus problem. |
 | A `sha256` or `CHUNKER_VERSION` that differs from the question labels | `evaluate` refuses to run |
 
 The API key never appears in a log line or an error message.
