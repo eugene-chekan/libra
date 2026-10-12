@@ -6,6 +6,7 @@ easy to extend — each one is a keyword argument away from the happy path.
 """
 
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 
 CONTAINER_XML = """<?xml version="1.0" encoding="UTF-8"?>
@@ -31,9 +32,52 @@ OPF_TEMPLATE = """<?xml version="1.0" encoding="UTF-8"?>
     <item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>
 {manifest_extra}
   </manifest>
-  <spine/>
+  <spine>
+{spine}
+  </spine>
 </package>
 """
+
+CHAPTER_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>{name}</title></head>
+<body{body_type}>
+{body}
+</body>
+</html>
+"""
+
+NAV_TEMPLATE = """<?xml version="1.0" encoding="utf-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops">
+<head><title>Table of Contents</title></head>
+<body epub:type="frontmatter">
+<nav epub:type="toc"><h2>Table of Contents</h2><ol>
+{entries}
+</ol></nav>
+</body>
+</html>
+"""
+
+# The nav every book had before chapters existed. Kept as the default so the
+# metadata tests keep building exactly the files they always did.
+EMPTY_NAV = "<html><body><nav/></body></html>"
+
+
+@dataclass
+class Chapter:
+    """One spine item, written to `text/<name>` beside the OPF."""
+
+    name: str
+    # The inner XHTML of <body>.
+    body: str = ""
+    # The <body>'s epub:type. None writes no attribute, as in books not from Standard Ebooks.
+    epub_type: str | None = "bodymatter"
+    # The table-of-contents text. None leaves the file out of the nav.
+    title: str | None = None
+    # The manifest href, when a test needs an escaped or hostile one.
+    href: str | None = None
+    # The whole file instead of the template, for malformed variants.
+    raw: str | None = None
 
 
 def _metadata_block(
@@ -104,6 +148,10 @@ def build_epub(
     include_container: bool = True,
     include_opf: bool = True,
     opf_body: str | None = None,
+    chapters: list[Chapter] | None = None,
+    nav_in_spine: bool = False,
+    # Raw <li> lines appended to the nav after the chapters' own entries.
+    nav_extra: list[str] | None = None,
 ) -> Path:
     """Write an EPUB to `path`. Defaults produce a valid, fully tagged book."""
     titles = ["Dune"] if titles is None else titles
@@ -121,6 +169,21 @@ def build_epub(
         )
         if cover == "epub2":
             extra_meta.append('<meta name="cover" content="cover-img"/>')
+
+    spine_refs = ['    <itemref idref="nav"/>'] if nav_in_spine else []
+    nav_entries: list[str] = []
+    for index, chapter in enumerate(chapters or []):
+        href = chapter.href or f"text/{chapter.name}"
+        manifest_extra += (
+            f'\n    <item id="ch{index}" href="{href}" media-type="application/xhtml+xml"/>'
+        )
+        spine_refs.append(f'    <itemref idref="ch{index}"/>')
+        if chapter.title is not None:
+            nav_entries.append(f'<li><a href="{href}">{chapter.title}</a></li>')
+    nav_entries += nav_extra or []
+    nav = (
+        NAV_TEMPLATE.format(entries="\n".join(nav_entries)) if chapters or nav_extra else EMPTY_NAV
+    )
 
     path.parent.mkdir(parents=True, exist_ok=True)
     with zipfile.ZipFile(path, "w") as archive:
@@ -151,15 +214,27 @@ def build_epub(
                         extra_meta,
                     ),
                     manifest_extra=manifest_extra,
+                    spine="\n".join(spine_refs),
                 )
             )
             archive.writestr(opf_path, body)
-        archive.writestr("OEBPS/nav.xhtml", "<html><body><nav/></body></html>")
+        opf_dir = opf_path.rsplit("/", 1)[0] if "/" in opf_path else ""
+        prefix = f"{opf_dir}/" if opf_dir else ""
+        archive.writestr(f"{prefix}nav.xhtml", nav)
+        for chapter in chapters or []:
+            body_type = f' epub:type="{chapter.epub_type}"' if chapter.epub_type else ""
+            content = (
+                chapter.raw
+                if chapter.raw is not None
+                else CHAPTER_TEMPLATE.format(
+                    name=chapter.name, body_type=body_type, body=chapter.body
+                )
+            )
+            archive.writestr(f"{prefix}text/{chapter.name}", content)
         if cover is not None:
             # Written where the OPF's directory says, since the manifest href
             # is relative to the OPF rather than the zip root.
-            opf_dir = opf_path.rsplit("/", 1)[0] if "/" in opf_path else ""
-            archive.writestr(f"{opf_dir}/{cover_href}" if opf_dir else cover_href, cover_bytes)
+            archive.writestr(f"{prefix}{cover_href}", cover_bytes)
     return path
 
 

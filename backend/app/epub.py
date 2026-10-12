@@ -2,6 +2,7 @@
 
 import posixpath
 import re
+import urllib.parse
 import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass, field
@@ -17,6 +18,11 @@ NS = {
     "opf": "http://www.idpf.org/2007/opf",
     "dc": "http://purl.org/dc/elements/1.1/",
 }
+
+XHTML_NS = "http://www.w3.org/1999/xhtml"
+OPS_NS = "http://www.idpf.org/2007/ops"
+# `epub:type`, spelled the way ElementTree names a namespaced attribute.
+EPUB_TYPE = f"{{{OPS_NS}}}type"
 
 # No legitimate container.xml or OPF is anywhere near this large. Capping the
 # read guards against a compressed member that expands to something huge.
@@ -303,6 +309,123 @@ def read_cover(path: Path, archive_href: str, max_bytes: int) -> bytes:
     if len(data) > max_bytes:
         raise InvalidEpubError(f"cover exceeds {max_bytes} bytes")
     return data
+
+
+@dataclass(frozen=True)
+class SpineItem:
+    """One entry in a book's reading order."""
+
+    # The member's path inside the archive, resolved and confined.
+    href: str
+    media_type: str
+    # The table of contents' text for this file, when the nav document gives one.
+    title: str | None
+    is_nav: bool
+
+
+def _confine(member: str) -> str:
+    """Normalise a member path, refusing one that is absolute or climbs out of the archive."""
+    normal = posixpath.normpath(member)
+    if normal.startswith("/") or normal == "." or normal.split("/", 1)[0] == "..":
+        raise InvalidEpubError(f"href leaves the archive: {member!r}")
+    return normal
+
+
+def _resolve_href(base_dir: str, href: str) -> str:
+    """Resolve an href found in a document in `base_dir` to a member path, without its fragment.
+
+    Raises:
+        InvalidEpubError: The href names another scheme or climbs out of the archive.
+    """
+    target = urllib.parse.unquote(href.split("#", 1)[0])
+    if urllib.parse.urlsplit(target).scheme:
+        raise InvalidEpubError(f"href leaves the archive: {href!r}")
+    return _confine(posixpath.join(base_dir, target))
+
+
+def _nav_titles(archive: zipfile.ZipFile, nav_path: str) -> dict[str, str]:
+    """Map each member the nav's table of contents links to onto its first title."""
+    try:
+        root = _parse_xml(_read_member(archive, nav_path), nav_path)
+    except InvalidEpubError:
+        return {}
+
+    nav_dir = posixpath.dirname(nav_path)
+    titles: dict[str, str] = {}
+    for nav in root.iter(f"{{{XHTML_NS}}}nav"):
+        if "toc" not in (nav.get(EPUB_TYPE) or "").split():
+            continue
+        for link in nav.iter(f"{{{XHTML_NS}}}a"):
+            href = link.get("href") or ""
+            text = " ".join("".join(link.itertext()).split())
+            if not href.split("#", 1)[0] or not text:
+                continue
+            try:
+                titles.setdefault(_resolve_href(nav_dir, href), text)
+            except InvalidEpubError:
+                continue
+    return titles
+
+
+def read_spine(path: Path) -> list[SpineItem]:
+    """List a book's reading order, with the nav document's titles where it gives them.
+
+    Args:
+        path: The EPUB on disk.
+
+    Raises:
+        InvalidEpubError: Not a zip, no usable OPF, an itemref naming no manifest item, or a
+            manifest href that leaves the archive.
+    """
+    if not zipfile.is_zipfile(path):
+        raise InvalidEpubError("file is not a zip archive")
+
+    with zipfile.ZipFile(path) as archive:
+        opf_path = _opf_path(archive)
+        opf_root = _parse_xml(_read_member(archive, opf_path), opf_path)
+        opf_dir = posixpath.dirname(opf_path)
+        manifest = {item.get("id"): item for item in opf_root.findall("opf:manifest/opf:item", NS)}
+
+        nav_path = None
+        for item in manifest.values():
+            if "nav" in (item.get("properties") or "").split():
+                nav_path = _resolve_href(opf_dir, item.get("href") or "")
+                break
+        titles = _nav_titles(archive, nav_path) if nav_path else {}
+
+        spine = []
+        for ref in opf_root.findall("opf:spine/opf:itemref", NS):
+            item = manifest.get(ref.get("idref"))
+            if item is None:
+                raise InvalidEpubError(
+                    f"spine names an unknown manifest item: {ref.get('idref')!r}"
+                )
+            href = _resolve_href(opf_dir, item.get("href") or "")
+            spine.append(
+                SpineItem(
+                    href=href,
+                    media_type=item.get("media-type") or "",
+                    title=titles.get(href),
+                    is_nav=href == nav_path,
+                )
+            )
+    return spine
+
+
+def read_chapter(path: Path, href: str) -> ET.Element:
+    """Parse one spine item's XHTML under the same guards as the OPF.
+
+    Args:
+        path: The EPUB on disk.
+        href: A `SpineItem.href`.
+
+    Raises:
+        InvalidEpubError: The path leaves the archive, or the member is missing, oversized,
+            not well-formed, or declares a doctype or entity.
+    """
+    member = _confine(href)
+    with zipfile.ZipFile(path) as archive:
+        return _parse_xml(_read_member(archive, member), member)
 
 
 def read_metadata(path: Path, fallback_title: str) -> EpubMetadata:
