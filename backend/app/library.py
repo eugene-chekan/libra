@@ -12,6 +12,7 @@ from sqlmodel import Session, col, select
 
 from app import covers, covers_from_url, epub, mailer, naming, storage
 from app.config import Settings
+from app.logging_config import get_logger
 from app.models import (
     COVER_MEDIA_TYPES,
     SHELF_PUBLIC,
@@ -31,6 +32,8 @@ from app.models import (
     UserSession,
     utcnow,
 )
+
+log = get_logger(__name__)
 
 
 class NoKindleAddressError(Exception):
@@ -93,6 +96,10 @@ class AttachmentTooLargeError(Exception):
         self.limit_bytes = limit_bytes
 
 
+class UnsupportedFormatError(Exception):
+    """Only EPUB files can be added in this phase."""
+
+
 def _custom_cover(book: Book) -> str | None:
     """The stored custom cover's path, when the book has a usable one."""
     path = book.book_metadata.get("custom_cover_path")
@@ -143,6 +150,74 @@ def _require_book(session: Session, book_id: int) -> Book:
     book = session.get(Book, book_id)
     if book is None:
         raise BookNotFoundError
+    return book
+
+
+def add_book_from_file(
+    session: Session,
+    source: BinaryIO,
+    original_name: str,
+    settings: Settings,
+    uploaded_by: int | None,
+) -> Book:
+    """Store an EPUB in the library and create its book from the file's own metadata.
+
+    Args:
+        session: Open database session.
+        source: The file's bytes, read once.
+        original_name: The name the file arrived with; its stem is the fallback title.
+        settings: Supplies the library directory and the size limit.
+        uploaded_by: The uploader's id, or None for a book a command loaded.
+
+    Raises:
+        UnsupportedFormatError: The name does not end in `.epub`.
+        UploadTooLargeError: The file is over `settings.max_upload_bytes`.
+        InvalidEpubError: The file is not a usable EPUB.
+    """
+    if Path(original_name).suffix.lower() != ".epub":
+        raise UnsupportedFormatError("Only .epub files are supported in this phase")
+
+    staged = storage.stage_upload(source, settings.library_dir, settings.max_upload_bytes)
+    try:
+        metadata = epub.read_metadata(staged.path, fallback_title=Path(original_name).stem)
+    except BaseException:
+        staged.discard()
+        raise
+
+    stored_name = storage.commit(staged, settings.library_dir)
+    book = Book(
+        title=metadata.title,
+        author=metadata.author,
+        format="epub",
+        file_path=stored_name,
+        year=metadata.year,
+        blurb=metadata.blurb,
+        pages=metadata.pages,
+        uploaded_by=uploaded_by,
+        book_metadata={
+            **metadata.extra,
+            "original_filename": original_name,
+            "size_bytes": staged.size_bytes,
+            **(
+                {
+                    "cover_href": metadata.cover_href,
+                    "cover_media_type": metadata.cover_media_type,
+                }
+                if metadata.cover_href
+                else {}
+            ),
+            "sha256": staged.sha256,
+        },
+    )
+    try:
+        session.add(book)
+        session.commit()
+    except BaseException:
+        session.rollback()
+        log.exception("Insert failed after storing %s; removing the orphaned file", stored_name)
+        storage.delete(stored_name, settings.library_dir)
+        raise
+    session.refresh(book)
     return book
 
 
