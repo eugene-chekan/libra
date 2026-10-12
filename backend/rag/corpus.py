@@ -134,6 +134,24 @@ def verify_files(books: list[CorpusBook], folder: Path) -> None:
         raise CorpusError("; ".join(problems))
 
 
+def refuse_foreign_books(session: Session, books: list[CorpusBook]) -> set[str]:
+    """Check the database holds no book but the corpus test books; return the hashes it holds.
+
+    Raises:
+        CorpusError: It holds another book, so it is somebody's library and not the
+            experiment's.
+    """
+    listed = {book.sha256 for book in books if book.role == "test"}
+    held = set(session.exec(select(func.json_extract(Book.book_metadata, "$.sha256"))).all())
+    foreign = held - listed
+    if foreign:
+        raise CorpusError(
+            f"the database holds {len(foreign)} book(s) not in corpus.csv; "
+            "point LIBRA_DATABASE_URL at the experiment's own database"
+        )
+    return held
+
+
 def load_corpus(session: Session, books: list[CorpusBook], folder: Path, settings: Settings) -> int:
     """Add every test book the database does not hold yet. Pilot books stay out of it.
 
@@ -152,14 +170,7 @@ def load_corpus(session: Session, books: list[CorpusBook], folder: Path, setting
     """
     tests = [book for book in books if book.role == "test"]
     verify_files(tests, folder)
-    listed = {book.sha256 for book in tests}
-    held = set(session.exec(select(func.json_extract(Book.book_metadata, "$.sha256"))).all())
-    foreign = held - listed
-    if foreign:
-        raise CorpusError(
-            f"the database holds {len(foreign)} book(s) not in corpus.csv; "
-            "point LIBRA_DATABASE_URL at the experiment's own database"
-        )
+    held = refuse_foreign_books(session, books)
 
     added = 0
     for book in tests:

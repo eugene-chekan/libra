@@ -13,11 +13,12 @@ from sqlmodel import Session, select
 from app import library
 from app.cli import main
 from app.config import Settings, get_settings
-from app.db import get_engine
+from app.db import get_engine, run_migrations
 from app.models import Book
 from rag.chunking import CHUNKER_VERSION, MAX_TOKENS, chunk_book, chunks_digest
 from rag.corpus import (
     CSV_FIELDS,
+    MAX_BOOK_WORDS,
     MAX_GENRE_GAP,
     TEST_BOOKS_PER_GENRE,
     BookStats,
@@ -247,3 +248,32 @@ def test_corpus_stats_writes_a_row_per_book(
     )
     assert code == 1
     assert "rule broken" in capsys.readouterr().err
+
+
+def test_a_book_over_the_word_limit_breaks_a_rule() -> None:
+    stats = balanced()
+    stats[0] = dataclasses.replace(stats[0], words=MAX_BOOK_WORDS + 1)
+
+    assert any(f"over {MAX_BOOK_WORDS}" in problem for problem in broken_rules(stats))
+
+
+def test_load_corpus_refuses_a_real_library_before_migrating_it(
+    experiment_db: None,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    run_migrations()
+    mine = make_book(tmp_path / "elsewhere", "mine.epub", 10)
+    with Session(get_engine()) as session, mine.open("rb") as source:
+        library.add_book_from_file(session, source, "mine.epub", get_settings(), uploaded_by=None)
+
+    def refuse_to_migrate() -> None:
+        raise AssertionError("migrated a database it should have refused")
+
+    monkeypatch.setattr("app.cli.run_migrations", refuse_to_migrate)
+    folder = tmp_path / "files"
+    corpus = write_csv(tmp_path / "corpus.csv", [row(make_book(folder, "a.epub", 10))])
+
+    assert main(["rag", "load-corpus", str(corpus), str(folder)]) == 1
+    assert "not in corpus.csv" in capsys.readouterr().err

@@ -6,6 +6,7 @@ import os
 import sys
 from pathlib import Path
 
+from sqlalchemy import inspect
 from sqlmodel import Session, select
 
 from app.auth import hash_password, normalise_username
@@ -21,6 +22,7 @@ from rag.corpus import (
     genre_words,
     load_corpus,
     read_corpus,
+    refuse_foreign_books,
     write_stats,
 )
 
@@ -81,10 +83,15 @@ def create_admin(username: str, *, if_missing: bool = False) -> int:
 
 
 def load_corpus_command(corpus_csv: Path, folder: Path) -> int:
-    run_migrations()
     try:
         books = read_corpus(corpus_csv)
         tests = sum(1 for book in books if book.role == "test")
+        # Before migrating: a real library pointed at by mistake must be refused
+        # before anything is written to it.
+        if inspect(get_engine()).has_table("book"):
+            with Session(get_engine()) as session:
+                refuse_foreign_books(session, books)
+        run_migrations()
         with Session(get_engine()) as session:
             added = load_corpus(session, books, folder, get_settings())
     except CorpusError as exc:
