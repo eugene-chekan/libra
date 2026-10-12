@@ -1,5 +1,6 @@
 """Turn a book into the chunks the retrieval experiment searches."""
 
+import hashlib
 import re
 import xml.etree.ElementTree as ET
 from collections.abc import Callable, Iterator
@@ -134,6 +135,11 @@ def _pack(units: list[str], count_tokens: Callable[[str], int]) -> list[str]:
     if current:
         chunks.append("\n\n".join(current))
     return chunks
+
+
+def chunks_digest(chunks: list[TextChunk]) -> str:
+    """A fingerprint of the chunk texts and boundaries: equal only if two runs chunked alike."""
+    return hashlib.sha256("\0".join(chunk.text for chunk in chunks).encode()).hexdigest()
 
 
 def chunk_book(path: Path, count_tokens: Callable[[str], int]) -> list[TextChunk]:

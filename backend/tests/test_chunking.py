@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from rag.chunking import MAX_TOKENS, TARGET_WORDS, TextChunk, chunk_book
+from rag.chunking import MAX_TOKENS, TARGET_WORDS, TextChunk, chunk_book, chunks_digest
 from tests.epub_factory import Chapter, build_epub
 
 
@@ -175,3 +175,19 @@ def test_counts_describe_the_chunk_text(tmp_path: Path) -> None:
 
     assert chunk.word_count == 50
     assert chunk.token_count == double_tokens(chunk.text)
+
+
+def chunk(text: str, position: int = 0) -> TextChunk:
+    return TextChunk(position, 0, None, text, len(text.split()), len(text.split()))
+
+
+def test_the_digest_is_the_same_for_the_same_chunks() -> None:
+    assert chunks_digest([chunk("ab"), chunk("c", 1)]) == chunks_digest(
+        [chunk("ab"), chunk("c", 1)]
+    )
+
+
+def test_the_digest_changes_when_a_boundary_moves() -> None:
+    assert chunks_digest([chunk("ab"), chunk("c", 1)]) != chunks_digest(
+        [chunk("a"), chunk("bc", 1)]
+    )

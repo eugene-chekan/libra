@@ -15,7 +15,7 @@ from app.cli import main
 from app.config import Settings, get_settings
 from app.db import get_engine
 from app.models import Book
-from rag.chunking import CHUNKER_VERSION, MAX_TOKENS
+from rag.chunking import CHUNKER_VERSION, MAX_TOKENS, chunk_book, chunks_digest
 from rag.corpus import (
     CSV_FIELDS,
     MAX_GENRE_GAP,
@@ -64,7 +64,9 @@ def write_csv(path: Path, rows: list[dict], *, bom: bool = False) -> Path:
 
 def stats_for(genre: str, role: str, words: int) -> BookStats:
     book = CorpusBook("x.epub", "0" * 64, "T", "A", genre, role, "")
-    return BookStats(book=book, words=words, chunks=1, max_tokens=MAX_TOKENS, short_chunks=0)
+    return BookStats(
+        book=book, words=words, chunks=1, max_tokens=MAX_TOKENS, short_chunks=0, chunks_sha256=""
+    )
 
 
 def balanced(fiction_words: int = 1000, non_fiction_words: int = 1000) -> list[BookStats]:
@@ -240,5 +242,8 @@ def test_corpus_stats_writes_a_row_per_book(
     [stats_row] = list(csv.DictReader(out.open(encoding="utf-8")))
     assert stats_row["words"] == "10"
     assert stats_row["chunker_version"] == str(CHUNKER_VERSION)
+    assert stats_row["chunks_sha256"] == chunks_digest(
+        chunk_book(folder / "a.epub", words_as_tokens)
+    )
     assert code == 1
     assert "rule broken" in capsys.readouterr().err

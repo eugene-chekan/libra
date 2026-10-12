@@ -14,7 +14,13 @@ from app import library
 from app.config import Settings
 from app.epub import InvalidEpubError
 from app.models import Book
-from rag.chunking import CHUNKER_VERSION, MAX_TOKENS, SHORT_CHUNK_WORDS, chunk_book
+from rag.chunking import (
+    CHUNKER_VERSION,
+    MAX_TOKENS,
+    SHORT_CHUNK_WORDS,
+    chunk_book,
+    chunks_digest,
+)
 
 GENRES = ("fiction", "non-fiction")
 ROLES = ("test", "pilot")
@@ -53,6 +59,9 @@ class BookStats:
     chunks: int
     max_tokens: int
     short_chunks: int
+    # Changes when the chunks change, even with the same CHUNKER_VERSION: a different
+    # tokenizer moves the boundaries.
+    chunks_sha256: str
 
 
 CSV_FIELDS = [field.name for field in fields(CorpusBook)]
@@ -65,6 +74,7 @@ STATS_FIELDS = [
     "max_tokens",
     "short_chunks",
     "chunker_version",
+    "chunks_sha256",
 ]
 
 
@@ -183,6 +193,7 @@ def book_stats(
                 chunks=len(chunks),
                 max_tokens=max((chunk.token_count for chunk in chunks), default=0),
                 short_chunks=sum(1 for chunk in chunks if chunk.word_count < SHORT_CHUNK_WORDS),
+                chunks_sha256=chunks_digest(chunks),
             )
         )
     return stats
@@ -243,5 +254,6 @@ def write_stats(stats: list[BookStats], out: Path) -> None:
                     "max_tokens": s.max_tokens,
                     "short_chunks": s.short_chunks,
                     "chunker_version": CHUNKER_VERSION,
+                    "chunks_sha256": s.chunks_sha256,
                 }
             )
