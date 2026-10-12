@@ -191,3 +191,53 @@ def test_the_digest_changes_when_a_boundary_moves() -> None:
     assert chunks_digest([chunk("ab"), chunk("c", 1)]) != chunks_digest(
         [chunk("a"), chunk("bc", 1)]
     )
+
+
+def test_a_split_never_cuts_an_honorific_from_its_name(tmp_path: Path) -> None:
+    first = " ".join(f"a{i}" for i in range(347)) + " end."
+    second = " ".join(f"c{i}" for i in range(100)) + " Mr.\xa0Smith arrived."
+    body = f"<p>{first} {second.replace(chr(0xA0), '&#160;')}</p>"
+    path = book(tmp_path, Chapter("one.xhtml", body))
+
+    assert [chunk.text for chunk in chunk_book(path, words_as_tokens)] == [first, second]
+
+
+def test_a_partly_labelled_book_keeps_its_unlabelled_chapters(tmp_path: Path) -> None:
+    path = book(
+        tmp_path,
+        Chapter("title.xhtml", para(5, "front"), epub_type="frontmatter"),
+        Chapter("one.xhtml", para(20, "a"), epub_type=None),
+    )
+
+    assert all_words(chunk_book(path, words_as_tokens)) == [f"a{i}" for i in range(20)]
+
+
+def test_the_text_rules_on_a_standard_ebooks_chapter(tmp_path: Path) -> None:
+    """Every rule that decides what text a chunk holds, pinned in one place before the freeze."""
+    body = (
+        '<section epub:type="chapter">'
+        '<hgroup><h2 epub:type="z3998:roman">IV</h2><p>Dougal</p></hgroup>'
+        '<header><p epub:type="se:bridgehead">In which a synopsis is given.</p>'
+        '<blockquote epub:type="epigraph"><p>An epigraph line.</p></blockquote></header>'
+        '<p epub:type="title">A title outside any hgroup</p>'
+        "<p><abbr>Mr.</abbr>&#160;McCunn read it."
+        '<a href="endnotes.xhtml#note-1" id="noteref-1" epub:type="noteref">1</a></p>'
+        '<figure><img src="../images/map.png" alt="A map"/>'
+        "<figcaption><p>A map of the coast.</p></figcaption></figure>"
+        '<blockquote epub:type="z3998:letter"><p>Dear Sir,</p><p>Yours truly.</p></blockquote>'
+        '<blockquote epub:type="z3998:verse"><p>'
+        "<span>The first line,</span><br/><span>the second line.</span></p></blockquote>"
+        '<p epub:type="subtitle">A subtitle</p>'
+        "</section>"
+    )
+    path = book(tmp_path, Chapter("chapter-4.xhtml", body, title="IV: Dougal"))
+
+    [chunk] = chunk_book(path, words_as_tokens)
+
+    assert chunk.chapter_title == "IV: Dougal"
+    assert chunk.text.split("\n\n") == [
+        "Mr.\xa0McCunn read it.",
+        "Dear Sir,",
+        "Yours truly.",
+        "The first line, the second line.",
+    ]

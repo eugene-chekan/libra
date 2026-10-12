@@ -28,8 +28,11 @@ _HEADINGS = {_X + tag for tag in ("hgroup", "h1", "h2", "h3", "h4", "h5", "h6")}
 _SKIPPED = _HEADINGS | {_X + tag for tag in ("header", "nav", "figure")}
 _SPACED = {_X + tag for tag in ("br", "td", "th")}
 _SKIPPED_TYPES = {"noteref", "title", "subtitle", "bridgehead"}
-_SECTION_TYPES = {"frontmatter", "bodymatter", "backmatter"}
-_SENTENCE_END = re.compile(r'[.!?…]["”’»)\]]*(?=\s)')
+_LEFT_OUT_TYPES = {"frontmatter", "backmatter"}
+# A no-break space is kept. Standard Ebooks puts one after "Mr.", "Dr." and "St.",
+# and it is what stops a sentence split from cutting a name off its title.
+_SPACES = re.compile(r"[^\S\xa0]+")
+_SENTENCE_END = re.compile(r'[.!?…]["”’»)\]]*(?=[^\S\xa0])')
 
 
 @dataclass(frozen=True)
@@ -69,7 +72,7 @@ def _paragraphs(element: ET.Element) -> Iterator[str]:
             continue
         nested = any(node.tag in _BLOCKS for node in child.iter() if node is not child)
         if child.tag in _BLOCKS and not nested:
-            text = " ".join(_text(child).split())
+            text = _SPACES.sub(" ", _text(child)).strip()
             if text:
                 yield text
         else:
@@ -157,11 +160,9 @@ def chunk_book(path: Path, count_tokens: Callable[[str], int]) -> list[TextChunk
         for index, item in enumerate(read_spine(path))
         if item.media_type == XHTML_MEDIA_TYPE and not item.is_nav
     ]
-    labelled = any(body is not None and _types(body) & _SECTION_TYPES for _, _, body in bodies)
-
     chunks: list[TextChunk] = []
     for index, item, body in bodies:
-        if body is None or (labelled and "bodymatter" not in _types(body)):
+        if body is None or _types(body) & _LEFT_OUT_TYPES:
             continue
         title = item.title or _heading(body)
         units = [
