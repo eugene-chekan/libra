@@ -2,7 +2,6 @@
 
 import csv
 import dataclasses
-import hashlib
 from collections.abc import Generator
 from pathlib import Path
 from types import SimpleNamespace
@@ -17,7 +16,6 @@ from app.db import get_engine, run_migrations
 from app.models import Book
 from rag.chunking import CHUNKER_VERSION, MAX_TOKENS, chunk_book, chunks_digest
 from rag.corpus import (
-    CSV_FIELDS,
     MAX_BOOK_WORDS,
     MAX_GENRE_GAP,
     TEST_BOOKS_PER_GENRE,
@@ -31,36 +29,7 @@ from rag.corpus import (
     read_corpus,
     verify_files,
 )
-from tests.epub_factory import Chapter, build_epub
-
-
-def words_as_tokens(text: str) -> int:
-    return len(text.split())
-
-
-def make_book(folder: Path, name: str, words: int) -> Path:
-    body = "<p>" + " ".join(f"w{i}" for i in range(words)) + "</p>"
-    return build_epub(folder / name, titles=[name], chapters=[Chapter("one.xhtml", body)])
-
-
-def row(path: Path, genre: str = "fiction", role: str = "test") -> dict:
-    return {
-        "file": path.name,
-        "sha256": hashlib.sha256(path.read_bytes()).hexdigest(),
-        "title": path.stem,
-        "author": "An Author",
-        "genre": genre,
-        "role": role,
-        "link": "https://standardebooks.org/ebooks/an-author/a-book",
-    }
-
-
-def write_csv(path: Path, rows: list[dict], *, bom: bool = False) -> Path:
-    with path.open("w", encoding="utf-8-sig" if bom else "utf-8", newline="") as handle:
-        writer = csv.DictWriter(handle, fieldnames=CSV_FIELDS, lineterminator="\r\n")
-        writer.writeheader()
-        writer.writerows(rows)
-    return path
+from tests.corpus_helpers import make_book, row, words_as_tokens, write_csv
 
 
 def stats_for(genre: str, role: str, words: int) -> BookStats:
