@@ -4,6 +4,7 @@ import argparse
 import getpass
 import os
 import sys
+from datetime import date
 from pathlib import Path
 
 from sqlalchemy import inspect
@@ -22,9 +23,12 @@ from rag.corpus import (
     genre_words,
     load_corpus,
     read_corpus,
+    read_digests,
     refuse_foreign_books,
+    verify_files,
     write_stats,
 )
+from rag.questions import run_session
 
 
 def _read_password(username: str) -> str:
@@ -124,6 +128,29 @@ def corpus_stats_command(corpus_csv: Path, folder: Path, out: Path) -> int:
     return 1 if problems else 0
 
 
+def hand_question_command(corpus_csv: Path, folder: Path, stats_csv: Path, out: Path) -> int:
+    from rag.embeddings import load_model
+
+    # Book text holds characters, such as U+FEFF, that a Windows code page lacks when
+    # the output goes to a pipe or a file.
+    sys.stdout.reconfigure(errors="replace")
+    try:
+        books = read_corpus(corpus_csv)
+        verify_files([book for book in books if book.role == "test"], folder)
+        digests = read_digests(stats_csv)
+        out.parent.mkdir(parents=True, exist_ok=True)
+        count_tokens = load_model(get_settings()).token_count
+        kept = run_session(books, folder, digests, count_tokens, out, input, print, date.today())
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except (KeyboardInterrupt, EOFError):
+        print(f"\nStopped. Every answer you finished is saved in {out}.")
+        return 0
+    print(f"Kept {kept} question(s) in this session. The answers file is {out}.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli", description=__doc__)
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -147,6 +174,13 @@ def main(argv: list[str] | None = None) -> int:
     stats.add_argument("corpus_csv", type=Path)
     stats.add_argument("folder", type=Path)
     stats.add_argument("--out", type=Path, required=True)
+    hand = rag_commands.add_parser(
+        "hand-question", help="Write the hand questions, one chunk at a time; resumes"
+    )
+    hand.add_argument("corpus_csv", type=Path)
+    hand.add_argument("folder", type=Path)
+    hand.add_argument("--stats", type=Path, required=True, help="corpus-stats.csv")
+    hand.add_argument("--out", type=Path, required=True, help="hand.jsonl")
 
     args = parser.parse_args(argv)
     if args.command == "create-admin":
@@ -155,6 +189,8 @@ def main(argv: list[str] | None = None) -> int:
         return load_corpus_command(args.corpus_csv, args.folder)
     if args.command == "rag" and args.rag_command == "corpus-stats":
         return corpus_stats_command(args.corpus_csv, args.folder, args.out)
+    if args.command == "rag" and args.rag_command == "hand-question":
+        return hand_question_command(args.corpus_csv, args.folder, args.stats, args.out)
     return 1
 
 

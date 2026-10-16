@@ -589,7 +589,7 @@ All are `uv run python -m app.cli rag <command>`:
 | `index` | Chunks, fills FTS5, embeds chunk text. Skips books already indexed at this `CHUNKER_VERSION`. |
 | `describe` | Descriptors for chunks that have none; appends to the log, imports into the database; resumes |
 | `import-descriptors` | Loads the log into the database, no API |
-| `hand-question` | Shows a random chunk; records the author's question and kind |
+| `hand-question <corpus.csv> <folder> --stats <file> --out <file>` | Shows one random chunk of 100+ words per test book. Records the author's question and kind, or a skip with its reason. Resumes where the last session stopped. |
 | `draft-questions` | Samples chunks, drafts questions, applies the 4-word check |
 | `review` | Keep, edit or drop each draft, with a reason |
 | `judge-pool` | The 50-question checked sample |
