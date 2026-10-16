@@ -2,7 +2,9 @@
 
 **Status:** Design approved 2026-09-13. Revised 2026-10-11 against the topic
 application: a four-week schedule, the main comparisons tested in both genres,
-and a written genre rule. Part 1 starts 2026-10-12.
+and a written genre rule. Part 1 started 2026-10-12. Week 1 done 2026-10-16:
+the chunker is frozen at version 1 and the 40 test books are loaded (see
+[experiment/README.md](../../experiment/README.md)).
 
 This plan replaces the earlier Phase 2 outline in
 [architecture.md](../architecture.md), which planned a Chroma vector store and
@@ -164,18 +166,25 @@ EPUB" download.** Not Project Gutenberg, for three reasons:
 - Gutenberg files add licence text and differ in structure from book to book.
 - Gutenberg blocks scripted downloads outside its harvest address.
 
-Standard Ebooks' bulk download is only for paying members; single downloads
-are free. **The 40 files are downloaded by hand, once.** No script touches the
-site.
+**The files** came from the author's own libra library: the public shelf
+"Diploma experiment pick", 42 Standard Ebooks files (40 test books and 2
+pilot books), exported once through the API on 2026-10-11. No script touches
+the Standard Ebooks site.
 
 **Keeping the exact files.** Standard Ebooks corrects its books over time, so
 the same link can later give a different file.
 
-- `experiment/corpus.csv` lists every book: title, author, link, genre, word
-  count, and the file's `sha256`.
-- The 40 files are attached as one zip to a GitHub release. The repository is
-  public and the files are CC0, so this is allowed. Anyone can repeat the run
-  with the same files, and the `sha256` values show whether a file changed.
+- `experiment/corpus.csv` lists every book: file name, `sha256`, title,
+  author, genre, role (test or pilot) and link.
+- `experiment/corpus-stats.csv` gives each book's word and chunk counts and
+  its `chunks_sha256`.
+- The genre is decided by hand. Standard Ebooks' own `z3998:fiction` and
+  `z3998:non-fiction` tags are not reliable: *Disenchantment* is tagged
+  fiction, and so is most of Dewey's *Human Nature and Conduct*.
+- The 42 files go into one zip on the GitHub release `experiment-corpus-v1`.
+  The repository is public and the files are CC0, so this is allowed. Anyone
+  can repeat the run with the same files, and the `sha256` values show
+  whether a file changed.
 
 **Rules for choosing books:**
 
