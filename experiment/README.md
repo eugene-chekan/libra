@@ -20,6 +20,11 @@ public shelf "Diploma experiment pick". They are not in the repository:
 `experiment/files/` is git-ignored. Each file is named after its Standard
 Ebooks link, for example `john-buchan_huntingtower.epub`.
 
+Get them from the GitHub release
+[`experiment-corpus-v1`](https://github.com/eugene-chekan/libra/releases/tag/experiment-corpus-v1)
+and unzip `corpus-v1.zip` (sha256 `5f15b95eeda2f8f4eaf6a9e9f676b9db6131f40fa2b54411b8710f38fb02e822`)
+into `experiment/files/`.
+
 Standard Ebooks corrects its books over time, so a link can later give a
 different file. `rag load-corpus` and `rag corpus-stats` refuse any file
 whose `sha256` differs from `corpus.csv`.
