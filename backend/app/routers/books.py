@@ -1,16 +1,14 @@
-from pathlib import Path
-
 from fastapi import APIRouter, Depends, HTTPException, Response, UploadFile
 from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlmodel import Session
 
-from app import covers, library, storage
+from app import covers, library
 from app.auth import current_user, require_admin
 from app.config import Settings, get_settings
 from app.covers_from_url import FetchFailedError, TooLargeError, UnsafeUrlError
 from app.db import get_session
-from app.epub import InvalidEpubError, read_metadata
+from app.epub import InvalidEpubError
 from app.logging_config import get_logger
 from app.mailer import SendFailedError, SmtpNotConfiguredError, get_mailer
 from app.models import (
@@ -58,59 +56,16 @@ def upload_book(
     user: User = Depends(current_user),
 ) -> BookRead:
     """Create a book from an uploaded EPUB, deriving metadata from the file."""
-    original_name = file.filename or "upload.epub"
-    if Path(original_name).suffix.lower() != ".epub":
-        raise HTTPException(status_code=415, detail="Only .epub files are supported in this phase")
-
     try:
-        staged = storage.stage_upload(file.file, settings.library_dir, settings.max_upload_bytes)
+        book = library.add_book_from_file(
+            session, file.file, file.filename or "upload.epub", settings, user.id
+        )
+    except library.UnsupportedFormatError as exc:
+        raise HTTPException(status_code=415, detail=str(exc)) from exc
     except UploadTooLargeError as exc:
         raise HTTPException(status_code=413, detail=str(exc)) from exc
-
-    try:
-        metadata = read_metadata(staged.path, fallback_title=Path(original_name).stem)
     except InvalidEpubError as exc:
-        staged.discard()
         raise HTTPException(status_code=422, detail=f"Invalid EPUB: {exc}") from exc
-    except BaseException:
-        staged.discard()
-        raise
-
-    stored_name = storage.commit(staged, settings.library_dir)
-
-    book = Book(
-        title=metadata.title,
-        author=metadata.author,
-        format="epub",
-        file_path=stored_name,
-        year=metadata.year,
-        blurb=metadata.blurb,
-        pages=metadata.pages,
-        uploaded_by=user.id,
-        book_metadata={
-            **metadata.extra,
-            "original_filename": original_name,
-            "size_bytes": staged.size_bytes,
-            **(
-                {
-                    "cover_href": metadata.cover_href,
-                    "cover_media_type": metadata.cover_media_type,
-                }
-                if metadata.cover_href
-                else {}
-            ),
-            "sha256": staged.sha256,
-        },
-    )
-    try:
-        session.add(book)
-        session.commit()
-    except BaseException:
-        session.rollback()
-        log.exception("Insert failed after storing %s; removing the orphaned file", stored_name)
-        storage.delete(stored_name, settings.library_dir)
-        raise
-    session.refresh(book)
     return library.get_book(session, book.id, user)
 
 
