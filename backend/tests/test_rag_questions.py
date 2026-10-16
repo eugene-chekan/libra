@@ -1,14 +1,18 @@
 """The hand-question session: which chunk it shows, what it records, how it resumes."""
 
 import csv
+import dataclasses
+import io
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
+from app.cli import main
 from rag.chunking import CHUNKER_VERSION, SHORT_CHUNK_WORDS, TextChunk, chunk_book
 from rag.corpus import (
     STATS_FIELDS,
@@ -28,7 +32,7 @@ from rag.questions import (
     read_records,
     run_session,
 )
-from tests.corpus_helpers import row, words_as_tokens
+from tests.corpus_helpers import row, words_as_tokens, write_csv
 from tests.epub_factory import Chapter, build_epub
 
 TODAY = date(2026, 10, 19)
@@ -294,3 +298,135 @@ def test_a_record_is_one_json_line_in_plain_utf8(corpus: Corpus, tmp_path: Path)
     assert b"\r\n" not in raw
     assert "Zoë".encode() in raw
     assert HandRecord(**json.loads(raw)).question == "Why does Zoë leave?"
+
+
+@pytest.fixture(name="command_files")
+def command_files_fixture(
+    corpus: Corpus, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> list[str]:
+    """The arguments of `rag hand-question` over the corpus fixture, with a fake model."""
+    corpus_csv = write_csv(
+        tmp_path / "corpus.csv", [dataclasses.asdict(book) for book in corpus.books]
+    )
+    fake_model = SimpleNamespace(token_count=words_as_tokens)
+    monkeypatch.setattr("rag.embeddings.load_model", lambda settings: fake_model)
+    return [
+        "rag",
+        "hand-question",
+        str(corpus_csv),
+        str(corpus.folder),
+        "--stats",
+        str(tmp_path / "corpus-stats.csv"),
+        "--out",
+        str(tmp_path / "questions" / "hand.jsonl"),
+    ]
+
+
+def test_hand_question_command_runs_a_session(
+    corpus: Corpus,
+    command_files: list[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    monkeypatch.setattr("builtins.input", Script(["Q?", "f", "q"]))
+
+    assert main(command_files) == 0
+
+    [record] = read_records(tmp_path / "questions" / "hand.jsonl")
+    assert (record.file, record.status, record.question) == ("a.epub", "kept", "Q?")
+    chunk = pick_chunk(corpus.book("a.epub"), corpus.chunks("a.epub"), 0)
+    assert chunk.text in capsys.readouterr().out
+
+
+def test_hand_question_command_names_a_refused_book(
+    command_files: list[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    stats = tmp_path / "corpus-stats.csv"
+    with stats.open(encoding="utf-8", newline="") as handle:
+        rows = list(csv.DictReader(handle))
+    rows[0]["chunks_sha256"] = "0" * 64
+    with stats.open("w", encoding="utf-8", newline="") as handle:
+        writer = csv.DictWriter(handle, fieldnames=STATS_FIELDS)
+        writer.writeheader()
+        writer.writerows(rows)
+    script = Script([])
+    monkeypatch.setattr("builtins.input", script)
+
+    assert main(command_files) == 1
+
+    assert "error: a.epub" in capsys.readouterr().err
+    assert script.prompts == []
+
+
+@pytest.mark.parametrize("stop", [KeyboardInterrupt, EOFError], ids=["Ctrl-C", "end of input"])
+def test_hand_question_command_stops_cleanly(
+    command_files: list[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    stop: type[BaseException],
+) -> None:
+    answers = ["Q?", "f"]
+
+    def ask_then_stop(prompt: str) -> str:
+        if answers:
+            return answers.pop(0)
+        raise stop
+
+    monkeypatch.setattr("builtins.input", ask_then_stop)
+
+    assert main(command_files) == 0
+
+    assert "saved" in capsys.readouterr().out
+    assert len(read_records(tmp_path / "questions" / "hand.jsonl")) == 1
+
+
+def test_hand_question_command_refuses_a_changed_file(
+    corpus: Corpus,
+    command_files: list[str],
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    path = corpus.folder / "b.epub"
+    path.write_bytes(path.read_bytes() + b"x")
+    script = Script([])
+    monkeypatch.setattr("builtins.input", script)
+
+    assert main(command_files) == 1
+
+    assert "b.epub: its sha256 differs" in capsys.readouterr().err
+    assert script.prompts == []
+
+
+def test_the_command_prints_a_chunk_the_code_page_cannot_hold(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    folder = tmp_path / "files"
+    # Standard Ebooks puts a zero-width no-break space before many dashes.
+    text = " ".join(["houri﻿—a"] * SHORT_CHUNK_WORDS)
+    path = build_epub(
+        folder / "a.epub", titles=["a"], chapters=[Chapter("c.xhtml", f"<p>{text}</p>")]
+    )
+    corpus_csv = write_csv(tmp_path / "corpus.csv", [row(path)])
+    stats = tmp_path / "corpus-stats.csv"
+    write_stats(book_stats([CorpusBook(**row(path))], folder, words_as_tokens), stats)
+    fake_model = SimpleNamespace(token_count=words_as_tokens)
+    monkeypatch.setattr("rag.embeddings.load_model", lambda settings: fake_model)
+    monkeypatch.setattr("builtins.input", Script(["q"]))
+    raw = io.BytesIO()
+    console = io.TextIOWrapper(raw, encoding="cp1252")
+    monkeypatch.setattr("sys.stdout", console)
+    out = tmp_path / "hand.jsonl"
+
+    code = main(
+        ["rag", "hand-question", str(corpus_csv), str(folder), "--stats", str(stats)]
+        + ["--out", str(out)]
+    )
+
+    console.flush()
+    assert code == 0
+    assert "houri?—a".encode("cp1252") in raw.getvalue()
