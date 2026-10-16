@@ -430,3 +430,122 @@ def test_the_command_prints_a_chunk_the_code_page_cannot_hold(
     console.flush()
     assert code == 0
     assert "houri?—a".encode("cp1252") in raw.getvalue()
+
+
+KEPT = HandRecord(
+    id="hand-001",
+    status="kept",
+    file="a.epub",
+    book_sha256="0" * 64,
+    genre="fiction",
+    position=0,
+    chunker_version=CHUNKER_VERSION,
+    chunks_sha256="1" * 64,
+    attempt=0,
+    question="Q?",
+    kind="factual",
+    reason=None,
+    written_at="2026-10-19",
+)
+SKIPPED = dataclasses.replace(
+    KEPT, id="hand-002", status="skipped", question=None, kind=None, reason="no fact"
+)
+
+
+def write_records(path: Path, records: list[HandRecord], *, final_newline: bool = True) -> Path:
+    text = "\n".join(json.dumps(dataclasses.asdict(record)) for record in records)
+    path.write_text(text + ("\n" if final_newline else ""), encoding="utf-8")
+    return path
+
+
+@pytest.mark.parametrize("saved", ["", '{"id": "hand-001", '], ids=["an old copy", "a broken line"])
+def test_a_file_changed_by_an_editor_stops_the_session_before_it_writes(
+    corpus: Corpus, tmp_path: Path, saved: str
+) -> None:
+    out = tmp_path / "hand.jsonl"
+    answers = ["Qa?", "f", "Qb?", "i"]
+
+    def ask(prompt: str) -> str:
+        if len(answers) == 2:
+            # An editor opened the file before the first answer, and saves now.
+            out.write_text(saved, encoding="utf-8")
+        return answers.pop(0)
+
+    with pytest.raises(CorpusError, match="changed while this session was open") as caught:
+        session(corpus, out, ask)
+
+    assert out.read_text(encoding="utf-8") == saved
+    assert "Qa?" in str(caught.value)
+    assert "Qb?" in str(caught.value)
+
+
+def test_a_second_session_stops_the_first_before_it_writes(corpus: Corpus, tmp_path: Path) -> None:
+    out = tmp_path / "hand.jsonl"
+    answers = ["Qa?", "f"]
+
+    def ask(prompt: str) -> str:
+        if len(answers) == 2:
+            # Another session, opened later, answers the same book first.
+            session(corpus, out, Script(["Other?", "i", "q"]))
+        return answers.pop(0)
+
+    with pytest.raises(CorpusError, match="changed while this session was open") as caught:
+        session(corpus, out, ask)
+
+    assert [r.question for r in read_records(out)] == ["Other?"]
+    assert "Qa?" in str(caught.value)
+
+
+def test_the_next_id_follows_the_largest_one(corpus: Corpus, tmp_path: Path) -> None:
+    out = tmp_path / "hand.jsonl"
+    session(corpus, out, Script(["s", "no fact", "Qa?", "f", "Qb?", "i"]))
+    skip, kept_a, kept_b = read_records(out)
+    write_records(out, [skip, kept_b])
+
+    session(corpus, out, Script(["Qa again?", "f"]))
+
+    records = read_records(out)
+    assert [r.id for r in records] == ["hand-001", "hand-003", "hand-004"]
+    assert records[-1].question == "Qa again?"
+    assert records[-1].position == kept_a.position
+    assert records[-1].attempt == 1
+
+
+@pytest.mark.parametrize(
+    "records, line",
+    [
+        ([dataclasses.replace(KEPT, status="Kept")], 1),
+        ([dataclasses.replace(KEPT, kind="interpretative")], 1),
+        ([dataclasses.replace(KEPT, question=" ")], 1),
+        ([dataclasses.replace(SKIPPED, reason="")], 1),
+        ([dataclasses.replace(KEPT, id="7")], 1),
+        ([KEPT, dataclasses.replace(SKIPPED, id="hand-001")], 2),
+        ([KEPT, dataclasses.replace(KEPT, id="hand-002")], 2),
+    ],
+    ids=[
+        "a status not kept or skipped",
+        "a kind not factual or interpretive",
+        "an empty question",
+        "a skip without a reason",
+        "an id not hand-NNN",
+        "an id used twice",
+        "a second kept question for a book",
+    ],
+)
+def test_a_record_with_a_wrong_value_is_named(
+    tmp_path: Path, records: list[HandRecord], line: int
+) -> None:
+    out = write_records(tmp_path / "hand.jsonl", records)
+
+    with pytest.raises(CorpusError, match=f"line {line}"):
+        read_records(out)
+
+
+def test_a_file_without_a_final_newline_gets_one_before_the_next_record(
+    corpus: Corpus, tmp_path: Path
+) -> None:
+    out = write_records(tmp_path / "hand.jsonl", [KEPT], final_newline=False)
+
+    session(corpus, out, Script(["Q?", "f", "q"]))
+
+    assert [r.id for r in read_records(out)] == ["hand-001", "hand-002"]

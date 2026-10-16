@@ -116,7 +116,19 @@ A question must meet these rules (the same rules as the review of the drafts):
 The drafts will be half factual and half interpretive. Aim for about the same
 here; the screen shows the counts so far.
 
-To fix a typo, edit the `question` value in `hand.jsonl` with a text editor.
-Keep each record on one line. If a line breaks, the command names it.
+You can change `hand.jsonl` with a text editor:
+
+- To fix a typo, edit the `question` value.
+- To change a kind, set `kind` to exactly `factual` or `interpretive`.
+- To write a question again, delete its line. The next run shows the same
+  chunk.
+
+Keep each record on one line. If a line is not a valid record, the command
+names it.
+
+Run one session at a time. Edit the file only when the command is not running,
+and close it in the editor before you start the command again. If the file
+changes while a session is open, the session stops before it writes anything
+more, and lists the answers that are not in the file.
 
 Commit `questions/hand.jsonl` to `main` after each session.
