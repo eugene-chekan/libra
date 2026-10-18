@@ -4,7 +4,9 @@
 application: a four-week schedule, the main comparisons tested in both genres,
 and a written genre rule. Part 1 started 2026-10-12. Week 1 done 2026-10-16:
 the chunker is frozen at version 1 and the 40 test books are loaded (see
-[experiment/README.md](../../experiment/README.md)).
+[experiment/README.md](../../experiment/README.md)). Week 2, 2026-10-18: the
+hand-question command and the search index (BM25, dense, RRF, `rag smoke`) are
+built; the 40 hand questions come next, before any search runs on the books.
 
 This plan replaces the earlier Phase 2 outline in
 [architecture.md](../architecture.md), which planned a Chroma vector store and
@@ -526,7 +528,7 @@ Ranking reads only saved data, so the same inputs always give the same numbers.
 | `app/models.py` | The tables below |
 | `app/config.py` | `deepseek_api_key` (`SecretStr`), `embedding_model`, `model_cache_dir` |
 | `app/cli.py` | A `rag` command group |
-| `backend/rag/` | `chunking`, `embeddings`, `deepseek`, `descriptors`, `search`, `questions`, `evaluate`, `stats` |
+| `backend/rag/` | `chunking`, `corpus`, `embeddings`, `index`, `search`, `metrics`, `smoke`, `questions`, `deepseek`, `descriptors`, `evaluate`, `stats` |
 | `experiment/` (repo root) | Data, not code: `corpus.csv`, `protocol.md`, `descriptors.jsonl`, `query-descriptors.jsonl`, `questions/`, `judgements/`, `runs/`. Like docs, it goes straight to `main`. |
 
 `rag` imports from `app`. `app` imports `rag` only in `cli.py` now, and in
@@ -586,7 +588,8 @@ All are `uv run python -m app.cli rag <command>`:
 |---|---|
 | `load-corpus <corpus.csv> <folder>` | Checks every file's `sha256` against `corpus.csv`, then adds the 40 test books (not the pilot books) through `add_book_from_file`. Refuses a database that holds any other book, before migrating it. |
 | `corpus-stats <corpus.csv> <folder> --out <file>` | Chunks every book and writes one row per book: words, chunks, the largest chunk in tokens, chunks under 100 words, and `chunks_sha256`. Exits 1 and names each corpus rule that breaks. |
-| `index` | Chunks, fills FTS5, embeds chunk text. Skips books already indexed at this `CHUNKER_VERSION`. |
+| `index <corpus.csv> --stats <file>` | Chunks every test book and checks the chunks against the frozen `chunks_sha256`, all before writing. Then stores each book's chunks (FTS5 follows by triggers) and text vectors in one transaction. Skips books already indexed at this `CHUNKER_VERSION`. Refuses a database with other books before migrating it. |
+| `smoke --hand <file> [--sample 30]` | Self-retrieval: can each method find a chunk from its first 12 words? A check of the plumbing, not a result; writes nothing. Refuses to run until the hand set holds 40 kept questions. |
 | `describe` | Descriptors for chunks that have none; appends to the log, imports into the database; resumes |
 | `import-descriptors` | Loads the log into the database, no API |
 | `hand-question <corpus.csv> <folder> --stats <file> --out <file>` | Shows one random chunk of 100+ words per test book. Records the author's question and kind, or a skip with its reason. Resumes where the last session stopped. |

@@ -1,6 +1,7 @@
 """Administrative commands."""
 
 import argparse
+import functools
 import getpass
 import os
 import sys
@@ -29,7 +30,7 @@ from rag.corpus import (
     verify_files,
     write_stats,
 )
-from rag.questions import run_session
+from rag.questions import read_records, run_session
 
 
 def _read_password(username: str) -> str:
@@ -172,11 +173,35 @@ def index_command(corpus_csv: Path, stats_csv: Path) -> int:
         settings = get_settings()
         model = load_model(settings)
         with Session(get_engine()) as session:
-            indexed, already = index_books(session, books, digests, settings, model, print)
+            # Flushed, so a log file shows each book as it is stored.
+            progress = functools.partial(print, flush=True)
+            indexed, already = index_books(session, books, digests, settings, model, progress)
     except CorpusError as exc:
         print(f"error: {exc}", file=sys.stderr)
         return 1
     print(f"Indexed {indexed} books; {already} were already indexed.")
+    return 0
+
+
+def smoke_command(hand: Path, sample: int) -> int:
+    from rag.embeddings import load_model
+    from rag.metrics import K_VALUES
+    from rag.search import VectorIndex
+    from rag.smoke import require_hand_set, smoke
+
+    try:
+        records = read_records(hand)
+        require_hand_set(records)
+        settings = get_settings()
+        with Session(get_engine()) as session:
+            vectors = VectorIndex.load(session, settings.embedding_model)
+            recall = smoke(session, vectors, load_model(settings), records, sample)
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Self-retrieval of {sample} chunks from their first words. Not an experiment result.")
+    for method, value in recall.items():
+        print(f"{method}: recall@{max(K_VALUES)} = {value:.2f}")
     return 0
 
 
@@ -215,6 +240,11 @@ def main(argv: list[str] | None = None) -> int:
     )
     index.add_argument("corpus_csv", type=Path)
     index.add_argument("--stats", type=Path, required=True, help="corpus-stats.csv")
+    smoke = rag_commands.add_parser(
+        "smoke", help="Check the index finds chunks from their first words (after the hand set)"
+    )
+    smoke.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
+    smoke.add_argument("--sample", type=int, default=30)
 
     args = parser.parse_args(argv)
     if args.command == "create-admin":
@@ -227,6 +257,8 @@ def main(argv: list[str] | None = None) -> int:
         return hand_question_command(args.corpus_csv, args.folder, args.stats, args.out)
     if args.command == "rag" and args.rag_command == "index":
         return index_command(args.corpus_csv, args.stats)
+    if args.command == "rag" and args.rag_command == "smoke":
+        return smoke_command(args.hand, args.sample)
     return 1
 
 
