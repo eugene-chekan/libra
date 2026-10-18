@@ -621,7 +621,7 @@ That shows early whether ONNX Runtime installs on `arm64`.
 | 429, 5xx, timeout | Retried by the SDK |
 | Empty or invalid JSON | Retried up to 3 times, then recorded as a failure |
 | A crash mid-run | Nothing is lost: each response is written and flushed before the next request, and the next run skips finished chunks |
-| A broken chapter file | `index`: that book is skipped with a message; the others go on. `corpus-stats`: it stops and names the book, because a broken corpus file is a corpus problem. |
+| A broken chapter file | `index` and `corpus-stats` stop before writing anything and name the book. A broken corpus file is a corpus problem, and the experiment needs all 40 books. |
 | A `sha256` or `CHUNKER_VERSION` that differs from the question labels | `evaluate` refuses to run |
 
 The API key never appears in a log line or an error message.

@@ -14,12 +14,16 @@ from tests.fake_embedder import FakeEmbedder
 
 
 def add_chunks(
-    session: Session, texts: list[str], version: int = CHUNKER_VERSION, model: str = "m"
+    session: Session,
+    texts: list[str],
+    version: int = CHUNKER_VERSION,
+    model: str = "m",
+    book_id: int = 1,
 ) -> list[int]:
     """Store chunks of one book, with their fake vectors; return their ids."""
     rows = [
         Chunk(
-            book_id=1,
+            book_id=book_id,
             position=position,
             spine_index=0,
             text=text,
@@ -45,11 +49,13 @@ def test_fts_query_quotes_each_word_and_joins_with_or() -> None:
 
 
 def test_operators_and_syntax_are_searched_as_words(session: Session) -> None:
-    captain, _ = add_chunks(session, ["the captain watched the sea", "a quiet harbour"])
+    captain, _, not_near, and_title = add_chunks(
+        session, ["the captain watched the sea", "a quiet harbour", "not near", "and title"]
+    )
 
     found = bm25(session, 'Why did NOT the "captain" NEAR* title:sea AND (')
 
-    assert found == [captain]
+    assert set(found) == {captain, not_near, and_title}
 
 
 def test_bm25_matches_a_stem(session: Session) -> None:
@@ -166,3 +172,11 @@ def test_search_rejects_an_unknown_method(session: Session) -> None:
 
     with pytest.raises(ValueError, match="magic"):
         search(session, vectors, FakeEmbedder(), "ship", "magic")
+
+
+def test_a_partly_covered_index_is_refused(session: Session) -> None:
+    add_chunks(session, ["the ship", "a whale"], model="m")
+    add_chunks(session, ["a harbour"], model="another", book_id=2)
+
+    with pytest.raises(CorpusError, match="m"):
+        VectorIndex.load(session, "m")

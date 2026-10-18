@@ -90,3 +90,20 @@ def test_deleting_a_book_removes_its_chunks_vectors_and_index_rows(
     assert session.exec(select(Chunk).where(Chunk.book_id == new.id)).all() == []
     assert session.exec(select(ChunkVector)).all() == []
     assert matching(session, '"ship" OR "harbour"') == []
+
+
+def test_deleting_a_book_leaves_other_books_alone(
+    session: Session, settings: Settings, tmp_path: Path
+) -> None:
+    gone = add_book(session, settings, tmp_path, "dune.epub")
+    kept = add_book(session, settings, tmp_path, "emma.epub")
+    add_chunk(session, gone.id, 0, "The ships were running")
+    chunk = add_chunk(session, kept.id, 0, "A quiet harbour")
+    session.add(ChunkVector(chunk_id=chunk.id, model="m", vector=bytes(8)))
+    session.commit()
+
+    library.delete_book(session, gone.id, settings)
+
+    assert [c.id for c in session.exec(select(Chunk)).all()] == [chunk.id]
+    assert [v.chunk_id for v in session.exec(select(ChunkVector)).all()] == [chunk.id]
+    assert matching(session, '"harbour"') == [chunk.id]

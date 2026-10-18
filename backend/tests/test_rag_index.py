@@ -8,11 +8,11 @@ import numpy as np
 import pytest
 from sqlmodel import Session, select
 
-from app import library
+from app import library, storage
 from app.cli import main
 from app.config import Settings, get_settings
 from app.db import get_engine, run_migrations
-from app.models import Chunk, ChunkVector
+from app.models import Book, Chunk, ChunkVector
 from rag.chunking import CHUNKER_VERSION
 from rag.corpus import CorpusBook, CorpusError, book_stats, load_corpus, write_stats
 from rag.embeddings import (
@@ -23,6 +23,7 @@ from rag.embeddings import (
     vector_from_bytes,
 )
 from rag.index import index_books
+from rag.search import VectorIndex
 from tests.corpus_helpers import chapters_book, make_book, row, words_as_tokens, write_csv
 from tests.fake_embedder import FakeEmbedder
 
@@ -104,6 +105,43 @@ def test_indexing_stores_every_chunk_and_one_vector_each(
     assert {vector.model for vector in vectors} == {settings.embedding_model}
     assert {len(vector.vector) for vector in vectors} == {8 * 4}
     assert len(progress) == 2
+
+
+def test_each_vector_belongs_to_its_chunk(
+    loaded: Library, session: Session, settings: Settings
+) -> None:
+    index_books(session, loaded.books, loaded.digests, settings, FakeEmbedder())
+    vectors = VectorIndex.load(session, settings.embedding_model)
+
+    for chunk in session.exec(select(Chunk)).all():
+        own = embed_passages(FakeEmbedder(), [chunk.text])[0]
+        stored = session.get(ChunkVector, (chunk.id, settings.embedding_model))
+        assert stored.vector == vector_bytes(own)
+        assert vectors.top(own, depth=1) == [chunk.id]
+
+
+def test_a_book_indexed_with_another_model_is_refused(
+    loaded: Library, session: Session, settings: Settings
+) -> None:
+    index_books(session, loaded.books[:1], loaded.digests, settings, FakeEmbedder())
+    other = settings.model_copy(update={"embedding_model": "another/model"})
+
+    with pytest.raises(CorpusError, match="a.epub.*another/model"):
+        index_books(session, loaded.books, loaded.digests, other, FakeEmbedder())
+
+    assert chunk_count(session) == len(SIZES)
+
+
+def test_a_broken_stored_file_is_named_before_anything_is_written(
+    loaded: Library, session: Session, settings: Settings
+) -> None:
+    stored = session.exec(select(Book).where(Book.title == "b.epub")).one()
+    storage.resolve(stored.file_path, settings.library_dir).write_bytes(b"not a zip")
+
+    with pytest.raises(CorpusError, match="b.epub"):
+        index_books(session, loaded.books, loaded.digests, settings, FakeEmbedder())
+
+    assert chunk_count(session) == 0
 
 
 def test_indexing_twice_adds_nothing(loaded: Library, session: Session, settings: Settings) -> None:

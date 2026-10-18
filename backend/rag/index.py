@@ -3,7 +3,7 @@
 from collections.abc import Callable
 
 from sqlalchemy import func
-from sqlmodel import Session, select
+from sqlmodel import Session, col, select
 
 from app import storage
 from app.config import Settings
@@ -22,11 +22,29 @@ def _stored_book(session: Session, book: CorpusBook) -> Book:
     return stored
 
 
-def _is_indexed(session: Session, book_id: int) -> bool:
-    found = session.exec(
-        select(Chunk.id).where(Chunk.book_id == book_id, Chunk.chunker_version == CHUNKER_VERSION)
-    ).first()
-    return found is not None
+def _is_indexed(session: Session, book: CorpusBook, book_id: int, model_name: str) -> bool:
+    """Whether the book's chunks are stored at this chunker version, each with a vector.
+
+    Raises:
+        CorpusError: The chunks are stored, but their vectors are by another model.
+    """
+    chunk_ids = select(Chunk.id).where(
+        Chunk.book_id == book_id, Chunk.chunker_version == CHUNKER_VERSION
+    )
+    chunks = session.exec(select(func.count()).select_from(chunk_ids.subquery())).one()
+    if not chunks:
+        return False
+    vectors = session.exec(
+        select(func.count())
+        .select_from(ChunkVector)
+        .where(col(ChunkVector.chunk_id).in_(chunk_ids), ChunkVector.model == model_name)
+    ).one()
+    if vectors != chunks:
+        raise CorpusError(
+            f"{book.file}: {vectors} of its {chunks} chunks have vectors for {model_name}; "
+            "it was indexed with another model"
+        )
+    return True
 
 
 def _store(
@@ -85,10 +103,15 @@ def index_books(
         How many books were indexed now, and how many already were.
 
     Raises:
-        CorpusError: A test book is not in the database, or its chunks are not the frozen ones.
+        CorpusError: A test book is not in the database, its file is broken, its chunks are
+            not the frozen ones, or it was indexed with another model.
     """
     tests = [(book, _stored_book(session, book)) for book in books if book.role == "test"]
-    todo = [(book, stored) for book, stored in tests if not _is_indexed(session, stored.id)]
+    todo = [
+        (book, stored)
+        for book, stored in tests
+        if not _is_indexed(session, book, stored.id, settings.embedding_model)
+    ]
     chunked = [
         (
             book,

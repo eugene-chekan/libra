@@ -6,7 +6,7 @@ from dataclasses import dataclass
 from typing import Self
 
 import numpy as np
-from sqlalchemy import text
+from sqlalchemy import func, text
 from sqlmodel import Session, select
 
 from app.models import Chunk, ChunkVector
@@ -30,7 +30,8 @@ _BM25 = text(
 def fts_query(question: str) -> str | None:
     """The question as an FTS5 query: each word quoted, joined with OR; None without words.
 
-    Quoting makes FTS5 read `NOT`, `NEAR`, `*` and `:` as plain words.
+    A word is letters, digits and `_`, so `*`, `:` and `"` drop out. Quoting makes `NOT`,
+    `NEAR`, `AND` and `OR` plain words.
     """
     words = _WORD.findall(question)
     return " OR ".join(f'"{word}"' for word in words) if words else None
@@ -57,7 +58,8 @@ class VectorIndex:
         """Read the vectors of `model_name` for the current chunker version.
 
         Raises:
-            CorpusError: There are none.
+            CorpusError: Some chunk of that version has no vector by that model, so a
+                search would miss it.
         """
         rows = session.exec(
             select(ChunkVector.chunk_id, ChunkVector.vector)
@@ -65,8 +67,14 @@ class VectorIndex:
             .where(ChunkVector.model == model_name, Chunk.chunker_version == CHUNKER_VERSION)
             .order_by(ChunkVector.chunk_id)
         ).all()
-        if not rows:
-            raise CorpusError(f"no chunk vectors for {model_name}; run rag index first")
+        chunks = session.exec(
+            select(func.count()).select_from(Chunk).where(Chunk.chunker_version == CHUNKER_VERSION)
+        ).one()
+        if not rows or len(rows) != chunks:
+            raise CorpusError(
+                f"{len(rows)} of {chunks} chunks have vectors for {model_name}; "
+                "run rag index with that model first"
+            )
         return cls(
             ids=np.array([chunk_id for chunk_id, _ in rows], dtype=np.int64),
             matrix=np.stack([vector_from_bytes(vector) for _, vector in rows]),
