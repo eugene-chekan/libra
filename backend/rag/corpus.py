@@ -18,6 +18,7 @@ from rag.chunking import (
     CHUNKER_VERSION,
     MAX_TOKENS,
     SHORT_CHUNK_WORDS,
+    TextChunk,
     chunk_book,
     chunks_digest,
 )
@@ -247,6 +248,48 @@ def broken_rules(stats: list[BookStats]) -> list[str]:
         if s.max_tokens > MAX_TOKENS
     ]
     return problems
+
+
+def read_digests(stats_csv: Path) -> dict[str, str]:
+    """Read the frozen `chunks_sha256` of every book in corpus-stats.csv, by file name.
+
+    Raises:
+        CorpusError: A column is missing.
+    """
+    with stats_csv.open(encoding="utf-8-sig", newline="") as handle:
+        reader = csv.DictReader(handle)
+        missing = set(STATS_FIELDS) - set(reader.fieldnames or [])
+        if missing:
+            raise CorpusError(f"{stats_csv.name} lacks the columns: {', '.join(sorted(missing))}")
+        return {line["file"]: line["chunks_sha256"] for line in reader}
+
+
+def frozen_chunks(
+    path: Path, file: str, count_tokens: Callable[[str], int], digests: dict[str, str]
+) -> list[TextChunk]:
+    """Chunk a corpus book, and check the chunks are the frozen ones.
+
+    Args:
+        path: The EPUB on disk.
+        file: Its name in corpus.csv.
+        count_tokens: The embedding model's token count for a text.
+        digests: From `read_digests`.
+
+    Raises:
+        CorpusError: The book has no frozen digest, or its chunks differ from it.
+    """
+    if file not in digests:
+        raise CorpusError(
+            f"{file}: corpus-stats.csv has no chunks_sha256 for it, so its chunks cannot be "
+            f"checked against chunker version {CHUNKER_VERSION}"
+        )
+    chunks = chunk_book(path, count_tokens)
+    if chunks_digest(chunks) != digests[file]:
+        raise CorpusError(
+            f"{file}: its chunks differ from chunker version {CHUNKER_VERSION} as frozen in "
+            "corpus-stats.csv; the tokenizer is most likely different (see experiment/README.md)"
+        )
+    return chunks
 
 
 def write_stats(stats: list[BookStats], out: Path) -> None:
