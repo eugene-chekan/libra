@@ -3,7 +3,7 @@ from typing import Literal
 
 from pydantic import NaiveDatetime
 from sqlalchemy import JSON as SA_JSON
-from sqlalchemy import Column, Index, String, event, text
+from sqlalchemy import Column, Index, LargeBinary, String, UniqueConstraint, event, text
 from sqlmodel import Field, SQLModel
 
 from app.naming import fold_name
@@ -418,3 +418,55 @@ class MaintenanceReport(SQLModel):
     expired_sessions: int
     orphan_files: list[OrphanFile]
     missing_files: list[MissingFile]
+
+
+class Chunk(SQLModel, table=True):
+    """One passage of a book's body text, as the retrieval experiment searches it."""
+
+    __table_args__ = (
+        UniqueConstraint(
+            "book_id", "chunker_version", "position", name="uq_chunk_book_version_position"
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    book_id: int = Field(foreign_key="book.id", index=True)
+    position: int
+    spine_index: int
+    chapter_title: str | None = None
+    text: str
+    word_count: int
+    token_count: int
+    chunker_version: int
+
+
+class ChunkVector(SQLModel, table=True):
+    """A chunk's text embedding by one model: float32, little-endian, unit length."""
+
+    __tablename__ = "chunk_vector"
+
+    chunk_id: int = Field(foreign_key="chunk.id", primary_key=True)
+    model: str = Field(primary_key=True)
+    vector: bytes = Field(sa_type=LargeBinary)
+
+
+# SQLite's FTS5 external-content pattern: the index holds no copy of the text, and the
+# triggers keep it in step with `chunk`. The migration repeats these as literals.
+CHUNK_FTS_DDL = (
+    "CREATE VIRTUAL TABLE chunk_fts USING fts5(text, content='chunk', content_rowid='id',"
+    " tokenize='porter unicode61')",
+    "CREATE TRIGGER chunk_ai AFTER INSERT ON chunk BEGIN"
+    " INSERT INTO chunk_fts(rowid, text) VALUES (new.id, new.text); END",
+    "CREATE TRIGGER chunk_ad AFTER DELETE ON chunk BEGIN"
+    " INSERT INTO chunk_fts(chunk_fts, rowid, text) VALUES ('delete', old.id, old.text); END",
+    "CREATE TRIGGER chunk_au AFTER UPDATE ON chunk BEGIN"
+    " INSERT INTO chunk_fts(chunk_fts, rowid, text) VALUES ('delete', old.id, old.text);"
+    " INSERT INTO chunk_fts(rowid, text) VALUES (new.id, new.text); END",
+)
+
+
+@event.listens_for(Chunk.__table__, "after_create")
+def _create_chunk_fts(target, connection, **kw) -> None:
+    """Build the full-text index wherever `create_all` builds `chunk`, as the tests do."""
+    for statement in CHUNK_FTS_DDL:
+        connection.execute(text(statement))
