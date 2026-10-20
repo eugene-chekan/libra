@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO
 
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlmodel import Session, col, select
 
 from app import covers, covers_from_url, epub, mailer, naming, storage
@@ -21,6 +21,8 @@ from app.models import (
     Book,
     BookRead,
     BookTag,
+    Chunk,
+    ChunkVector,
     Note,
     NoteRead,
     Shelf,
@@ -578,7 +580,7 @@ def delete_book(session: Session, book_id: int, settings: Settings) -> None:
     relationship to cascade along, and SQLite is not enforcing the foreign
     keys. Leaving them would not stay invisible either, because SQLite hands
     the same id out again — the next book uploaded would inherit the dead
-    one's rating, progress, tags and notes.
+    one's rating, progress, tags, notes and search chunks.
 
     Args:
         session: Open database session.
@@ -599,6 +601,9 @@ def delete_book(session: Session, book_id: int, settings: Settings) -> None:
     ):
         for row in session.exec(select(model).where(column == book_id)).all():
             session.delete(row)
+    chunk_ids = select(Chunk.id).where(Chunk.book_id == book_id)
+    session.exec(delete(ChunkVector).where(col(ChunkVector.chunk_id).in_(chunk_ids)))
+    session.exec(delete(Chunk).where(Chunk.book_id == book_id))
 
     session.delete(book)
     session.commit()

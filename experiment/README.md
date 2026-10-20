@@ -44,9 +44,25 @@ The experiment uses its own database, never a real library. From
     export LIBRA_DATABASE_URL="sqlite:///../.run/experiment/libra.db"
     export LIBRA_LIBRARY_DIR="../.run/experiment/library"
     uv run python -m app.cli rag load-corpus ../experiment/corpus.csv ../experiment/files
+    uv run python -m app.cli rag index ../experiment/corpus.csv --stats ../experiment/corpus-stats.csv
 
-Only the 40 test books go into it. `load-corpus` refuses a database that
-holds any other book, and it checks this before it migrates anything.
+In PowerShell, set the two settings this way instead:
+
+    $env:LIBRA_DATABASE_URL = "sqlite:///../.run/experiment/libra.db"
+    $env:LIBRA_LIBRARY_DIR = "../.run/experiment/library"
+
+Only the 40 test books go into it. `load-corpus` and `index` refuse a
+database that holds any other book, and they check this before they migrate
+anything.
+
+`index` stores every chunk, its full-text index entry and its text vector.
+It checks every book's chunks against `corpus-stats.csv` before it writes
+anything, and it writes each book whole or not at all. A second run skips the
+books already indexed.
+
+`rag smoke --hand ../experiment/questions/hand.jsonl` checks that each method
+finds a chunk from its own first 12 words. It is a check of the index, not a
+result. It refuses to run until all 40 hand questions are written.
 
 ## The freeze
 

@@ -39,10 +39,17 @@ def _database_url() -> str:
     return get_settings().database_url
 
 
+def _not_full_text_index(name: str | None, type_: str, parent_names: dict) -> bool:
+    """Hide `chunk_fts` and the helper tables FTS5 makes for it, which no model declares."""
+    return not (type_ == "table" and name is not None and name.startswith("chunk_fts"))
+
+
 def _context_kwargs() -> dict:
     return {
         "target_metadata": target_metadata,
         "compare_type": True,
+        # Without it, `alembic check` and autogenerate would drop the full-text index.
+        "include_name": _not_full_text_index,
         # SQLite cannot ALTER or DROP a column in place. Batch mode emulates
         # it by rebuilding the table, and every milestone after the baseline
         # alters `book` — so this is load-bearing, not precautionary.

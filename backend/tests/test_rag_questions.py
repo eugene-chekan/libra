@@ -32,23 +32,10 @@ from rag.questions import (
     read_records,
     run_session,
 )
-from tests.corpus_helpers import row, words_as_tokens, write_csv
+from tests.corpus_helpers import chapters_book, row, words_as_tokens, write_csv
 from tests.epub_factory import Chapter, build_epub
 
 TODAY = date(2026, 10, 19)
-
-
-def chapters_book(folder: Path, name: str, sizes: list[int]) -> Path:
-    """A book with one chapter per size, each one paragraph of that many words: one chunk each."""
-    chapters = [
-        Chapter(
-            f"c{i}.xhtml",
-            "<p>" + " ".join(f"c{i}w{j}" for j in range(size)) + "</p>",
-            title=f"Chapter {i}",
-        )
-        for i, size in enumerate(sizes)
-    ]
-    return build_epub(folder / name, titles=[name], chapters=chapters)
 
 
 @dataclass
