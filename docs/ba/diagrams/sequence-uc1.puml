@@ -1,0 +1,34 @@
+@startuml sequence-uc1
+' System sequence diagram for UC-1. Save the render as sequence-uc1.png here.
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+actor Reader
+participant "Web client" as Client
+participant "API\n(conversations)" as API
+participant "librarian.py" as Lib
+participant "rag.search" as Search
+database "SQLite\n(chunks, FTS5,\nvectors)" as DB
+participant "DeepSeek API" as DS
+
+Reader -> Client : type question, send
+Client -> API : POST /api/conversations/{id}/messages
+API -> DB : save question
+API -> Lib : generate_reply(question)
+Lib -> DS : 5 descriptors for the question
+alt API answers
+  DS --> Lib : descriptors (JSON)
+  Lib -> Search : search(question, "dense+descriptors", k=3)
+else no answer in 10 s (flow 4a)
+  Lib -> Search : search(question, "bm25+dense", k=3)
+end
+Search -> DB : BM25 / vectors / descriptor vectors
+DB --> Search : scores
+Search --> Lib : top 3 chunks
+Lib --> API : passages (book, chapter, excerpt)
+API --> Client : Server-Sent Events stream
+API -> DB : save reply
+Client --> Reader : three passages
+Reader -> Client : select a passage
+Client --> Reader : reader opens the book at the chapter
+@enduml

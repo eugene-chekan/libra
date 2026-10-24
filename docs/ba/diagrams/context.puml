@@ -1,0 +1,28 @@
+@startuml context
+' Context diagram: libra, its users and the external systems.
+' Render: paste into https://www.plantuml.com/plantuml or use the
+' PlantUML extension in VS Code, then save as context.png here.
+left to right direction
+skinparam shadowing false
+skinparam defaultFontName Arial
+
+actor "Reader" as reader
+actor "Household\nadministrator" as admin
+actor "Researcher" as researcher
+
+rectangle "libra\n(self-hosted web system:\nFastAPI + SQLite + React client)" as libra
+
+cloud "DeepSeek API\n(descriptors)" as deepseek
+node "SMTP mail server" as smtp
+cloud "Amazon\nSend to Kindle" as amazon
+database "Standard Ebooks\n(test books, CC0)" as se
+
+reader --> libra : questions, reading,\nnotes, Send to Kindle
+admin --> libra : accounts, books,\nsettings
+researcher --> libra : rag commands\n(index, evaluate, report)
+libra --> deepseek : chunk text / question
+deepseek --> libra : descriptors (JSON)
+libra --> smtp : EPUB as e-mail attachment
+smtp --> amazon : e-mail to @kindle.com
+se ..> libra : 40 EPUB files\n(loaded once)
+@enduml
