@@ -1,17 +1,18 @@
 @startuml as-is
 ' AS-IS process as a UML activity diagram (the requirements accept BPMN or
-' UML activity). Save the render as as-is.png here.
+' UML activity): a reader looks for the answer to a question about a book.
+' Save the render as as-is.png here.
 skinparam shadowing false
 skinparam defaultFontName Arial
 
 |Reader|
 start
-:Remember an idea from a book;
+:Has a question about a book
+("who is this man?", "where is this idea?");
 repeat
-  :Guess keywords the author may have used;
-  :Guess which book holds the passage;
+  :Guess which book holds the answer;
   :Open the book in a reader app;
-  :Search inside this one book;
+  :Guess the author's words and search this one book;
   if (Passage found?) then (yes)
     :Read the passage;
     stop
@@ -19,6 +20,11 @@ repeat
   endif
 repeat while (Try other words or another book?) is (yes)
 ->no;
-:Search the web or give up;
+if (Ask a general chatbot?) then (yes)
+  :Get an answer from the chatbot's memory,
+  with no passage to check it against;
+else (no)
+  :Give up;
+endif
 stop
 @enduml

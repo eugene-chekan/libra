@@ -6,6 +6,7 @@ text never cites (it prints a warning for each one).
 
 @furnas1987: G. W. Furnas, T. K. Landauer, L. M. Gomez, and S. T. Dumais, "The vocabulary problem in human-system communication," *Communications of the ACM*, vol. 30, no. 11, pp. 964–971, 1987.
 @willison2026: S. Willison, "Don't classify. Hallucinate!," *Simon Willison's Weblog*, Aug. 14, 2026. [Online]. Available: [TODO: paste the exact URL]
+@libraarch: Y. Chekan, "libra — Architecture," GitHub repository, 2026. [Online]. Available: https://github.com/eugene-chekan/libra/blob/main/docs/architecture.md [TODO: accessed date]
 @calibreweb: Calibre-Web contributors, "Calibre-Web," GitHub repository. [Online]. Available: https://github.com/janeczku/calibre-web [TODO: accessed date]
 @calibre: K. Goyal, "calibre — E-book management," 2026. [Online]. Available: https://calibre-ebook.com [TODO: accessed date]
 @kavita: Kavita contributors, "Kavita," 2026. [Online]. Available: https://www.kavitareader.com [TODO: accessed date]
