@@ -44,9 +44,10 @@ retrieval part of the Librarian, compares six configurations in a controlled
 experiment, and shows the best one's passages in the Librarian panel. Answers
 written from the passages come after the diploma.
 
-**One number that shows the scale:** [TODO: known after the full run — e.g.
-"with embeddings alone, the right passage is missing from the top 10 for N% of
-interpretive questions about fiction".]
+**One number that shows the scale:** two people choose the same word for the
+same thing less than 20% of the time [@furnas1987]. So a reader's question and
+the author's text usually use different words — and the Librarian must find
+the right passage among the 9,476 passages of just 40 books.
 
 ## Goal and objectives
 
@@ -324,7 +325,7 @@ the right ones.
 
 | KPI | Measure | Baseline | Target | How it is measured |
 |---|---|---|---|---|
-| KPI-1 | Recall@10 of the panel's method on the test questions | Recall@10 of BM25 + embeddings in the same run [TODO: value after the run] | Higher than the baseline, with the 95% interval of the gain above 0 [TODO: or a number agreed with the supervisor] | `rag evaluate` and `rag report` on the frozen protocol |
+| KPI-1 | Recall@10 of the panel's method on the test questions | Recall@10 of BM25 + embeddings, the usual hybrid, measured on the same questions in the same run | Higher than the baseline: the 95% paired bootstrap interval of the difference lies above 0 | `rag evaluate` and `rag report` on the frozen protocol |
 | KPI-2 | Reader-style questions (5 factual, 5 interpretive) whose answer passage is in the panel's top 3 | [TODO: found with keyword search in Calibre, e.g. 4 of 10] | At least 7 of 10 | The same 10 questions about the test books, asked in the panel |
 | KPI-3 | Retrieval response time, 95th percentile | None: Libra cannot read book text | ≤ 2 s on the 40-book library | Timer around `rag.search`, 100 questions |
 | KPI-4 | LLM cost to index the 40-book library | — (new function) | ≤ 15 USD | Token usage saved with every LLM response |
