@@ -243,7 +243,8 @@ WCAG 2.1 [@wcag21].
 ## 1.3 Analysis of analogs
 
 Five tools were compared on how they help a reader get an answer about their
-own books: four e-book library tools, and one self-hosted AI assistant that
+own books: three open-source e-book library tools, one commercial reading
+service for the user's own files, and one self-hosted AI assistant that
 answers questions over uploaded documents with RAG. [TODO: ask each tool the same 3 questions about the same books — one
 "who is this character", one "where is this idea", one "similar books" —
 take screenshots, and correct every cell marked "?".]
@@ -252,31 +253,35 @@ take screenshots, and correct every cell marked "?".]
 - **Calibre-Web** [@calibreweb] — a self-hosted web interface over a Calibre
   library; the analog named in the topic application.
 - **Kavita** [@kavita] — a self-hosted reading server.
-- **Google Play Books** [@playbooks] — a commercial service that accepts
-  uploaded EPUB files.
+- **Readwise Reader** [@readwise] — a commercial reading service for the
+  user's own documents, including uploaded EPUB files, with a built-in AI
+  assistant (Ghostreader).
 - **AnythingLLM** [@anythingllm] — a self-hosted AI assistant that answers
   questions over uploaded documents with RAG.
 
-Store features such as Kindle X-Ray, which shows the characters and terms of
-a book, were left out [@kindlexray]: they work only for books bought from the
-store, not for the reader's own side-loaded files that Libra holds.
+Store-centred products were left out: Google Play Books and Kindle features
+such as X-Ray, which shows the characters and terms of a book [@kindlexray].
+They are built around books bought in the store, not around a personal
+library of the reader's own side-loaded files, which is what Libra holds.
 
 [[TABLE: Comparison of analogs]]
 
-| Criterion | Calibre | Calibre-Web | Kavita | Google Play Books | AnythingLLM | Libra Librarian |
+| Criterion | Calibre | Calibre-Web | Kavita | Readwise Reader | AnythingLLM | Libra Librarian |
 |---|---|---|---|---|---|---|
-| Answers questions about the content of books | No | No | No | ? | Yes | Passages now; answers after the diploma |
-| Works across the whole library | Keyword search | ? | ? | No | Yes | Yes |
+| Answers questions about the content of books | No | No | No | Yes, about one document (?) | Yes | Passages now; answers after the diploma |
+| Works across the whole library | Keyword search | ? | ? | ? | Yes | Yes |
 | Retrieval by meaning, not only by keywords | No | No | No | ? | Yes (embeddings) | Yes (embeddings + descriptors) |
 | Shows the source passages, with book and chapter | Keyword hits | ? | ? | ? | As citations | Yes |
-| Retrieval technique measured on books | No | No | No | ? | No | Yes (experiment) |
+| Retrieval technique measured on books | No | No | No | Not published | No | Yes (experiment) |
 | Self-hosted; books and questions stay at home | Yes | Yes | Yes | No | Yes | Yes (LLM optional) |
-| Part of the e-book library (reader, shelves, Kindle) | Yes | Yes | Yes | Yes | No | Yes |
+| Part of the e-book library (reader, shelves, Kindle) | Yes | Yes | Yes | Partly: a reading app, not a household library (?) | No | Yes |
 
 [[FIGURE: analog-screens.png | Screenshots of the analogs answering the test questions]]
 
-**What is missing.** The library tools do not answer questions; at best they
-search by keywords. AnythingLLM answers, but it is not a library, and it uses
+**What is missing.** The open-source library tools do not answer questions;
+at best they search by keywords. Readwise Reader answers questions about a
+document, but the books and the questions live in its cloud, and how it
+retrieves is not published. AnythingLLM answers, but it is not a library, and it uses
 one default retriever that was never measured on books — when that retriever
 misses, the LLM may answer from memory, and the reader cannot tell. No tool
 offers **an assistant inside the library whose retrieval technique was chosen
