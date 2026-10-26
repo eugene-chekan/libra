@@ -242,52 +242,53 @@ WCAG 2.1 [@wcag21].
 
 ## 1.3 Analysis of analogs
 
-Five tools were compared on how they help a reader get an answer about their
-own books: three open-source e-book library tools, one commercial reading
-service for the user's own files, and one self-hosted AI assistant that
-answers questions over uploaded documents with RAG. [TODO: ask each tool the same 3 questions about the same books — one
-"who is this character", one "where is this idea", one "similar books" —
-take screenshots, and correct every cell marked "?".]
+No existing product is both a personal e-book library and an AI assistant over
+the reader's own books. The analogs therefore come from two groups:
 
-- **Calibre** [@calibre] — the standard desktop e-book manager.
-- **Calibre-Web** [@calibreweb] — a self-hosted web interface over a Calibre
-  library; the analog named in the topic application.
-- **Kavita** [@kavita] — a self-hosted reading server.
-- **Readwise Reader** [@readwise] — a commercial reading service for the
-  user's own documents, including uploaded EPUB files, with a built-in AI
-  assistant (Ghostreader).
-- **AnythingLLM** [@anythingllm] — a self-hosted AI assistant that answers
-  questions over uploaded documents with RAG.
+- **A. Personal e-book library managers** keep and show the reader's own,
+  side-loaded books:
+  - **Calibre** [@calibre] — the standard desktop e-book manager;
+  - **Calibre-Web** [@calibreweb] — a self-hosted web interface over a Calibre
+    library; the analog named in the topic application;
+  - **Kavita** [@kavita] — a self-hosted reading server.
+- **B. AI assistants over the user's own documents** answer questions with
+  RAG:
+  - **AnythingLLM** [@anythingllm] — open source and self-hosted;
+  - **NotebookLM** [@notebooklm] — a commercial Google service that answers
+    only from the documents the user uploads, with citations.
 
-Store-centred products were left out: Google Play Books and Kindle features
-such as X-Ray, which shows the characters and terms of a book [@kindlexray].
-They are built around books bought in the store, not around a personal
-library of the reader's own side-loaded files, which is what Libra holds.
+Store-centred products, such as Google Play Books and Kindle features like
+X-Ray [@kindlexray], were left out. They are built around books bought in the
+store, not around a library of the reader's own files, which is what Libra
+holds. [TODO: ask each tool the same 3 questions about the same books — one
+"who is this character", one "where is this idea", one "similar books" — take
+screenshots, and correct every cell marked "?".]
 
 [[TABLE: Comparison of analogs]]
 
-| Criterion | Calibre | Calibre-Web | Kavita | Readwise Reader | AnythingLLM | Libra Librarian |
+| Criterion | Calibre (A) | Calibre-Web (A) | Kavita (A) | AnythingLLM (B) | NotebookLM (B) | Libra Librarian |
 |---|---|---|---|---|---|---|
-| Answers questions about the content of books | No | No | No | Yes, about one document (?) | Yes | Passages now; answers after the diploma |
-| Works across the whole library | Keyword search | ? | ? | ? | Yes | Yes |
-| Retrieval by meaning, not only by keywords | No | No | No | ? | Yes (embeddings) | Yes (embeddings + descriptors) |
-| Shows the source passages, with book and chapter | Keyword hits | ? | ? | ? | As citations | Yes |
-| Retrieval technique measured on books | No | No | No | Not published | No | Yes (experiment) |
-| Self-hosted; books and questions stay at home | Yes | Yes | Yes | No | Yes | Yes (LLM optional) |
-| Part of the e-book library (reader, shelves, Kindle) | Yes | Yes | Yes | Partly: a reading app, not a household library (?) | No | Yes |
+| Keeps and manages the reader's own EPUB files | Yes | Yes | Yes | No | No | Yes |
+| Accepts EPUB files as a source for questions | — | — | — | ? | ? | Yes |
+| Answers questions about the content of books | No | No | No | Yes | Yes, only from the uploaded sources | Passages now; answers after the diploma |
+| Works across the whole library | Keyword search | ? | ? | Yes, one workspace | One notebook, limited number of sources (?) | Yes |
+| Retrieval by meaning, not only by keywords | No | No | No | Yes (embeddings) | Yes (method not published) | Yes (embeddings + descriptors) |
+| Shows the source passages | Keyword hits | ? | ? | As citations | As citations | Yes, with book and chapter |
+| Retrieval technique measured on books | No | No | No | No | Not published | Yes (experiment) |
+| Self-hosted; books and questions stay at home | Yes | Yes | Yes | Yes | No | Yes (LLM optional) |
 
 [[FIGURE: analog-screens.png | Screenshots of the analogs answering the test questions]]
 
-**What is missing.** The open-source library tools do not answer questions;
-at best they search by keywords. Readwise Reader answers questions about a
-document, but the books and the questions live in its cloud, and how it
-retrieves is not published. AnythingLLM answers, but it is not a library, and it uses
-one default retriever that was never measured on books — when that retriever
-misses, the LLM may answer from memory, and the reader cannot tell. No tool
-offers **an assistant inside the library whose retrieval technique was chosen
-by measurement on books**, for both factual and interpretive questions. The
-diploma builds and measures that retrieval; the assistant is built on it after
-the diploma.
+**What is missing.** Group A manages the reader's books but cannot answer a
+question about them; at best it searches by keywords. Group B answers
+questions, but it is not a library: the books must be uploaded again into a
+separate tool, and NotebookLM keeps them and the questions in Google's cloud.
+Neither group publishes a retrieval technique measured on books — and when
+retrieval misses, an LLM may answer from memory, and the reader cannot tell.
+No product offers **an assistant inside the reader's own library whose
+retrieval was chosen by measurement on books**, for factual and interpretive
+questions. The diploma builds and measures that retrieval; the assistant is
+built on it after the diploma.
 
 ## 1.4 Chapter conclusions
 

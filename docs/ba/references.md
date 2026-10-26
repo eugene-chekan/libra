@@ -12,7 +12,7 @@ text never cites (it prints a warning for each one).
 @kavita: Kavita contributors, "Kavita," 2026. [Online]. Available: https://www.kavitareader.com [TODO: accessed date]
 @kindlexray: Amazon, "Use X-Ray," Kindle E-Reader Help, 2026. [Online]. [TODO: URL of the X-Ray help page, and accessed date]
 @anythingllm: Mintplex Labs, "AnythingLLM," GitHub repository, 2026. [Online]. Available: https://github.com/Mintplex-Labs/anything-llm [TODO: accessed date]
-@readwise: Readwise, "Readwise Reader," 2026. [Online]. Available: https://readwise.io/read [TODO: accessed date]
+@notebooklm: Google, "NotebookLM," 2026. [Online]. Available: https://notebooklm.google [TODO: accessed date]
 @robertson2009: S. Robertson and H. Zaragoza, "The probabilistic relevance framework: BM25 and beyond," *Foundations and Trends in Information Retrieval*, vol. 3, no. 4, pp. 333–389, 2009.
 @karpukhin2020: V. Karpukhin et al., "Dense passage retrieval for open-domain question answering," in *Proc. EMNLP*, 2020, pp. 6769–6781.
 @lewis2020: P. Lewis et al., "Retrieval-augmented generation for knowledge-intensive NLP tasks," in *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 33, 2020.
