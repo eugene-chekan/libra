@@ -1,41 +1,34 @@
 @startuml use-cases
-' Use case diagram. Save the render as use-cases.png here.
+' Use case diagram of the new search module. Save the render as use-cases.png here.
 left to right direction
 skinparam shadowing false
 skinparam defaultFontName Arial
 
 actor Reader
-actor "Kindle owner" as Kindle
 actor "Household\nadministrator" as Admin
 actor Researcher
-actor "DeepSeek API" as DS <<system>>
-actor "SMTP / Amazon" as Mail <<system>>
+actor "LLM API" as LLM <<system>>
 
-Kindle -|> Reader
-Admin -|> Reader
-
-rectangle libra {
+rectangle "Libra search module and librarian panel" {
   usecase "UC-1 Find a passage\nby question" as UC1
-  usecase "Open passage\nin the reader" as Open
-  usecase "Upload a book" as Upload
-  usecase "Read in the browser" as Read
-  usecase "Organise: shelves,\ntags, notes" as Org
-  usecase "UC-2 Send a book\nto a Kindle" as UC2
-  usecase "Manage accounts" as Users
-  usecase "Index books and\nwrite descriptors" as Index
-  usecase "Run the evaluation\nand report" as Eval
+  usecase "Open the passage\nin the reader" as Open
+  usecase "Search without the LLM\n(BM25 + embeddings)" as Fallback
+  usecase "UC-2 Index the library" as UC2
+  usecase "Write descriptors\nfor chunks" as Describe
+  usecase "Choose the search method" as Method
+  usecase "Write and review\ntest questions" as Questions
+  usecase "Run the evaluation\nand the report" as Eval
 }
 
 Reader --> UC1
-Reader --> Upload
-Reader --> Read
-Reader --> Org
-Kindle --> UC2
-Admin --> Users
-Researcher --> Index
-Researcher --> Eval
 UC1 <.. Open : <<extend>>
-UC1 --> DS
-Index --> DS
-UC2 --> Mail
+UC1 <.. Fallback : <<extend>>
+Admin --> UC2
+Admin --> Method
+UC2 ..> Describe : <<include>>
+Researcher --> UC2
+Researcher --> Questions
+Researcher --> Eval
+UC1 --> LLM
+Describe --> LLM
 @enduml

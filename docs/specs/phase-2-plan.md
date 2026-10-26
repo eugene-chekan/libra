@@ -46,8 +46,8 @@ Decisions made on 2026-09-13:
 | Dates | Stage | What it means here |
 |---|---|---|
 | until 20 Sep | Topic application, agreed with the supervisor | — |
-| 28 Sep – 14 Nov | Practice. **Practice defense 9–14 Nov.** A failed defense ends the diploma. | Part 1 finished by about 7 Nov |
-| 15 Nov – 6 Jan | Diploma project and thesis text, 95% done | Part 2, the thesis, the business analysis document and the ER diagram |
+| 28 Sep – 14 Nov | Practice. **Practice defense 9–14 Nov.** A failed defense ends the diploma. | Part 1 finished by about 7 Nov. **The business analysis block goes to the experts by 30 Oct**, then a BA defense before a committee |
+| 15 Nov – 6 Jan | Diploma project and thesis text, 95% done | Part 2, the thesis and the ER diagram |
 | **6–9 Jan** | **Pre-defense, in English, with a demo** | The panel must work |
 | 10 Jan – 6 Feb | Format check, external review, defense | No new code |
 
@@ -92,8 +92,15 @@ that this plan's code does not produce:
 - **Database:** an ER diagram, including the new chunk, vector and descriptor
   tables.
 
-Neither exists yet. Both are due with the thesis text, by 6 Jan. The ER
-diagram waits until the part 1 tables exist.
+The business analysis block is the Introduction, Chapter 1 and Chapter 2 of
+the thesis, in English, sent to the experts as one DOCX **by 30 October 2026**.
+Passing its defense is a condition for the final defense. Its draft is in
+[docs/ba/](../ba/README.md). It covers only the diploma's new work — the search
+module, the experiment and the librarian panel. Libra's existing functions
+appear only as the platform the module plugs into.
+
+The ER diagram is due with the thesis text, by 6 Jan. It waits until the
+part 1 tables exist.
 
 ---
 

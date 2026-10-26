@@ -1,5 +1,6 @@
 @startuml context
-' Context diagram: libra, its users and the external systems.
+' Context diagram: the new search module inside the existing Libra
+' application, its users and the external systems.
 ' Render: paste into https://www.plantuml.com/plantuml or use the
 ' PlantUML extension in VS Code, then save as context.png here.
 left to right direction
@@ -10,19 +11,23 @@ actor "Reader" as reader
 actor "Household\nadministrator" as admin
 actor "Researcher" as researcher
 
-rectangle "libra\n(self-hosted web system:\nFastAPI + SQLite + React client)" as libra
+rectangle "Libra (existing web application)" {
+  rectangle "Librarian panel\n(new: shows passages)" as panel
+  rectangle "Search module (new)\nchunks, BM25, embeddings,\ndescriptors, RRF" as search
+  database "SQLite\nbooks + chunks,\nFTS5, vectors" as db
+  rectangle "Catalogue, reader,\nshelves, Kindle\n(existing, unchanged)" as existing
+}
 
-cloud "DeepSeek API\n(descriptors)" as deepseek
-node "SMTP mail server" as smtp
-cloud "Amazon\nSend to Kindle" as amazon
-database "Standard Ebooks\n(test books, CC0)" as se
+cloud "LLM API\n(descriptors)" as llm
+database "Standard Ebooks\n(40 test books, CC0)" as se
 
-reader --> libra : questions, reading,\nnotes, Send to Kindle
-admin --> libra : accounts, books,\nsettings
-researcher --> libra : rag commands\n(index, evaluate, report)
-libra --> deepseek : chunk text / question
-deepseek --> libra : descriptors (JSON)
-libra --> smtp : EPUB as e-mail attachment
-smtp --> amazon : e-mail to @kindle.com
-se ..> libra : 40 EPUB files\n(loaded once)
+reader --> panel : question
+panel --> search : search(question)
+search --> db
+panel --> existing : open passage in the reader
+admin --> search : rag index / rag describe
+researcher --> search : rag evaluate / rag report
+search --> llm : chunk text, question
+llm --> search : descriptors (JSON)
+se ..> existing : EPUB files, loaded once
 @enduml

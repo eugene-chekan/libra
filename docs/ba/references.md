@@ -9,7 +9,8 @@ text never cites (it prints a warning for each one).
 @calibreweb: Calibre-Web contributors, "Calibre-Web," GitHub repository. [Online]. Available: https://github.com/janeczku/calibre-web [TODO: accessed date]
 @calibre: K. Goyal, "calibre — E-book management," 2026. [Online]. Available: https://calibre-ebook.com [TODO: accessed date]
 @kavita: Kavita contributors, "Kavita," 2026. [Online]. Available: https://www.kavitareader.com [TODO: accessed date]
-@sendtokindle: Amazon, "Learn How to Use Your Send to Kindle Email Address," Amazon Help, 2026. [Online]. Available: https://www.amazon.com/sendtokindle [TODO: check the exact help page and accessed date]
+@sendtokindle: Amazon, "Kindle E-Reader Help: Search Your Kindle," Amazon Help, 2026. [Online]. [TODO: URL of the help page about searching on a Kindle, and accessed date]
+@anythingllm: Mintplex Labs, "AnythingLLM," GitHub repository, 2026. [Online]. Available: https://github.com/Mintplex-Labs/anything-llm [TODO: accessed date]
 @playbooks: Google, "Google Play Books: Upload files," Google Play Help, 2026. [Online]. [TODO: URL and accessed date]
 @robertson2009: S. Robertson and H. Zaragoza, "The probabilistic relevance framework: BM25 and beyond," *Foundations and Trends in Information Retrieval*, vol. 3, no. 4, pp. 333–389, 2009.
 @karpukhin2020: V. Karpukhin et al., "Dense passage retrieval for open-domain question answering," in *Proc. EMNLP*, 2020, pp. 6769–6781.
