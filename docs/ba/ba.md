@@ -243,9 +243,9 @@ WCAG 2.1 [@wcag21].
 ## 1.3 Analysis of analogs
 
 Six tools were compared on how they help a reader get an answer about their
-own books: four library tools, one commercial reading service, and one
-self-hosted AI assistant that answers questions over uploaded documents with
-RAG. [TODO: ask each tool the same 3 questions about the same books — one
+own books: four e-book library tools, one AI feature built into a reading
+app, and one self-hosted AI assistant that answers questions over uploaded
+documents with RAG. [TODO: ask each tool the same 3 questions about the same books — one
 "who is this character", one "where is this idea", one "similar books" —
 take screenshots, and correct every cell marked "?".]
 
@@ -253,7 +253,9 @@ take screenshots, and correct every cell marked "?".]
 - **Calibre-Web** [@calibreweb] — a self-hosted web interface over a Calibre
   library; the analog named in the topic application.
 - **Kavita** [@kavita] — a self-hosted reading server.
-- **Kindle** [@sendtokindle] — Amazon's reading devices and apps.
+- **Kindle X-Ray** [@kindlexray] — a feature of Amazon's Kindle devices and
+  apps. It is not a library tool, but it answers one of the Librarian's
+  questions — "who is this character?" — inside the book being read.
 - **Google Play Books** [@playbooks] — a commercial service that accepts
   uploaded EPUB files.
 - **AnythingLLM** [@anythingllm] — a self-hosted AI assistant that answers
@@ -261,20 +263,22 @@ take screenshots, and correct every cell marked "?".]
 
 [[TABLE: Comparison of analogs]]
 
-| Criterion | Calibre | Calibre-Web | Kavita | Kindle | Google Play Books | AnythingLLM | Libra Librarian |
+| Criterion | Calibre | Calibre-Web | Kavita | Kindle X-Ray | Google Play Books | AnythingLLM | Libra Librarian |
 |---|---|---|---|---|---|---|---|
-| Answers questions about the content of books | No | No | No | ? | ? | Yes | Passages now; answers after the diploma |
-| Works across the whole library | Keyword search | ? | ? | ? | No | Yes | Yes |
-| Retrieval by meaning, not only by keywords | No | No | No | ? | ? | Yes (embeddings) | Yes (embeddings + descriptors) |
-| Shows the source passages, with book and chapter | Keyword hits | ? | ? | ? | ? | As citations | Yes |
-| Retrieval technique measured on books | No | No | No | ? | ? | No | Yes (experiment) |
+| Answers questions about the content of books | No | No | No | Partly: fixed pages about people and terms, no free questions | ? | Yes | Passages now; answers after the diploma |
+| Works across the whole library | Keyword search | ? | ? | No: one book | No | Yes | Yes |
+| Retrieval by meaning, not only by keywords | No | No | No | No: lists prepared in advance | ? | Yes (embeddings) | Yes (embeddings + descriptors) |
+| Shows the source passages, with book and chapter | Keyword hits | ? | ? | Yes: every mention in the book | ? | As citations | Yes |
+| Retrieval technique measured on books | No | No | No | Not published | ? | No | Yes (experiment) |
 | Self-hosted; books and questions stay at home | Yes | Yes | Yes | No | No | Yes | Yes (LLM optional) |
-| Part of the e-book library (reader, shelves, Kindle) | Yes | Yes | Yes | Yes | Yes | No | Yes |
+| Part of the e-book library (reader, shelves, Kindle) | Yes | Yes | Yes | Only books bought from Amazon (?) | Yes | No | Yes |
 
 [[FIGURE: analog-screens.png | Screenshots of the analogs answering the test questions]]
 
 **What is missing.** The library tools do not answer questions; at best they
-search by keywords. AnythingLLM answers, but it is not a library, and it uses
+search by keywords. Kindle X-Ray answers the "who is this character?" question,
+but only from lists prepared in advance, only inside one book, and only for
+books bought from Amazon — not for a reader's own files. AnythingLLM answers, but it is not a library, and it uses
 one default retriever that was never measured on books — when that retriever
 misses, the LLM may answer from memory, and the reader cannot tell. No tool
 offers **an assistant inside the library whose retrieval technique was chosen
