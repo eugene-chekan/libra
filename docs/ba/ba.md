@@ -273,14 +273,14 @@ screenshots, and correct every cell marked "?".]
 
 [[TABLE: Comparison of analogs]]
 
-| Criterion | Calibre (A) | Calibre-Web (A) | Kavita (A) | AnythingLLM (B) | NotebookLM (B) | Libra Librarian |
+| Criterion | Calibre (A) | Calibre-Web (A) | Kavita (A) | AnythingLLM (B) | NotebookLM (B) | Libra |
 |---|---|---|---|---|---|---|
 | Keeps and manages the reader's own EPUB files | Yes | Yes | Yes | No | No | Yes |
-| Accepts EPUB files as a source for questions | No: the AI gets only metadata or the selected text | — | — | ? | ? | Yes |
+| Accepts EPUB files as a source for questions | No: the AI gets only metadata or the selected text | — | — | ? | Yes | Yes |
 | Answers questions about the content of books | Yes, from the LLM's memory of the book, or about selected text | No | No | Yes | Yes, only from the uploaded sources | Passages now; answers after the diploma |
-| Works across the whole library | Keyword search; the AI discusses only selected books, by metadata | ? | ? | Yes, one workspace | One notebook, limited number of sources (?) | Yes |
+| Works across the whole library | Keyword search; the AI discusses only selected books, by metadata | Yes, metadata search only | ? | Yes, one workspace | One notebook, limited number of sources  | Yes |
 | Retrieval by meaning, not only by keywords | No: the AI does no retrieval | No | No | Yes (embeddings) | Yes (method not published) | Yes (embeddings + descriptors) |
-| Shows the source passages | Keyword hits; AI answers show none | ? | ? | As citations | As citations | Yes, with book and chapter |
+| Shows the source passages | Keyword hits; AI answers show none | No | ? | As citations | As citations | Yes, with book and chapter |
 | Retrieval technique measured on books | No | No | No | No | Not published | Planned (the experiment) |
 | Self-hosted; books and questions stay at home | Yes; local LLMs possible | Yes | Yes | Yes | No | Yes (LLM optional) |
 
@@ -413,7 +413,6 @@ choice.
   books by style.
 - Other chunk sizes, other embedding models, a local LLM for descriptors.
 - Approximate vector indexes for very large libraries.
-- A user study (removed from the diploma on 13 September 2026).
 
 [[TABLE: Assumptions and constraints]]
 
