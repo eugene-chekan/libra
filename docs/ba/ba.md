@@ -29,7 +29,8 @@ remembers from training, and the reader cannot tell.
 **The problem: it is not known which retrieval technique finds the right
 passages for the questions readers ask about books.** RAG tools use text
 embeddings by default, chosen by convention, not measured on books. Yet book
-questions are hard: the reader's words differ from the author's — the
+questions are hard: the reader's words differ from the author's. Two people
+choose the same word for the same thing less than 20% of the time — the
 *vocabulary problem* [@furnas1987] — and fiction shows ideas without naming
 them. A new technique targets this gap: an LLM writes short *semantic
 descriptors* for every passage, such as "moral choice under pressure", and
@@ -43,11 +44,6 @@ this project's 40 books costs about 8–12 USD. The diploma builds the
 retrieval part of the Librarian, compares six configurations in a controlled
 experiment, and shows the best one's passages in the Librarian panel. Answers
 written from the passages come after the diploma.
-
-**One number that shows the scale:** two people choose the same word for the
-same thing less than 20% of the time [@furnas1987]. So a reader's question and
-the author's text usually use different words — and the Librarian must find
-the right passage among the 9,476 passages of just 40 books.
 
 ## Goal and objectives
 
@@ -646,8 +642,6 @@ quality requirements follow the ISO/IEC 25010 model [@iso25010].
 | R4 | The LLM knows famous books and describes the answer from memory | M | H | Less famous books; no title or author in the prompt; named in the report | Book choice |
 | R5 | One correct chunk per question under-counts correct results | H | M | A 50-question sample where every relevant chunk is judged by hand | Test questions |
 | R6 | The embedding model does not run, or runs too slowly, on `arm64` | L | M | `arm64` test build on every dependency change | Docker, ONNX Runtime |
-
-**Top 3 risks for the defense:** R4, R2 and R1.
 
 ## 2.10 Chapter conclusions
 
