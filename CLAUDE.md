@@ -20,8 +20,9 @@ see `docs/specs/phase-4-plan.md` for why. The client is TypeScript and React.
 supervisor narrowed the diploma: compare BM25, text embeddings and LLM-written
 semantic descriptors for finding the passage that answers a question, on 40
 public-domain books. The user study is out of the diploma, and the librarian
-agent (Phase 3) comes after it. Part 1, the experiment, is due for the practice
-defense on 9–14 November. Part 2, the librarian panel showing the passages
+agent (Phase 3) comes after it. Part 1, the experiment, is due for its expert
+assessment, which must come before the pre-defense; the plan aims to finish its
+report by about 30 November. Part 2, the librarian panel showing the passages
 search finds, is due for the pre-defense demo on 6 January. See
 `docs/specs/phase-2-plan.md`, `docs/architecture.md` for the full roadmap, and
 `docs/evaluation.md` for how each phase's evaluation methodology is built

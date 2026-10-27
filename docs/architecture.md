@@ -55,10 +55,10 @@ this phase.
 
 **Phase 2 — Retrieval experiment (Sep 2026 – Jan 2027)** — see
 [specs/phase-2-plan.md](specs/phase-2-plan.md)
-- **Part 1, for the practice defense (9–14 Nov):** compare ways to find the
-  passage that answers a question — BM25, text embeddings, LLM-written semantic
-  descriptors, and hybrids — on 40 public-domain books, split into fiction and
-  non-fiction
+- **Part 1, for its expert assessment before the pre-defense (report by about
+  30 Nov):** compare ways to find the passage that answers a question — BM25,
+  text embeddings, LLM-written semantic descriptors, and hybrids — on 40
+  public-domain books, split into fiction and non-fiction
 - Chunks over the EPUB spine. Chunks, the FTS5 index and the vectors live in
   the same SQLite database, and vector search is exact, in memory
 - Evaluation: reviewed test questions, each with one known source chunk;

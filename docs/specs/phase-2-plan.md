@@ -7,6 +7,9 @@ the chunker is frozen at version 1 and the 40 test books are loaded (see
 [experiment/README.md](../../experiment/README.md)). Week 2, 2026-10-18: the
 hand-question command and the search index (BM25, dense, RRF, `rag smoke`) are
 built; the 40 hand questions come next, before any search runs on the books.
+Revised 2026-10-27: Part 1 is due for its expert assessment before the
+pre-defense, not for the practice defense on 9–14 Nov, so the schedule now
+runs to the end of November.
 
 This plan replaces the earlier Phase 2 outline in
 [architecture.md](../architecture.md), which planned a Chroma vector store and
@@ -17,7 +20,7 @@ a retrieval endpoint.
 On 2026-09-08 the diploma supervisor approved the topic, and changed what the
 diploma builds:
 
-- The practice part is a **research experiment**, not a full RAG pipeline. It
+- The diploma's practical part is a **research experiment**, not a full RAG pipeline. It
   compares ways to find the passage that answers a question, on a fixed set of
   books.
 - The method under test: an LLM writes short, free-form **semantic
@@ -46,18 +49,18 @@ Decisions made on 2026-09-13:
 | Dates | Stage | What it means here |
 |---|---|---|
 | until 20 Sep | Topic application, agreed with the supervisor | — |
-| 28 Sep – 14 Nov | Practice. **Practice defense 9–14 Nov.** A failed defense ends the diploma. | Part 1 finished by about 7 Nov. **The business analysis block goes to the experts by 30 Oct**, then a BA defense before a committee |
-| 15 Nov – 6 Jan | Diploma project and thesis text, 95% done | Part 2, the thesis and the ER diagram |
+| 28 Sep – 14 Nov | Practice. **Practice defense 9–14 Nov.** A failed defense ends the diploma. | **The business analysis block goes to the experts by 30 Oct**, then a BA defense before a committee. What the practice defense requires is still to be confirmed with the supervisor; no document makes it the experiment's deadline |
+| 15 Nov – 6 Jan | Diploma project and thesis text, 95% done | Part 1 finished by the end of November, for its expert assessment in early December. Then Part 2, the thesis and the ER diagram |
 | **6–9 Jan** | **Pre-defense, in English, with a demo** | The panel must work |
 | 10 Jan – 6 Feb | Format check, external review, defense | No new code |
 
 So the work has two parts:
 
-1. **Part 1 — the experiment**, for the practice defense. Designed in full
-   below.
+1. **Part 1 — the experiment**, for its expert assessment, which must come
+   before the pre-defense. Designed in full below.
 2. **Part 2 — the panel shows search results**, for the pre-defense demo.
-   Sketched at the end. It gets its own short spec in November, once the
-   results are known.
+   Sketched at the end. It gets its own short spec once the results are
+   known.
 
 Phase 2 is complete when part 2 ships. The version then becomes `0.3.0`.
 
@@ -134,27 +137,34 @@ part 1 tables exist.
 
 ## Schedule
 
-**Revised 2026-10-11.** Part 1 did not start in September, so the first
-schedule's eight weeks are now four. There is no spare week. Weeks start on
-Monday.
+**Revised 2026-10-27.** The experiment is due for its expert assessment
+(the "Qualitative or quantitative testing" criterion), not for the practice
+defense. The knowledge base puts expert assessments in weeks 7–15 of the
+diploma and the pre-defense in week 19. With the pre-defense on 6–9 Jan,
+week 15 is about 7–13 Dec. That mapping is an estimate: the administration
+announces the slots. The materials go to the expert 1 week before the slot, so
+the report must be ready by about 30 Nov. Weeks start on Monday.
 
 | Week | Dates | Work |
 |---|---|---|
 | 1 | 12–18 Oct | #35 spine reader, the chunker, `add_book_from_file`, `load-corpus`, `corpus.csv`. **The chunker is frozen at the end of this week.** |
-| 2 | 19–25 Oct | The 40 hand questions **first**, before any draft or result exists. Chunk tables, BM25 and embedding search, RRF, the metrics code, a smoke test. The DeepSeek client, and the prompt pilot on the 2 pilot books. |
-| 3 | 26 Oct – 1 Nov | Descriptors for every chunk and every question. Drafting, and the review. **Freeze the protocol.** The full run and the statistics. |
-| 4 | 2–8 Nov | The checked sample. The genre analysis. The practice report and slides. |
-| — | 9–14 Nov | Practice defense |
+| 2 | 19–25 Oct | Chunk tables, BM25 and embedding search, RRF, the metrics code, a smoke test, and the hand-question command. |
+| — | 26 Oct – 1 Nov | The business analysis block, due to the experts on 30 Oct. The hand questions continue. |
+| 3 | 2–8 Nov | The 40 hand questions are finished **first**, before any draft or result exists. The DeepSeek client, and the prompt pilot on the 2 pilot books. |
+| 4 | 9–15 Nov | Descriptors for every chunk and every question. Drafting, and the review. **Freeze the protocol.** |
+| 5 | 16–22 Nov | The full run and the statistics. |
+| 6 | 23–29 Nov | The checked sample. The genre analysis. The report for the expert. |
+| — | early Dec | Expert assessment of the experiment. Part 2 starts once the results name the winning method. |
 
 The hand questions come first because a person who has seen which method wins
 can write questions that favour it without noticing. They need only the frozen
-chunker, so they can start on the first day of week 2.
+chunker, so they could start in week 2.
 
 **Needed from the author before week 2:** the 40 books and the 2 pilot books,
 downloaded; a DeepSeek API key with a balance.
 
-**If the work runs late**, these move to the thesis period (15 Nov – 6 Jan), in
-this order. The application promises none of them:
+**If the work runs late**, these move after the expert assessment, before the
+pre-defense, in this order. The application promises none of them:
 
 1. The descriptor accuracy check ([validity check](#validity-checks) 5).
 2. The [failure review](#failure-review).
@@ -162,7 +172,7 @@ this order. The application promises none of them:
    be done later on the same data.
 
 The checked sample *is* promised in the application. It moves only if the full
-run itself is late, and then the practice report says so.
+run itself is late, and then the report for the expert says so.
 
 ## Books
 
@@ -371,7 +381,7 @@ is the correct answer.
 | Set | Size | Written by | When |
 |---|---|---|---|
 | Hand | 40 (20 fiction, 20 non-fiction) | the author | Week 2, before any draft or result |
-| Drafted | 10 per book = 400 drafts, about 300 kept | DeepSeek, then reviewed by the author | Week 3 |
+| Drafted | 10 per book = 400 drafts, about 300 kept | DeepSeek, then reviewed by the author | Week 4 |
 
 For the hand set, `rag hand-question` shows a random chunk and the author
 writes a question about it. That is the same pattern as the drafts, so the two
@@ -418,7 +428,7 @@ Keep a draft only if all of these hold:
 5. The kind tag is right.
 
 Every drop records a reason, and the report shows the counts. Budget: about
-400 × 45 seconds ≈ 5 hours, in week 3.
+400 × 45 seconds ≈ 5 hours, in week 4.
 
 ### The weakness of one correct chunk
 
@@ -429,7 +439,7 @@ method that finds that chunk is scored as wrong.
   "known-item search" setup, and the report uses that name.
 - **A checked sample.** After the full run: 50 random questions; the top 5
   chunks of every method; the author judges each unlabelled chunk relevant or
-  not. About 600 judgements, 4–5 hours, in week 4. It measures how much the
+  not. About 600 judgements, 4–5 hours, in week 6. It measures how much the
   main scores under-count, and **whether the order of methods changes**.
 
 ### Bias checks on the drafts
@@ -445,7 +455,7 @@ and kind.
 
 ### The protocol is frozen before the full run
 
-In week 3, `experiment/protocol.md` is committed and tagged
+In week 4, `experiment/protocol.md` is committed and tagged
 `experiment-protocol-v1`. It records the `corpus.csv` hash, `CHUNKER_VERSION`,
 the embedding model, the descriptor prompt and settings, the methods, k, the
 metrics, the hypotheses and the tests. The tag shows the analysis was fixed
@@ -679,13 +689,14 @@ The API key never appears in a log line or an error message.
 | JSON mode on `v4-pro` is not documented | Confirmed in the week 2 pilot |
 | The model or its price changed since September | The week 2 pilot checks both; the protocol records the model version that served the run |
 | DeepSeek serves different output later | Every response saved; evaluation never calls the API |
-| The schedule slips | No spare week is left. A fixed order of what moves to the thesis period, none of it promised in the application ([Schedule](#schedule)) |
+| The schedule slips | A fixed order of what moves after the expert assessment, none of it promised in the application ([Schedule](#schedule)) |
 
 ---
 
 # Part 2 — the librarian panel (sketch)
 
-For 15 Nov – 6 Jan. Its own spec comes in November. Part 1 must leave it
+For December, once the full run names the winning method; it must work for
+the pre-defense on 6–9 Jan. Its own spec comes then. Part 1 must leave it
 ready:
 
 - **`app/librarian.py` keeps its shape.** `generate_reply` stops producing
