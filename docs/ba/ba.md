@@ -81,8 +81,7 @@ Document analysis of the EPUB 3.3 specification [@epub33], Standard Ebooks
 files [@standardebooks] and Libra's design documents; analysis of Libra's code
 and API; benchmarking of analogs ([Section 1.3](#13-analysis-of-analogs)); a
 literature review ([Section 1.2](#12-review-of-sources)); consultations with
-the supervisor, who set the scope of the experiment on 8 and 13 September
-2026. The experiment itself is not a method of this analysis: Chapter 2
+the supervisor, who set the scope of the experiment. The experiment itself is not a method of this analysis: Chapter 2
 specifies it, and it is run after the business analysis is approved.
 
 # Chapter 1. Analytical part
