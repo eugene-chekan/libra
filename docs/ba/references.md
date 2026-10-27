@@ -9,6 +9,8 @@ text never cites (it prints a warning for each one).
 @libraarch: Y. Chekan, "libra — Architecture," GitHub repository, 2026. [Online]. Available: https://github.com/eugene-chekan/libra/blob/main/docs/architecture.md [TODO: accessed date]
 @calibreweb: Calibre-Web contributors, "Calibre-Web," GitHub repository. [Online]. Available: https://github.com/janeczku/calibre-web [TODO: accessed date]
 @calibre: K. Goyal, "calibre — E-book management," 2026. [Online]. Available: https://calibre-ebook.com [TODO: accessed date]
+@calibrewhatsnew: K. Goyal, "calibre — What's new: release notes for versions 8.11 to 9.17," 2026. Accessed: Oct. 27, 2026. [Online]. Available: https://calibre-ebook.com/whats-new
+@calibrellm: K. Goyal, "src/calibre/gui2/dialogs/llm_book.py," calibre source code, GitHub, 2026. Accessed: Oct. 27, 2026. [Online]. Available: https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/dialogs/llm_book.py
 @kavita: Kavita contributors, "Kavita," 2026. [Online]. Available: https://www.kavitareader.com [TODO: accessed date]
 @kindlexray: Amazon, "Use X-Ray," Kindle E-Reader Help, 2026. [Online]. [TODO: URL of the X-Ray help page, and accessed date]
 @anythingllm: Mintplex Labs, "AnythingLLM," GitHub repository, 2026. [Online]. Available: https://github.com/Mintplex-Labs/anything-llm [TODO: accessed date]

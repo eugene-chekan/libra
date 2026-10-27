@@ -26,6 +26,15 @@ retrieves the passages that relate to the question, and a large language model
 the retrieval. When retrieval misses the passage, the LLM answers from what it
 remembers from training, and the reader cannot tell.
 
+This already happens in practice. Calibre, the standard open-source e-book
+manager, added AI features in 2025: a reader can discuss a book with an LLM,
+or ask about a selected piece of text [@calibrewhatsnew]. But the model
+receives only the book's title, authors and description, or the selected
+text — never the rest of the book. It is told to answer from what it knows
+about the book, and to say that the book is unknown if it does not know it
+[@calibrellm]. So it shows no source, and for a reader's less known books it
+has no answer at all.
+
 **The problem: it is not known which retrieval technique finds the right
 passages for the questions readers ask about books.** RAG tools use text
 embeddings by default, chosen by convention, not measured on books. Yet book
@@ -158,8 +167,9 @@ author's words is widest ([Section 1.2](#12-review-of-sources)).
    in one book at a time fails on questions about ideas. [TODO: one measured
    example, e.g. "5 questions about the test books: keyword search found the
    passage for N of them, in M minutes on average".]
-2. **A general chatbot answers from memory.** It cannot see the reader's
-   books, so its answer cannot be checked against the text.
+2. **AI tools answer from memory.** A general chatbot cannot see the
+   reader's books, and Calibre's AI sees only a book's metadata or the
+   selected text. Their answers cannot be checked against the text.
 3. **A Librarian built on an unmeasured retriever inherits its misses.** If
    the retriever misses the passage, the LLM writes an answer without it, and
    the reader cannot tell.
@@ -243,7 +253,8 @@ the reader's own books. The analogs therefore come from two groups:
 
 - **A. Personal e-book library managers** keep and show the reader's own,
   side-loaded books:
-  - **Calibre** [@calibre] — the standard desktop e-book manager;
+  - **Calibre** [@calibre] — the standard desktop e-book manager; since 2025
+    it has optional AI features [@calibrewhatsnew];
   - **Calibre-Web** [@calibreweb] — a self-hosted web interface over a Calibre
     library; the analog named in the topic application;
   - **Kavita** [@kavita] — a self-hosted reading server.
@@ -265,21 +276,24 @@ screenshots, and correct every cell marked "?".]
 | Criterion | Calibre (A) | Calibre-Web (A) | Kavita (A) | AnythingLLM (B) | NotebookLM (B) | Libra Librarian |
 |---|---|---|---|---|---|---|
 | Keeps and manages the reader's own EPUB files | Yes | Yes | Yes | No | No | Yes |
-| Accepts EPUB files as a source for questions | — | — | — | ? | ? | Yes |
-| Answers questions about the content of books | No | No | No | Yes | Yes, only from the uploaded sources | Passages now; answers after the diploma |
-| Works across the whole library | Keyword search | ? | ? | Yes, one workspace | One notebook, limited number of sources (?) | Yes |
-| Retrieval by meaning, not only by keywords | No | No | No | Yes (embeddings) | Yes (method not published) | Yes (embeddings + descriptors) |
-| Shows the source passages | Keyword hits | ? | ? | As citations | As citations | Yes, with book and chapter |
+| Accepts EPUB files as a source for questions | No: the AI gets only metadata or the selected text | — | — | ? | ? | Yes |
+| Answers questions about the content of books | Yes, from the LLM's memory of the book, or about selected text | No | No | Yes | Yes, only from the uploaded sources | Passages now; answers after the diploma |
+| Works across the whole library | Keyword search; the AI discusses only selected books, by metadata | ? | ? | Yes, one workspace | One notebook, limited number of sources (?) | Yes |
+| Retrieval by meaning, not only by keywords | No: the AI does no retrieval | No | No | Yes (embeddings) | Yes (method not published) | Yes (embeddings + descriptors) |
+| Shows the source passages | Keyword hits; AI answers show none | ? | ? | As citations | As citations | Yes, with book and chapter |
 | Retrieval technique measured on books | No | No | No | No | Not published | Planned (the experiment) |
-| Self-hosted; books and questions stay at home | Yes | Yes | Yes | Yes | No | Yes (LLM optional) |
+| Self-hosted; books and questions stay at home | Yes; local LLMs possible | Yes | Yes | Yes | No | Yes (LLM optional) |
 
 [[FIGURE: analog-screens.png | Screenshots of the analogs answering the test questions]]
 
-**What is missing.** Group A manages the reader's books but cannot answer a
-question about them; at best it searches by keywords. Group B answers
+**What is missing.** Group A manages the reader's books. Calibre-Web and
+Kavita cannot answer a question about them; at best they search by keywords.
+Calibre now answers, but its model never sees the text of the book: it
+answers from memory, shows no source, and cannot find a passage the reader
+does not already have open. Group B answers
 questions, but it is not a library: the books must be uploaded again into a
 separate tool, and NotebookLM keeps them and the questions in Google's cloud.
-Neither group publishes a retrieval technique measured on books — and when
+Neither group uses a retrieval technique measured on books — and when
 retrieval misses, an LLM may answer from memory, and the reader cannot tell.
 No product offers **an assistant inside the reader's own library whose
 retrieval was chosen by measurement on books**, for factual and interpretive
@@ -311,9 +325,10 @@ the Librarian panel today — on a CPU-only home server.
 Librarian is an AI assistant that answers questions about their books from the
 books' own text. This diploma builds its foundation: a retrieval layer whose
 technique will be chosen by an experiment on books, and which shows the
-passages it finds in the Librarian panel. Unlike assistants with a default
-retriever, such as AnythingLLM, the Librarian will answer from passages found
-by a technique measured on books.
+passages it finds in the Librarian panel. Unlike Calibre's AI, which answers
+from the model's memory of a book, or assistants with a default retriever,
+such as AnythingLLM, the Librarian will answer from passages found by a
+technique measured on books.
 
 **Business goals.**
 
