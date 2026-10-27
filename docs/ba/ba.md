@@ -82,7 +82,8 @@ files [@standardebooks] and Libra's design documents; analysis of Libra's code
 and API; benchmarking of analogs ([Section 1.3](#13-analysis-of-analogs)); a
 literature review ([Section 1.2](#12-review-of-sources)); consultations with
 the supervisor, who set the scope of the experiment on 8 and 13 September
-2026; and a controlled experiment with a protocol fixed before the final run.
+2026. The experiment itself is not a method of this analysis: Chapter 2
+specifies it, and it is run after the business analysis is approved.
 
 # Chapter 1. Analytical part
 
@@ -167,7 +168,7 @@ author's words is widest ([Section 1.2](#12-review-of-sources)).
 ### TO-BE process (short)
 
 The reader asks the Librarian in their own words. The retrieval module ranks
-every passage of every book with the configuration that the experiment chose,
+every passage of every book with the configuration that the experiment will choose,
 and returns the best passages. **In the diploma**, the Librarian panel shows
 these passages, with book and chapter, so retrieval can be seen and checked on
 its own. **After the diploma**, an LLM writes the answer from the same
@@ -216,9 +217,9 @@ Wikipedia collections, not on books, and BEIR shows that results on one kind
 of text do not carry over to another [@thakur2021]. No source tests descriptors
 on fiction, where the gap between a reader's words and the author's is widest.
 An LLM may also know famous books from training and describe a passage from
-memory. *Conclusion:* the experiment uses less famous books, keeps the title
-out of the prompt (US-2.2), and reports results separately for fiction and
-non-fiction, and for the two kinds of question the Librarian will get:
+memory. *Conclusion:* the experiment will use less famous books, keep the
+title out of the prompt (US-2.2), and report results separately for fiction
+and non-fiction, and for the two kinds of question the Librarian will get:
 *factual* ("who is this man?") and *interpretive* ("which chapter has a
 similar idea?").
 
@@ -226,7 +227,7 @@ similar idea?").
 measures when each question has one known correct passage [@thakur2021]. For
 two systems run on the same questions, Smucker et al. recommend paired
 randomisation tests and bootstrap intervals over the t-test or sign test
-[@smucker2007]. *Conclusion:* the experiment reports Recall@5, Recall@10 and
+[@smucker2007]. *Conclusion:* the experiment will report Recall@5, Recall@10 and
 MRR@10 with paired bootstrap intervals, randomisation tests and the Holm
 correction (Epic E5).
 
@@ -270,7 +271,7 @@ screenshots, and correct every cell marked "?".]
 | Works across the whole library | Keyword search | ? | ? | Yes, one workspace | One notebook, limited number of sources (?) | Yes |
 | Retrieval by meaning, not only by keywords | No | No | No | Yes (embeddings) | Yes (method not published) | Yes (embeddings + descriptors) |
 | Shows the source passages | Keyword hits | ? | ? | As citations | As citations | Yes, with book and chapter |
-| Retrieval technique measured on books | No | No | No | No | Not published | Yes (experiment) |
+| Retrieval technique measured on books | No | No | No | No | Not published | Planned (the experiment) |
 | Self-hosted; books and questions stay at home | Yes | Yes | Yes | Yes | No | Yes (LLM optional) |
 
 [[FIGURE: analog-screens.png | Screenshots of the analogs answering the test questions]]
@@ -298,7 +299,7 @@ built on it after the diploma.
 
 **What the new solution must be able to do:** index the full text of every
 book in the library; take a question in the reader's own words; rank every
-passage with the technique that the experiment shows to be best, for factual
+passage with the technique that the experiment will show to be best, for factual
 and interpretive questions; return the passages, with book and chapter,
 through one call that the Librarian's future tools can use; and show them in
 the Librarian panel today — on a CPU-only home server.
@@ -310,10 +311,10 @@ the Librarian panel today — on a CPU-only home server.
 **Vision statement.** For readers who keep their own e-book library, the Libra
 Librarian is an AI assistant that answers questions about their books from the
 books' own text. This diploma builds its foundation: a retrieval layer whose
-technique is chosen by experiment on books, and which already shows the
-passages it finds. Unlike assistants with a default retriever, such as
-AnythingLLM, the Librarian will answer from passages that were measured to be
-the right ones.
+technique will be chosen by an experiment on books, and which shows the
+passages it finds in the Librarian panel. Unlike assistants with a default
+retriever, such as AnythingLLM, the Librarian will answer from passages found
+by a technique measured on books.
 
 **Business goals.**
 
