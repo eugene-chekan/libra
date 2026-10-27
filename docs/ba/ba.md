@@ -405,7 +405,7 @@ choice.
 
 | Type | Statement |
 |---|---|
-| Constraint (deadline) | The experiment is finished for the practice defense on 9–14 Nov 2026; the panel works for the pre-defense on 6–9 Jan 2027 |
+| Constraint (deadline) | The experiment's results are ready for its expert assessment, which must happen before the pre-defense; the panel works for the pre-defense on 6–9 Jan 2027 |
 | Constraint (resources) | One developer; a CPU-only server; an LLM budget of about 10–20 USD |
 | Constraint (platform) | The module lives inside Libra: one FastAPI server, one SQLite database, one Docker image |
 | Assumption (data) | Standard Ebooks files are CC0 and stay available; the exact 42 files are kept on a GitHub release with their `sha256` |
@@ -638,7 +638,7 @@ quality requirements follow the ISO/IEC 25010 model [@iso25010].
 | ID | Risk | Probability | Impact | Mitigation | Dependency |
 |---|---|---|---|---|---|
 | R1 | Descriptors do not beat the baselines | M | M | A negative result is valid; every hypothesis is answered with an interval; the panel uses the best method found | Experiment results |
-| R2 | The schedule slips: no spare week before the practice defense | H | H | A fixed order of work that moves to the thesis period; nothing promised in the topic application moves | University deadlines |
+| R2 | The schedule slips: the experiment, the panel and the thesis text all fall between the BA defense and the pre-defense | H | H | A fixed order of optional analyses to drop first if time runs short; nothing promised in the topic application is dropped | University deadlines |
 | R3 | The LLM provider changes the model, the price or the JSON output | M | M | A pilot checks both before the full run; every response is saved; the protocol records the model version | DeepSeek API |
 | R4 | The LLM knows famous books and describes the answer from memory | M | H | Less famous books; no title or author in the prompt; named in the report | Book choice |
 | R5 | One correct chunk per question under-counts correct results | H | M | A 50-question sample where every relevant chunk is judged by hand | Test questions |
