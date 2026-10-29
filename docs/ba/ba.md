@@ -626,10 +626,7 @@ say that questions are sent to an external service. Book text sent for
 descriptors is public domain, and no personal data is sent with it.
 
 **Consent of participants.** No interviews or surveys with other people were
-conducted; the test questions were written or reviewed by the author. [TODO:
-replace with the consent text if you run the survey: anonymous, agreement on
-the first screen, no names or e-mail addresses, answers used only for this
-thesis.]
+conducted; the test questions were written or reviewed by the author.
 
 **Licences.**
 
@@ -637,7 +634,7 @@ thesis.]
 |---|---|
 | Test books (Standard Ebooks) | CC0 [@standardebooks] |
 | Embedding model `bge-base-en-v1.5` | MIT |
-| `fastembed` library | Apache 2.0 [TODO: check] |
+| `fastembed` library | Apache 2.0 |
 | DeepSeek API | Provider's terms of service |
 | Libra, including the new module | MIT |
 
