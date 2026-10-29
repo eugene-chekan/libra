@@ -18,49 +18,33 @@ file: BA_Chekan_Yauheni.docx
 **Libra** is a self-hosted e-book library that the author built before the
 diploma. Its planned main feature is the **Librarian**, an AI assistant that a
 reader asks about their own library: "Who is this man the author describes?",
-"Which of my books has an idea similar to this chapter?", "What else do I own
-in this style?".
+"Which of my books has a similar idea?", "What else do I own in this style?".
 
-Such assistants use *retrieval-augmented generation* (RAG): the system first
+Such assistants use *retrieval-augmented generation* (RAG): the system
 retrieves the passages that relate to the question, and a large language model
-(LLM) writes the answer from them [@lewis2020]. The answer is only as good as
-the retrieval. When retrieval misses the passage, the LLM answers from what it
-remembers from training, and the reader cannot tell.
-
-This already happens in practice. Calibre, the standard open-source e-book
-manager, added AI features in 2025: a reader can discuss a book with an LLM,
-or ask about a selected piece of text [@calibrewhatsnew]. But the model
-receives only the book's title, authors and description, or the selected
-text — never the rest of the book. It is told to answer from what it knows
-about the book, and to say that the book is unknown if it does not know it
-[@calibrellm]. So it shows no source, and for a reader's less known books it
-has no answer at all.
+(LLM) writes the answer from them [@lewis2020]. When retrieval misses, the LLM
+answers from what it remembers from training, and the reader cannot tell. This
+already happens: Calibre's AI features, added in 2025, give the model only a
+book's metadata or a selected text [@calibrewhatsnew; @calibrellm].
 
 **The problem: it is not known which retrieval technique finds the right
 passages for the questions readers ask about books.** RAG tools use text
-embeddings by default, chosen by convention, not measured on books. Yet book
-questions are hard: the reader's words differ from the author's. Two people
-choose the same word for the same thing less than 20% of the time — the
-*vocabulary problem* [@furnas1987] — and fiction shows ideas without naming
-them. A new technique targets this gap: an LLM writes short *semantic
-descriptors* for every passage, such as "moral choice under pressure", and
-search compares descriptors [@willison2026]. It has not been measured on
-books.
+embeddings by default, not measured on books. Yet two people choose the same
+word for the same thing less than 20% of the time [@furnas1987], and fiction
+shows ideas without naming them. A new technique, LLM-written *semantic
+descriptors* such as "moral choice under pressure" [@willison2026], targets
+this gap, but has not been measured on books.
 
-The problem matters now because the Librarian is Libra's next stage, and its
-retrieval layer must be chosen first. The techniques are also practical on a
-home server: embeddings run on a CPU, and describing the 9,476 passages of
-this project's 40 books costs about 8–12 USD. The diploma builds the
-retrieval part of the Librarian, compares six configurations in a controlled
-experiment, and shows the best one's passages in the Librarian panel. Answers
-written from the passages come after the diploma.
+**Who has the problem:** Libra's readers, and the project, which must choose
+its retrieval before building the Librarian on it. **Why now:** the
+Librarian is Libra's next stage, embeddings run on an ordinary CPU, and
+describing the 9,476 passages of 40 books costs about 8–12 USD.
 
 ## Goal and objectives
 
 **Goal:** to choose, by a controlled experiment, the retrieval technique for
-the RAG pipeline of Libra's Librarian — building a passage retrieval system
-with LLM-generated semantic descriptors and comparing it with keyword,
-embedding and hybrid retrieval.
+the RAG pipeline of Libra's Librarian, comparing LLM-generated semantic
+descriptors with keyword, embedding and hybrid retrieval.
 
 **Objectives:**
 
@@ -81,18 +65,16 @@ embedding and hybrid retrieval.
 **Object:** the Librarian feature of Libra — answering a reader's questions
 about their own library with retrieval-augmented generation.
 
-**Subject:** the retrieval step of that feature: finding the passages of the
-library's books that answer a question, with LLM-generated semantic
-descriptors and the methods they are compared with.
+**Subject:** the retrieval step of that feature: finding the passages that
+answer a question, with LLM-generated semantic descriptors.
 
 ## Methods
 
-Document analysis of the EPUB 3.3 specification [@epub33], Standard Ebooks
-files [@standardebooks] and Libra's design documents; analysis of Libra's code
-and API; benchmarking of analogs ([Section 1.3](#13-analysis-of-analogs)); a
-literature review ([Section 1.2](#12-review-of-sources)); consultations with
-the supervisor, who set the scope of the experiment. The experiment itself is not a method of this analysis: Chapter 2
-specifies it, and it is run after the business analysis is approved.
+Document analysis (the EPUB 3.3 specification [@epub33], Standard Ebooks
+files [@standardebooks], Libra's design documents), analysis of Libra's code,
+benchmarking of analogs (Section 1.3), a literature review (Section 1.2), and
+consultations with the supervisor. The experiment itself is specified in
+Chapter 2 and runs after this analysis.
 
 # Chapter 1. Analytical part
 
@@ -100,36 +82,23 @@ specifies it, and it is run after the business analysis is approved.
 
 ### The existing system
 
-Libra is a self-hosted web application for a household's e-book library,
-built by the author before the diploma (versions 0.1.0 and 0.2.0). One server
-holds the books and a SQLite database; every household member opens it in a
-browser. It already provides EPUB upload with metadata extraction, a shared
-catalogue with personal shelves, tags, ratings and notes, an in-browser
-reader for a computer, a tablet and a phone, sending books to a Kindle, and
-accounts with an administrator role.
+Libra (versions 0.1.0 and 0.2.0) is a self-hosted web application for a
+household's e-book library, with EPUB upload, shelves, tags and notes, an
+in-browser reader, Kindle delivery and accounts. **These functions are not
+part of the diploma's new work.** They are the platform the retrieval module
+plugs into, and they set its limits: one server, no GPU, one SQLite database,
+one Docker image for `amd64` and `arm64`.
 
-**These functions are not part of the diploma's new work.** They are the
-platform the retrieval module plugs into, and they set its constraints: one
-server, no GPU, one SQLite database, a Docker image for `amd64` and `arm64`.
-
-### The Librarian today
-
-The Librarian already has its screen: a chat panel beside the library, with
-one conversation per reader, saved on the server and streamed back word by
-word. Its replies are fixed text, because nothing behind the panel can read
-the books yet. Libra's search box matches only the title, the author and
-tags; no function in Libra reads the text of a book.
-
-The planned Librarian is an agent with a few tools [@libraarch]:
+The Librarian already has its chat panel, but its replies are fixed text:
+nothing in Libra reads the text of a book. The planned Librarian is an agent
+with three tools [@libraarch], and each depends on the step the diploma builds
+— given a question, find the right passages.
 
 | Tool | What it does | What it needs from retrieval |
 |---|---|---|
 | `search_library` | Finds books and passages for a question | Passages from the whole library |
 | `answer_about_book` | Answers a question about one book | Passages from that book |
 | `recommend_similar` | Suggests books like the current one | Passages or books similar in idea or style |
-
-Every tool depends on the same step: given a question, find the right
-passages. That step is what the diploma builds and measures.
 
 ### Who is involved
 
@@ -140,134 +109,106 @@ passages. That step is what the diploma builds and measures.
 | Household administrator | Runs the server; will have to index the books and pay for the LLM |
 | Author as developer of the Librarian | Must choose the retrieval technique before building the Librarian on it |
 
-### How a reader gets an answer today
+### How a question is answered today
 
-Without the Librarian, a reader with a question about a book has to:
+Without the Librarian, a reader guesses which book holds the answer, opens it
+in a reader app that searches one book by keyword (Libra's reader cannot),
+and guesses the author's words. If nothing is found, they try other words and
+other books, then give up or ask a general chatbot, which answers from memory
+(Figure 1). Builders of RAG tools, for their part, usually store text
+embeddings in a vector database by default — rarely measured on their kind of
+text, and almost never on fiction ([Section 1.2](#12-review-of-sources)).
 
-1. remember, or guess, which book holds the answer;
-2. open the book in a reader app that can search one book by keyword —
-   Libra's reader has no search inside the book;
-3. guess the words the author used and search for them;
-4. if nothing is found, try other words, then other books;
-5. give up, ask a general chatbot — which answers from memory, if it knows the
-   book at all — or search the web.
-
-[[FIGURE: as-is.png | AS-IS process: a reader looks for the answer to a question about a book (UML activity)]]
-
-### How retrieval is chosen today
-
-RAG tools and tutorials usually split documents into chunks, store text
-embeddings in a vector database, and retrieve by vector similarity. The
-choice is a default. It is rarely measured on the user's kind of text, and
-almost never on fiction, where the gap between the question's words and the
-author's words is widest ([Section 1.2](#12-review-of-sources)).
+[[FIGURE: as-is.png | AS-IS process: a reader looks for the answer to a question about a book (UML activity) | 9]]
 
 ### Where time and quality are lost
 
 1. **The reader must know the author's words and the book.** Keyword search
-   in one book at a time fails on questions about ideas, because the reader's
-   words differ from the author's [@furnas1987].
-2. **AI tools answer from memory.** A general chatbot cannot see the
-   reader's books, and Calibre's AI sees only a book's metadata or the
-   selected text. Their answers cannot be checked against the text.
-3. **A Librarian built on an unmeasured retriever inherits its misses.** If
-   the retriever misses the passage, the LLM writes an answer without it, and
-   the reader cannot tell.
+   in one book at a time fails on questions about ideas [@furnas1987].
+2. **AI tools answer from memory.** A general chatbot cannot see the reader's
+   books, and Calibre's AI sees only metadata or the selected text, so their
+   answers cannot be checked against the text.
+3. **A Librarian built on an unmeasured retriever inherits its misses.** When
+   the retriever misses, the LLM answers without the passage, and the reader
+   cannot tell.
 
 ### TO-BE process (short)
 
 The reader asks the Librarian in their own words. The retrieval module ranks
-every passage of every book with the configuration that the experiment will choose,
-and returns the best passages. **In the diploma**, the Librarian panel shows
-these passages, with book and chapter, so retrieval can be seen and checked on
-its own. **After the diploma**, an LLM writes the answer from the same
-passages, and the agent uses the same retrieval in each of its tools.
+every passage of every book with the configuration that the experiment will
+choose. **In the diploma**, the panel shows these passages, with book and
+chapter, so retrieval can be checked on its own. **After the diploma**, an LLM
+writes the answer from the same passages, and every agent tool uses the same
+retrieval.
 
 ## 1.2 Review of sources
 
-The review covers four areas: keyword retrieval, dense retrieval, LLM-based
-expansion of documents and queries, and the evaluation of retrieval.
+The review covers keyword retrieval, dense retrieval, LLM-based expansion,
+and the evaluation of retrieval.
 
 **Keyword retrieval.** BM25 ranks documents by how often the query words
-appear in them, weighted by how rare each word is and normalised by document
-length [@robertson2009]. It needs no training and remains a strong baseline:
-on the BEIR benchmark it beats many neural models on data unlike their
-training data [@thakur2021]. Its weakness is the vocabulary problem: it gives
-nothing to a passage that says the same thing in other words [@furnas1987].
-*Conclusion:* BM25 is a baseline that every new method must beat.
+appear in them, weighted by how rare each word is [@robertson2009]. It needs
+no training, and on the BEIR benchmark it beats many neural models on
+unfamiliar data [@thakur2021], but a passage that says the same thing in other
+words gets nothing [@furnas1987]. *Conclusion:* BM25 is a baseline that every
+new method must beat.
 
 **Dense retrieval.** Dense retrievers encode the question and each passage as
-vectors and rank passages by vector similarity. Karpukhin et al. showed that
-such a retriever beats BM25 on open-domain question answering
-[@karpukhin2020]. Retrieval-augmented generation puts an LLM on top of such a
-retriever: the LLM answers from the retrieved passages, so a passage the
-retriever misses cannot be used at all [@lewis2020]. Small general-purpose
-embedding models, such as the BGE family [@xiao2023], now run on a CPU.
-*Conclusion:* text embeddings are the second baseline, the model must run
-locally on a CPU (NFR-03, NFR-07), and retrieval is measured on its own,
-before any answer is generated.
+vectors and rank by similarity; Karpukhin et al. showed that this beats BM25
+on open-domain question answering [@karpukhin2020]. RAG puts an LLM on top of
+such a retriever, so a passage the retriever misses cannot be used at all
+[@lewis2020]. Small embedding models, such as the BGE family [@xiao2023], now
+run on a CPU. *Conclusion:* embeddings are the second baseline, the model runs
+locally on a CPU (NFR-01), and retrieval is measured on its own, before any
+answer is generated.
 
-**LLM-based expansion.** Two lines of work add generated text to bridge the
-vocabulary gap. Doc2query generates likely questions for each document before
-indexing [@nogueira2019]. HyDE asks an LLM for a hypothetical answer and
-searches with its embedding [@gao2023]. Semantic descriptors combine both
-ideas: an LLM describes each passage and each question with short phrases,
-and search compares the phrases [@willison2026]. Matching a set of query
-phrases against a set of passage phrases is the late-interaction idea of
-ColBERT, which scores each query token by its best match in the document
-[@khattab2020]. Rankings from several methods are commonly merged with
-Reciprocal Rank Fusion (RRF), which needs no tuning [@cormack2009].
-*Conclusion:* descriptors are tested alone and merged with embeddings by RRF.
-Because merging almost any two rankings helps, the descriptor hybrid must also
-beat the usual BM25 + embeddings hybrid (KPI-1).
+**LLM-based expansion.** Doc2query generates likely questions for each
+document before indexing [@nogueira2019]; HyDE asks an LLM for a hypothetical
+answer and searches with its embedding [@gao2023]. Semantic descriptors combine
+both ideas: an LLM describes each passage and each question with short
+phrases, and search compares the phrases [@willison2026]. Matching a set of
+query phrases against a set of passage phrases follows the late-interaction
+idea of ColBERT [@khattab2020], and rankings are merged with Reciprocal Rank
+Fusion (RRF), which needs no tuning [@cormack2009]. *Conclusion:* descriptors
+are tested alone and merged with embeddings; because merging almost any two
+rankings helps, the descriptor hybrid must also beat the usual BM25 +
+embeddings hybrid (KPI-1).
 
 **Where the sources stop.** Doc2query and HyDE were tested on web and
-Wikipedia collections, not on books, and BEIR shows that results on one kind
-of text do not carry over to another [@thakur2021]. No source tests descriptors
-on fiction, where the gap between a reader's words and the author's is widest.
-An LLM may also know famous books from training and describe a passage from
-memory. *Conclusion:* the experiment will use less famous books, keep the
-title out of the prompt (US-2.2), and report results separately for fiction
-and non-fiction, and for the two kinds of question the Librarian will get:
-*factual* ("who is this man?") and *interpretive* ("which chapter has a
-similar idea?").
+Wikipedia text, not books, and results on one kind of text do not carry over
+to another [@thakur2021]. No source tests descriptors on fiction. *Conclusion:*
+the experiment will use less famous books, keep the title out of the prompt
+(US-2.2), and report results by genre and by question kind: *factual* ("who
+is this man?") and *interpretive* ("which chapter has a similar idea?").
 
 **Evaluation.** Recall@k and mean reciprocal rank (MRR) are the standard
 measures when each question has one known correct passage [@thakur2021]. For
-two systems run on the same questions, Smucker et al. recommend paired
-randomisation tests and bootstrap intervals over the t-test or sign test
-[@smucker2007]. *Conclusion:* the experiment will report Recall@5, Recall@10 and
-MRR@10 with paired bootstrap intervals, randomisation tests and the Holm
-correction (Epic E5).
+two systems on the same questions, Smucker et al. recommend paired
+randomisation tests and bootstrap intervals [@smucker2007]. *Conclusion:* the
+experiment will report Recall@5, Recall@10 and MRR@10 with paired bootstrap
+intervals, randomisation tests and the Holm correction (Epic E5).
 
-**Requirements practice.** Chapter 2 follows the BABOK Guide for stakeholder
-analysis and traceability [@babok], user stories in Cohn's form [@cohn2004],
-and the ISO/IEC 25010 quality model for the non-functional requirements
-[@iso25010]. Personal data and accessibility follow the GDPR [@gdpr] and
-WCAG 2.1 [@wcag21].
+Chapter 2 follows the BABOK Guide for stakeholder analysis and traceability
+[@babok] and writes user stories in Cohn's form [@cohn2004].
 
 ## 1.3 Analysis of analogs
 
 No existing product is both a personal e-book library and an AI assistant over
-the reader's own books. The analogs therefore come from two groups:
+the reader's own books, so the analogs come from two groups:
 
-- **A. Personal e-book library managers** keep and show the reader's own,
-  side-loaded books:
-  - **Calibre** [@calibre] — the standard desktop e-book manager; since 2025
-    it has optional AI features [@calibrewhatsnew];
-  - **Calibre-Web** [@calibreweb] — a self-hosted web interface over a Calibre
-    library; the analog named in the topic application;
-  - **Kavita** [@kavita] — a self-hosted reading server.
-- **B. AI assistants over the user's own documents** answer questions with
-  RAG:
-  - **AnythingLLM** [@anythingllm] — open source and self-hosted;
-  - **NotebookLM** [@notebooklm] — a commercial Google service that answers
-    only from the documents the user uploads, with citations.
+- **A. Personal e-book library managers:** **Calibre** [@calibre], the
+  standard desktop manager, with optional AI features since 2025
+  [@calibrewhatsnew]; **Calibre-Web** [@calibreweb], a self-hosted web
+  interface over a Calibre library, named in the topic application; and
+  **Kavita** [@kavita], a self-hosted reading server.
+- **B. AI assistants over the user's own documents:** **AnythingLLM**
+  [@anythingllm], open source and self-hosted; and **NotebookLM**
+  [@notebooklm], a commercial Google service that answers only from uploaded
+  documents, with citations.
 
 Store-centred products, such as Google Play Books and Kindle features like
-X-Ray [@kindlexray], were left out. They are built around books bought in the
-store, not around a library of the reader's own files, which is what Libra
-holds.
+X-Ray [@kindlexray], were left out: they are built around books bought in the
+store, not around a library of the reader's own files.
 
 [[TABLE: Comparison of analogs]]
 
@@ -276,25 +217,20 @@ holds.
 | Keeps and manages the reader's own EPUB files | Yes | Yes | Yes | No | No | Yes |
 | Accepts EPUB files as a source for questions | No: the AI gets only metadata or the selected text | — | — | Yes [@anythingllmtypes] | Yes | Yes |
 | Answers questions about the content of books | Yes, from the LLM's memory of the book, or about selected text | No | No | Yes | Yes, only from the uploaded sources | Passages now; answers after the diploma |
-| Works across the whole library | Keyword search; the AI discusses only selected books, by metadata | Yes, metadata search only | Yes, metadata, bookmarks and the reader's own highlights only [@kavitasearch] | Yes, one workspace | One notebook, limited number of sources  | Yes |
+| Works across the whole library | Keyword search; the AI discusses only selected books, by metadata | Yes, metadata search only | Yes, metadata, bookmarks and the reader's own highlights only [@kavitasearch] | Yes, one workspace | One notebook, limited number of sources | Yes |
 | Retrieval by meaning, not only by keywords | No: the AI does no retrieval | No | No | Yes (embeddings) | Yes (method not published) | Yes (embeddings + descriptors) |
 | Shows the source passages | Keyword hits; AI answers show none | No | No: only passages the reader highlighted | As citations | As citations | Yes, with book and chapter |
 | Retrieval technique measured on books | No | No | No | No | Not published | Planned (the experiment) |
 | Self-hosted; books and questions stay at home | Yes; local LLMs possible | Yes | Yes | Yes | No | Yes (LLM optional) |
 
-**What is missing.** Group A manages the reader's books. Calibre-Web and
-Kavita cannot answer a question about them; at best they search by keywords.
-Calibre now answers, but its model never sees the text of the book: it
-answers from memory, shows no source, and cannot find a passage the reader
-does not already have open. Group B answers
-questions, but it is not a library: the books must be uploaded again into a
-separate tool, and NotebookLM keeps them and the questions in Google's cloud.
-Neither group uses a retrieval technique measured on books — and when
-retrieval misses, an LLM may answer from memory, and the reader cannot tell.
-No product offers **an assistant inside the reader's own library whose
-retrieval was chosen by measurement on books**, for factual and interpretive
-questions. The diploma builds and measures that retrieval; the assistant is
-built on it after the diploma.
+**What is missing.** Group A manages the reader's books, but Calibre-Web and
+Kavita cannot answer questions, and Calibre's AI never sees the text: it
+answers from memory and shows no source. Group B answers, but it is not a
+library — the books must be uploaded again into a separate tool, and
+NotebookLM keeps them in Google's cloud. Neither group uses a retrieval
+technique measured on books. No product offers **an assistant inside the
+reader's own library whose retrieval was chosen by measurement on books**; the
+diploma builds and measures that retrieval.
 
 ## 1.4 Chapter conclusions
 
@@ -306,41 +242,34 @@ built on it after the diploma.
 | P4 | An answer whose passages are not shown cannot be checked by the reader | E4 Librarian panel | — |
 | P5 | Retrieval must run on a home server without a GPU, at a low LLM cost | E1, E2 | KPI-2, KPI-3 |
 
-**What the new solution must be able to do:** index the full text of every
-book in the library; take a question in the reader's own words; rank every
-passage with the technique that the experiment will show to be best, for factual
-and interpretive questions; return the passages, with book and chapter,
-through one call that the Librarian's future tools can use; and show them in
-the Librarian panel today — on a CPU-only home server.
+**What the new solution must be able to do:** rank every passage of the
+library for a question in the reader's own words, with the technique the
+experiment shows to be best; return the passages through one call for the
+Librarian's tools; and show them in the panel — on a CPU-only home server.
 
 # Chapter 2. System requirements
 
 ## 2.1 Vision and goals
 
 **Vision statement.** For readers who keep their own e-book library, the Libra
-Librarian is an AI assistant that answers questions about their books from the
-books' own text. This diploma builds its foundation: a retrieval layer whose
-technique will be chosen by an experiment on books, and which shows the
-passages it finds in the Librarian panel. Unlike Calibre's AI, which answers
-from the model's memory of a book, or assistants with a default retriever,
-such as AnythingLLM, the Librarian will answer from passages found by a
-technique measured on books.
+Librarian answers questions about their books from the books' own text. Unlike
+Calibre's AI, which answers from the model's memory, or assistants with a
+default retriever, it finds its passages with a technique measured on books.
 
 **Business goals.**
 
 - **G1.** Choose the Librarian's retrieval technique by a reproducible
-  experiment on books, by genre and by question kind — including whether
-  LLM-generated descriptors help.
+  experiment on books, by genre and by question kind.
 - **G2.** Give the future Librarian one retrieval call that all its tools can
   use.
-- **G3.** Make retrieval visible to readers now: the Librarian panel shows the
-  passages, within Libra's limits (one server, no GPU, low cost).
+- **G3.** Make retrieval visible to readers now, within Libra's limits: one
+  server, no GPU, low cost.
 
 [[TABLE: Key performance indicators]]
 
 | KPI | Measure | Baseline | Target | How it is measured |
 |---|---|---|---|---|
-| KPI-1 | Recall@10 of the panel's method on the test questions | Recall@10 of BM25 + embeddings, the usual hybrid, measured on the same questions in the same run | Higher than the baseline: the 95% paired bootstrap interval of the difference lies above 0 | `rag evaluate` and `rag report` on the frozen protocol |
+| KPI-1 | Recall@10 of the panel's method on the test questions | Recall@10 of BM25 + embeddings, measured on the same questions in the same run | Higher than the baseline: the 95% paired bootstrap interval of the difference lies above 0 | `rag evaluate` and `rag report` on the frozen protocol |
 | KPI-2 | Retrieval response time, 95th percentile | None: Libra cannot read book text | ≤ 2 s on the 40-book library | Timer around `rag.search`, 100 questions |
 | KPI-3 | LLM cost to index the 40-book library | — (new function) | ≤ 15 USD | Token usage saved with every LLM response |
 
@@ -360,54 +289,37 @@ technique measured on books.
 | DeepSeek (LLM provider) | API usage under its terms | L |
 | Standard Ebooks (book source) | Correct use of its CC0 books | L |
 
-[[FIGURE: stakeholder-matrix.png | Influence/interest matrix]]
+The influence/interest matrix is in Appendix B. **System users (actors):**
+Reader, Household administrator, Researcher, and — after the diploma — the
+Librarian agent. External systems: the DeepSeek API, and the embedding model,
+which runs inside the server.
 
-**System users (actors):** Reader, Household administrator, Researcher, and
-— after the diploma — the Librarian agent, which calls retrieval from its
-tools. External systems: the DeepSeek API and the embedding model, which runs
-inside the server.
-
-**Persona 1 — Mark, the reader who forgets the details.** Mark is 52 and
-reads long novels over weeks, along with history and philosophy. Halfway
-through a book he meets a name and asks himself "who is this man again?". He
-often remembers an idea but not the book, and wonders which other books he
-owns say something similar. He wants to ask in his own words and see the
+**Persona 1 — Mark, 52, a reader.** He reads long novels over weeks, forgets
+who a character is, and remembers ideas but not their book. He wants the
 book's own text as proof, not a summary that may be made up.
 
-**Persona 2 — Anna, the household administrator.** Anna is 38, works in IT
-and runs Libra on a small home server with about 600 books. She will turn the
-new search on only if indexing runs on the CPU she has, costs a few dollars,
-and does not send her family's questions to an outside company without her
-choice.
+**Persona 2 — Anna, 38, the household administrator.** She runs Libra on a
+home server with 600 books, and will turn the search on only if it runs on her
+CPU, costs a few dollars, and keeps her family's questions at home by default.
 
 ## 2.3 Project scope
 
 **In scope (new in the diploma):**
 
-- Chunking the text of each EPUB into passages of about 250–300 words.
-- An index of the chunks: BM25 (SQLite FTS5), text vectors from a local
-  embedding model, and LLM-written descriptors with their vectors.
-- Six search configurations: BM25, embeddings, descriptors, and three RRF
-  hybrids.
-- The retrieval experiment: 40 public-domain books, hand-written and
-  LLM-drafted test questions with review, metrics, statistics and a report.
-- One retrieval call, `search(question, method, k)`, that returns passages
-  with book and chapter, for the panel now and the Librarian's tools later.
-- The Librarian panel shows the top three passages of the best configuration,
-  each opening the book at its chapter.
-- Search in the Docker image (`amd64` and `arm64`), including the embedding
-  model.
+- Chunking each EPUB into passages of 250–300 words, indexed by BM25, text
+  vectors and LLM-written descriptors.
+- Six search configurations (BM25, embeddings, descriptors, three RRF hybrids)
+  behind one call, `search(question, method, k)`.
+- The retrieval experiment on 40 public-domain books, with a report.
+- The panel shows the top three passages of the best configuration, each
+  opening the book at its chapter; search also works in the Docker image.
 
 **Out of scope:**
 
-- Libra's existing functions — upload, catalogue, shelves, tags, notes, the
-  reader, Kindle delivery, accounts. They exist and are not changed, except
-  where the panel links to the reader.
-- The rest of the Librarian, planned after the diploma: answers written by
-  an LLM from the passages, the tool-calling agent, and recommendations of
-  books by style.
-- Other chunk sizes, other embedding models, a local LLM for descriptors.
-- Approximate vector indexes for very large libraries.
+- Libra's existing functions, except where the panel links to the reader.
+- The rest of the Librarian, after the diploma: LLM-written answers, the
+  tool-calling agent, and recommendations by style.
+- Other chunk sizes and models, a local LLM, approximate vector indexes.
 
 [[TABLE: Assumptions and constraints]]
 
@@ -417,23 +329,17 @@ choice.
 | Constraint (resources) | One developer; a CPU-only server; an LLM budget of about 10–20 USD |
 | Constraint (platform) | The module lives inside Libra: one FastAPI server, one SQLite database, one Docker image |
 | Assumption (data) | Standard Ebooks files are CC0 and stay available; the exact 42 files are kept on a GitHub release with their `sha256` |
-| Assumption (API) | The DeepSeek API stays available with JSON output at about the September 2026 price; every response is saved, so the evaluation never calls it again |
+| Assumption (API) | The DeepSeek API stays available at about the September 2026 price; every response is saved, so the evaluation never calls it again |
 
 ## 2.4 Solution concept
 
-The search module is a new part of Libra's server, in the `rag` package. It
-reads the chapters of each EPUB, splits them into chunks, and stores the
-chunks in the same SQLite database as the books. For each chunk it stores
-three things: an entry in a BM25 full-text index (SQLite FTS5), a text vector
-from the embedding model `bge-base-en-v1.5`, which runs on the CPU, and eight
-descriptors written once by an external LLM, with their vectors. A question
-gets its own vector and five descriptors, and each method ranks every chunk;
-RRF merges the rankings of a hybrid. The module exposes one call,
-`search(question, method, k)`. Libra's existing Librarian endpoint calls it
-and streams the top three passages to the panel; after the diploma, the
-Librarian's answer step and agent tools call the same function. The same code
-runs the experiment, so the numbers in the report describe the system in the
-demo.
+The retrieval module, the `rag` package of Libra's server, stores each book's
+chunks in the same SQLite database as the books, each with a BM25 entry
+(FTS5), a text vector from the local model `bge-base-en-v1.5`, and eight
+descriptors written once by an external LLM. Each method ranks every chunk,
+and RRF merges the rankings of a hybrid. One call, `search(question, method,
+k)`, serves the panel now and the agent's tools later; the experiment runs the
+same code, so its numbers describe the system in the demo.
 
 [[FIGURE: context.png | Context diagram]]
 
@@ -444,17 +350,15 @@ demo.
 | Deleting a book | Two stores; a failed second delete leaves passages of a deleted book | One transaction removes the book and its chunks |
 | BM25 | Needs a second library that rebuilds its index at every start | Built in (FTS5) |
 | Search accuracy | Approximate index can miss true neighbours | Exact search: every chunk is scored |
-| Dependencies and image size | Extra service and dependency tree | None beyond the embedding library |
-| Scale | Millions of vectors | About 1 million vectors (≈ 500 books) before a vector index is needed |
+| Dependencies | Extra service and dependency tree | None beyond the embedding library |
+| Scale | Millions of vectors | About 1 million vectors (≈ 500 books) |
 
-**Rationale.** Option B was chosen. For a household library it is simpler and
-safer, and exact search removes approximate-index misses as a second cause of
-differences between the methods. Its limit, about 500 books with descriptors,
-is recorded as a constraint for after the diploma.
+**Rationale.** B is simpler and safer for a household library, and exact
+search removes approximate-index misses as a second cause of differences
+between the methods. Its limit of about 500 books is recorded for after the
+diploma.
 
 ## 2.5 Functional requirements
-
-### Epics
 
 | ID | Epic | Goal | Priority |
 |---|---|---|---|
@@ -465,16 +369,7 @@ is recorded as a constraint for after the diploma.
 | E5 | Retrieval experiment | G1 | Must |
 
 The full backlog of 21 user stories, with acceptance criteria in
-Given/When/Then form, is in Appendix A. The key stories are below.
-
-### Key user stories
-
-**US-2.2 (Must).** As the researcher, I want descriptors written from the
-passage text only, so that the LLM describes the passage and not a book it
-remembers.
-
-- *Given* a chunk, *when* descriptors are requested, *then* the prompt holds
-  no title and no author, and exactly 8 descriptors of 2–6 words are saved.
+Given/When/Then form, is in Appendix A. The key stories:
 
 **US-3.3 (Should).** As a reader, I want search to work when the LLM is not
 available, so that I can still find passages.
@@ -484,8 +379,8 @@ available, so that I can still find passages.
   a simpler search was used.
 
 **US-3.4 (Must).** As the developer of the Librarian, I want one retrieval
-call with the method and the number of passages as arguments, so that every
-future tool of the agent uses the same, measured retrieval.
+call, so that every future tool of the agent uses the same, measured
+retrieval.
 
 - *Given* an indexed library, *when* `search(question, method, k)` is called
   with any of the six configurations, *then* it returns at most `k` passages,
@@ -494,11 +389,9 @@ future tool of the agent uses the same, measured retrieval.
 **US-4.1 (Must).** As a reader, I want to ask the Librarian a question in my
 own words, so that I see the passages of my books that answer it.
 
-- *Given* the library is indexed, *when* I send a question in the librarian
-  panel, *then* I see up to three passages, each with the book title, the
-  chapter title and an excerpt.
-- *Given* a search is running, *when* I wait, *then* the panel shows that it
-  is searching, and the passages appear within 2 seconds (NFR-01).
+- *Given* the library is indexed, *when* I send a question, *then* I see up to
+  three passages, each with the book title, the chapter title and an excerpt,
+  within 2 seconds (NFR-01).
 - *Given* no passage matches, *when* the search ends, *then* the panel says
   so, and shows no invented text.
 
@@ -508,25 +401,14 @@ that I can read it in context.
 - *Given* a passage in the results, *when* I select it, *then* Libra's reader
   opens that book at that chapter.
 
-**US-5.4 (Must).** As the researcher, I want one command to evaluate every
-configuration, so that the results can be repeated.
+The layouts below were made in the running application, with a mockup of the
+panel that shows real passages from the test books.
 
-- *Given* the frozen protocol and the saved descriptors, *when* I run
-  `rag evaluate`, *then* the rank of the source chunk is written for every
-  question and configuration, and a second run gives byte-identical files.
+[[FIGURES: mockup-passages.png | Layout for US-4.1: three passages for a question || mockup-fallback.png | Layout for US-3.3: the notice that a simpler search was used]]
 
-The layouts of the key stories below were made in the running application,
-with a mockup of the panel that shows real passages from the test books.
+[[FIGURE: mockup-reader.png | Layout for US-4.2: "Open in the reader" opens the book at the passage | 5.5]]
 
-[[FIGURE: mockup-passages.png | Layout for US-4.1: the Librarian panel shows three passages for a question]]
-
-[[FIGURE: mockup-nothing-found.png | Layout for US-4.1: the reply when no passage matches]]
-
-[[FIGURE: mockup-reader.png | Layout for US-4.2: "Open in the reader" opens the book at the passage]]
-
-[[FIGURE: mockup-fallback.png | Layout for US-3.3: the notice that a simpler search was used, and the passages it found]]
-
-### Traceability
+**Traceability.**
 
 | Goal | KPI | Epic | Stories |
 |---|---|---|---|
@@ -536,19 +418,18 @@ with a mockup of the panel that shows real passages from the test books.
 
 ## 2.6 Use case scenarios
 
-[[FIGURE: use-cases.png | Use case diagram]]
+The use case diagram and the system sequence diagram for UC-1 are in
+Appendix B.
 
 ### UC-1. Find a passage by question
 
-| Field | Content |
-|---|---|
-| Actor | Reader |
-| Precondition | The reader is logged in. The books are indexed, with descriptors. |
-| Postcondition | The question and the passages are saved in the reader's conversation. |
+**Actor:** reader. **Precondition:** the reader is logged in, and the books are
+indexed with descriptors. **Postcondition:** the question and the passages are
+saved in the reader's conversation.
 
 **Main flow:**
 
-1. The reader opens the librarian panel, types a question and sends it.
+1. The reader types a question in the Librarian panel and sends it.
 2. The system saves the question in the reader's conversation.
 3. The system asks the LLM for five descriptors of the question.
 4. The system ranks all chunks with the configured method and takes the top
@@ -558,39 +439,25 @@ with a mockup of the panel that shows real passages from the test books.
 6. The reader selects a passage, and the reader opens the book at that
    chapter.
 
-**Alternative flows:**
-
-- **3a. The LLM does not answer.** After 10 seconds the system ranks with
-  BM25 + embeddings, which need no LLM, and says so. Continue at step 5.
-- **4a. Nothing matches.** The system says that no passage was found and
-  suggests other words. The use case ends.
+**Alternative flows:** **3a.** The LLM does not answer within 10 seconds: the
+system ranks with BM25 + embeddings, which need no LLM, says so, and continues
+at step 5. **4a.** Nothing matches: the system says that no passage was found
+and suggests other words.
 
 ### UC-2. Index the library
 
-| Field | Content |
-|---|---|
-| Actor | Household administrator (or the researcher, for the test corpus) |
-| Precondition | The books are in Libra. The LLM API key is set in the server settings. |
-| Postcondition | Every chunk has a BM25 entry, a text vector and 8 descriptors. |
+**Actor:** the household administrator (or the researcher, for the test
+corpus). **Precondition:** the books are in Libra, and the LLM API key is set.
+**Postcondition:** every chunk has a BM25 entry, a text vector and 8
+descriptors.
 
-**Main flow:**
-
-1. The administrator runs `rag index`.
-2. The system splits each book into chunks and stores them with their BM25
-   entries and text vectors, one book per transaction.
-3. The administrator runs `rag describe`.
-4. The system asks the LLM for 8 descriptors per chunk, up to 8 requests at a
-   time, and appends each response to the descriptor log before the next.
-5. The system reports the number of chunks, the failures and the cost.
-
-**Alternative flows:**
-
-- **4a. The key is wrong or the balance is empty.** The system stops at once
-  and names the problem; nothing is retried.
-- **4b. The run stops halfway.** The next run skips the chunks that already
-  have descriptors, so nothing is paid twice.
-
-[[FIGURE: sequence-uc1.png | System sequence diagram for UC-1]]
+**Main flow:** (1) the administrator runs `rag index`; (2) the system stores
+each book's chunks, BM25 entries and vectors in one transaction; (3) the
+administrator runs `rag describe`; (4) the system gets 8 descriptors per chunk
+from the LLM and saves each response; (5) it reports the failures and the
+cost. **Alternative flows:** **4a.** A wrong key or an empty balance stops the
+run at once. **4b.** After a crash, the next run skips described chunks, so
+nothing is paid twice.
 
 ## 2.7 Non-functional requirements
 
@@ -603,43 +470,30 @@ with a mockup of the panel that shows real passages from the test books.
 | NFR-03 | Capacity | All vectors of the 40-book library fit in ≤ 1 GB of memory | KPI-2 |
 | NFR-04 | Cost | Descriptors for the 40-book library cost ≤ 15 USD | KPI-3, US-2.1 |
 | NFR-05 | Security | The LLM API key never appears in a log line or an error message (checked by a test) | US-2.3 |
-| NFR-06 | Privacy | Search follows Libra's existing rules: each reader sees only their own conversation (another's returns 404) | US-4.1 |
+| NFR-06 | Privacy | Each reader sees only their own conversation (another's returns 404) | US-4.1 |
 | NFR-07 | Availability | Search works without the LLM API, with BM25 + embeddings | US-3.3 |
-| NFR-08 | Portability | The Docker image runs search on `linux/amd64` and `linux/arm64`, with the embedding model available | US-4.4 |
+| NFR-08 | Portability | The Docker image runs search on `linux/amd64` and `linux/arm64` | US-4.4 |
 | NFR-09 | Usability | The panel meets WCAG 2.1 level AA and works at a width of 360 px | US-4.1, US-4.2 |
 | NFR-10 | Reproducibility | Two evaluations of the same saved inputs give byte-identical result files | KPI-1, US-5.4 |
 
 ## 2.8 Legal and ethical requirements
 
-**Personal data.** The new module adds one kind of personal data: the
-questions a reader asks, saved in their conversation. When a household runs
-Libra for its own members, the processing is a purely personal or household
-activity, which the GDPR does not cover (Art. 2(2)(c)) [@gdpr]. The module
-still follows its principles: each reader's conversation is private, and
-nothing about a reader is sent out without the administrator's choice.
-
-**Data sent to a third party.** To get descriptors for a question, the module
-sends the question to the DeepSeek API, which processes data outside the EU.
-A question may contain personal data. Therefore the administrator must be able
-to turn the LLM off (search then uses BM25 + embeddings), and the panel must
-say that questions are sent to an external service. Book text sent for
-descriptors is public domain, and no personal data is sent with it.
+**Personal data.** The module adds one kind of personal data: the reader's
+questions. A household running Libra for its own members is a purely personal
+activity, outside the GDPR (Art. 2(2)(c)) [@gdpr], but the module follows its
+principles: each conversation is private. Questions sent to the DeepSeek API
+for descriptors leave the EU and may contain personal data, so the
+administrator can turn the LLM off (search then uses BM25 + embeddings), and
+the panel says that questions go to an external service.
 
 **Consent of participants.** No interviews or surveys with other people were
 conducted; the test questions were written or reviewed by the author.
 
-**Licences.**
-
-| Component | Licence |
-|---|---|
-| Test books (Standard Ebooks) | CC0 [@standardebooks] |
-| Embedding model `bge-base-en-v1.5` | MIT |
-| `fastembed` library | Apache 2.0 |
-| DeepSeek API | Provider's terms of service |
-| Libra, including the new module | MIT |
-
-**Standards.** The panel follows WCAG 2.1 level AA [@wcag21] (NFR-09); the
-quality requirements follow the ISO/IEC 25010 model [@iso25010].
+**Licences and standards.** The test books are CC0 [@standardebooks]; the
+embedding model `bge-base-en-v1.5` and Libra are MIT; `fastembed` is
+Apache 2.0; the DeepSeek API is used under the provider's terms. The panel
+follows WCAG 2.1 level AA [@wcag21] (NFR-09), and the quality requirements
+follow the ISO/IEC 25010 model [@iso25010].
 
 ## 2.9 Risks
 
@@ -648,7 +502,7 @@ quality requirements follow the ISO/IEC 25010 model [@iso25010].
 | ID | Risk | Probability | Impact | Mitigation | Dependency |
 |---|---|---|---|---|---|
 | R1 | Descriptors do not beat the baselines | M | M | A negative result is valid; every hypothesis is answered with an interval; the panel uses the best method found | Experiment results |
-| R2 | The schedule slips: the experiment, the panel and the thesis text all fall between the BA defense and the pre-defense | H | H | A fixed order of optional analyses to drop first if time runs short; nothing promised in the topic application is dropped | University deadlines |
+| R2 | The schedule slips: the experiment, the panel and the thesis text all fall between the BA defense and the pre-defense | H | H | A fixed order of optional analyses to drop first; nothing promised in the topic application is dropped | University deadlines |
 | R3 | The LLM provider changes the model, the price or the JSON output | M | M | A pilot checks both before the full run; every response is saved; the protocol records the model version | DeepSeek API |
 | R4 | The LLM knows famous books and describes the answer from memory | M | H | Less famous books; no title or author in the prompt; named in the report | Book choice |
 | R5 | One correct chunk per question under-counts correct results | H | M | A 50-question sample where every relevant chunk is judged by hand | Test questions |
@@ -656,24 +510,15 @@ quality requirements follow the ISO/IEC 25010 model [@iso25010].
 
 ## 2.10 Chapter conclusions
 
-The specification fixes: three goals and three KPIs; eight stakeholders and
-three actors; a scope that contains only the Librarian's retrieval layer, the
-experiment and the panel, with Libra's existing functions as the platform
-and the rest of the Librarian left for after the diploma;
-five epics and 21 user stories with priorities and acceptance criteria; two
-use case scenarios; ten measurable non-functional requirements; the legal
-basis for the new personal data; and six risks.
+The specification fixes three goals and three KPIs, nine stakeholders, a
+scope limited to the retrieval layer, the experiment and the panel, five epics
+and 21 user stories, two use cases, ten measurable non-functional
+requirements, the legal basis for the new personal data, and six risks.
 
-The result is verified against the KPIs of Section 2.1:
-
-- **KPI-1** — by the experiment protocol, frozen before the final run:
-  Recall@10 of the panel's method against BM25 + embeddings, with a 95%
-  paired bootstrap interval, separately for fiction and non-fiction.
-- **KPI-2** — by timing 100 searches on the 40-book library.
-- **KPI-3** — by the token usage saved with every LLM response.
-
-The acceptance criteria of every Must story are checked by automated tests
-and by the demo at the pre-defense.
+The result is verified against the KPIs of Section 2.1: **KPI-1** by the
+frozen experiment protocol, **KPI-2** by timing 100 searches, and **KPI-3** by
+the token usage saved with every LLM response. The acceptance criteria of the
+Must stories are checked by automated tests and by the pre-defense demo.
 
 # List of references
 
@@ -690,7 +535,7 @@ and by the demo at the pre-defense.
 | US-1.3 | E1 | As an administrator, I want a deleted book's chunks removed with it, so that search never shows a book that is gone | Given an indexed book, when it is deleted, then its chunks, vectors and descriptors are removed, also when a new book later reuses its id. | Must |
 | US-1.4 | E1 | As an administrator, I want new uploads indexed for search, so that every book can be found | Given a new upload, when indexing finishes, then its passages are found by BM25 and by embeddings. | Could |
 | US-2.1 | E2 | As an administrator, I want descriptors written for every chunk, so that search by descriptors works | Given chunks without descriptors, when I run `rag describe`, then each gets exactly 8 descriptors, and failures are counted after 3 retries. | Must |
-| US-2.2 | E2 | As the researcher, I want descriptors written from the passage text only, so that the LLM describes the passage, not a book it remembers | See Section 2.5. | Must |
+| US-2.2 | E2 | As the researcher, I want descriptors written from the passage text only, so that the LLM describes the passage, not a book it remembers | Given a chunk, when descriptors are requested, then the prompt holds no title and no author, and exactly 8 descriptors of 2–6 words are saved. | Must |
 | US-2.3 | E2 | As an administrator, I want every LLM response saved, so that a crash or a rerun never pays twice | Given a crash during `rag describe`, when I run it again, then finished chunks are skipped and no saved response is lost; the API key appears in no log. | Must |
 | US-2.4 | E2 | As the researcher, I want the descriptor prompt tuned on books outside the test set, so that the prompt is not fitted to the test | Given the 2 pilot books, when the prompt is tuned, then no test book is used, and the final prompt is recorded in the protocol. | Must |
 | US-3.1 | E3 | As the researcher, I want passages ranked by BM25, by embeddings and by descriptors, so that each method can be compared on the same questions | Given a question, when it is searched with each single method, then every chunk is scored and the top k are returned. | Must |
@@ -704,12 +549,13 @@ and by the demo at the pre-defense.
 | US-5.1 | E5 | As the researcher, I want to write hand questions before any result exists, so that the questions do not favour one method | Given the frozen chunker, when I run `rag hand-question`, then I see a random chunk and record a question and its kind. | Must |
 | US-5.2 | E5 | As the researcher, I want LLM-drafted questions reviewed one by one, so that only valid questions are used | Given a draft, when I review it, then I keep, edit or drop it, and a drop records its reason. | Must |
 | US-5.3 | E5 | As the researcher, I want the protocol frozen and tagged before the full run, so that the analysis cannot follow the results | Given the protocol, when it is committed, then it is tagged `experiment-protocol-v1` before any final result exists. | Must |
-| US-5.4 | E5 | As the researcher, I want one command to evaluate every configuration, so that the results can be repeated | See Section 2.5. | Must |
+| US-5.4 | E5 | As the researcher, I want one command to evaluate every configuration, so that the results can be repeated | Given the frozen protocol and the saved descriptors, when I run `rag evaluate`, then the rank of the source chunk is written for every question and configuration, and a second run gives byte-identical files. | Must |
 | US-5.5 | E5 | As the researcher, I want intervals and tests for each hypothesis, so that the conclusions are sound | Given a run, when I run `rag report`, then each hypothesis has a 95% bootstrap interval and a Holm-corrected p-value, per genre. | Must |
 
 # Appendix B. Diagrams
 
 [[FIGURE: as-is.png | AS-IS process: a reader looks for the answer to a question about a book (UML activity), full size]]
+[[FIGURE: stakeholder-matrix.png | Influence/interest matrix, full size]]
 [[FIGURE: context.png | Context diagram, full size]]
 [[FIGURE: use-cases.png | Use case diagram, full size]]
 [[FIGURE: sequence-uc1.png | System sequence diagram for UC-1, full size]]

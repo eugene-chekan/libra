@@ -30,7 +30,8 @@ FONT = "Times New Roman"
 BODY_PT = 12
 TABLE_PT = 10
 TEXT_WIDTH_CM = 16.5
-TEXT_FIGURE_WIDTH_CM, TEXT_FIGURE_HEIGHT_CM = 16, 10
+TEXT_FIGURE_WIDTH_CM, TEXT_FIGURE_HEIGHT_CM = 16, 7
+PAIR_WIDTH_CM = 6.8
 FULL_WIDTH_CM, FULL_HEIGHT_CM = 16, 23
 
 CITE = re.compile(r"\[(@[\w-]+(?:\s*;\s*@[\w-]+)*)\]")
@@ -122,18 +123,18 @@ def column_widths(rows, cols):
     return [Cm(TEXT_WIDTH_CM * w / total) for w in weights]
 
 
-def figure_width(path, full_size):
-    """Pick a figure's width so that it fits the page and the text.
+def figure_width(path, max_width, max_height):
+    """Pick a figure's width so that it fits inside a box.
 
     Args:
         path: the image file.
-        full_size: True for the Appendix B copy, False for the copy in the text.
+        max_width: the widest the figure may be, in cm.
+        max_height: the tallest the figure may be, in cm.
 
     Returns:
         The width to insert the picture at.
     """
     image = DocxImage.from_file(str(path))
-    max_width, max_height = (FULL_WIDTH_CM, FULL_HEIGHT_CM) if full_size else (TEXT_FIGURE_WIDTH_CM, TEXT_FIGURE_HEIGHT_CM)
     return Cm(min(max_width, max_height * image.px_width / image.px_height))
 
 
@@ -328,17 +329,40 @@ class Builder:
                     set_cell_shading(cell, "D9E2F3")
         self.doc.add_paragraph()
 
-    def figure(self, filename, caption):
+    def figure(self, filename, caption, max_height=None):
         """Insert a diagram, or a highlighted placeholder until it exists."""
         self.figures += 1
-        path = DIAGRAMS / filename
         p = self.doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
-        if path.exists():
-            p.add_run().add_picture(str(path), width=figure_width(path, caption.endswith("full size")))
+        if caption.endswith("full size"):
+            box = (FULL_WIDTH_CM, FULL_HEIGHT_CM)
         else:
-            self.run(p, f"[TODO: diagram docs/ba/diagrams/{filename}]", None, True, False)
+            box = (TEXT_FIGURE_WIDTH_CM, max_height or TEXT_FIGURE_HEIGHT_CM)
+        self.picture(p, filename, *box)
         self.caption(f"Figure {self.figures}. {caption}", WD_ALIGN_PARAGRAPH.CENTER)
+
+    def figure_pair(self, left, right):
+        """Insert two figures side by side, each with its own caption."""
+        table = self.doc.add_table(rows=2, cols=2)
+        table.alignment = WD_TABLE_ALIGNMENT.CENTER
+        for col, (filename, caption) in enumerate((left, right)):
+            self.figures += 1
+            picture = table.cell(0, col).paragraphs[0]
+            picture.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            self.picture(picture, filename, PAIR_WIDTH_CM, FULL_HEIGHT_CM)
+            text = table.cell(1, col).paragraphs[0]
+            text.alignment = WD_ALIGN_PARAGRAPH.CENTER
+            text.paragraph_format.line_spacing = 1.0
+            self.inline(text, f"Figure {self.figures}. {caption}", size=11, bold=True)
+        self.doc.add_paragraph()
+
+    def picture(self, paragraph, filename, max_width, max_height):
+        """Add one image to a paragraph, or a highlighted placeholder until it exists."""
+        path = DIAGRAMS / filename
+        if path.exists():
+            paragraph.add_run().add_picture(str(path), width=figure_width(path, max_width, max_height))
+        else:
+            self.run(paragraph, f"[TODO: diagram docs/ba/diagrams/{filename}]", None, True, False)
 
     def references(self):
         for key, number in sorted(self.citations.items(), key=lambda kv: kv[1]):
@@ -376,9 +400,12 @@ class Builder:
             elif m := re.match(r"\[\[TABLE:\s*(.+)\]\]$", stripped):
                 flush()
                 self.pending_table_caption = m.group(1)
-            elif m := re.match(r"\[\[FIGURE:\s*(\S+)\s*\|\s*(.+)\]\]$", stripped):
+            elif m := re.match(r"\[\[FIGURES:\s*(\S+)\s*\|\s*(.+?)\s*\|\|\s*(\S+)\s*\|\s*(.+)\]\]$", stripped):
                 flush()
-                self.figure(m.group(1), m.group(2))
+                self.figure_pair((m.group(1), m.group(2)), (m.group(3), m.group(4)))
+            elif m := re.match(r"\[\[FIGURE:\s*(\S+)\s*\|\s*(.+?)(?:\s*\|\s*(\d+(?:\.\d+)?))?\]\]$", stripped):
+                flush()
+                self.figure(m.group(1), m.group(2), float(m.group(3)) if m.group(3) else None)
             elif m := re.match(r"(#{1,3}) (.+)", stripped):
                 flush()
                 self.heading(m.group(2), len(m.group(1)))
