@@ -5,16 +5,16 @@ sources in the order the text first cites them, and leaves out any source the
 text never cites (it prints a warning for each one).
 
 @furnas1987: G. W. Furnas, T. K. Landauer, L. M. Gomez, and S. T. Dumais, "The vocabulary problem in human-system communication," *Communications of the ACM*, vol. 30, no. 11, pp. 964–971, 1987.
-@willison2026: S. Willison, "Don't classify. Hallucinate!," *Simon Willison's Weblog*, Aug. 14, 2026. [Online]. Available: [TODO: paste the exact URL]
-@libraarch: Y. Chekan, "libra — Architecture," GitHub repository, 2026. [Online]. Available: https://github.com/eugene-chekan/libra/blob/main/docs/architecture.md [TODO: accessed date]
-@calibreweb: Calibre-Web contributors, "Calibre-Web," GitHub repository. [Online]. Available: https://github.com/janeczku/calibre-web [TODO: accessed date]
-@calibre: K. Goyal, "calibre — E-book management," 2026. [Online]. Available: https://calibre-ebook.com [TODO: accessed date]
+@willison2026: S. Willison, "Don't classify. Hallucinate!," *Simon Willison's Weblog*, Aug. 14, 2026. [Online]. Available: https://simonwillison.net/2026/Aug/14/dont-classify-hallucinate/
+@libraarch: Y. Chekan, "libra — Architecture," GitHub repository, 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://github.com/eugene-chekan/libra/blob/main/docs/architecture.md
+@calibreweb: Calibre-Web contributors, "Calibre-Web," GitHub repository. Accessed: Oct. 29, 2026. [Online]. Available: https://github.com/janeczku/calibre-web
+@calibre: K. Goyal, "calibre — E-book management," 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://calibre-ebook.com
 @calibrewhatsnew: K. Goyal, "calibre — What's new: release notes for versions 8.11 to 9.17," 2026. Accessed: Oct. 27, 2026. [Online]. Available: https://calibre-ebook.com/whats-new
 @calibrellm: K. Goyal, "src/calibre/gui2/dialogs/llm_book.py," calibre source code, GitHub, 2026. Accessed: Oct. 27, 2026. [Online]. Available: https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/dialogs/llm_book.py
-@kavita: Kavita contributors, "Kavita," 2026. [Online]. Available: https://www.kavitareader.com [TODO: accessed date]
-@kindlexray: Amazon, "Use X-Ray," Kindle E-Reader Help, 2026. [Online]. [TODO: URL of the X-Ray help page, and accessed date]
-@anythingllm: Mintplex Labs, "AnythingLLM," GitHub repository, 2026. [Online]. Available: https://github.com/Mintplex-Labs/anything-llm [TODO: accessed date]
-@notebooklm: Google, "NotebookLM," 2026. [Online]. Available: https://notebooklm.google [TODO: accessed date]
+@kavita: Kavita contributors, "Kavita," 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://www.kavitareader.com
+@kindlexray: Amazon, "Use X-Ray," Kindle E-Reader Help, 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://kdp.amazon.com/en_US/help/topic/G202197430
+@anythingllm: Mintplex Labs, "AnythingLLM," GitHub repository, 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://github.com/Mintplex-Labs/anything-llm
+@notebooklm: Google, "NotebookLM," 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://notebooklm.google
 @robertson2009: S. Robertson and H. Zaragoza, "The probabilistic relevance framework: BM25 and beyond," *Foundations and Trends in Information Retrieval*, vol. 3, no. 4, pp. 333–389, 2009.
 @karpukhin2020: V. Karpukhin et al., "Dense passage retrieval for open-domain question answering," in *Proc. EMNLP*, 2020, pp. 6769–6781.
 @lewis2020: P. Lewis et al., "Retrieval-augmented generation for knowledge-intensive NLP tasks," in *Advances in Neural Information Processing Systems (NeurIPS)*, vol. 33, 2020.
