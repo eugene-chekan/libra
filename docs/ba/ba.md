@@ -301,10 +301,10 @@ built on it after the diploma.
 | ID | Problem | Epic | KPI |
 |---|---|---|---|
 | P1 | The Librarian's answers will depend on a retrieval technique that nobody has measured on books | E5 Retrieval experiment | KPI-1 |
-| P2 | Interpretive questions do not share words with the text (the vocabulary problem), most of all in fiction | E2 Descriptors, E3 Retrieval | KPI-1, KPI-2 |
-| P3 | Libra cannot read the text of its books; there is no retrieval layer for the Librarian to call | E1 Text indexing, E3 Retrieval | KPI-3 |
-| P4 | An answer whose passages are not shown cannot be checked by the reader | E4 Librarian panel | KPI-2 |
-| P5 | Retrieval must run on a home server without a GPU, at a low LLM cost | E1, E2 | KPI-3, KPI-4 |
+| P2 | Interpretive questions do not share words with the text (the vocabulary problem), most of all in fiction | E2 Descriptors, E3 Retrieval | KPI-1 |
+| P3 | Libra cannot read the text of its books; there is no retrieval layer for the Librarian to call | E1 Text indexing, E3 Retrieval | KPI-2 |
+| P4 | An answer whose passages are not shown cannot be checked by the reader | E4 Librarian panel | — |
+| P5 | Retrieval must run on a home server without a GPU, at a low LLM cost | E1, E2 | KPI-2, KPI-3 |
 
 **What the new solution must be able to do:** index the full text of every
 book in the library; take a question in the reader's own words; rank every
@@ -341,9 +341,8 @@ technique measured on books.
 | KPI | Measure | Baseline | Target | How it is measured |
 |---|---|---|---|---|
 | KPI-1 | Recall@10 of the panel's method on the test questions | Recall@10 of BM25 + embeddings, the usual hybrid, measured on the same questions in the same run | Higher than the baseline: the 95% paired bootstrap interval of the difference lies above 0 | `rag evaluate` and `rag report` on the frozen protocol |
-| KPI-2 | Reader-style questions (5 factual, 5 interpretive) whose answer passage is in the panel's top 3 | [TODO: found with keyword search in Calibre, e.g. 4 of 10] | At least 7 of 10 | The same 10 questions about the test books, asked in the panel |
-| KPI-3 | Retrieval response time, 95th percentile | None: Libra cannot read book text | ≤ 2 s on the 40-book library | Timer around `rag.search`, 100 questions |
-| KPI-4 | LLM cost to index the 40-book library | — (new function) | ≤ 15 USD | Token usage saved with every LLM response |
+| KPI-2 | Retrieval response time, 95th percentile | None: Libra cannot read book text | ≤ 2 s on the 40-book library | Timer around `rag.search`, 100 questions |
+| KPI-3 | LLM cost to index the 40-book library | — (new function) | ≤ 15 USD | Token usage saved with every LLM response |
 
 ## 2.2 Stakeholders and users
 
@@ -531,9 +530,9 @@ with a mockup of the panel that shows real passages from the test books.
 
 | Goal | KPI | Epic | Stories |
 |---|---|---|---|
-| G1 Choose retrieval by experiment | KPI-1, KPI-2 | E2, E3, E5 | US-2.1 – US-2.4, US-3.1 – US-3.2, US-5.1 – US-5.5 |
-| G2 One retrieval call for the Librarian | KPI-3 | E1, E3 | US-1.1 – US-1.4, US-3.3, US-3.4 |
-| G3 Retrieval visible in the panel | KPI-2, KPI-3, KPI-4 | E4 | US-4.1 – US-4.4 |
+| G1 Choose retrieval by experiment | KPI-1 | E2, E3, E5 | US-2.1 – US-2.4, US-3.1 – US-3.2, US-5.1 – US-5.5 |
+| G2 One retrieval call for the Librarian | KPI-2 | E1, E3 | US-1.1 – US-1.4, US-3.3, US-3.4 |
+| G3 Retrieval visible in the panel | KPI-2, KPI-3 | E4 | US-4.1 – US-4.4 |
 
 ## 2.6 Use case scenarios
 
@@ -599,10 +598,10 @@ with a mockup of the panel that shows real passages from the test books.
 
 | ID | Category | Requirement and measure | Linked to |
 |---|---|---|---|
-| NFR-01 | Performance | Search answers in ≤ 2 s at the 95th percentile on the 40-book library (9,476 chunks, about 76,000 descriptor vectors), on a 4-core CPU | KPI-3, US-4.1 |
+| NFR-01 | Performance | Search answers in ≤ 2 s at the 95th percentile on the 40-book library (9,476 chunks, about 76,000 descriptor vectors), on a 4-core CPU | KPI-2, US-4.1 |
 | NFR-02 | Performance | Text indexing of the 40 books takes ≤ 30 min on the same CPU | US-1.2 |
-| NFR-03 | Capacity | All vectors of the 40-book library fit in ≤ 1 GB of memory | KPI-3 |
-| NFR-04 | Cost | Descriptors for the 40-book library cost ≤ 15 USD | KPI-4, US-2.1 |
+| NFR-03 | Capacity | All vectors of the 40-book library fit in ≤ 1 GB of memory | KPI-2 |
+| NFR-04 | Cost | Descriptors for the 40-book library cost ≤ 15 USD | KPI-3, US-2.1 |
 | NFR-05 | Security | The LLM API key never appears in a log line or an error message (checked by a test) | US-2.3 |
 | NFR-06 | Privacy | Search follows Libra's existing rules: each reader sees only their own conversation (another's returns 404) | US-4.1 |
 | NFR-07 | Availability | Search works without the LLM API, with BM25 + embeddings | US-3.3 |
@@ -660,7 +659,7 @@ quality requirements follow the ISO/IEC 25010 model [@iso25010].
 
 ## 2.10 Chapter conclusions
 
-The specification fixes: three goals and four KPIs; eight stakeholders and
+The specification fixes: three goals and three KPIs; eight stakeholders and
 three actors; a scope that contains only the Librarian's retrieval layer, the
 experiment and the panel, with Libra's existing functions as the platform
 and the rest of the Librarian left for after the diploma;
@@ -673,10 +672,8 @@ The result is verified against the KPIs of Section 2.1:
 - **KPI-1** — by the experiment protocol, frozen before the final run:
   Recall@10 of the panel's method against BM25 + embeddings, with a 95%
   paired bootstrap interval, separately for fiction and non-fiction.
-- **KPI-2** — by asking the same ten reader-style questions with keyword
-  search and in the panel.
-- **KPI-3** — by timing 100 searches on the 40-book library.
-- **KPI-4** — by the token usage saved with every LLM response.
+- **KPI-2** — by timing 100 searches on the 40-book library.
+- **KPI-3** — by the token usage saved with every LLM response.
 
 The acceptance criteria of every Must story are checked by automated tests
 and by the demo at the pre-defense.
