@@ -714,7 +714,7 @@ and by the demo at the pre-defense.
 
 # Appendix B. Diagrams
 
-[[FIGURE: as-is.png | AS-IS process: finding a remembered passage (UML activity), full size]]
+[[FIGURE: as-is.png | AS-IS process: a reader looks for the answer to a question about a book (UML activity), full size]]
 [[FIGURE: context.png | Context diagram, full size]]
 [[FIGURE: use-cases.png | Use case diagram, full size]]
 [[FIGURE: sequence-uc1.png | System sequence diagram for UC-1, full size]]

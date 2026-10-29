@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1300" height="850">
+<rect width="1300" height="850" fill="#ffffff"/>
+<rect x="720.0" y="60" width="550.0" height="350.0" fill="#dce6f5"/>
+<rect x="170" y="60" width="1100" height="700" fill="none" stroke="#000" stroke-width="2"/>
+<line x1="720.0" y1="60" x2="720.0" y2="760" stroke="#000" stroke-width="1.5"/>
+<line x1="170" y1="410.0" x2="1270" y2="410.0" stroke="#000" stroke-width="1.5"/>
+<text x="445" y="91" font-family="Arial" font-size="24" text-anchor="middle" font-weight="normal" font-style="italic" fill="#555">Keep satisfied</text>
+<text x="995" y="91" font-family="Arial" font-size="24" text-anchor="middle" font-weight="normal" font-style="italic" fill="#555">Manage closely</text>
+<text x="445" y="441" font-family="Arial" font-size="24" text-anchor="middle" font-weight="normal" font-style="italic" fill="#555">Monitor</text>
+<text x="995" y="441" font-family="Arial" font-size="24" text-anchor="middle" font-weight="normal" font-style="italic" fill="#555">Keep informed</text>
+<circle cx="1028" cy="109" r="9" fill="#2f5597"/>
+<text x="1012" y="117" font-family="Arial" font-size="22" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">Diploma supervisor</text>
+<circle cx="852" cy="312" r="9" fill="#2f5597"/>
+<text x="868" y="320" font-family="Arial" font-size="22" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">Committee and experts</text>
+<circle cx="1193" cy="144" r="9" fill="#2f5597"/>
+<text x="1177" y="152" font-family="Arial" font-size="22" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">Author as developer</text>
+<circle cx="1193" cy="228" r="9" fill="#2f5597"/>
+<text x="1177" y="236" font-family="Arial" font-size="22" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">Author as researcher</text>
+<circle cx="588" cy="200" r="9" fill="#2f5597"/>
+<text x="572" y="208" font-family="Arial" font-size="22" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">Household administrator</text>
+<circle cx="1116" cy="466" r="9" fill="#2f5597"/>
+<text x="1100" y="474" font-family="Arial" font-size="22" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">Reader</text>
+<circle cx="852" cy="634" r="9" fill="#2f5597"/>
+<text x="868" y="642" font-family="Arial" font-size="22" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">Kindle owner</text>
+<circle cx="324" cy="620" r="9" fill="#2f5597"/>
+<text x="340" y="628" font-family="Arial" font-size="22" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">LLM provider (DeepSeek)</text>
+<circle cx="412" cy="697" r="9" fill="#2f5597"/>
+<text x="428" y="705" font-family="Arial" font-size="22" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">Standard Ebooks</text>
+<text x="720" y="800" font-family="Arial" font-size="24" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">Interest in the project</text>
+<text x="158" y="800" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">Low</text>
+<text x="1270" y="800" font-family="Arial" font-size="20" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">High</text>
+<text x="100" y="410.0" font-family="Arial" font-size="24" font-weight="bold" text-anchor="middle" transform="rotate(-90 100 410.0)">Influence on the project</text>
+<text x="156" y="760" font-family="Arial" font-size="20" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">Low</text>
+<text x="156" y="78" font-family="Arial" font-size="20" text-anchor="end" font-weight="normal" font-style="normal" fill="#000">High</text>
+</svg>

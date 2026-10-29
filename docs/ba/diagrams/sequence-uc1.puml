@@ -1,34 +1,40 @@
 @startuml sequence-uc1
-' System sequence diagram for UC-1. Save the render as sequence-uc1.png here.
+' System sequence diagram for UC-1 "Find a passage by question".
+' The flow numbers match the use case in section 2.6 of ba.md.
 skinparam shadowing false
 skinparam defaultFontName Arial
+skinparam dpi 150
 
 actor Reader
-participant "Web client" as Client
+participant "Web client\n(Librarian panel)" as Client
 participant "API\n(conversations)" as API
 participant "librarian.py" as Lib
 participant "rag.search" as Search
 database "SQLite\n(chunks, FTS5,\nvectors)" as DB
-participant "DeepSeek API" as DS
+participant "LLM API" as LLM
 
-Reader -> Client : type question, send
+Reader -> Client : type a question, send
 Client -> API : POST /api/conversations/{id}/messages
-API -> DB : save question
+API -> DB : save the question
 API -> Lib : generate_reply(question)
-Lib -> DS : 5 descriptors for the question
-alt API answers
-  DS --> Lib : descriptors (JSON)
-  Lib -> Search : search(question, "dense+descriptors", k=3)
-else no answer in 10 s (flow 4a)
+Lib -> LLM : ask for 5 descriptors of the question
+alt the LLM answers
+  LLM --> Lib : descriptors (JSON)
+  Lib -> Search : search(question, configured method, k=3)
+else no answer in 10 s (flow 3a)
   Lib -> Search : search(question, "bm25+dense", k=3)
 end
-Search -> DB : BM25 / vectors / descriptor vectors
-DB --> Search : scores
+Search -> DB : read BM25 scores, text vectors,\ndescriptor vectors
+DB --> Search : scores for every chunk
 Search --> Lib : top 3 chunks
-Lib --> API : passages (book, chapter, excerpt)
-API --> Client : Server-Sent Events stream
-API -> DB : save reply
-Client --> Reader : three passages
+alt passages found
+  Lib --> API : passages (book, chapter, excerpt)
+else nothing matches (flow 4a)
+  Lib --> API : "no passage found"
+end
+API --> Client : stream the reply (Server-Sent Events)
+API -> DB : save the reply
+Client --> Reader : show the passages
 Reader -> Client : select a passage
-Client --> Reader : reader opens the book at the chapter
+Client --> Reader : open the book at that chapter
 @enduml

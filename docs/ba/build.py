@@ -14,6 +14,7 @@ from pathlib import Path
 
 from docx import Document
 from docx.enum.table import WD_TABLE_ALIGNMENT
+from docx.image.image import Image as DocxImage
 from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
@@ -29,6 +30,8 @@ FONT = "Times New Roman"
 BODY_PT = 12
 TABLE_PT = 10
 TEXT_WIDTH_CM = 16.5
+TEXT_FIGURE_WIDTH_CM, TEXT_FIGURE_HEIGHT_CM = 16, 10
+FULL_WIDTH_CM, FULL_HEIGHT_CM = 16, 23
 
 CITE = re.compile(r"\[(@[\w-]+(?:\s*;\s*@[\w-]+)*)\]")
 INLINE = re.compile(
@@ -117,6 +120,21 @@ def column_widths(rows, cols):
         weights.append(min(max(longest, longest_word + 2, 6), 70))
     total = sum(weights)
     return [Cm(TEXT_WIDTH_CM * w / total) for w in weights]
+
+
+def figure_width(path, full_size):
+    """Pick a figure's width so that it fits the page and the text.
+
+    Args:
+        path: the image file.
+        full_size: True for the Appendix B copy, False for the copy in the text.
+
+    Returns:
+        The width to insert the picture at.
+    """
+    image = DocxImage.from_file(str(path))
+    max_width, max_height = (FULL_WIDTH_CM, FULL_HEIGHT_CM) if full_size else (TEXT_FIGURE_WIDTH_CM, TEXT_FIGURE_HEIGHT_CM)
+    return Cm(min(max_width, max_height * image.px_width / image.px_height))
 
 
 def add_field(paragraph, instruction):
@@ -317,8 +335,7 @@ class Builder:
         p = self.doc.add_paragraph()
         p.alignment = WD_ALIGN_PARAGRAPH.CENTER
         if path.exists():
-            width = Cm(16) if caption.endswith("full size") else Cm(12)
-            p.add_run().add_picture(str(path), width=width)
+            p.add_run().add_picture(str(path), width=figure_width(path, caption.endswith("full size")))
         else:
             self.run(p, f"[TODO: diagram docs/ba/diagrams/{filename}]", None, True, False)
         self.caption(f"Figure {self.figures}. {caption}", WD_ALIGN_PARAGRAPH.CENTER)

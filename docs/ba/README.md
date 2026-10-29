@@ -42,10 +42,29 @@ fills in the table of contents and its page numbers. Then rename the file to
 
 ## Diagrams
 
-Render each `.puml` file to a `.png` with the same name, in `diagrams/`. Use
-the PlantUML extension in VS Code, or paste the text into the PlantUML web
-server. Three figures have no source, because they are pictures you make:
+The rendered `.png` files are committed, so `build.py` works without any of
+these tools. Render again after you change a source.
 
-- `analog-screens.png`: screenshots of the analogs during the test tasks
-- `stakeholder-matrix.png`: the influence/interest grid
+**The four UML diagrams** (`as-is`, `context`, `use-cases`, `sequence-uc1`)
+are PlantUML files. The use case and context diagrams use PlantUML's own
+layout engine (`smetana`), so Graphviz is not needed. With Java 11 or newer and the PlantUML `.jar` from
+https://github.com/plantuml/plantuml/releases, from the repository root:
+
+```bash
+java -jar plantuml.jar -tpng -charset UTF-8 docs/ba/diagrams/*.puml
+```
+
+The PlantUML extension in VS Code also works.
+
+**The influence/interest matrix** is drawn by a small script. The positions
+are in `STAKEHOLDERS` at the top of the script:
+
+```bash
+python docs/ba/diagrams/stakeholder-matrix.py
+magick -density 150 docs/ba/diagrams/stakeholder-matrix.svg docs/ba/diagrams/stakeholder-matrix.png
+```
+
+**Pictures only you can make:**
+
+- `analog-screens.png`: screenshots of the analogs answering the test questions
 - the 3–4 mockups in Section 2.5 (add a `[[FIGURE: ...]]` line for each)

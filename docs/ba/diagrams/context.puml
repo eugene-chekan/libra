@@ -1,32 +1,35 @@
 @startuml context
-' Context diagram: the new search module inside the existing Libra
-' application, its users and the external systems.
-' Render: paste into https://www.plantuml.com/plantuml or use the
-' PlantUML extension in VS Code, then save as context.png here.
-left to right direction
+' Context diagram: the new retrieval module inside the existing Libra
+' application, its users and the external systems (section 2.4 of ba.md).
+!pragma layout smetana
 skinparam shadowing false
 skinparam defaultFontName Arial
+skinparam dpi 150
 
 actor "Reader" as reader
 actor "Household\nadministrator" as admin
 actor "Researcher" as researcher
 
-rectangle "Libra (existing web application)" {
+rectangle "Libra (existing web application, one server)" {
   rectangle "Librarian panel\n(new: shows passages)" as panel
-  rectangle "Search module (new)\nchunks, BM25, embeddings,\ndescriptors, RRF" as search
-  database "SQLite\nbooks + chunks,\nFTS5, vectors" as db
-  rectangle "Catalogue, reader,\nshelves, Kindle\n(existing, unchanged)" as existing
+  rectangle "Librarian agent\n(after the diploma)" as agent #line.dashed
+  rectangle "Retrieval module (new, rag package)\nchunks, BM25, embeddings,\ndescriptors, RRF\nsearch(question, method, k)" as search
+  rectangle "Embedding model\nbge-base-en-v1.5\n(runs on the CPU)" as emb
+  database "SQLite\nbooks, chunks,\nFTS5 index, vectors" as db
+  rectangle "Catalogue, reader,\nshelves, Kindle delivery\n(existing, unchanged)" as existing
 }
 
-cloud "LLM API\n(descriptors)" as llm
+cloud "LLM API\n(DeepSeek)" as llm
 database "Standard Ebooks\n(40 test books, CC0)" as se
 
 reader --> panel : question
-panel --> search : search(question)
+panel --> search : search(question, method, k)
+agent ..> search : same call
+search --> emb : text to vector
 search --> db
-panel --> existing : open passage in the reader
-admin --> search : rag index / rag describe
-researcher --> search : rag evaluate / rag report
+panel --> existing : open the passage in the reader
+admin --> search : rag index, rag describe
+researcher --> search : rag evaluate, rag report
 search --> llm : chunk text, question
 llm --> search : descriptors (JSON)
 se ..> existing : EPUB files, loaded once

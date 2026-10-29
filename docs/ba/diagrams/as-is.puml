@@ -4,6 +4,7 @@
 ' Save the render as as-is.png here.
 skinparam shadowing false
 skinparam defaultFontName Arial
+skinparam dpi 150
 
 |Reader|
 start

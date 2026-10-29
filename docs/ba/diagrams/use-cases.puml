@@ -1,16 +1,22 @@
 @startuml use-cases
-' Use case diagram of the new search module. Save the render as use-cases.png here.
+' Use case diagram of the Librarian's retrieval layer (section 2.6 of ba.md).
+' The Librarian agent comes after the diploma; it is drawn to show that it
+' will use the same retrieval call as the panel (US-3.4).
+!pragma layout smetana
 left to right direction
 skinparam shadowing false
 skinparam defaultFontName Arial
+skinparam dpi 150
 
 actor Reader
 actor "Household\nadministrator" as Admin
 actor Researcher
+actor "Librarian agent\n(after the diploma)" as Agent
 actor "LLM API" as LLM <<system>>
 
-rectangle "Libra search module and librarian panel" {
+rectangle "Libra: retrieval module and Librarian panel" {
   usecase "UC-1 Find a passage\nby question" as UC1
+  usecase "Retrieve passages\nsearch(question, method, k)" as Retrieve
   usecase "Open the passage\nin the reader" as Open
   usecase "Search without the LLM\n(BM25 + embeddings)" as Fallback
   usecase "UC-2 Index the library" as UC2
@@ -21,14 +27,16 @@ rectangle "Libra search module and librarian panel" {
 }
 
 Reader --> UC1
-UC1 <.. Open : <<extend>>
-UC1 <.. Fallback : <<extend>>
+UC1 ..> Retrieve : <<include>>
+Open ..> UC1 : <<extend>>
+Fallback ..> Retrieve : <<extend>>
+Agent --> Retrieve
 Admin --> UC2
 Admin --> Method
 UC2 ..> Describe : <<include>>
 Researcher --> UC2
 Researcher --> Questions
 Researcher --> Eval
-UC1 --> LLM
+Retrieve --> LLM
 Describe --> LLM
 @enduml
