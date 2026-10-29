@@ -66,5 +66,4 @@ magick -density 150 docs/ba/diagrams/stakeholder-matrix.svg docs/ba/diagrams/sta
 
 **Pictures only you can make:**
 
-- `analog-screens.png`: screenshots of the analogs answering the test questions
 - the 3–4 mockups in Section 2.5 (add a `[[FIGURE: ...]]` line for each)

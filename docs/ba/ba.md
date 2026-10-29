@@ -267,9 +267,8 @@ the reader's own books. The analogs therefore come from two groups:
 Store-centred products, such as Google Play Books and Kindle features like
 X-Ray [@kindlexray], were left out. They are built around books bought in the
 store, not around a library of the reader's own files, which is what Libra
-holds. [TODO: ask each tool the same 3 questions about the same books — one
-"who is this character", one "where is this idea", one "similar books" — take
-screenshots, and correct every cell marked "?".]
+holds. [TODO: check every cell marked "?" in the table, or replace it with
+"not checked".]
 
 [[TABLE: Comparison of analogs]]
 
@@ -283,8 +282,6 @@ screenshots, and correct every cell marked "?".]
 | Shows the source passages | Keyword hits; AI answers show none | No | ? | As citations | As citations | Yes, with book and chapter |
 | Retrieval technique measured on books | No | No | No | No | Not published | Planned (the experiment) |
 | Self-hosted; books and questions stay at home | Yes; local LLMs possible | Yes | Yes | Yes | No | Yes (LLM optional) |
-
-[[FIGURE: analog-screens.png | Screenshots of the analogs answering the test questions]]
 
 **What is missing.** Group A manages the reader's books. Calibre-Web and
 Kavita cannot answer a question about them; at best they search by keywords.
