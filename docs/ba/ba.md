@@ -62,7 +62,7 @@ the RAG pipeline of Libra's Librarian — building a passage retrieval system
 with LLM-generated semantic descriptors and comparing it with keyword,
 embedding and hybrid retrieval.
 
-**Objectives:** [TODO: confirm these with the supervisor.]
+**Objectives:**
 
 1. Analyse what retrieval the Librarian needs, and review existing AI reading
    assistants and retrieval methods.
@@ -165,9 +165,8 @@ author's words is widest ([Section 1.2](#12-review-of-sources)).
 ### Where time and quality are lost
 
 1. **The reader must know the author's words and the book.** Keyword search
-   in one book at a time fails on questions about ideas. [TODO: one measured
-   example, e.g. "5 questions about the test books: keyword search found the
-   passage for N of them, in M minutes on average".]
+   in one book at a time fails on questions about ideas, because the reader's
+   words differ from the author's [@furnas1987].
 2. **AI tools answer from memory.** A general chatbot cannot see the
    reader's books, and Calibre's AI sees only a book's metadata or the
    selected text. Their answers cannot be checked against the text.
@@ -268,19 +267,18 @@ the reader's own books. The analogs therefore come from two groups:
 Store-centred products, such as Google Play Books and Kindle features like
 X-Ray [@kindlexray], were left out. They are built around books bought in the
 store, not around a library of the reader's own files, which is what Libra
-holds. [TODO: check every cell marked "?" in the table, or replace it with
-"not checked".]
+holds.
 
 [[TABLE: Comparison of analogs]]
 
 | Criterion | Calibre (A) | Calibre-Web (A) | Kavita (A) | AnythingLLM (B) | NotebookLM (B) | Libra |
 |---|---|---|---|---|---|---|
 | Keeps and manages the reader's own EPUB files | Yes | Yes | Yes | No | No | Yes |
-| Accepts EPUB files as a source for questions | No: the AI gets only metadata or the selected text | — | — | ? | Yes | Yes |
+| Accepts EPUB files as a source for questions | No: the AI gets only metadata or the selected text | — | — | Yes [@anythingllmtypes] | Yes | Yes |
 | Answers questions about the content of books | Yes, from the LLM's memory of the book, or about selected text | No | No | Yes | Yes, only from the uploaded sources | Passages now; answers after the diploma |
-| Works across the whole library | Keyword search; the AI discusses only selected books, by metadata | Yes, metadata search only | ? | Yes, one workspace | One notebook, limited number of sources  | Yes |
+| Works across the whole library | Keyword search; the AI discusses only selected books, by metadata | Yes, metadata search only | Yes, metadata, bookmarks and the reader's own highlights only [@kavitasearch] | Yes, one workspace | One notebook, limited number of sources  | Yes |
 | Retrieval by meaning, not only by keywords | No: the AI does no retrieval | No | No | Yes (embeddings) | Yes (method not published) | Yes (embeddings + descriptors) |
-| Shows the source passages | Keyword hits; AI answers show none | No | ? | As citations | As citations | Yes, with book and chapter |
+| Shows the source passages | Keyword hits; AI answers show none | No | No: only passages the reader highlighted | As citations | As citations | Yes, with book and chapter |
 | Retrieval technique measured on books | No | No | No | No | Not published | Planned (the experiment) |
 | Self-hosted; books and questions stay at home | Yes; local LLMs possible | Yes | Yes | Yes | No | Yes (LLM optional) |
 

@@ -14,6 +14,8 @@ text never cites (it prints a warning for each one).
 @kavita: Kavita contributors, "Kavita," 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://www.kavitareader.com
 @kindlexray: D. Johnson, "How to use a Kindle Paperwhite," About Amazon, n.d. Accessed: Oct. 29, 2026. [Online]. Available: https://www.aboutamazon.com/news/devices/how-to-use-kindle-paperwhite
 @anythingllm: Mintplex Labs, "AnythingLLM," GitHub repository, 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://github.com/Mintplex-Labs/anything-llm
+@kavitasearch: Kavita contributors, "Kavita.Models/DTOs/Search/SearchResultGroupDto.cs," Kavita source code, GitHub, 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://github.com/Kareadita/Kavita/blob/develop/Kavita.Models/DTOs/Search/SearchResultGroupDto.cs
+@anythingllmtypes: Mintplex Labs, "collector/utils/constants.js," AnythingLLM source code, GitHub, 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://github.com/Mintplex-Labs/anything-llm/blob/master/collector/utils/constants.js
 @notebooklm: Google, "NotebookLM," 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://notebooklm.google
 @robertson2009: S. Robertson and H. Zaragoza, "The probabilistic relevance framework: BM25 and beyond," *Foundations and Trends in Information Retrieval*, vol. 3, no. 4, pp. 333–389, 2009.
 @karpukhin2020: V. Karpukhin et al., "Dense passage retrieval for open-domain question answering," in *Proc. EMNLP*, 2020, pp. 6769–6781.
