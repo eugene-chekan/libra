@@ -1,11 +1,12 @@
 ---
 title: A Passage Retrieval System for an E-book Library Using LLM-Generated Semantic Descriptors
 subtitle: Business Analysis Block — Introduction, Chapter 1 and Chapter 2
-author: [TODO: Surname Name, as in the university records]
-supervisor: [TODO: supervisor's title and full name]
+author: Chekan Yauheni
+supervisor: Assoc. Prof. Sergei Avdeichik, Candidate of Technical Sciences (PhD)
 programme: Informatics
 type: Individual project
 place: Vilnius, 2026
+file: BA_Chekan_Yauheni.docx
 ---
 
 [[TOC]]

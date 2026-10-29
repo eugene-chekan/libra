@@ -11,7 +11,7 @@ for the Diploma Project (2026/27)".
 |---|---|
 | `ba.md` | The text. Edit this, not the DOCX. |
 | `references.md` | The sources, one `@key: entry` line each, in IEEE style |
-| `build.py` | Turns `ba.md` into `out/BA_Surname_Name.docx` |
+| `build.py` | Turns `ba.md` into `out/BA_Chekan_Yauheni.docx` (the `file:` line at the top of `ba.md`) |
 | `diagrams/*.puml` | PlantUML sources for the diagrams |
 | `diagrams/*.png` | The rendered diagrams and screenshots. `build.py` puts each one where `ba.md` names it. |
 
@@ -24,8 +24,7 @@ uv run --no-project --with python-docx python docs/ba/build.py
 ```
 
 Open the result in Word and answer **Yes** when it asks to update fields. That
-fills in the table of contents and its page numbers. Then rename the file to
-`BA_Surname_Name.docx` with your own name.
+fills in the table of contents and its page numbers.
 
 ## What `ba.md` understands
 
