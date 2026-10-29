@@ -12,7 +12,7 @@ text never cites (it prints a warning for each one).
 @calibrewhatsnew: K. Goyal, "calibre — What's new: release notes for versions 8.11 to 9.17," 2026. Accessed: Oct. 27, 2026. [Online]. Available: https://calibre-ebook.com/whats-new
 @calibrellm: K. Goyal, "src/calibre/gui2/dialogs/llm_book.py," calibre source code, GitHub, 2026. Accessed: Oct. 27, 2026. [Online]. Available: https://github.com/kovidgoyal/calibre/blob/master/src/calibre/gui2/dialogs/llm_book.py
 @kavita: Kavita contributors, "Kavita," 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://www.kavitareader.com
-@kindlexray: Amazon, "Use X-Ray," Kindle E-Reader Help, 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://kdp.amazon.com/en_US/help/topic/G202197430
+@kindlexray: D. Johnson, "How to use a Kindle Paperwhite," About Amazon, n.d. Accessed: Oct. 29, 2026. [Online]. Available: https://www.aboutamazon.com/news/devices/how-to-use-kindle-paperwhite
 @anythingllm: Mintplex Labs, "AnythingLLM," GitHub repository, 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://github.com/Mintplex-Labs/anything-llm
 @notebooklm: Google, "NotebookLM," 2026. Accessed: Oct. 29, 2026. [Online]. Available: https://notebooklm.google
 @robertson2009: S. Robertson and H. Zaragoza, "The probabilistic relevance framework: BM25 and beyond," *Foundations and Trends in Information Retrieval*, vol. 3, no. 4, pp. 333–389, 2009.
