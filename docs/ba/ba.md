@@ -2,7 +2,7 @@
 title: A Passage Retrieval System for an E-book Library Using LLM-Generated Semantic Descriptors
 subtitle: Business Analysis Block — Introduction, Chapter 1 and Chapter 2
 author: Chekan Yauheni
-supervisor: Assoc. Prof. Sergei Avdeichik, Candidate of Technical Sciences (PhD)
+supervisor: Assoc. Prof. Audeychik Sergei, Candidate of Technical Sciences (PhD)
 programme: Informatics
 type: Individual project
 place: Vilnius, 2026
@@ -724,13 +724,17 @@ and by the demo at the pre-defense.
 
 # Statements
 
-**Use of AI.** [TODO: state honestly which tools you used and for what. For
-example: "Claude (Anthropic) was used to draft the structure and a first
-version of the text from the project's own documentation; the author checked
-every statement against the code and the sources and rewrote the text. DeepSeek
-is part of the method under study (descriptors and draft questions), as
-described in Section 2.4." The requirements give a grade of 1–4 for
-AI-generated text that is not declared.]
+**Use of AI.** The following AI tools were used in this work:
+
+| Tool | What it was used for |
+|---|---|
+| Claude (Anthropic) | Drafting the structure and a first version of the text from the project's own documentation; drafting the diagram sources; checking the source code of the analog Calibre; building the mockup of the Librarian panel used for the layouts in Section 2.5 |
+| DeepSeek | Part of the method under study: in the experiment it writes the semantic descriptors and drafts test questions (Section 2.4). It was not used to write this document. |
+| Perplexity | Finding sources and checking facts |
+| NotebookLM | Tried as one of the analogs compared in Section 1.3. It was not used to write this document. |
+
+The author reviewed and corrected all AI output before using it, and is
+responsible for the content of this document.
 
 **Project type.** Individual project; no table of contributions is needed.
 
