@@ -474,6 +474,28 @@ Given/When/Then form, is in Appendix A. The key stories are below.
 
 ### Key user stories
 
+**US-2.2 (Must).** As the researcher, I want descriptors written from the
+passage text only, so that the LLM describes the passage and not a book it
+remembers.
+
+- *Given* a chunk, *when* descriptors are requested, *then* the prompt holds
+  no title and no author, and exactly 8 descriptors of 2–6 words are saved.
+
+**US-3.3 (Should).** As a reader, I want search to work when the LLM is not
+available, so that I can still find passages.
+
+- *Given* the LLM API does not answer within 10 seconds, *when* I ask a
+  question, *then* the search uses BM25 + embeddings, and the panel says that
+  a simpler search was used.
+
+**US-3.4 (Must).** As the developer of the Librarian, I want one retrieval
+call with the method and the number of passages as arguments, so that every
+future tool of the agent uses the same, measured retrieval.
+
+- *Given* an indexed library, *when* `search(question, method, k)` is called
+  with any of the six configurations, *then* it returns at most `k` passages,
+  each with the book, the chapter, the text and the score, best first.
+
 **US-4.1 (Must).** As a reader, I want to ask the Librarian a question in my
 own words, so that I see the passages of my books that answer it.
 
@@ -490,28 +512,6 @@ that I can read it in context.
 
 - *Given* a passage in the results, *when* I select it, *then* Libra's reader
   opens that book at that chapter.
-
-**US-3.3 (Should).** As a reader, I want search to work when the LLM is not
-available, so that I can still find passages.
-
-- *Given* the LLM API does not answer within 10 seconds, *when* I ask a
-  question, *then* the search uses BM25 + embeddings, and the panel says that
-  a simpler search was used.
-
-**US-2.2 (Must).** As the researcher, I want descriptors written from the
-passage text only, so that the LLM describes the passage and not a book it
-remembers.
-
-- *Given* a chunk, *when* descriptors are requested, *then* the prompt holds
-  no title and no author, and exactly 8 descriptors of 2–6 words are saved.
-
-**US-3.4 (Must).** As the developer of the Librarian, I want one retrieval
-call with the method and the number of passages as arguments, so that every
-future tool of the agent uses the same, measured retrieval.
-
-- *Given* an indexed library, *when* `search(question, method, k)` is called
-  with any of the six configurations, *then* it returns at most `k` passages,
-  each with the book, the chapter, the text and the score, best first.
 
 **US-5.4 (Must).** As the researcher, I want one command to evaluate every
 configuration, so that the results can be repeated.
@@ -690,7 +690,7 @@ and by the demo at the pre-defense.
 
 | ID | Epic | User story | Acceptance criteria | MoSCoW |
 |---|---|---|---|---|
-| US-1.1 | E1 | As the system, I want each book split into chunks of whole paragraphs, so that one chunk is one passage a reader can read | Given an EPUB, when it is chunked, then only body chapters are used, no chunk crosses a chapter, no chunks overlap, and none is over 450 tokens. | Must |
+| US-1.1 | E1 | As the researcher, I want each book split into chunks of whole paragraphs, so that each chunk is one passage that a question can be answered from | Given an EPUB, when it is chunked, then only body chapters are used, no chunk crosses a chapter, no chunks overlap, and none is over 450 tokens. | Must |
 | US-1.2 | E1 | As an administrator, I want one command to index the library, so that its text can be searched | Given books without chunks, when I run `rag index`, then each book's chunks, BM25 entries and vectors are stored in one transaction, and indexed books are skipped. | Must |
 | US-1.3 | E1 | As an administrator, I want a deleted book's chunks removed with it, so that search never shows a book that is gone | Given an indexed book, when it is deleted, then its chunks, vectors and descriptors are removed, also when a new book later reuses its id. | Must |
 | US-1.4 | E1 | As an administrator, I want new uploads indexed for search, so that every book can be found | Given a new upload, when indexing finishes, then its passages are found by BM25 and by embeddings. | Could |
@@ -698,8 +698,8 @@ and by the demo at the pre-defense.
 | US-2.2 | E2 | As the researcher, I want descriptors written from the passage text only, so that the LLM describes the passage, not a book it remembers | See Section 2.5. | Must |
 | US-2.3 | E2 | As an administrator, I want every LLM response saved, so that a crash or a rerun never pays twice | Given a crash during `rag describe`, when I run it again, then finished chunks are skipped and no saved response is lost; the API key appears in no log. | Must |
 | US-2.4 | E2 | As the researcher, I want the descriptor prompt tuned on books outside the test set, so that the prompt is not fitted to the test | Given the 2 pilot books, when the prompt is tuned, then no test book is used, and the final prompt is recorded in the protocol. | Must |
-| US-3.1 | E3 | As a reader, I want passages ranked by BM25, embeddings and descriptors, so that each kind of match can be found | Given a question, when it is searched with each single method, then every chunk is scored and the top k are returned. | Must |
-| US-3.2 | E3 | As a reader, I want rankings merged with RRF, so that the strengths of several methods add up | Given two or three rankings, when they are merged, then each chunk scores Σ 1/(60 + rank) over each list's top 100. | Must |
+| US-3.1 | E3 | As the researcher, I want passages ranked by BM25, by embeddings and by descriptors, so that each method can be compared on the same questions | Given a question, when it is searched with each single method, then every chunk is scored and the top k are returned. | Must |
+| US-3.2 | E3 | As the researcher, I want rankings merged with RRF, so that the hybrids can be compared with the single methods | Given two or three rankings, when they are merged, then each chunk scores Σ 1/(60 + rank) over each list's top 100. | Must |
 | US-3.3 | E3 | As a reader, I want search to work when the LLM is unavailable, so that I can still find passages | See Section 2.5. | Should |
 | US-3.4 | E3 | As the developer of the Librarian, I want one retrieval call with the method and the number of passages as arguments, so that every future agent tool uses the same, measured retrieval | See Section 2.5. | Must |
 | US-4.1 | E4 | As a reader, I want to ask the Librarian a question in my own words, so that I see the passages of my books that answer it | See Section 2.5. | Must |
