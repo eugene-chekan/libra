@@ -517,11 +517,16 @@ configuration, so that the results can be repeated.
   `rag evaluate`, *then* the rank of the source chunk is written for every
   question and configuration, and a second run gives byte-identical files.
 
-[TODO: layouts for 3–4 key stories, from a scratch instance
-(`scripts/run.ps1 -Scratch`): (1) the librarian panel with three passages —
-draw it over today's panel if part 2 is not built yet; (2) the "nothing found"
-state; (3) the reader opened at a passage; (4) the fallback notice of US-3.3.
-Add them as figures.]
+The layouts of the key stories below were made in the running application,
+with a mockup of the panel that shows real passages from the test books.
+
+[[FIGURE: mockup-passages.png | Layout for US-4.1: the Librarian panel shows three passages for a question]]
+
+[[FIGURE: mockup-nothing-found.png | Layout for US-4.1: the reply when no passage matches]]
+
+[[FIGURE: mockup-reader.png | Layout for US-4.2: "Open in the reader" opens the book at the passage]]
+
+[[FIGURE: mockup-fallback.png | Layout for US-3.3: the notice that a simpler search was used, and the passages it found]]
 
 ### Traceability
 
