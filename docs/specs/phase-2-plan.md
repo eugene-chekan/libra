@@ -337,10 +337,20 @@ methods.
   chunks already saved are skipped. Runs happen off-peak (peak is 01:00–04:00
   and 06:00–10:00 UTC, Monday to Friday; off-peak costs half).
 
-**Cost.** About $8–12 off-peak for all chunks, at DeepSeek's September 2026
-prices ($0.66 per million input tokens and $1.98 per million output tokens,
-off-peak). The pilot checks the prices and the model name again before the
-full run.
+**Cost.** About $4–7 off-peak for all chunks, at DeepSeek's prices since
+16 Aug 2026 (off-peak: $0.66 per million input tokens, $0.022 per million
+cached input tokens, $1.98 per million output tokens; peak costs double).
+
+- The 40 books have 2,517,167 words in 9,476 chunks. At about 1.3 tokens per
+  word, the chunk text is about 3.3M input tokens.
+- The prompt is the same for every chunk, so DeepSeek caches it. Then it costs
+  almost nothing: about $4 in total. If it is never cached, about $7.
+- The output is 8 descriptors, about 80 tokens a chunk: about 0.8M tokens.
+- Question descriptors and the 400 drafts add less than $1.
+
+The business analysis sets the limit at $10 (KPI-3, NFR-04). The pilot
+measures the real tokens per chunk, and checks the prices and the model name
+again before the full run.
 
 ## Test questions
 
