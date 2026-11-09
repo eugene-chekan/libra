@@ -38,7 +38,7 @@ this gap, but has not been measured on books.
 **Who has the problem:** Libra's readers, and the project, which must choose
 its retrieval before building the Librarian on it. **Why now:** the
 Librarian is Libra's next stage, embeddings run on an ordinary CPU, and
-describing the 9,476 passages of 40 books costs about 8–12 USD.
+describing the 9,476 passages of 40 books costs about 4–7 USD at off-peak prices.
 
 ## Goal and objectives
 
@@ -282,7 +282,7 @@ default retriever, it finds its passages with a technique measured on books.
 |---|---|---|---|---|
 | KPI-1 | Recall@10 of the panel's method on the test questions | Recall@10 of BM25 + embeddings, measured on the same questions in the same run | Higher than the baseline: the 95% paired bootstrap interval of the difference lies above 0 | `rag evaluate` and `rag report` on the frozen protocol |
 | KPI-2 | Retrieval response time, 95th percentile | None: Libra cannot read book text | ≤ 2 s on the 40-book library | Timer around `rag.search`, 100 questions |
-| KPI-3 | LLM cost to index the 40-book library | 0 USD: BM25 + embeddings run locally and need no LLM | ≤ 15 USD in total, ≤ 0.4 USD per book | Token usage saved with every LLM response |
+| KPI-3 | LLM cost to index the 40-book library | 0 USD: BM25 + embeddings run locally and need no LLM | ≤ 10 USD in total, ≤ 0.25 USD per book | Token usage saved with every LLM response |
 | KPI-4 | Share of test questions where one of the three passages the panel shows is the source passage (Success@3): the reader sees the answer without opening a book | Success@3 of BM25 alone, the keyword search a reader uses today, measured on the same questions in the same run | Higher than the baseline: the 95% paired bootstrap interval of the difference lies above 0 | `rag evaluate` with k = 3; shown live at the pre-defense demo on 10 test questions chosen before it |
 
 ## 2.2 Stakeholders and users
@@ -312,7 +312,7 @@ book's own text as proof, not a summary that may be made up.
 
 **Persona 2 — Anna, 38, the household administrator.** She runs Libra on a
 home server with 600 books, and will turn the search on only if it runs on her
-CPU, costs a known one-time amount (about 0.2–0.3 USD a book), and keeps her
+CPU, costs a known one-time amount (about 0.1–0.2 USD a book), and keeps her
 family's questions at home by default.
 
 ## 2.3 Project scope
@@ -339,7 +339,7 @@ family's questions at home by default.
 | Type | Statement |
 |---|---|
 | Constraint (deadline) | The experiment's results are ready for its expert assessment, which must happen before the pre-defense; the panel works for the pre-defense on 6–9 Jan 2027 |
-| Constraint (resources) | One developer; a CPU-only server; an LLM budget of about 10–20 USD |
+| Constraint (resources) | One developer; a CPU-only server; an LLM budget of about 10 USD |
 | Constraint (platform) | The module lives inside Libra: one FastAPI server, one SQLite database, one Docker image |
 | Assumption (data) | Standard Ebooks files are CC0 and stay available; the exact 42 files are kept on a GitHub release with their `sha256` |
 | Assumption (API) | The DeepSeek API stays available at about the September 2026 price; every response is saved, so the evaluation never calls it again |
@@ -484,7 +484,7 @@ nothing is paid twice.
 | NFR-01 | Performance | Search answers in ≤ 2 s at the 95th percentile on the 40-book library (9,476 chunks, about 76,000 descriptor vectors), on a 4-core CPU | KPI-2, US-4.1 |
 | NFR-02 | Performance | Text indexing of the 40 books takes ≤ 30 min on the same CPU | US-1.2 |
 | NFR-03 | Capacity | All vectors of the 40-book library fit in ≤ 1 GB of memory | KPI-2 |
-| NFR-04 | Cost | Descriptors for the 40-book library cost ≤ 15 USD | KPI-3, US-2.1 |
+| NFR-04 | Cost | Descriptors for the 40-book library cost ≤ 10 USD | KPI-3, US-2.1 |
 | NFR-05 | Security | The LLM API key never appears in a log line or an error message (checked by a test) | US-2.3 |
 | NFR-06 | Privacy | Each reader sees only their own conversation (another's returns 404) | US-4.1 |
 | NFR-07 | Availability | Search works without the LLM API, with BM25 + embeddings | US-3.3 |
