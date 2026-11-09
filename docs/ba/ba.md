@@ -55,8 +55,9 @@ descriptors with keyword, embedding and hybrid retrieval.
 3. Build the retrieval module: chunking of book text, BM25, text-embedding and
    descriptor search, and hybrid ranking with Reciprocal Rank Fusion.
 4. Compare six retrieval configurations on 40 public-domain books with
-   Recall@5, Recall@10 and MRR@10, separately for fiction and non-fiction and
-   for factual and interpretive questions, with paired statistical tests.
+   Recall@5, Recall@10 and MRR@10, separately for fiction and non-fiction and,
+   if time allows, for factual and interpretive questions, with paired
+   statistical tests.
 5. Connect the best configuration to the Librarian panel, which shows the
    passages it retrieves.
 
@@ -232,6 +233,16 @@ technique measured on books. No product offers **an assistant inside the
 reader's own library whose retrieval was chosen by measurement on books**; the
 diploma builds and measures that retrieval.
 
+**What Libra takes from the analogs.** From NotebookLM: answers come only
+from the reader's own sources, and each passage is shown as a citation that
+opens its source (US-4.1, US-4.2). From AnythingLLM: one pool of all the books,
+searched together on the reader's own server, with embeddings as the baseline
+method. From Calibre: the LLM is optional, and search still works without it
+(NFR-07). From Calibre-Web and Kavita: a self-hosted web library that the
+household already uses, so the books are never uploaded again. Libra does not
+take NotebookLM's cloud storage, AnythingLLM's separate copy of the documents,
+or the answers from the model's memory that Calibre's AI gives.
+
 ## 1.4 Chapter conclusions
 
 | ID | Problem | Epic | KPI |
@@ -239,7 +250,7 @@ diploma builds and measures that retrieval.
 | P1 | The Librarian's answers will depend on a retrieval technique that nobody has measured on books | E5 Retrieval experiment | KPI-1 |
 | P2 | Interpretive questions do not share words with the text (the vocabulary problem), most of all in fiction | E2 Descriptors, E3 Retrieval | KPI-1 |
 | P3 | Libra cannot read the text of its books; there is no retrieval layer for the Librarian to call | E1 Text indexing, E3 Retrieval | KPI-2 |
-| P4 | An answer whose passages are not shown cannot be checked by the reader | E4 Librarian panel | — |
+| P4 | An answer whose passages are not shown cannot be checked by the reader | E4 Librarian panel | KPI-4 |
 | P5 | Retrieval must run on a home server without a GPU, at a low LLM cost | E1, E2 | KPI-2, KPI-3 |
 
 **What the new solution must be able to do:** rank every passage of the
@@ -259,7 +270,7 @@ default retriever, it finds its passages with a technique measured on books.
 **Business goals.**
 
 - **G1.** Choose the Librarian's retrieval technique by a reproducible
-  experiment on books, by genre and by question kind.
+  experiment on books, by genre and, if time allows, by question kind.
 - **G2.** Give the future Librarian one retrieval call that all its tools can
   use.
 - **G3.** Make retrieval visible to readers now, within Libra's limits: one
@@ -271,7 +282,8 @@ default retriever, it finds its passages with a technique measured on books.
 |---|---|---|---|---|
 | KPI-1 | Recall@10 of the panel's method on the test questions | Recall@10 of BM25 + embeddings, measured on the same questions in the same run | Higher than the baseline: the 95% paired bootstrap interval of the difference lies above 0 | `rag evaluate` and `rag report` on the frozen protocol |
 | KPI-2 | Retrieval response time, 95th percentile | None: Libra cannot read book text | ≤ 2 s on the 40-book library | Timer around `rag.search`, 100 questions |
-| KPI-3 | LLM cost to index the 40-book library | — (new function) | ≤ 15 USD | Token usage saved with every LLM response |
+| KPI-3 | LLM cost to index the 40-book library | 0 USD: BM25 + embeddings run locally and need no LLM | ≤ 15 USD in total, ≤ 0.4 USD per book | Token usage saved with every LLM response |
+| KPI-4 | Share of test questions where one of the three passages the panel shows is the source passage (Success@3): the reader sees the answer without opening a book | Success@3 of BM25 alone, the keyword search a reader uses today, measured on the same questions in the same run | Higher than the baseline: the 95% paired bootstrap interval of the difference lies above 0 | `rag evaluate` with k = 3; shown live at the pre-defense demo on 10 test questions chosen before it |
 
 ## 2.2 Stakeholders and users
 
@@ -300,7 +312,8 @@ book's own text as proof, not a summary that may be made up.
 
 **Persona 2 — Anna, 38, the household administrator.** She runs Libra on a
 home server with 600 books, and will turn the search on only if it runs on her
-CPU, costs a few dollars, and keeps her family's questions at home by default.
+CPU, costs a known one-time amount (about 0.2–0.3 USD a book), and keeps her
+family's questions at home by default.
 
 ## 2.3 Project scope
 
@@ -368,8 +381,11 @@ diploma.
 | E4 | Librarian panel shows passages | G3 | Must |
 | E5 | Retrieval experiment | G1 | Must |
 
-The full backlog of 21 user stories, with acceptance criteria in
-Given/When/Then form, is in Appendix A. The key stories:
+Every epic is Must, because each holds a part that the topic application
+promises; priorities differ at the level of stories. The full backlog of 22
+user stories (17 Must, 4 Should, 1 Could), with acceptance criteria in
+Given/When/Then form and the order in which work is postponed, is in
+Appendix A. The key stories:
 
 **US-3.3 (Should).** As a reader, I want search to work when the LLM is not
 available, so that I can still find passages.
@@ -414,7 +430,7 @@ panel that shows real passages from the test books.
 |---|---|---|---|
 | G1 Choose retrieval by experiment | KPI-1 | E2, E3, E5 | US-2.1 – US-2.4, US-3.1 – US-3.2, US-5.1 – US-5.5 |
 | G2 One retrieval call for the Librarian | KPI-2 | E1, E3 | US-1.1 – US-1.4, US-3.3, US-3.4 |
-| G3 Retrieval visible in the panel | KPI-2, KPI-3 | E4 | US-4.1 – US-4.4 |
+| G3 Retrieval visible in the panel | KPI-2, KPI-3, KPI-4 | E4 | US-4.1 – US-4.5 |
 
 ## 2.6 Use case scenarios
 
@@ -472,7 +488,7 @@ nothing is paid twice.
 | NFR-05 | Security | The LLM API key never appears in a log line or an error message (checked by a test) | US-2.3 |
 | NFR-06 | Privacy | Each reader sees only their own conversation (another's returns 404) | US-4.1 |
 | NFR-07 | Availability | Search works without the LLM API, with BM25 + embeddings | US-3.3 |
-| NFR-08 | Portability | The Docker image runs search on `linux/amd64` and `linux/arm64` | US-4.4 |
+| NFR-08 | Portability | The Docker image runs search on `linux/amd64` and `linux/arm64` | US-4.4, US-4.5 |
 | NFR-09 | Usability | The panel meets WCAG 2.1 level AA and works at a width of 360 px | US-4.1, US-4.2 |
 | NFR-10 | Reproducibility | Two evaluations of the same saved inputs give byte-identical result files | KPI-1, US-5.4 |
 
@@ -502,7 +518,7 @@ follow the ISO/IEC 25010 model [@iso25010].
 | ID | Risk | Probability | Impact | Mitigation | Dependency |
 |---|---|---|---|---|---|
 | R1 | Descriptors do not beat the baselines | M | M | A negative result is valid; every hypothesis is answered with an interval; the panel uses the best method found | Experiment results |
-| R2 | The schedule slips: the experiment, the panel and the thesis text all fall between the BA defense and the pre-defense | H | H | A fixed order of optional analyses to drop first; nothing promised in the topic application is dropped | University deadlines |
+| R2 | The schedule slips: the experiment, the panel and the thesis text all fall between the BA defense and the pre-defense | H | H | A fixed order of work to postpone first (Appendix A): Could and Should stories, then optional analyses; nothing promised in the topic application is dropped | University deadlines |
 | R3 | The LLM provider changes the model, the price or the JSON output | M | M | A pilot checks both before the full run; every response is saved; the protocol records the model version | DeepSeek API |
 | R4 | The LLM knows famous books and describes the answer from memory | M | H | Less famous books; no title or author in the prompt; named in the report | Book choice |
 | R5 | One correct chunk per question under-counts correct results | H | M | A 50-question sample where every relevant chunk is judged by hand | Test questions |
@@ -510,14 +526,15 @@ follow the ISO/IEC 25010 model [@iso25010].
 
 ## 2.10 Chapter conclusions
 
-The specification fixes three goals and three KPIs, nine stakeholders, a
+The specification fixes three goals and four KPIs, nine stakeholders, a
 scope limited to the retrieval layer, the experiment and the panel, five epics
-and 21 user stories, two use cases, ten measurable non-functional
+and 22 user stories, two use cases, ten measurable non-functional
 requirements, the legal basis for the new personal data, and six risks.
 
 The result is verified against the KPIs of Section 2.1: **KPI-1** by the
-frozen experiment protocol, **KPI-2** by timing 100 searches, and **KPI-3** by
-the token usage saved with every LLM response. The acceptance criteria of the
+frozen experiment protocol, **KPI-2** by timing 100 searches, **KPI-3** by
+the token usage saved with every LLM response, and **KPI-4** by the same run
+and live at the pre-defense demo. The acceptance criteria of the
 Must stories are checked by automated tests and by the pre-defense demo.
 
 # List of references
@@ -532,7 +549,7 @@ Must stories are checked by automated tests and by the pre-defense demo.
 |---|---|---|---|---|
 | US-1.1 | E1 | As the researcher, I want each book split into chunks of whole paragraphs, so that each chunk is one passage that a question can be answered from | Given an EPUB, when it is chunked, then only body chapters are used, no chunk crosses a chapter, no chunks overlap, and none is over 450 tokens. | Must |
 | US-1.2 | E1 | As an administrator, I want one command to index the library, so that its text can be searched | Given books without chunks, when I run `rag index`, then each book's chunks, BM25 entries and vectors are stored in one transaction, and indexed books are skipped. | Must |
-| US-1.3 | E1 | As an administrator, I want a deleted book's chunks removed with it, so that search never shows a book that is gone | Given an indexed book, when it is deleted, then its chunks, vectors and descriptors are removed, also when a new book later reuses its id. | Must |
+| US-1.3 | E1 | As an administrator, I want a deleted book's chunks removed with it, so that search never shows a book that is gone | Given an indexed book, when it is deleted, then its chunks, vectors and descriptors are removed, also when a new book later reuses its id. | Should |
 | US-1.4 | E1 | As an administrator, I want new uploads indexed for search, so that every book can be found | Given a new upload, when indexing finishes, then its passages are found by BM25 and by embeddings. | Could |
 | US-2.1 | E2 | As an administrator, I want descriptors written for every chunk, so that search by descriptors works | Given chunks without descriptors, when I run `rag describe`, then each gets exactly 8 descriptors, and failures are counted after 3 retries. | Must |
 | US-2.2 | E2 | As the researcher, I want descriptors written from the passage text only, so that the LLM describes the passage, not a book it remembers | Given a chunk, when descriptors are requested, then the prompt holds no title and no author, and exactly 8 descriptors of 2–6 words are saved. | Must |
@@ -545,12 +562,19 @@ Must stories are checked by automated tests and by the pre-defense demo.
 | US-4.1 | E4 | As a reader, I want to ask the Librarian a question in my own words, so that I see the passages of my books that answer it | See Section 2.5. | Must |
 | US-4.2 | E4 | As a reader, I want to open a found passage in the book, so that I can read it in context | See Section 2.5. | Must |
 | US-4.3 | E4 | As an administrator, I want to choose the search method in the settings, so that the panel uses the experiment's winner | Given a method set in the settings, when a reader asks, then that method ranks the chunks. | Should |
-| US-4.4 | E4 | As an administrator, I want search to work in the Docker image, so that I can run it on my server | Given the image on `amd64` or `arm64`, when a reader asks a question, then passages are returned. | Must |
+| US-4.4 | E4 | As an administrator, I want search to work in the Docker image, so that I can run it on my server | Given the image on `amd64`, when a reader asks a question, then passages are returned. | Must |
+| US-4.5 | E4 | As an administrator with an ARM server, such as a Raspberry Pi, I want search to work in the `arm64` image, so that I can run it on that server | Given the image on `arm64`, when a reader asks a question, then passages are returned. | Should |
 | US-5.1 | E5 | As the researcher, I want to write hand questions before any result exists, so that the questions do not favour one method | Given the frozen chunker, when I run `rag hand-question`, then I see a random chunk and record a question and its kind. | Must |
 | US-5.2 | E5 | As the researcher, I want LLM-drafted questions reviewed one by one, so that only valid questions are used | Given a draft, when I review it, then I keep, edit or drop it, and a drop records its reason. | Must |
 | US-5.3 | E5 | As the researcher, I want the protocol frozen and tagged before the full run, so that the analysis cannot follow the results | Given the protocol, when it is committed, then it is tagged `experiment-protocol-v1` before any final result exists. | Must |
 | US-5.4 | E5 | As the researcher, I want one command to evaluate every configuration, so that the results can be repeated | Given the frozen protocol and the saved descriptors, when I run `rag evaluate`, then the rank of the source chunk is written for every question and configuration, and a second run gives byte-identical files. | Must |
 | US-5.5 | E5 | As the researcher, I want intervals and tests for each hypothesis, so that the conclusions are sound | Given a run, when I run `rag report`, then each hypothesis has a 95% bootstrap interval and a Holm-corrected p-value, per genre. | Must |
+
+**Order of postponement (risk R2).** If the schedule slips, work moves after
+the pre-defense in this order: the Could story (US-1.4); the Should stories
+(US-1.3, US-3.3, US-4.3, US-4.5); then three optional analyses — the check of
+descriptor accuracy, the review of failed questions, and the analysis by
+question kind. Nothing promised in the topic application moves.
 
 # Appendix B. Diagrams
 
