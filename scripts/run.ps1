@@ -210,31 +210,44 @@ New-Item -ItemType Directory -Force -Path $Data | Out-Null
 # "unable to open database file", naming nothing. This is the same trap
 # run.sh handles with `cygpath -m`, arriving from the other direction.
 $DataNative = $Data -replace '\\', '/'
-if (-not $env:LIBRA_DATABASE_URL) { $env:LIBRA_DATABASE_URL = "sqlite:///$DataNative/libra.db" }
-if (-not $env:LIBRA_LIBRARY_DIR)  { $env:LIBRA_LIBRARY_DIR  = "$DataNative/library" }
 
-# Which commit is serving, for /health to report. The version alone moves once
-# a phase, so on any ordinary day this is the half that answers "which build".
-# Quietly empty when git is missing or this is not a checkout — a zip is a fair
-# way to install this, and it should not fail for want of a repository.
-if (-not $env:LIBRA_BUILD -and (Test-OnPath 'git')) {
-    $head = & git -C $Repo rev-parse --short HEAD 2>$null
-    if ($LASTEXITCODE -eq 0) { $env:LIBRA_BUILD = $head }
+# A script runs in the process of the window that started it, so $env changes
+# outlive it. Without this, a -Scratch run after a plain one in the same window
+# would keep the real database URL. So the old values go back at the end, on
+# every way out: an error, Ctrl-C, or uvicorn stopping. run.sh needs none of
+# this, because it runs as a child process.
+$Saved = @{
+    Url     = $env:LIBRA_DATABASE_URL
+    Library = $env:LIBRA_LIBRARY_DIR
+    Build   = $env:LIBRA_BUILD
 }
+try {
+    if (-not $env:LIBRA_DATABASE_URL) { $env:LIBRA_DATABASE_URL = "sqlite:///$DataNative/libra.db" }
+    if (-not $env:LIBRA_LIBRARY_DIR)  { $env:LIBRA_LIBRARY_DIR  = "$DataNative/library" }
 
-Write-Step 'Preparing the database'
-# Idempotent: applies what is pending and creates an account only when the
-# installation has none, so this is safe on every boot rather than only the
-# first. Without it a fresh clone starts, shows a login screen, and has no
-# account to sign in with.
-$AdminUser = if ($env:LIBRA_ADMIN_USERNAME) { $env:LIBRA_ADMIN_USERNAME } else { 'admin' }
-Invoke-Native { & $VenvPy -m app.cli create-admin --username $AdminUser --if-missing } 'create-admin'
+    # Which commit is serving, for /health to report. The version alone moves
+    # once a phase, so on any ordinary day this is the half that answers "which
+    # build". Quietly empty when git is missing or this is not a checkout — a
+    # zip is a fair way to install this, and it should not fail for want of a
+    # repository.
+    if (-not $env:LIBRA_BUILD -and (Test-OnPath 'git')) {
+        $head = & git -C $Repo rev-parse --short HEAD 2>$null
+        if ($LASTEXITCODE -eq 0) { $env:LIBRA_BUILD = $head }
+    }
 
-# Who to sign in as, on every run rather than only the one that created the
-# account. Otherwise the answer is a line of output from whenever the install
-# was first set up, which nobody still has. Names only — passwords are stored
-# as Argon2 hashes and cannot be recovered from here, only reset.
-$AccountsScript = @'
+    Write-Step 'Preparing the database'
+    # Idempotent: applies what is pending and creates an account only when the
+    # installation has none, so this is safe on every boot rather than only the
+    # first. Without it a fresh clone starts, shows a login screen, and has no
+    # account to sign in with.
+    $AdminUser = if ($env:LIBRA_ADMIN_USERNAME) { $env:LIBRA_ADMIN_USERNAME } else { 'admin' }
+    Invoke-Native { & $VenvPy -m app.cli create-admin --username $AdminUser --if-missing } 'create-admin'
+
+    # Who to sign in as, on every run rather than only the one that created the
+    # account. Otherwise the answer is a line of output from whenever the install
+    # was first set up, which nobody still has. Names only — passwords are stored
+    # as Argon2 hashes and cannot be recovered from here, only reset.
+    $AccountsScript = @'
 from sqlmodel import Session, select
 
 from app.db import get_engine
@@ -245,15 +258,15 @@ with Session(get_engine()) as session:
 print(", ".join(f"{u.username}{' (admin)' if u.is_admin else ''}" for u in users))
 '@
 
-# Informational only. A failure here must not stop the server starting, so
-# unlike everything else it is not routed through Invoke-Native.
-$Accounts = ''
-try { $Accounts = ($AccountsScript | & $VenvPy - 2>$null) -join '' } catch { }
+    # Informational only. A failure here must not stop the server starting, so
+    # unlike everything else it is not routed through Invoke-Native.
+    $Accounts = ''
+    try { $Accounts = ($AccountsScript | & $VenvPy - 2>$null) -join '' } catch { }
 
-# ------------------------------------------------------------------ the serve
-# 0.0.0.0 rather than 127.0.0.1 is what actually exposes this to the network.
-Write-Step 'Serving'
-$LanIpScript = @'
+    # -------------------------------------------------------------- the serve
+    # 0.0.0.0 rather than 127.0.0.1 is what actually exposes this to the network.
+    Write-Step 'Serving'
+    $LanIpScript = @'
 import socket
 
 # Connecting a UDP socket assigns a local address without sending anything,
@@ -268,24 +281,30 @@ finally:
     s.close()
 '@
 
-$LanIp = ''
-try { $LanIp = ($LanIpScript | & $VenvPy - 2>$null) -join '' } catch { }
+    $LanIp = ''
+    try { $LanIp = ($LanIpScript | & $VenvPy - 2>$null) -join '' } catch { }
 
-Write-Host ''
-if ($Scratch)                 { Write-Host '    scratch        this instance is wiped on every run' }
-if (-not (Test-Path $WebOut)) { Write-Host '    no client      API only; docs at /docs' }
-Write-Host "    this machine   http://localhost:$Port"
-if ($LanIp)    { Write-Host "    other devices  http://${LanIp}:$Port" }
-if ($Accounts) { Write-Host "    sign in as     $Accounts" }
-Write-Host "    books          $env:LIBRA_LIBRARY_DIR"
-Write-Host ''
-Write-Host '    Ctrl-C to stop.'
-Write-Host ''
+    Write-Host ''
+    if ($Scratch)                 { Write-Host '    scratch        this instance is wiped on every run' }
+    if (-not (Test-Path $WebOut)) { Write-Host '    no client      API only; docs at /docs' }
+    Write-Host "    this machine   http://localhost:$Port"
+    if ($LanIp)    { Write-Host "    other devices  http://${LanIp}:$Port" }
+    if ($Accounts) { Write-Host "    sign in as     $Accounts" }
+    Write-Host "    books          $env:LIBRA_LIBRARY_DIR"
+    Write-Host ''
+    Write-Host '    Ctrl-C to stop.'
+    Write-Host ''
 
-# No `exec` in PowerShell, so uvicorn runs as a child of this script rather
-# than replacing it. That is a real difference from run.sh, and it is the
-# better half of the trade: run.sh warns that killing the job that launched it
-# leaves the server holding the port, because the shell is gone and uvicorn is
-# not. Here the process tree stays intact and Ctrl-C reaches uvicorn normally.
-& $VenvPy -m uvicorn app.main:app --host 0.0.0.0 --port $Port
-exit $LASTEXITCODE
+    # No `exec` in PowerShell, so uvicorn runs as a child of this script rather
+    # than replacing it. That is a real difference from run.sh, and it is the
+    # better half of the trade: run.sh warns that killing the job that launched
+    # it leaves the server holding the port, because the shell is gone and
+    # uvicorn is not. Here the process tree stays intact and Ctrl-C reaches
+    # uvicorn normally.
+    & $VenvPy -m uvicorn app.main:app --host 0.0.0.0 --port $Port
+    exit $LASTEXITCODE
+} finally {
+    $env:LIBRA_DATABASE_URL = $Saved.Url
+    $env:LIBRA_LIBRARY_DIR  = $Saved.Library
+    $env:LIBRA_BUILD        = $Saved.Build
+}
