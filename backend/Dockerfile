@@ -57,6 +57,19 @@ COPY --from=venv /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:$PATH"
 WORKDIR /app
 
+# The server does not run as root. It runs as this user, so a fault in the
+# server cannot change the image or anything else that root owns. The number
+# is fixed, so that the owner of the data is the same in every build.
+# /app/data is where scripts/docker-compose.yml puts the data volume. A new
+# volume starts as a copy of this folder, and so belongs to `libra` at once.
+RUN useradd --system --uid 1000 --user-group --home-dir /app --shell /usr/sbin/nologin libra     && mkdir /app/data     && chown libra:libra /app /app/data
+
+# Docker starts the script as root, and the script hands over to `libra`. A
+# `USER libra` line here would be simpler, but then nobody could repair a data
+# volume that an older image made, and every upgrade would need a manual step.
+COPY --chmod=755 backend/docker-entrypoint.sh /usr/local/bin/docker-entrypoint.sh
+ENTRYPOINT ["docker-entrypoint.sh"]
+
 # Which commit this image was built from, for /health to report. The build
 # context has no repository (.dockerignore leaves .git out), so it has to be
 # handed in: `docker build --build-arg LIBRA_BUILD=$(git rev-parse --short HEAD)`.
