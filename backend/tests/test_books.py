@@ -51,10 +51,10 @@ def test_delete_book(admin_client: TestClient) -> None:
 def test_delete_book_takes_everything_hanging_off_it(admin_client: TestClient) -> None:
     """A book's rating, progress, tags and notes go with it.
 
-    SQLite hands out the same id again once a row is gone, and nothing here
-    enforces the foreign keys, so anything left behind is inherited by the
-    next book uploaded. Whether the id is reused is SQLite's business; that it
-    carries nothing over is ours.
+    SQLite refuses to delete a book that rows still point at, and nothing
+    cascades, so each kind of row is deleted by hand. SQLite also hands out the
+    same id again once a row is gone, so anything left behind would be
+    inherited by the next book uploaded.
     """
     book = admin_client.post("/books", json=BOOK_PAYLOAD).json()
     tag = admin_client.post("/tags", json={"name": "keeper"}).json()

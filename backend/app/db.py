@@ -5,7 +5,7 @@ from pathlib import Path
 
 from alembic.config import Config
 from alembic.runtime.migration import MigrationContext
-from sqlalchemy import Engine, event
+from sqlalchemy import Connection, Engine, event
 from sqlmodel import Session, create_engine
 
 from alembic import command
@@ -41,10 +41,15 @@ def _fold_case(value: str | None) -> str | None:
 
 
 @event.listens_for(Engine, "connect")
-def _add_sqlite_functions(dbapi_connection: object, _record: object) -> None:
-    """Give every SQLite connection the case folding above."""
+def _prepare_sqlite_connection(dbapi_connection: object, _record: object) -> None:
+    """Give every SQLite connection the case folding above, and enforced foreign keys.
+
+    SQLite checks foreign keys only on a connection that asks for it, and the
+    setting is not stored in the database file.
+    """
     if isinstance(dbapi_connection, sqlite3.Connection):
         dbapi_connection.create_function("lower", 1, _fold_case, deterministic=True)
+        dbapi_connection.execute("PRAGMA foreign_keys = ON")
 
 
 @lru_cache
@@ -53,6 +58,18 @@ def get_engine() -> Engine:
     settings = get_settings()
     connect_args = {"check_same_thread": False} if "sqlite" in settings.database_url else {}
     return create_engine(settings.database_url, connect_args=connect_args)
+
+
+def _enforce_foreign_keys(connection: Connection, *, enforce: bool) -> None:
+    """Switch SQLite's foreign key check on or off for one connection.
+
+    Args:
+        connection: A connection with no transaction open.
+        enforce: True to check foreign keys, False to stop checking.
+    """
+    if connection.dialect.name == "sqlite":
+        connection.exec_driver_sql(f"PRAGMA foreign_keys = {'ON' if enforce else 'OFF'}")
+        connection.commit()
 
 
 def run_migrations() -> None:
@@ -68,11 +85,19 @@ def run_migrations() -> None:
         )
 
     config = Config(ALEMBIC_INI)
-    with get_engine().begin() as connection:
-        before = MigrationContext.configure(connection).get_current_revision()
-        config.attributes["connection"] = connection
-        command.upgrade(config, "head")
-        after = MigrationContext.configure(connection).get_current_revision()
+    with get_engine().connect() as connection:
+        # A revision that rebuilds a table drops the old one, and SQLite refuses
+        # to drop a table that rows point at. SQLite ignores this setting inside
+        # a transaction, so it changes before one begins and after it ends.
+        _enforce_foreign_keys(connection, enforce=False)
+        try:
+            with connection.begin():
+                before = MigrationContext.configure(connection).get_current_revision()
+                config.attributes["connection"] = connection
+                command.upgrade(config, "head")
+                after = MigrationContext.configure(connection).get_current_revision()
+        finally:
+            _enforce_foreign_keys(connection, enforce=True)
 
     # Only when something actually moved. Startup applies migrations on every
     # boot, so an unconditional line would be noise on every restart — and

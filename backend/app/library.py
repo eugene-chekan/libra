@@ -21,6 +21,8 @@ from app.models import (
     Book,
     BookRead,
     BookTag,
+    Conversation,
+    Message,
     Note,
     NoteRead,
     Shelf,
@@ -575,10 +577,9 @@ def delete_book(session: Session, book_id: int, settings: Settings) -> None:
     """Remove a book, everything readers had on it, and then its file.
 
     The rows have to go by hand, as in `delete_user`: nothing declares an ORM
-    relationship to cascade along, and SQLite is not enforcing the foreign
-    keys. Leaving them would not stay invisible either, because SQLite hands
-    the same id out again — the next book uploaded would inherit the dead
-    one's rating, progress, tags and notes.
+    relationship to cascade along, and SQLite refuses to delete a book that
+    rows still point at. The same id is also handed out again, so anything
+    left behind would be inherited by the next book uploaded.
 
     Args:
         session: Open database session.
@@ -599,6 +600,8 @@ def delete_book(session: Session, book_id: int, settings: Settings) -> None:
     ):
         for row in session.exec(select(model).where(column == book_id)).all():
             session.delete(row)
+    # SQLite refuses to delete a book that rows still point at.
+    session.flush()
 
     session.delete(book)
     session.commit()
@@ -799,6 +802,7 @@ def delete_shelf(
     for state in placed:
         state.shelf_id = destination.id if destination is not None else None
         session.add(state)
+    session.flush()
 
     session.delete(shelf)
     session.commit()
@@ -969,6 +973,7 @@ def delete_tag(session: Session, tag_id: int, user: User) -> None:
 
     for link in session.exec(select(BookTag).where(BookTag.tag_id == tag.id)).all():
         session.delete(link)
+    session.flush()
     session.delete(tag)
     session.commit()
 
@@ -1201,24 +1206,29 @@ def delete_user(session: Session, user_id: int, caller: User) -> None:
     if user.id == caller.id:
         raise SelfDeletionError
 
-    own_tag_ids = [tag.id for tag in session.exec(select(Tag).where(Tag.owner_id == user.id)).all()]
-    if own_tag_ids:
-        for link in session.exec(select(BookTag).where(col(BookTag.tag_id).in_(own_tag_ids))).all():
-            session.delete(link)
+    own_tags = select(Tag.id).where(Tag.owner_id == user.id)
+    own_conversations = select(Conversation.id).where(Conversation.user_id == user.id)
 
-    for model, column in (
-        (Tag, Tag.owner_id),
-        (Note, Note.user_id),
-        (UserBookState, UserBookState.user_id),
-        (Shelf, Shelf.owner_id),
-        (UserSession, UserSession.user_id),
+    # In this order, and flushed after each step: SQLite refuses to delete a
+    # row that other rows still point at.
+    for model, condition in (
+        (BookTag, col(BookTag.tag_id).in_(own_tags)),
+        (Tag, Tag.owner_id == user.id),
+        (Message, col(Message.conversation_id).in_(own_conversations)),
+        (Conversation, Conversation.user_id == user.id),
+        (Note, Note.user_id == user.id),
+        (UserBookState, UserBookState.user_id == user.id),
+        (Shelf, Shelf.owner_id == user.id),
+        (UserSession, UserSession.user_id == user.id),
     ):
-        for row in session.exec(select(model).where(column == user.id)).all():
+        for row in session.exec(select(model).where(condition)).all():
             session.delete(row)
+        session.flush()
 
     for book in session.exec(select(Book).where(Book.uploaded_by == user.id)).all():
         book.uploaded_by = None
         session.add(book)
+    session.flush()
 
     session.delete(user)
     session.commit()

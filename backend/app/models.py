@@ -1,9 +1,9 @@
 from datetime import UTC, datetime
-from typing import Literal
+from typing import Literal, get_args
 
 from pydantic import NaiveDatetime
 from sqlalchemy import JSON as SA_JSON
-from sqlalchemy import Column, Index, String, event, text
+from sqlalchemy import CheckConstraint, Column, Index, String, event, text
 from sqlmodel import Field, SQLModel
 
 from app.naming import fold_name
@@ -19,6 +19,9 @@ ShelfVisibility = Literal["private", "public"]
 # serving `text/html` out of a user-uploaded archive from the API's own
 # origin is stored XSS, and there is a session cookie on that origin to steal.
 COVER_MEDIA_TYPES = frozenset({"image/jpeg", "image/png", "image/gif", "image/webp"})
+
+# 0 means "not rated".
+MAX_RATING = 5
 
 SORT_TITLE = "title"
 SORT_ADDED = "added"
@@ -49,6 +52,8 @@ class BookBase(SQLModel):
 
 class Book(BookBase, table=True):
     """A book in the catalog."""
+
+    __table_args__ = (CheckConstraint("pages >= 1", name="ck_book_pages"),)
 
     id: int | None = Field(default=None, primary_key=True)
     uploaded_by: int | None = Field(default=None, foreign_key="user.id")
@@ -122,7 +127,12 @@ class Shelf(SQLModel, table=True):
     """A named, ordered grouping of books belonging to one reader."""
 
     __tablename__ = "shelf"
-    __table_args__ = (Index("ix_shelf_owner_name", "owner_id", "name_folded", unique=True),)
+    __table_args__ = (
+        Index("ix_shelf_owner_name", "owner_id", "name_folded", unique=True),
+        CheckConstraint(
+            f"visibility IN ('{SHELF_PRIVATE}', '{SHELF_PUBLIC}')", name="ck_shelf_visibility"
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     owner_id: int = Field(foreign_key="user.id", index=True)
@@ -232,6 +242,10 @@ class UserBookState(SQLModel, table=True):
     """One reader's relationship with one book."""
 
     __tablename__ = "user_book_state"
+    __table_args__ = (
+        CheckConstraint(f"rating BETWEEN 0 AND {MAX_RATING}", name="ck_user_book_state_rating"),
+        CheckConstraint("progress BETWEEN 0 AND 1", name="ck_user_book_state_progress"),
+    )
 
     user_id: int = Field(foreign_key="user.id", primary_key=True)
     book_id: int = Field(foreign_key="book.id", primary_key=True)
@@ -254,7 +268,7 @@ class UserBookState(SQLModel, table=True):
 class UserBookStateWrite(SQLModel):
     """The writable half of a reader's state."""
 
-    rating: int = Field(default=0, ge=0, le=5)
+    rating: int = Field(default=0, ge=0, le=MAX_RATING)
     progress: float = Field(default=0.0, ge=0, le=1)
     position: str | None = Field(default=None, max_length=1000)
     shelf_id: int | None = None
@@ -263,6 +277,8 @@ class UserBookStateWrite(SQLModel):
 
 class Note(SQLModel, table=True):
     """A reader's note or highlight."""
+
+    __table_args__ = (CheckConstraint("page >= 1", name="ck_note_page"),)
 
     id: int | None = Field(default=None, primary_key=True)
     user_id: int = Field(foreign_key="user.id", index=True)
@@ -312,6 +328,13 @@ class Conversation(SQLModel, table=True):
 
 class Message(SQLModel, table=True):
     """One turn in a conversation, from the reader or the librarian."""
+
+    __table_args__ = (
+        CheckConstraint(
+            "role IN ({})".format(", ".join(f"'{role}'" for role in get_args(MessageRole))),
+            name="ck_message_role",
+        ),
+    )
 
     id: int | None = Field(default=None, primary_key=True)
     conversation_id: int = Field(foreign_key="conversation.id", index=True)

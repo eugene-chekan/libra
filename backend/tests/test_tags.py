@@ -384,8 +384,8 @@ def test_a_books_tags_never_include_another_readers(
 
 
 def test_deleting_a_tag_removes_it_from_every_book(client: TestClient, session: Session) -> None:
-    """No foreign-key cascade to lean on: SQLite has enforcement off, so the
-    link rows have to go explicitly or they strand."""
+    """No foreign-key cascade to lean on, so the link rows have to go
+    explicitly, and before the tag they point at."""
     tag = _tag(client, "Doomed").json()
     for title in ("One", "Two"):
         _set_tags(client, _book(client, title), [tag["id"]])
