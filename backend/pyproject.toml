@@ -18,6 +18,8 @@ dependencies = [
     # its 2.x line ships under.
     "httpx2>=2.9.0",
     "fastembed>=0.9.0",
+    # The vectors and the search maths; fastembed also needs it.
+    "numpy>=2.0",
 ]
 
 [dependency-groups]

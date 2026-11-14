@@ -203,3 +203,18 @@ def anon_client_fixture(session: Session, settings: Settings) -> Generator[TestC
     for real against the seeded accounts.
     """
     yield from _build_client(session, settings, None)
+
+
+@pytest.fixture(name="experiment_db")
+def experiment_db_fixture(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> Generator[None, None, None]:
+    """A fresh database and library, as `rag load-corpus` meets them the first time."""
+    monkeypatch.setenv("LIBRA_DATABASE_URL", f"sqlite:///{tmp_path / 'experiment.db'}")
+    monkeypatch.setenv("LIBRA_LIBRARY_DIR", str(tmp_path / "library"))
+    get_settings.cache_clear()
+    get_engine.cache_clear()
+    yield
+    get_engine().dispose()
+    get_settings.cache_clear()
+    get_engine.cache_clear()

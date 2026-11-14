@@ -35,3 +35,20 @@ def write_csv(path: Path, rows: list[dict], *, bom: bool = False) -> Path:
         writer.writeheader()
         writer.writerows(rows)
     return path
+
+
+def chapters_book(folder: Path, name: str, sizes: list[int]) -> Path:
+    """A book with one chapter per size, each one paragraph of that many words: one chunk each.
+
+    Every word is unique to its book and chapter, so a search can tell the chunks apart.
+    """
+    stem = Path(name).stem
+    chapters = [
+        Chapter(
+            f"c{i}.xhtml",
+            "<p>" + " ".join(f"{stem}c{i}w{j}" for j in range(size)) + "</p>",
+            title=f"Chapter {i}",
+        )
+        for i, size in enumerate(sizes)
+    ]
+    return build_epub(folder / name, titles=[name], chapters=chapters)

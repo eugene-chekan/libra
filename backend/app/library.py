@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 from typing import BinaryIO
 
-from sqlalchemy import func
+from sqlalchemy import delete, func
 from sqlmodel import Session, col, select
 
 from app import covers, covers_from_url, epub, mailer, naming, storage
@@ -21,6 +21,8 @@ from app.models import (
     Book,
     BookRead,
     BookTag,
+    Chunk,
+    ChunkVector,
     Conversation,
     Message,
     Note,
@@ -600,6 +602,9 @@ def delete_book(session: Session, book_id: int, settings: Settings) -> None:
     ):
         for row in session.exec(select(model).where(column == book_id)).all():
             session.delete(row)
+    chunk_ids = select(Chunk.id).where(Chunk.book_id == book_id)
+    session.exec(delete(ChunkVector).where(col(ChunkVector.chunk_id).in_(chunk_ids)))
+    session.exec(delete(Chunk).where(Chunk.book_id == book_id))
     # SQLite refuses to delete a book that rows still point at.
     session.flush()
 

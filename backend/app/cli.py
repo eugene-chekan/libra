@@ -1,6 +1,7 @@
 """Administrative commands."""
 
 import argparse
+import functools
 import getpass
 import os
 import sys
@@ -16,6 +17,7 @@ from app.db import get_engine, run_migrations
 from app.models import User
 from rag.corpus import (
     MAX_GENRE_GAP,
+    CorpusBook,
     CorpusError,
     book_stats,
     broken_rules,
@@ -28,7 +30,7 @@ from rag.corpus import (
     verify_files,
     write_stats,
 )
-from rag.questions import run_session
+from rag.questions import read_records, run_session
 
 
 def _read_password(username: str) -> str:
@@ -86,16 +88,25 @@ def create_admin(username: str, *, if_missing: bool = False) -> int:
     return 0
 
 
+def _open_experiment_database(books: list[CorpusBook]) -> None:
+    """Refuse a database that holds other books, and only then migrate it.
+
+    Raises:
+        CorpusError: It holds a book that is not in the list.
+    """
+    # Before migrating: a real library pointed at by mistake must be refused
+    # before anything is written to it.
+    if inspect(get_engine()).has_table("book"):
+        with Session(get_engine()) as session:
+            refuse_foreign_books(session, books)
+    run_migrations()
+
+
 def load_corpus_command(corpus_csv: Path, folder: Path) -> int:
     try:
         books = read_corpus(corpus_csv)
         tests = sum(1 for book in books if book.role == "test")
-        # Before migrating: a real library pointed at by mistake must be refused
-        # before anything is written to it.
-        if inspect(get_engine()).has_table("book"):
-            with Session(get_engine()) as session:
-                refuse_foreign_books(session, books)
-        run_migrations()
+        _open_experiment_database(books)
         with Session(get_engine()) as session:
             added = load_corpus(session, books, folder, get_settings())
     except CorpusError as exc:
@@ -151,6 +162,49 @@ def hand_question_command(corpus_csv: Path, folder: Path, stats_csv: Path, out: 
     return 0
 
 
+def index_command(corpus_csv: Path, stats_csv: Path) -> int:
+    from rag.embeddings import load_model
+    from rag.index import index_books
+
+    try:
+        books = read_corpus(corpus_csv)
+        digests = read_digests(stats_csv)
+        _open_experiment_database(books)
+        settings = get_settings()
+        model = load_model(settings)
+        with Session(get_engine()) as session:
+            # Flushed, so a log file shows each book as it is stored.
+            progress = functools.partial(print, flush=True)
+            indexed, already = index_books(session, books, digests, settings, model, progress)
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Indexed {indexed} books; {already} were already indexed.")
+    return 0
+
+
+def smoke_command(hand: Path, sample: int) -> int:
+    from rag.embeddings import load_model
+    from rag.metrics import K_VALUES
+    from rag.search import VectorIndex
+    from rag.smoke import require_hand_set, smoke
+
+    try:
+        records = read_records(hand)
+        require_hand_set(records)
+        settings = get_settings()
+        with Session(get_engine()) as session:
+            vectors = VectorIndex.load(session, settings.embedding_model)
+            recall = smoke(session, vectors, load_model(settings), records, sample)
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Self-retrieval of {sample} chunks from their first words. Not an experiment result.")
+    for method, value in recall.items():
+        print(f"{method}: recall@{max(K_VALUES)} = {value:.2f}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli", description=__doc__)
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -181,6 +235,16 @@ def main(argv: list[str] | None = None) -> int:
     hand.add_argument("folder", type=Path)
     hand.add_argument("--stats", type=Path, required=True, help="corpus-stats.csv")
     hand.add_argument("--out", type=Path, required=True, help="hand.jsonl")
+    index = rag_commands.add_parser(
+        "index", help="Store the test books' chunks and vectors for search; resumes"
+    )
+    index.add_argument("corpus_csv", type=Path)
+    index.add_argument("--stats", type=Path, required=True, help="corpus-stats.csv")
+    smoke = rag_commands.add_parser(
+        "smoke", help="Check the index finds chunks from their first words (after the hand set)"
+    )
+    smoke.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
+    smoke.add_argument("--sample", type=int, default=30)
 
     args = parser.parse_args(argv)
     if args.command == "create-admin":
@@ -191,6 +255,10 @@ def main(argv: list[str] | None = None) -> int:
         return corpus_stats_command(args.corpus_csv, args.folder, args.out)
     if args.command == "rag" and args.rag_command == "hand-question":
         return hand_question_command(args.corpus_csv, args.folder, args.stats, args.out)
+    if args.command == "rag" and args.rag_command == "index":
+        return index_command(args.corpus_csv, args.stats)
+    if args.command == "rag" and args.rag_command == "smoke":
+        return smoke_command(args.hand, args.sample)
     return 1
 
 

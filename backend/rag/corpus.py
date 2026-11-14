@@ -276,14 +276,18 @@ def frozen_chunks(
         digests: From `read_digests`.
 
     Raises:
-        CorpusError: The book has no frozen digest, or its chunks differ from it.
+        CorpusError: The book has no frozen digest, it is not a usable EPUB, or its chunks
+            differ from the digest.
     """
     if file not in digests:
         raise CorpusError(
             f"{file}: corpus-stats.csv has no chunks_sha256 for it, so its chunks cannot be "
             f"checked against chunker version {CHUNKER_VERSION}"
         )
-    chunks = chunk_book(path, count_tokens)
+    try:
+        chunks = chunk_book(path, count_tokens)
+    except InvalidEpubError as exc:
+        raise CorpusError(f"{file}: {exc}") from exc
     if chunks_digest(chunks) != digests[file]:
         raise CorpusError(
             f"{file}: its chunks differ from chunker version {CHUNKER_VERSION} as frozen in "

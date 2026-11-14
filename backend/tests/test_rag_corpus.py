@@ -2,7 +2,6 @@
 
 import csv
 import dataclasses
-from collections.abc import Generator
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -164,21 +163,6 @@ def test_an_oversized_chunk_breaks_a_rule() -> None:
     stats[0] = dataclasses.replace(stats[0], max_tokens=MAX_TOKENS + 1)
 
     assert any("tokens" in problem for problem in broken_rules(stats))
-
-
-@pytest.fixture(name="experiment_db")
-def experiment_db_fixture(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> Generator[None, None, None]:
-    """A fresh database and library, as `rag load-corpus` meets them the first time."""
-    monkeypatch.setenv("LIBRA_DATABASE_URL", f"sqlite:///{tmp_path / 'experiment.db'}")
-    monkeypatch.setenv("LIBRA_LIBRARY_DIR", str(tmp_path / "library"))
-    get_settings.cache_clear()
-    get_engine.cache_clear()
-    yield
-    get_engine().dispose()
-    get_settings.cache_clear()
-    get_engine.cache_clear()
 
 
 def test_load_corpus_reports_what_it_added(
