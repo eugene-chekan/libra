@@ -86,6 +86,12 @@ def run_migrations_online() -> None:
 
     engine = create_engine(_database_url(), poolclass=pool.NullPool)
     with engine.connect() as connection:
+        # As in `app.db.run_migrations`: SQLite refuses to drop a table that
+        # rows point at, and a rebuilt table is dropped. The check is on here
+        # only when the process has loaded `app.db`.
+        if connection.dialect.name == "sqlite":
+            connection.exec_driver_sql("PRAGMA foreign_keys = OFF")
+            connection.commit()
         context.configure(connection=connection, **_context_kwargs())
         with context.begin_transaction():
             context.run_migrations()

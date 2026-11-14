@@ -5,7 +5,7 @@ import pytest
 from sqlmodel import Session
 
 from app.config import Settings
-from app.models import Chunk, ChunkVector
+from app.models import Book, Chunk, ChunkVector
 from rag.chunking import CHUNKER_VERSION
 from rag.corpus import CorpusError
 from rag.embeddings import embed_passages, embed_query, vector_bytes
@@ -21,6 +21,9 @@ def add_chunks(
     book_id: int = 1,
 ) -> list[int]:
     """Store chunks of one book, with their fake vectors; return their ids."""
+    if session.get(Book, book_id) is None:
+        session.add(Book(id=book_id, title="t", author="a", format="epub", file_path="f.epub"))
+        session.flush()
     rows = [
         Chunk(
             book_id=book_id,

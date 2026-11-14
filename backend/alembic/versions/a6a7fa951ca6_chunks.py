@@ -1,7 +1,7 @@
 """chunks
 
 Revision ID: a6a7fa951ca6
-Revises: ede8e57ae05c
+Revises: 58dc777b7e31
 Create Date: 2026-10-18 12:06:12.836318
 
 """
@@ -20,7 +20,7 @@ from alembic import op
 
 # revision identifiers, used by Alembic.
 revision: str = "a6a7fa951ca6"
-down_revision: str | Sequence[str] | None = "ede8e57ae05c"
+down_revision: str | Sequence[str] | None = "58dc777b7e31"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

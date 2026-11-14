@@ -405,6 +405,11 @@ docker compose -f scripts/docker-compose.yml up --build
 database and the books live in the `libra_data` volume, so they survive
 restarts and rebuilds.
 
+The server in the container runs as the user `libra`, not as `root`. Each time
+the container starts, it first makes `libra` the owner of every file in the
+volume. So a volume from an older release, which `root` wrote, keeps working
+with no extra step.
+
 **Create the first account.** Unlike `run.sh`, the image does not make one. Run
 this once. It asks for a password:
 

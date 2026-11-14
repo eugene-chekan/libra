@@ -4,9 +4,9 @@ The rule the whole cascade serves: a shared catalog should not lose books
 because a household member left. Everything private to the reader goes;
 the books they happened to upload stay, with `uploaded_by` nulled.
 
-SQLite has foreign-key enforcement off by default, so nothing here is done
-for us — every dependent row is deleted by hand, and every one of those hand
-deletions needs a test that would notice it being dropped.
+No foreign key cascades, so nothing here is done for us — every dependent row
+is deleted by hand, and every one of those hand deletions needs a test that
+would notice it being dropped.
 """
 
 from pathlib import Path
@@ -17,6 +17,8 @@ from sqlmodel import Session, select
 from app.models import (
     Book,
     BookTag,
+    Conversation,
+    Message,
     Note,
     Shelf,
     Tag,
@@ -160,6 +162,22 @@ def test_their_sessions_go(
     session.expire_all()
     assert session.exec(select(UserSession).where(UserSession.user_id == user.id)).all() == []
     assert anon_client.get("/auth/me").status_code == 401
+
+
+def test_their_conversation_with_the_librarian_goes(
+    client: TestClient, admin_client: TestClient, session: Session, user: User
+) -> None:
+    """Left behind, it would be read by the next account that gets this id."""
+    user_id = user.id
+    conversation_id = client.get("/conversations/mine").json()["id"]
+    client.post(f"/conversations/{conversation_id}/messages", json={"content": "A private one."})
+    assert session.exec(select(Message)).all() != []
+
+    admin_client.delete(f"/users/{user_id}")
+
+    session.expire_all()
+    assert session.exec(select(Conversation)).all() == []
+    assert session.exec(select(Message)).all() == []
 
 
 def test_another_readers_data_is_untouched(

@@ -8,16 +8,18 @@ cover what a real deployment actually runs, and — via
 
 import logging
 import sqlite3
-from collections.abc import Generator
+from collections.abc import Callable, Generator
 from pathlib import Path
 
 import pytest
 from alembic.config import Config
+from sqlalchemy.exc import IntegrityError
 
 from alembic import command
 from app.config import get_settings
 from app.db import ALEMBIC_INI, get_engine, init_db, run_migrations
 from app.models import CHUNK_FTS_DDL
+from tests.test_check_constraints import PARENT_ROWS, REFUSED_ROWS
 
 
 @pytest.fixture(name="fresh_db")
@@ -38,6 +40,10 @@ def fresh_db_fixture(
     get_engine().dispose()
     get_settings.cache_clear()
     get_engine.cache_clear()
+
+
+# Shelf and tag are both rebuilt by the revision after this one.
+BEFORE_NAME_FOLD = "8be05e88e049"
 
 
 def _tables(db_path: Path) -> set[str]:
@@ -180,3 +186,71 @@ def test_auto_upgrade_can_be_disabled(fresh_db: Path, monkeypatch: pytest.Monkey
     init_db()
 
     assert "book" not in _tables(fresh_db)
+
+
+def test_connections_enforce_foreign_keys(fresh_db: Path) -> None:
+    """After the migrations too: they switch the check off while they run."""
+    run_migrations()
+
+    with (
+        get_engine().connect() as connection,
+        pytest.raises(IntegrityError, match="FOREIGN KEY constraint failed"),
+    ):
+        connection.exec_driver_sql(
+            "INSERT INTO note (user_id, book_id, text, created_at)"
+            " VALUES (99, 99, 'x', '2026-01-01')"
+        )
+
+
+def _upgrade_from_the_command_line() -> None:
+    """What `alembic upgrade head` runs: Alembic opens a connection of its own."""
+    command.upgrade(Config(ALEMBIC_INI), "head")
+
+
+@pytest.mark.parametrize("upgrade", [run_migrations, _upgrade_from_the_command_line])
+def test_migrations_keep_rows_that_other_rows_point_at(
+    fresh_db: Path, upgrade: Callable[[], None]
+) -> None:
+    """A revision that rebuilds a table drops the old one first.
+
+    With foreign keys enforced, SQLite refuses to drop a table that rows point
+    at. So a library with one book on a shelf would stop every later upgrade.
+    """
+    command.upgrade(Config(ALEMBIC_INI), BEFORE_NAME_FOLD)
+    with sqlite3.connect(fresh_db) as conn:
+        conn.executescript(
+            """
+            INSERT INTO user (id, username, password_hash, is_admin, created_at)
+                VALUES (1, 'reader', 'x', 0, '2026-01-01');
+            INSERT INTO book (id, title, author, format, file_path)
+                VALUES (1, 'Dune', 'Frank Herbert', 'epub', 'dune.epub');
+            INSERT INTO shelf (id, owner_id, name, position, visibility, created_at)
+                VALUES (1, 1, 'Reading', 0, 'private', '2026-01-01');
+            INSERT INTO tag (id, owner_id, name, created_at)
+                VALUES (1, 1, 'keeper', '2026-01-01');
+            INSERT INTO book_tag (book_id, tag_id) VALUES (1, 1);
+            INSERT INTO user_book_state (user_id, book_id, shelf_id, rating, progress, updated_at)
+                VALUES (1, 1, 1, 4, 0.5, '2026-01-01');
+            """
+        )
+
+    upgrade()
+
+    with sqlite3.connect(fresh_db) as conn:
+        assert conn.execute("SELECT shelf_id FROM user_book_state").fetchall() == [(1,)]
+        assert conn.execute("SELECT tag_id FROM book_tag").fetchall() == [(1,)]
+
+
+@pytest.mark.parametrize(("constraint", "statement"), REFUSED_ROWS)
+def test_migrations_build_the_check_constraints(
+    fresh_db: Path, constraint: str, statement: str
+) -> None:
+    """The rest of the suite proves them on `create_all`, which no installation runs."""
+    run_migrations()
+
+    with get_engine().connect() as connection:
+        for parent in PARENT_ROWS:
+            connection.exec_driver_sql(parent)
+
+        with pytest.raises(IntegrityError, match=f"CHECK constraint failed: {constraint}"):
+            connection.exec_driver_sql(statement)

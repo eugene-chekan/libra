@@ -5,9 +5,10 @@ Each test seeds a database at the revision *before* the one under test,
 upgrades, and inspects what happened to data that already existed — the case a
 fresh-install test can never reach.
 
-Four migrations do this: the reading-state backfill, the tag rename that
-follows it, the name fold, and the clearing of years that were really a file's
-own timestamp.
+Six migrations do this: the reading-state backfill, the tag rename that
+follows it, the name fold, the clearing of years that were really a file's
+own timestamp, the clearing of conversations left by deleted users, and the
+repairs that come before the check constraints.
 """
 
 import json
@@ -28,6 +29,10 @@ BEFORE_TAG_RENAME = "9a8d5d47149e"
 BEFORE_NAME_FOLD = "8be05e88e049"
 # The last revision whose books still kept a year read from a file timestamp.
 BEFORE_FILE_DATE_YEARS = "fcb90b64ac72"
+# The last revision that kept a conversation after its user was deleted.
+BEFORE_STRAY_CONVERSATIONS = "ede8e57ae05c"
+# The last revision whose tables accept a value outside its range.
+BEFORE_CHECK_CONSTRAINTS = "c06126bfeef6"
 BACKEND = Path(__file__).resolve().parent.parent
 
 
@@ -432,3 +437,113 @@ def test_a_book_with_no_stored_date_survives_the_upgrade(timestamped_db: Path) -
     _upgrade(timestamped_db)  # must not raise
 
     assert _book(timestamped_db, 1)["year"] == 1965
+
+
+@pytest.fixture(name="chatty_db")
+def chatty_db_fixture(tmp_path: Path) -> Generator[Path, None, None]:
+    """A database that may still hold a deleted user's conversation."""
+    db_path = tmp_path / "chatty.db"
+    _alembic(db_path, BEFORE_STRAY_CONVERSATIONS)
+    yield db_path
+
+
+def _add_conversation(db_path: Path, conversation_id: int, user_id: int, created_at: str) -> None:
+    """Add a conversation holding one message."""
+    with sqlite3.connect(db_path) as conn:
+        conn.execute(
+            "INSERT INTO conversation (id, user_id, created_at) VALUES (?, ?, ?)",
+            (conversation_id, user_id, created_at),
+        )
+        conn.execute(
+            "INSERT INTO message (conversation_id, role, content, created_at) "
+            "VALUES (?, 'user', 'A private one.', ?)",
+            (conversation_id, created_at),
+        )
+
+
+def _conversation_ids(db_path: Path) -> tuple[list[int], list[int]]:
+    """The conversations left, and the conversations the messages left belong to."""
+    with sqlite3.connect(db_path) as conn:
+        conversations = [row[0] for row in conn.execute("SELECT id FROM conversation")]
+        messages = [row[0] for row in conn.execute("SELECT conversation_id FROM message")]
+    return conversations, messages
+
+
+def test_a_conversation_whose_user_is_gone_is_cleared(chatty_db: Path) -> None:
+    _add_conversation(chatty_db, 1, user_id=99, created_at="2026-03-01 10:00:00.000000")
+
+    _upgrade(chatty_db)
+
+    assert _conversation_ids(chatty_db) == ([], [])
+
+
+def test_a_conversation_older_than_its_account_is_cleared(chatty_db: Path) -> None:
+    """The account got the id of a deleted one, and the conversation with it."""
+    _add_admin(chatty_db)
+    _add_conversation(chatty_db, 1, user_id=7, created_at="2025-12-31 23:59:59.000000")
+
+    _upgrade(chatty_db)
+
+    assert _conversation_ids(chatty_db) == ([], [])
+
+
+def test_a_readers_own_conversation_is_kept(chatty_db: Path) -> None:
+    _add_admin(chatty_db)
+    _add_conversation(chatty_db, 1, user_id=7, created_at="2026-03-01 10:00:00.000000")
+
+    _upgrade(chatty_db)
+
+    assert _conversation_ids(chatty_db) == ([1], [1])
+
+
+def test_a_message_with_no_conversation_is_cleared(chatty_db: Path) -> None:
+    _add_admin(chatty_db)
+    _add_conversation(chatty_db, 1, user_id=7, created_at="2026-03-01 10:00:00.000000")
+    with sqlite3.connect(chatty_db) as conn:
+        conn.execute(
+            "INSERT INTO message (conversation_id, role, content, created_at) "
+            "VALUES (50, 'user', 'Lost.', '2026-03-01')"
+        )
+
+    _upgrade(chatty_db)
+
+    assert _conversation_ids(chatty_db) == ([1], [1])
+
+
+def test_values_out_of_range_are_repaired_not_fatal(tmp_path: Path) -> None:
+    """A table cannot be rebuilt around a row that breaks its new rule. Failing
+    instead would fail during startup, on somebody's real database."""
+    db_path = tmp_path / "unchecked.db"
+    _alembic(db_path, BEFORE_CHECK_CONSTRAINTS)
+    _add_admin(db_path)
+    with sqlite3.connect(db_path) as conn:
+        conn.executescript(
+            """
+            INSERT INTO book (id, title, author, format, file_path, pages)
+                VALUES (1, 'High', 'a', 'epub', 'high.epub', 0);
+            INSERT INTO book (id, title, author, format, file_path, pages)
+                VALUES (2, 'Low', 'a', 'epub', 'low.epub', 300);
+            INSERT INTO user_book_state (user_id, book_id, rating, progress, updated_at)
+                VALUES (7, 1, 9, 3.0, '2026-01-01');
+            INSERT INTO user_book_state (user_id, book_id, rating, progress, updated_at)
+                VALUES (7, 2, -2, -1.0, '2026-01-01');
+            INSERT INTO note (id, user_id, book_id, text, page, created_at)
+                VALUES (1, 7, 1, 'x', 0, '2026-01-01');
+            INSERT INTO shelf (id, owner_id, name, name_folded, position, visibility, created_at)
+                VALUES (1, 7, 'Odd', 'odd', 0, 'secret', '2026-01-01');
+            """
+        )
+
+    _upgrade(db_path)
+
+    with sqlite3.connect(db_path) as conn:
+        states = conn.execute(
+            "SELECT book_id, rating, progress FROM user_book_state ORDER BY book_id"
+        ).fetchall()
+        pages = conn.execute("SELECT id, pages FROM book ORDER BY id").fetchall()
+        page = conn.execute("SELECT page FROM note").fetchone()
+        visibility = conn.execute("SELECT visibility FROM shelf").fetchone()
+    assert states == [(1, 5, 1.0), (2, 0, 0.0)]
+    assert pages == [(1, None), (2, 300)]
+    assert page == (None,)
+    assert visibility == ("private",)

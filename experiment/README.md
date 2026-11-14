@@ -64,6 +64,21 @@ books already indexed.
 finds a chunk from its own first 12 words. It is a check of the index, not a
 result. It refuses to run until all 40 hand questions are written.
 
+## Browsing the books in libra
+
+`serve.ps1` (PowerShell 7+) and `serve.sh` (bash) start libra on this
+database, at http://localhost:8001. From the repository root:
+
+    experiment\serve.ps1
+    experiment/serve.sh
+
+Each one builds the client first. `-SkipWeb` or `--skip-web` reuses the last
+build, and `-Port 9001` or `PORT=9001` picks another port. Ctrl-C stops it.
+
+It runs the source with `backend/.venv`, not the install in `.run/venv`, so it
+can run next to the real install on port 8000. Sign in as `admin`. If the
+database has no account yet, it asks for a password for a new `admin` account.
+
 ## The freeze
 
 **The chunker is frozen at version 1 since 2026-10-16.** Every question label
