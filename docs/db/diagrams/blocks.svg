@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1110" height="700">
+<rect width="1110" height="700" fill="#ffffff"/>
+<rect x="46" y="58" width="278" height="198" rx="8" fill="#eff6ff" stroke="#1d4ed8" stroke-width="1.5"/>
+<text x="56" y="80" font-family="Arial" font-size="17" text-anchor="start" font-weight="bold" font-style="normal" fill="#1d4ed8">Accounts</text>
+<rect x="786" y="58" width="278" height="302" rx="8" fill="#f0fdf4" stroke="#15803d" stroke-width="1.5"/>
+<text x="796" y="80" font-family="Arial" font-size="17" text-anchor="start" font-weight="bold" font-style="normal" fill="#15803d">Catalogue: shared</text>
+<rect x="416" y="58" width="278" height="302" rx="8" fill="#fffbeb" stroke="#b45309" stroke-width="1.5"/>
+<text x="426" y="80" font-family="Arial" font-size="17" text-anchor="start" font-weight="bold" font-style="normal" fill="#b45309">Reading: one reader's rows</text>
+<rect x="46" y="266" width="278" height="198" rx="8" fill="#faf5ff" stroke="#7e22ce" stroke-width="1.5"/>
+<text x="56" y="288" font-family="Arial" font-size="17" text-anchor="start" font-weight="bold" font-style="normal" fill="#7e22ce">Librarian: chat</text>
+<rect x="786" y="370" width="278" height="302" rx="8" fill="#fff1f2" stroke="#be123c" stroke-width="1.5"/>
+<text x="796" y="392" font-family="Arial" font-size="17" text-anchor="start" font-weight="bold" font-style="normal" fill="#be123c">Librarian: search index</text>
+<polyline points="185,140 185,194" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="185,194 178,179 192,179" fill="#333"/>
+<polyline points="185,348 185,402" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="185,402 178,387 192,387" fill="#333"/>
+<polyline points="925,140 925,194" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="925,194 918,179 932,179" fill="#333"/>
+<polyline points="925,298 925,244" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="925,244 932,259 918,259" fill="#333"/>
+<polyline points="555,140 555,194" fill="none" stroke="#333" stroke-width="2" stroke-dasharray="9 6"/>
+<polygon points="555,194 548,179 562,179" fill="#333"/>
+<polyline points="925,452 925,506" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="925,506 918,491 932,491" fill="#333"/>
+<polyline points="60,115 25,115 25,323 60,323" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="60,323 45,330 45,316" fill="#333"/>
+<polyline points="310,100 406,100 406,105 430,105" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="430,105 415,112 415,98" fill="#333"/>
+<polyline points="310,110 382,110 382,209 430,209" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="430,209 415,216 415,202" fill="#333"/>
+<polyline points="310,120 358,120 358,313 430,313" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="430,313 415,320 415,306" fill="#333"/>
+<polyline points="800,105 704,105 704,209 680,209" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="680,209 695,202 695,216" fill="#333"/>
+<polyline points="800,120 728,120 728,313 680,313" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="680,313 695,306 695,320" fill="#333"/>
+<polyline points="1050,115 1085,115 1085,417 1050,417" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="1050,417 1065,410 1065,424" fill="#333"/>
+<polyline points="1050,437 1085,437 1085,635 1050,635" fill="none" stroke="#333" stroke-width="4"/>
+<polygon points="1050,635 1065,628 1065,642" fill="#333"/>
+<polyline points="185,90 185,38 1012,38 1012,90" fill="none" stroke="#333" stroke-width="2" stroke-dasharray="9 6"/>
+<polygon points="1012,90 1006,75 1020,75" fill="#333"/>
+<polyline points="310,130 334,130 334,382 776,382 776,323 800,323" fill="none" stroke="#333" stroke-width="2" stroke-dasharray="9 6"/>
+<polygon points="800,323 785,330 785,316" fill="#333"/>
+<rect x="60" y="90" width="250" height="50" fill="#fff" stroke="#1d4ed8" stroke-width="2"/>
+<rect x="60" y="90" width="250" height="50" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+<text x="185" y="123" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">user</text>
+<rect x="60" y="194" width="250" height="50" fill="#fff" stroke="#1d4ed8" stroke-width="2"/>
+<rect x="60" y="194" width="250" height="50" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+<text x="185" y="227" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">user_session</text>
+<rect x="60" y="298" width="250" height="50" fill="#fff" stroke="#7e22ce" stroke-width="2"/>
+<rect x="60" y="298" width="250" height="50" fill="#f3e8ff" stroke="#7e22ce" stroke-width="2"/>
+<text x="185" y="331" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">conversation</text>
+<rect x="60" y="402" width="250" height="50" fill="#fff" stroke="#7e22ce" stroke-width="2"/>
+<rect x="60" y="402" width="250" height="50" fill="#f3e8ff" stroke="#7e22ce" stroke-width="2"/>
+<text x="185" y="435" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">message</text>
+<rect x="430" y="90" width="250" height="50" fill="#fff" stroke="#b45309" stroke-width="2"/>
+<rect x="430" y="90" width="250" height="50" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="555" y="123" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">shelf</text>
+<rect x="430" y="194" width="250" height="50" fill="#fff" stroke="#b45309" stroke-width="2"/>
+<rect x="430" y="194" width="250" height="50" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="555" y="227" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">user_book_state</text>
+<rect x="430" y="298" width="250" height="50" fill="#fff" stroke="#b45309" stroke-width="2"/>
+<rect x="430" y="298" width="250" height="50" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="555" y="331" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">note</text>
+<rect x="800" y="90" width="250" height="50" fill="#fff" stroke="#15803d" stroke-width="2"/>
+<rect x="800" y="90" width="250" height="50" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+<text x="925" y="123" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">book</text>
+<rect x="800" y="194" width="250" height="50" fill="#fff" stroke="#15803d" stroke-width="2"/>
+<rect x="800" y="194" width="250" height="50" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+<text x="925" y="227" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">book_tag</text>
+<rect x="800" y="298" width="250" height="50" fill="#fff" stroke="#15803d" stroke-width="2"/>
+<rect x="800" y="298" width="250" height="50" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+<text x="925" y="331" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">tag</text>
+<rect x="800" y="402" width="250" height="50" fill="#fff" stroke="#be123c" stroke-width="2"/>
+<rect x="800" y="402" width="250" height="50" fill="#ffe4e6" stroke="#be123c" stroke-width="2"/>
+<text x="925" y="435" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">chunk</text>
+<rect x="800" y="506" width="250" height="50" fill="#fff" stroke="#be123c" stroke-width="2"/>
+<rect x="800" y="506" width="250" height="50" fill="#ffe4e6" stroke="#be123c" stroke-width="2"/>
+<text x="925" y="539" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">chunk_vector</text>
+<rect x="800" y="610" width="250" height="50" fill="#fff" stroke="#be123c" stroke-width="2"/>
+<rect x="800" y="610" width="250" height="50" fill="#ffe4e6" stroke="#be123c" stroke-width="2"/>
+<text x="925" y="643" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">chunk_fts</text>
+<polyline points="60,514 130,514" fill="none" stroke="#333" stroke-width="2"/>
+<polygon points="130,514 115,521 115,507" fill="#333"/>
+<text x="146" y="520" font-family="Arial" font-size="18" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">one row to many rows</text>
+<polyline points="60,550 130,550" fill="none" stroke="#333" stroke-width="2" stroke-dasharray="9 6"/>
+<polygon points="130,550 115,557 115,543" fill="#333"/>
+<text x="146" y="556" font-family="Arial" font-size="18" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">the same, and the link may be empty</text>
+<polyline points="60,586 130,586" fill="none" stroke="#333" stroke-width="4"/>
+<polygon points="130,586 115,593 115,579" fill="#333"/>
+<text x="146" y="592" font-family="Arial" font-size="18" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">one to one, kept by three triggers</text>
+</svg>

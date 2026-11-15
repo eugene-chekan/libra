@@ -68,3 +68,6 @@ Thumbs.db
 
 # The BA block DOCX is built from docs/ba/ba.md
 docs/ba/out/
+
+# The DB block DOCX is built from docs/db/database.md
+docs/db/out/

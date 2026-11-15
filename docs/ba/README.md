@@ -11,16 +11,16 @@ for the Diploma Project (2026/27)".
 |---|---|
 | `ba.md` | The text. Edit this, not the DOCX. |
 | `references.md` | The sources, one `@key: entry` line each, in IEEE style |
-| `build.py` | Turns `ba.md` into `out/BA_Chekan_Yauheni.docx` (the `file:` line at the top of `ba.md`) |
+| `../build_docx.py` | Shared with the database block. Turns `ba.md` into `out/BA_Chekan_Yauheni.docx` (the `file:` line at the top of `ba.md`) |
 | `diagrams/*.puml` | PlantUML sources for the diagrams |
-| `diagrams/*.png` | The rendered diagrams and screenshots. `build.py` puts each one where `ba.md` names it. |
+| `diagrams/*.png` | The rendered diagrams and screenshots. The build puts each one where `ba.md` names it. |
 
 ## Build
 
 From the repository root:
 
 ```bash
-uv run --no-project --with python-docx python docs/ba/build.py
+uv run --no-project --with python-docx python docs/build_docx.py docs/ba/ba.md
 ```
 
 Open the result in Word and answer **Yes** when it asks to update fields. That
@@ -41,7 +41,7 @@ fills in the table of contents and its page numbers.
 
 ## Diagrams
 
-The rendered `.png` files are committed, so `build.py` works without any of
+The rendered `.png` files are committed, so the build works without any of
 these tools. Render again after you change a source.
 
 **The four UML diagrams** (`as-is`, `context`, `use-cases`, `sequence-uc1`)

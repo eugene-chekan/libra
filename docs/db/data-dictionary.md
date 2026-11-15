@@ -18,8 +18,7 @@ Every table and column of the libra database. The main text is in
 
 **Layers.** The database has one layer. Every table is live application data,
 read and written by the running application. There are no raw, staging or
-data-mart layers. [database.md](database.md#why-one-dbms-and-one-layer)
-explains why.
+data-mart layers. Section 1.1 of [database.md](database.md) explains why.
 
 **Blocks.** The tables form five blocks:
 
@@ -226,7 +225,7 @@ Personal data: `content` is what the reader asked.
 ## Librarian: search index
 
 These three objects hold the book text for search. How search reads them is
-in [database.md](database.md#the-search-index).
+in Section 2.9 of [database.md](database.md).
 
 ### `chunk`
 

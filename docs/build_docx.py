@@ -1,11 +1,13 @@
-"""Build the BA block DOCX from ba.md and references.md.
+"""Build a diploma block DOCX from its Markdown source.
 
-Run from the repository root:
+Run from the repository root, with the source file as the argument:
 
-    uv run --no-project --with python-docx python docs/ba/build.py
+    uv run --no-project --with python-docx python docs/build_docx.py docs/ba/ba.md
+    uv run --no-project --with python-docx python docs/build_docx.py docs/db/database.md
 
-The output goes to docs/ba/out/. Word asks to update fields when it opens the
-file; answer Yes, so the table of contents gets its page numbers.
+The script reads `references.md` and `diagrams/` from the folder of the
+source, and writes to `out/` in that folder. Word asks to update fields when
+it opens the file; answer Yes, so the table of contents gets its page numbers.
 """
 
 import re
@@ -20,15 +22,10 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt, RGBColor
 
-HERE = Path(__file__).parent
-SOURCE = HERE / "ba.md"
-REFERENCES = HERE / "references.md"
-DIAGRAMS = HERE / "diagrams"
-OUT_DIR = HERE / "out"
-
 FONT = "Times New Roman"
 BODY_PT = 12
 TABLE_PT = 10
+CODE_PT = 9
 TEXT_WIDTH_CM = 16.5
 TEXT_FIGURE_WIDTH_CM, TEXT_FIGURE_HEIGHT_CM = 16, 7
 PAIR_WIDTH_CM = 6.8
@@ -63,10 +60,12 @@ def read_front_matter(text):
     return meta, text
 
 
-def read_references():
-    """Read `@key: entry` lines from references.md."""
+def read_references(path):
+    """Read `@key: entry` lines from a references file; a missing file gives none."""
     refs = {}
-    for line in REFERENCES.read_text(encoding="utf-8").splitlines():
+    if not path.exists():
+        return refs
+    for line in path.read_text(encoding="utf-8").splitlines():
         m = re.match(r"@([\w-]+):\s*(.+)", line)
         if m:
             refs[m.group(1)] = m.group(2)
@@ -157,10 +156,11 @@ def add_field(paragraph, instruction):
 
 
 class Builder:
-    """Turns the Markdown subset used by ba.md into a Word document."""
+    """Turns the Markdown subset of the diploma blocks into a Word document."""
 
-    def __init__(self, meta, citations, refs):
+    def __init__(self, meta, citations, refs, diagrams):
         self.meta = meta
+        self.diagrams = diagrams
         self.citations = citations
         self.refs = refs
         self.doc = Document()
@@ -299,6 +299,17 @@ class Builder:
         p.paragraph_format.first_line_indent = Cm(-0.6)
         self.inline(p, f"{number}. {text}")
 
+    def code(self, lines):
+        """Write a fenced code block in a small fixed-width font."""
+        for n, line in enumerate(lines):
+            p = self.doc.add_paragraph()
+            p.paragraph_format.line_spacing = 1.0
+            p.paragraph_format.space_after = Pt(6 if n == len(lines) - 1 else 0)
+            p.paragraph_format.left_indent = Cm(0.5)
+            run = p.add_run(line.expandtabs(4))
+            run.font.name = "Consolas"
+            run.font.size = Pt(CODE_PT)
+
     def caption(self, text, alignment=WD_ALIGN_PARAGRAPH.LEFT):
         p = self.doc.add_paragraph()
         p.alignment = alignment
@@ -317,6 +328,8 @@ class Builder:
         table.alignment = WD_TABLE_ALIGNMENT.CENTER
         table.autofit = False
         widths = column_widths(rows, cols)
+        for column, width in zip(table.columns, widths):
+            column.width = width
         for r, cells in enumerate(rows):
             for c in range(cols):
                 cell = table.cell(r, c)
@@ -358,11 +371,11 @@ class Builder:
 
     def picture(self, paragraph, filename, max_width, max_height):
         """Add one image to a paragraph, or a highlighted placeholder until it exists."""
-        path = DIAGRAMS / filename
+        path = self.diagrams / filename
         if path.exists():
             paragraph.add_run().add_picture(str(path), width=figure_width(path, max_width, max_height))
         else:
-            self.run(paragraph, f"[TODO: diagram docs/ba/diagrams/{filename}]", None, True, False)
+            self.run(paragraph, f"[TODO: diagram {path.as_posix()}]", None, True, False)
 
     def references(self):
         for key, number in sorted(self.citations.items(), key=lambda kv: kv[1]):
@@ -391,6 +404,11 @@ class Builder:
             stripped = line.strip()
             if not stripped:
                 flush()
+            elif stripped.startswith("```"):
+                flush()
+                end = next(j for j in range(i + 1, len(lines)) if lines[j].strip().startswith("```"))
+                self.code(lines[i + 1 : end])
+                i = end
             elif stripped == "[[TOC]]":
                 flush()
                 self.toc()
@@ -434,15 +452,18 @@ class Builder:
 
 
 def main():
-    meta, body = read_front_matter(SOURCE.read_text(encoding="utf-8"))
-    refs = read_references()
+    if len(sys.argv) != 2:
+        sys.exit("usage: python docs/build_docx.py <source.md>")
+    source = Path(sys.argv[1])
+    meta, body = read_front_matter(source.read_text(encoding="utf-8"))
+    refs = read_references(source.parent / "references.md")
     citations = number_citations(body, refs)
-    builder = Builder(meta, citations, refs)
+    builder = Builder(meta, citations, refs, source.parent / "diagrams")
     builder.build(body)
-    OUT_DIR.mkdir(exist_ok=True)
-    name = meta.get("file", "BA_Surname_Name.docx")
-    builder.doc.save(OUT_DIR / name)
-    print(f"wrote {OUT_DIR / name}: {builder.figures} figures, {builder.tables} captioned tables, {len(citations)} sources")
+    out = source.parent / "out" / meta.get("file", f"{source.stem}.docx")
+    out.parent.mkdir(exist_ok=True)
+    builder.doc.save(out)
+    print(f"wrote {out}: {builder.figures} figures, {builder.tables} captioned tables, {len(citations)} sources")
 
 
 if __name__ == "__main__":

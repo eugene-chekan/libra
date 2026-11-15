@@ -1,6 +1,6 @@
 # References
 
-One line per source: `@key: the entry in IEEE style`. build.py numbers the
+One line per source: `@key: the entry in IEEE style`. `docs/build_docx.py` numbers the
 sources in the order the text first cites them, and leaves out any source the
 text never cites (it prints a warning for each one).
 

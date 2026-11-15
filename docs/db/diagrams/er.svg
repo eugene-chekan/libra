@@ -1,0 +1,351 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1370" height="1600">
+<rect width="1370" height="1600" fill="#ffffff"/>
+<polyline points="235,310 235,370" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="226,319 244,319" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="235,354 244,370" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="235,354 226,370" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="235,780 235,840" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="226,789 244,789" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="235,824 244,840" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="235,824 226,840" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,430 1135,490" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1126,439 1144,439" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,474 1144,490" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,474 1126,490" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,650 1135,590" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1144,641 1126,641" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,606 1126,590" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,606 1144,590" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="685,340 685,400" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="676,349 694,349" fill="none" stroke="#333" stroke-width="2"/>
+<circle cx="685" cy="362" r="6" fill="#fff" stroke="#333" stroke-width="2"/>
+<polyline points="685,384 694,400" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="685,384 676,400" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,1210 1135,1270" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1126,1219 1144,1219" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,1254 1144,1270" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1135,1254 1126,1270" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="70,200 35,200 35,700 70,700" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="61,191 61,209" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="54,700 70,691" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="54,700 70,709" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="400,134 496,134 496,165 520,165" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="409,143 409,125" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="504,165 520,156" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="504,165 520,174" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="400,178 472,178 472,502 520,502" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="409,187 409,169" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="504,502 520,493" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="504,502 520,511" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="400,222 448,222 448,866 520,866" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="409,231 409,213" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="504,866 520,857" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="504,866 520,875" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="970,192 874,192 874,502 850,502" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="961,183 961,201" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="866,502 850,511" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="866,502 850,493" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="970,294 898,294 898,866 850,866" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="961,285 961,303" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="866,866 850,875" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="866,866 850,857" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1300,260 1335,260 1335,993 1300,993" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1309,269 1309,251" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1316,993 1300,1002" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1316,993 1300,984" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1300,1117 1335,1117 1335,1510 1300,1510" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1309,1126 1309,1108" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1309,1519 1309,1501" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="235,90 235,38 1250,38 1250,90" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="244,81 226,81" fill="none" stroke="#333" stroke-width="2"/>
+<circle cx="235" cy="68" r="6" fill="#fff" stroke="#333" stroke-width="2"/>
+<polyline points="1250,74 1260,90" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="1250,74 1242,90" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="400,266 424,266 424,1054 946,1054 946,745 970,745" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="409,275 409,257" fill="none" stroke="#333" stroke-width="2"/>
+<circle cx="422" cy="266" r="6" fill="#fff" stroke="#333" stroke-width="2"/>
+<polyline points="954,745 970,736" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="954,745 970,754" fill="none" stroke="#333" stroke-width="2"/>
+<rect x="70" y="90" width="330" height="220" fill="#fff" stroke="#1d4ed8" stroke-width="2"/>
+<rect x="70" y="90" width="330" height="40" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+<text x="235" y="118" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">user</text>
+<text x="82" y="151" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">id</text>
+<text x="248" y="151" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="390" y="151" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="82" y="181" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">username</text>
+<text x="248" y="181" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="390" y="181" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">UK</text>
+<text x="82" y="211" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">password_hash</text>
+<text x="248" y="211" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="390" y="211" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="241" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">is_admin</text>
+<text x="248" y="241" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">BOOLEAN</text>
+<text x="390" y="241" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="271" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">kindle_email</text>
+<text x="248" y="271" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="390" y="271" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="301" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="248" y="301" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="390" y="301" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="70" y="370" width="330" height="190" fill="#fff" stroke="#1d4ed8" stroke-width="2"/>
+<rect x="70" y="370" width="330" height="40" fill="#dbeafe" stroke="#1d4ed8" stroke-width="2"/>
+<text x="235" y="398" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">user_session</text>
+<text x="82" y="431" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">token_hash</text>
+<text x="248" y="431" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="390" y="431" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="82" y="461" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">user_id</text>
+<text x="248" y="461" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="390" y="461" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="82" y="491" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">kind</text>
+<text x="248" y="491" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="390" y="491" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="521" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">expires_at</text>
+<text x="248" y="521" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="390" y="521" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="551" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="248" y="551" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="390" y="551" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="70" y="620" width="330" height="160" fill="#fff" stroke="#7e22ce" stroke-width="2"/>
+<rect x="70" y="620" width="330" height="40" fill="#f3e8ff" stroke="#7e22ce" stroke-width="2"/>
+<text x="235" y="648" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">conversation</text>
+<text x="82" y="681" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">id</text>
+<text x="248" y="681" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="390" y="681" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="82" y="711" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">user_id</text>
+<text x="248" y="711" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="390" y="711" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="82" y="741" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">title</text>
+<text x="248" y="741" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="390" y="741" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="771" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="248" y="771" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="390" y="771" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="70" y="840" width="330" height="220" fill="#fff" stroke="#7e22ce" stroke-width="2"/>
+<rect x="70" y="840" width="330" height="40" fill="#f3e8ff" stroke="#7e22ce" stroke-width="2"/>
+<text x="235" y="868" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">message</text>
+<text x="82" y="901" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">id</text>
+<text x="248" y="901" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="390" y="901" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="82" y="931" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">conversation_id</text>
+<text x="248" y="931" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="390" y="931" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="82" y="961" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">role</text>
+<text x="248" y="961" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="390" y="961" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="991" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">content</text>
+<text x="248" y="991" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="390" y="991" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="1021" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="248" y="1021" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="390" y="1021" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="82" y="1051" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">meta</text>
+<text x="248" y="1051" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">JSON</text>
+<text x="390" y="1051" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="520" y="90" width="330" height="250" fill="#fff" stroke="#b45309" stroke-width="2"/>
+<rect x="520" y="90" width="330" height="40" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="685" y="118" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">shelf</text>
+<text x="532" y="151" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">id</text>
+<text x="698" y="151" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="151" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="532" y="181" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">owner_id</text>
+<text x="698" y="181" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="181" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="532" y="211" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">name</text>
+<text x="698" y="211" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="840" y="211" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="241" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">name_folded</text>
+<text x="698" y="241" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="840" y="241" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">UK</text>
+<text x="532" y="271" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">position</text>
+<text x="698" y="271" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="271" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="301" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">visibility</text>
+<text x="698" y="301" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="840" y="301" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="331" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="698" y="331" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="840" y="331" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="520" y="400" width="330" height="340" fill="#fff" stroke="#b45309" stroke-width="2"/>
+<rect x="520" y="400" width="330" height="40" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="685" y="428" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">user_book_state</text>
+<text x="532" y="461" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">user_id</text>
+<text x="698" y="461" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="461" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK FK</text>
+<text x="532" y="491" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">book_id</text>
+<text x="698" y="491" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="491" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK FK</text>
+<text x="532" y="521" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">shelf_id</text>
+<text x="698" y="521" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="521" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="532" y="551" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">rating</text>
+<text x="698" y="551" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="551" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="581" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">progress</text>
+<text x="698" y="581" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">FLOAT</text>
+<text x="840" y="581" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="611" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">position</text>
+<text x="698" y="611" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="840" y="611" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="641" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">started_at</text>
+<text x="698" y="641" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="840" y="641" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="671" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">finished_at</text>
+<text x="698" y="671" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="840" y="671" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="701" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">last_sent_at</text>
+<text x="698" y="701" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="840" y="701" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="731" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">updated_at</text>
+<text x="698" y="731" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="840" y="731" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="520" y="800" width="330" height="220" fill="#fff" stroke="#b45309" stroke-width="2"/>
+<rect x="520" y="800" width="330" height="40" fill="#fef3c7" stroke="#b45309" stroke-width="2"/>
+<text x="685" y="828" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">note</text>
+<text x="532" y="861" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">id</text>
+<text x="698" y="861" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="861" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="532" y="891" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">user_id</text>
+<text x="698" y="891" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="891" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="532" y="921" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">book_id</text>
+<text x="698" y="921" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="921" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="532" y="951" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">text</text>
+<text x="698" y="951" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="840" y="951" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="981" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">page</text>
+<text x="698" y="981" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="840" y="981" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="532" y="1011" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="698" y="1011" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="840" y="1011" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="970" y="90" width="330" height="340" fill="#fff" stroke="#15803d" stroke-width="2"/>
+<rect x="970" y="90" width="330" height="40" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+<text x="1135" y="118" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">book</text>
+<text x="982" y="151" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">id</text>
+<text x="1148" y="151" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="151" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="982" y="181" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">title</text>
+<text x="1148" y="181" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="181" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="211" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">author</text>
+<text x="1148" y="211" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="211" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="241" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">format</text>
+<text x="1148" y="241" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="241" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="271" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">file_path</text>
+<text x="1148" y="271" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="271" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="301" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">year</text>
+<text x="1148" y="301" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="301" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="331" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">blurb</text>
+<text x="1148" y="331" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="331" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="361" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">pages</text>
+<text x="1148" y="361" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="361" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="391" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">uploaded_by</text>
+<text x="1148" y="391" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="391" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="982" y="421" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">book_metadata</text>
+<text x="1148" y="421" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">JSON</text>
+<text x="1290" y="421" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="970" y="490" width="330" height="100" fill="#fff" stroke="#15803d" stroke-width="2"/>
+<rect x="970" y="490" width="330" height="40" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+<text x="1135" y="518" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">book_tag</text>
+<text x="982" y="551" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">book_id</text>
+<text x="1148" y="551" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="551" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK FK</text>
+<text x="982" y="581" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">tag_id</text>
+<text x="1148" y="581" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="581" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK FK</text>
+<rect x="970" y="650" width="330" height="190" fill="#fff" stroke="#15803d" stroke-width="2"/>
+<rect x="970" y="650" width="330" height="40" fill="#dcfce7" stroke="#15803d" stroke-width="2"/>
+<text x="1135" y="678" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">tag</text>
+<text x="982" y="711" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">id</text>
+<text x="1148" y="711" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="711" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="982" y="741" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">owner_id</text>
+<text x="1148" y="741" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="741" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="982" y="771" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">name</text>
+<text x="1148" y="771" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="771" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="801" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">name_folded</text>
+<text x="1148" y="801" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="801" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">UK</text>
+<text x="982" y="831" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">created_at</text>
+<text x="1148" y="831" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">DATETIME</text>
+<text x="1290" y="831" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="970" y="900" width="330" height="310" fill="#fff" stroke="#be123c" stroke-width="2"/>
+<rect x="970" y="900" width="330" height="40" fill="#ffe4e6" stroke="#be123c" stroke-width="2"/>
+<text x="1135" y="928" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">chunk</text>
+<text x="982" y="961" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">id</text>
+<text x="1148" y="961" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="961" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="982" y="991" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">book_id</text>
+<text x="1148" y="991" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="991" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">FK</text>
+<text x="982" y="1021" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">position</text>
+<text x="1148" y="1021" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="1021" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">UK</text>
+<text x="982" y="1051" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">spine_index</text>
+<text x="1148" y="1051" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="1051" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="1081" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="italic" fill="#000">chapter_title</text>
+<text x="1148" y="1081" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="1081" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="1111" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">text</text>
+<text x="1148" y="1111" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="1111" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="1141" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">word_count</text>
+<text x="1148" y="1141" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="1141" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="1171" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">token_count</text>
+<text x="1148" y="1171" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="1171" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<text x="982" y="1201" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">chunker_version</text>
+<text x="1148" y="1201" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="1201" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">UK</text>
+<rect x="970" y="1270" width="330" height="130" fill="#fff" stroke="#be123c" stroke-width="2"/>
+<rect x="970" y="1270" width="330" height="40" fill="#ffe4e6" stroke="#be123c" stroke-width="2"/>
+<text x="1135" y="1298" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">chunk_vector</text>
+<text x="982" y="1331" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">chunk_id</text>
+<text x="1148" y="1331" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="1331" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK FK</text>
+<text x="982" y="1361" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">model</text>
+<text x="1148" y="1361" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">VARCHAR</text>
+<text x="1290" y="1361" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="982" y="1391" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">vector</text>
+<text x="1148" y="1391" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">BLOB</text>
+<text x="1290" y="1391" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<rect x="970" y="1460" width="330" height="100" fill="#fff" stroke="#be123c" stroke-width="2"/>
+<rect x="970" y="1460" width="330" height="40" fill="#ffe4e6" stroke="#be123c" stroke-width="2"/>
+<text x="1135" y="1488" font-family="Arial" font-size="22" text-anchor="middle" font-weight="bold" font-style="normal" fill="#000">chunk_fts</text>
+<text x="982" y="1521" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">rowid</text>
+<text x="1148" y="1521" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">INTEGER</text>
+<text x="1290" y="1521" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000">PK</text>
+<text x="982" y="1551" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">text</text>
+<text x="1148" y="1551" font-family="Arial" font-size="15" text-anchor="start" font-weight="normal" font-style="normal" fill="#555">FTS5 index</text>
+<text x="1290" y="1551" font-family="Arial" font-size="15" text-anchor="end" font-weight="bold" font-style="normal" fill="#000"></text>
+<polyline points="70,1170 180,1170" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="79,1179 79,1161" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="164,1170 180,1161" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="164,1170 180,1179" fill="none" stroke="#333" stroke-width="2"/>
+<text x="200" y="1177" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">one row to many rows</text>
+<polyline points="70,1214 180,1214" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="79,1223 79,1205" fill="none" stroke="#333" stroke-width="2"/>
+<circle cx="92" cy="1214" r="6" fill="#fff" stroke="#333" stroke-width="2"/>
+<polyline points="164,1214 180,1205" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="164,1214 180,1223" fill="none" stroke="#333" stroke-width="2"/>
+<text x="200" y="1221" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">the link may be empty</text>
+<polyline points="70,1258 180,1258" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="79,1267 79,1249" fill="none" stroke="#333" stroke-width="2"/>
+<polyline points="171,1249 171,1267" fill="none" stroke="#333" stroke-width="2"/>
+<text x="200" y="1265" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">one row to one row</text>
+<text x="70" y="1320" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">PK: primary key.  FK: foreign key.</text>
+<text x="70" y="1352" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">UK: column of a unique index.</text>
+<text x="70" y="1384" font-family="Arial" font-size="20" text-anchor="start" font-weight="normal" font-style="normal" fill="#000">A name in italics may be empty (NULL).</text>
+</svg>
