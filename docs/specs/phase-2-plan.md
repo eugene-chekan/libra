@@ -6,7 +6,9 @@ and a written genre rule. Part 1 started 2026-10-12. Week 1 done 2026-10-16:
 the chunker is frozen at version 1 and the 40 test books are loaded (see
 [experiment/README.md](../../experiment/README.md)). Week 2, 2026-10-18: the
 hand-question command and the search index (BM25, dense, RRF, `rag smoke`) are
-built; the 40 hand questions come next, before any search runs on the books.
+built. The 40 hand questions are written (done 2026-11-16: 20 fiction and 20
+non-fiction books, 19 factual and 21 interpretive), so search over the books may
+start.
 
 This plan replaces the earlier Phase 2 outline in
 [architecture.md](../architecture.md), which planned a Chroma vector store and
