@@ -135,9 +135,10 @@ def test_a_rate_limit_left_after_the_sdk_retries_is_raised() -> None:
     assert len(fake.calls) == 1
 
 
-def test_a_missing_key_is_named() -> None:
+@pytest.mark.parametrize("key", [None, SecretStr("")])
+def test_a_missing_key_is_named(key: SecretStr | None) -> None:
     with pytest.raises(MissingKeyError, match=KEY_SETTING):
-        DeepSeek(Settings(deepseek_api_key=None), client=FakeDeepSeek([]))
+        DeepSeek(Settings(deepseek_api_key=key), client=FakeDeepSeek([]))
 
 
 def test_the_key_setting_is_the_one_the_settings_read(monkeypatch: pytest.MonkeyPatch) -> None:

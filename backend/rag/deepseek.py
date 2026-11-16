@@ -61,11 +61,12 @@ class DeepSeek:
         Raises:
             MissingKeyError: The key is not set.
         """
-        if settings.deepseek_api_key is None:
+        key = settings.deepseek_api_key
+        if key is None or not key.get_secret_value():
             raise MissingKeyError(f"set {KEY_SETTING} to a DeepSeek API key")
         self.model = settings.deepseek_model
         self.client = client or openai.OpenAI(
-            api_key=settings.deepseek_api_key.get_secret_value(),
+            api_key=key.get_secret_value(),
             base_url=settings.deepseek_base_url,
             max_retries=SDK_RETRIES,
             timeout=TIMEOUT_SECONDS,

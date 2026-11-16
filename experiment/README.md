@@ -64,6 +64,29 @@ books already indexed.
 finds a chunk from its own first 12 words. It is a check of the index, not a
 result. It refuses to run until all 40 hand questions are written.
 
+## The prompt pilot
+
+The descriptor prompt is tried on the 2 pilot books first, never on a test
+book. The command needs a DeepSeek API key in the setting
+`LIBRA_DEEPSEEK_API_KEY`. Put it in `backend/.env`, which git ignores:
+
+    LIBRA_DEEPSEEK_API_KEY=your-key
+
+From `backend/`:
+
+    uv run python -m app.cli rag pilot-describe ../experiment/corpus.csv ../experiment/files --stats ../experiment/corpus-stats.csv --out ../experiment/pilot/descriptors-v0.jsonl --sample 20 --questions ../experiment/pilot/questions.txt
+
+It picks 20 chunks of 100 words or more from each pilot book, always the same
+ones, and asks for 8 descriptors of each. Then it asks for 5 descriptors of
+each line in `questions.txt`. The model sees the chunk text or the question
+and nothing else: no title and no author.
+
+Every answer is written to the log file before the next request. So a stopped
+run loses nothing, and the next run asks only for what the log does not hold.
+An answer of the wrong shape is asked for again, up to 3 requests, and then
+logged with the status `failed`. A refused key or an empty balance stops the
+run at once.
+
 ## Browsing the books in libra
 
 `serve.ps1` (PowerShell 7+) and `serve.sh` (bash) start libra on this
