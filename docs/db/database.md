@@ -50,10 +50,11 @@ the requirements does not apply.
 
 Chapter 1 describes the design, and Chapter 2 describes how the database
 works. Appendix A is the data dictionary, and Appendix B is the ER diagram.
-Three files are too long for this document. The long data dictionary is sent
-with it as `data-dictionary.pdf`. The full DDL script, `schema.sql`, and the
-test rows for every table, `test-data.sql`, are in the folder `docs/db` of
-the project repository [@librarepo].
+Three files are too long for this document and are sent with it:
+`data-dictionary.pdf` (the long data dictionary), `schema.sql` (the full DDL
+script) and `test-data.sql` (test rows for every table). The file
+`run-for-the-expert.pdf` explains how to build a database from them. The
+migrations are in the project repository [@librarepo].
 
 # Chapter 1. Database design
 

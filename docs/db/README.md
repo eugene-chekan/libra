@@ -18,6 +18,8 @@ the BA block in `docs/ba/`.
 | [schema.sql](schema.sql) | The DDL script. **Generated, do not edit** |
 | [test-data.sql](test-data.sql) | Test rows for every table |
 | [dump_schema.py](dump_schema.py) | Writes `schema.sql` from the migrations |
+| [make_demo_db.py](make_demo_db.py) | Builds `demo.db` from `schema.sql` and `test-data.sql` |
+| [make_pdf.py](make_pdf.py) | Makes the two PDF files for the expert |
 | [run-for-the-expert.md](run-for-the-expert.md) | How the expert can look at the database |
 
 ## Build
@@ -40,10 +42,30 @@ code, in a small fixed-width font.
 
 Keep the text at about 20 pages. On 2026-11-15 it was 21 pages.
 
-The expert also gets two PDF files: `data-dictionary.pdf` and
-`run-for-the-expert.pdf`. The DOCX names the first one. They were made from
-the two `.md` files by hand, with no script in the project, and they are in
-the `out` folder too. Make them again when a `.md` file changes.
+## What the expert gets
+
+The expert gets files, not the project. The DOCX names them, so keep the
+names:
+
+| File | Made from |
+|---|---|
+| `DB_Chekan_Yauheni.docx` | `database.md`, by the build above |
+| `data-dictionary.pdf` | `data-dictionary.md`, by `make_pdf.py` |
+| `run-for-the-expert.pdf` | `run-for-the-expert.md`, by `make_pdf.py` |
+| `schema.sql`, `test-data.sql`, `make_demo_db.py` | Sent as they are |
+| `er-diagram.png`, `logical-schema.png` | Copies of `diagrams/er.png` and `diagrams/blocks.png` |
+
+Make the two PDF files again when a `.md` file changes. From the repository
+root:
+
+```bash
+uv run --no-project --with markdown --with pymdown-extensions python docs/db/make_pdf.py
+```
+
+The script turns each file into a web page and prints it to PDF with
+Microsoft Edge or Google Chrome, so one of them must be installed. In the
+PDF, a link to `database.md` becomes the name of the DOCX, because the expert
+does not get `database.md`.
 
 ## Diagrams
 
@@ -103,25 +125,15 @@ a change of structure: the migration tool does not fix their order.
 - `TABLES` in `diagrams/schema.py`, and then draw the diagrams again.
 
 **`test-data.sql`.** It is written by hand. If a migration adds a column that
-must have a value, add the column here too. To check the file, load it into
-a new database after `schema.sql`:
+must have a value, add the column here too. To check the file, build a
+database from both scripts. From the repository root:
 
 ```bash
-sqlite3 demo.db < docs/db/schema.sql
+python docs/db/make_demo_db.py
 ```
 
-```bash
-sqlite3 demo.db < docs/db/test-data.sql
-```
-
-The last line of `test-data.sql` prints every row that breaks a foreign key,
-and it must print nothing. Without the `sqlite3` program, Python does the
-same. From the repository root, this makes `demo.db` and prints `[]` when no
-foreign key is broken:
-
-```bash
-python -c "import sqlite3; c = sqlite3.connect('demo.db'); [c.executescript(open(f, encoding='utf-8').read()) for f in ('docs/db/schema.sql', 'docs/db/test-data.sql')]; print(c.execute('PRAGMA foreign_key_check').fetchall())"
-```
+It writes `docs/db/demo.db`, prints the number of rows in each table, and
+fails if a row breaks a foreign key.
 
 Git ignores `*.db` files, so `demo.db` is never committed. To look at the
 data in Libra itself, point Libra at that file with `LIBRA_DATABASE_URL`. The

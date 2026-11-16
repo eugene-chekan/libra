@@ -3,34 +3,28 @@
 This page is for the expert who assesses the database block. It gives two
 ways to see the database.
 
-- **Way 1** takes one minute. It builds a small database from two SQL files.
-  It needs only Python.
+- **Way 1** takes one minute. It builds a small database from the files that
+  come with this page. It needs only Python.
 - **Way 2** is optional and takes longer. It runs Libra itself on the database
   of the experiment: 40 real books, cut into 9,476 passages for search.
 
-The project is at https://github.com/eugene-chekan/libra. All commands below
-use the branch `main`.
-
 ## Way 1: the test database, without Libra
 
-You need Git and Python 3.
+You need Python 3 and three files that come with this page: `schema.sql`
+(the DDL script), `test-data.sql` (the test rows) and `make_demo_db.py`. You
+do not need the project or Git.
 
-1. Copy the project to your computer:
+1. Keep the three files in one folder, and open a terminal in that folder.
 
-   ```bash
-   git clone https://github.com/eugene-chekan/libra.git
-   ```
-
-   ```bash
-   cd libra
-   ```
-
-2. Build `demo.db` from the DDL script and the test rows. The command prints
-   `[]` when no row breaks a foreign key:
+2. Build `demo.db`. On Linux and macOS, write `python3` in place of `python`:
 
    ```bash
-   python -c "import sqlite3; c = sqlite3.connect('demo.db'); [c.executescript(open(f, encoding='utf-8').read()) for f in ('docs/db/schema.sql', 'docs/db/test-data.sql')]; print(c.execute('PRAGMA foreign_key_check').fetchall())"
+   python make_demo_db.py
    ```
+
+   The script runs `schema.sql` and then `test-data.sql` on a new database.
+   It prints the number of rows in each table, and then
+   `No row breaks a foreign key.`
 
 3. Open `demo.db` in any SQLite program, for example
    [DB Browser for SQLite](https://sqlitebrowser.org/). It has 3 users,
@@ -46,6 +40,13 @@ PRAGMA foreign_keys = ON;
 ## Way 2: Libra on the experiment database
 
 This way is optional. Way 1 is enough to assess the structure.
+
+The project is at https://github.com/eugene-chekan/libra. Copy it to your
+computer first:
+
+```bash
+git clone https://github.com/eugene-chekan/libra.git
+```
 
 The steps are in the project's own file,
 [experiment/README.md](../../experiment/README.md), so they are not repeated
