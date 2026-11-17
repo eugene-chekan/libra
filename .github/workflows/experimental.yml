@@ -1,0 +1,127 @@
+name: Experimental release
+
+# The diploma experiment's build. This file lives only on diploma/experiment,
+# never on main, and it never touches what release.yml publishes.
+#
+# Every push to diploma/experiment (a merged pull request) runs CI, then:
+# - pushes the image ghcr.io/<owner>/libra-experimental, tagged `latest` and
+#   `sha-<short commit>`. It is a package of its own, so the real `libra`
+#   package never holds an experiment build;
+# - replaces the GitHub pre-release `experimental` (and its tag) with one that
+#   points at this commit. It is never marked as the latest release.
+#
+# A pull request into diploma/experiment that changes this file, the Dockerfile
+# or the locked dependencies gets a dry run: both platforms are built and
+# nothing is published.
+on:
+  push:
+    branches: [diploma/experiment]
+  pull_request:
+    branches: [diploma/experiment]
+    paths:
+      - .github/workflows/experimental.yml
+      - backend/Dockerfile
+      - backend/docker-entrypoint.sh
+      - backend/uv.lock
+      - .dockerignore
+
+# One publish at a time, and a newer push waits for the older one rather than
+# racing it to the tag. A pull request's dry run is replaced by a newer one.
+concurrency:
+  group: experimental-${{ github.event_name }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+permissions:
+  contents: read
+
+env:
+  RELEASE_TAG: experimental
+
+jobs:
+  # Not on a pull request: ci.yml already runs there.
+  ci:
+    if: github.event_name == 'push'
+    uses: ./.github/workflows/ci.yml
+
+  publish:
+    needs: ci
+    if: ${{ !failure() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write   # the tag and the pre-release
+      packages: write   # the image
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Read the version
+        id: read
+        run: |
+          version=$(python3 -c "import tomllib; print(tomllib.load(open('backend/pyproject.toml', 'rb'))['project']['version'])")
+          {
+            echo "version=$version"
+            echo "short=${GITHUB_SHA::7}"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
+
+      - name: Set up Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to GHCR
+        if: github.event_name == 'push'
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Work out the image tags
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ghcr.io/${{ github.repository }}-experimental
+          tags: |
+            type=raw,value=latest
+            type=raw,value=sha-${{ steps.read.outputs.short }}
+
+      # /health reports the version from pyproject.toml, which an experiment
+      # build shares with main; the build label is what tells them apart.
+      - name: Build, and push unless this is a dry run
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: backend/Dockerfile
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          build-args: LIBRA_BUILD=experimental-${{ steps.read.outputs.short }}
+          cache-from: type=gha,scope=experimental
+          cache-to: type=gha,mode=max,scope=experimental
+
+      # Last, so a failed push leaves the old pre-release in place. Deleting
+      # first moves the tag: `gh release edit --target` would keep the old one.
+      - name: Replace the pre-release
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.read.outputs.version }}
+          SHORT: ${{ steps.read.outputs.short }}
+          IMAGE: ghcr.io/${{ github.repository }}-experimental
+        run: |
+          if gh release view "$RELEASE_TAG" > /dev/null 2>&1; then
+            gh release delete "$RELEASE_TAG" --cleanup-tag --yes
+          fi
+          gh release create "$RELEASE_TAG" \
+            --target "$GITHUB_SHA" \
+            --title "Experimental build ($VERSION, $SHORT)" \
+            --prerelease \
+            --latest=false \
+            --notes "The diploma experiment's branch \`diploma/experiment\` at $SHORT. Not a release of libra.
+
+          \`\`\`
+          docker pull $IMAGE:sha-$SHORT
+          \`\`\`"
