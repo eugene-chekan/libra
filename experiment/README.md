@@ -87,6 +87,22 @@ An answer of the wrong shape is asked for again, up to 3 requests, and then
 logged with the status `failed`. A refused key or an empty balance stops the
 run at once.
 
+## The experiment branch and its build
+
+The experiment's code goes to the branch `diploma/experiment`, not to `main`.
+`main` holds only what stays in libra after the diploma.
+
+A pull request into `diploma/experiment` runs the same CI as one into `main`.
+Each merge into it publishes an experimental build
+(`.github/workflows/experimental.yml`):
+
+- the Docker image `ghcr.io/eugene-chekan/libra-experimental`, tagged
+  `latest` and `sha-<commit>`. It is a separate package from `libra`.
+- the GitHub pre-release `experimental`, which points at the merged commit.
+  Each merge replaces it. It is never marked as the latest release.
+
+`/health` in that image reports `build: experimental-<commit>`.
+
 ## Browsing the books in libra
 
 `serve.ps1` (PowerShell 7+) and `serve.sh` (bash) start libra on this
