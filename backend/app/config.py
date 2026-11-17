@@ -1,6 +1,7 @@
 from functools import lru_cache
 from pathlib import Path
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +32,12 @@ class Settings(BaseSettings):
     # A fastembed model name, and where fastembed keeps the files it downloads.
     embedding_model: str = "BAAI/bge-base-en-v1.5"
     model_cache_dir: Path = Path("./models")
+
+    # The experiment's descriptor model. The key is a SecretStr so that printing the
+    # settings never shows it.
+    deepseek_api_key: SecretStr | None = None
+    deepseek_base_url: str = "https://api.deepseek.com"
+    deepseek_model: str = "deepseek-v4-pro"
 
     auto_upgrade_db: bool = True
 

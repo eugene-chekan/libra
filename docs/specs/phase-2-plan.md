@@ -8,7 +8,8 @@ the chunker is frozen at version 1 and the 40 test books are loaded (see
 hand-question command and the search index (BM25, dense, RRF, `rag smoke`) are
 built. The 40 hand questions are written (done 2026-11-16: 20 fiction and 20
 non-fiction books, 19 factual and 21 interpretive), so search over the books may
-start.
+start. 2026-11-16: the DeepSeek client and the prompt pilot command
+(`rag pilot-describe`) are built; the pilot run itself is next.
 
 This plan replaces the earlier Phase 2 outline in
 [architecture.md](../architecture.md), which planned a Chroma vector store and
@@ -602,6 +603,7 @@ All are `uv run python -m app.cli rag <command>`:
 | `corpus-stats <corpus.csv> <folder> --out <file>` | Chunks every book and writes one row per book: words, chunks, the largest chunk in tokens, chunks under 100 words, and `chunks_sha256`. Exits 1 and names each corpus rule that breaks. |
 | `index <corpus.csv> --stats <file>` | Chunks every test book and checks the chunks against the frozen `chunks_sha256`, all before writing. Then stores each book's chunks (FTS5 follows by triggers) and text vectors in one transaction. Skips books already indexed at this `CHUNKER_VERSION`. Refuses a database with other books before migrating it. |
 | `smoke --hand <file> [--sample 30]` | Self-retrieval: can each method find a chunk from its first 12 words? A check of the plumbing, not a result; writes nothing. Refuses to run until the hand set holds 40 kept questions. |
+| `pilot-describe <corpus.csv> <folder> --stats <file> --out <file> [--sample 20] [--questions <file>]` | The prompt pilot. Asks DeepSeek for descriptors of sampled 100+-word chunks of the 2 pilot books only, and of each question in the questions file. Writes every answer to the log before the next request, and prints each text with its descriptors. Skips what the log already holds. Needs `LIBRA_DEEPSEEK_API_KEY`; never touches the database. |
 | `describe` | Descriptors for chunks that have none; appends to the log, imports into the database; resumes |
 | `import-descriptors` | Loads the log into the database, no API |
 | `hand-question <corpus.csv> <folder> --stats <file> --out <file>` | Shows one random chunk of 100+ words per test book. Records the author's question and kind, or a skip with its reason. Resumes where the last session stopped. |

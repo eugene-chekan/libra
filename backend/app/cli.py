@@ -205,6 +205,50 @@ def smoke_command(hand: Path, sample: int) -> int:
     return 0
 
 
+def pilot_describe_command(
+    corpus_csv: Path, folder: Path, stats_csv: Path, out: Path, sample: int, questions: Path | None
+) -> int:
+    import openai
+
+    from rag.deepseek import DeepSeek, MissingKeyError, StopRunError
+    from rag.descriptors import run_pilot
+    from rag.embeddings import load_model
+
+    sys.stdout.reconfigure(errors="replace")
+    try:
+        deepseek = DeepSeek(get_settings())
+        books = [book for book in read_corpus(corpus_csv) if book.role == "pilot"]
+        verify_files(books, folder)
+        digests = read_digests(stats_csv)
+        lines = questions.read_text(encoding="utf-8").splitlines() if questions else []
+        count_tokens = load_model(get_settings()).token_count
+        ok, failed = run_pilot(
+            books,
+            folder,
+            digests,
+            count_tokens,
+            deepseek,
+            out,
+            sample,
+            [line.strip() for line in lines if line.strip()],
+            print,
+        )
+    except (CorpusError, MissingKeyError, StopRunError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except openai.APIError as exc:
+        # Only the kind of error and its status: a server's message can repeat the key.
+        status = getattr(exc, "status_code", "no answer")
+        print(
+            f"error: the request to DeepSeek failed ({type(exc).__name__}, {status}). "
+            f"Every answer before it is saved in {out}; run the command again to go on.",
+            file=sys.stderr,
+        )
+        return 1
+    print(f"{ok} ok, {failed} failed in this run. The log is {out}.")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="app.cli", description=__doc__)
     subcommands = parser.add_subparsers(dest="command", required=True)
@@ -245,6 +289,15 @@ def main(argv: list[str] | None = None) -> int:
     )
     smoke.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
     smoke.add_argument("--sample", type=int, default=30)
+    pilot = rag_commands.add_parser(
+        "pilot-describe", help="Try the descriptor prompt on chunks of the 2 pilot books; resumes"
+    )
+    pilot.add_argument("corpus_csv", type=Path)
+    pilot.add_argument("folder", type=Path)
+    pilot.add_argument("--stats", type=Path, required=True, help="corpus-stats.csv")
+    pilot.add_argument("--out", type=Path, required=True, help="The response log, a .jsonl file")
+    pilot.add_argument("--sample", type=int, default=20, help="Chunks per pilot book")
+    pilot.add_argument("--questions", type=Path, help="A text file, one question per line")
 
     args = parser.parse_args(argv)
     if args.command == "create-admin":
@@ -259,6 +312,10 @@ def main(argv: list[str] | None = None) -> int:
         return index_command(args.corpus_csv, args.stats)
     if args.command == "rag" and args.rag_command == "smoke":
         return smoke_command(args.hand, args.sample)
+    if args.command == "rag" and args.rag_command == "pilot-describe":
+        return pilot_describe_command(
+            args.corpus_csv, args.folder, args.stats, args.out, args.sample, args.questions
+        )
     return 1
 
 
