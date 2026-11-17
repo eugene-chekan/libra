@@ -1,11 +1,13 @@
 name: CI
 
 on:
+  # Not on a push to diploma/experiment: experimental.yml runs all of this then,
+  # before it publishes, and a second run would only repeat it.
   push:
     branches: [main]
   pull_request:
-    branches: [main]
-  # Lets release.yml run all of this before it publishes anything.
+    branches: [main, diploma/experiment]
+  # Lets release.yml and experimental.yml run all of this before they publish.
   workflow_call:
 
 jobs:
