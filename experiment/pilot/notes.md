@@ -27,15 +27,29 @@ book was sent to DeepSeek.
 | Chunk (40) | 303 / 475 / 535 | 57 / 70 / 80 | 1.89 / 2.74 |
 | Question (5) | 135 / 137 / 139 | 34 / 41 / 50 | 1.44 / 1.79 |
 
-The pilot itself cost about 2 cents.
+**DeepSeek's own usage report agrees with the log exactly.** The report for
+2026-11-20 (downloaded by the author from the DeepSeek platform, not kept in
+the repository) shows:
+
+| | DeepSeek's report | Sum of the log |
+|---|---|---|
+| Requests | 45 | 45 |
+| Input tokens, cache miss | 19,695 | 19,695 (`prompt_tokens`) |
+| Input tokens, cache hit | none | — |
+| Output tokens | 3,006 | 3,006 |
+| Price per input token | $0.00000066 | — |
+| Price per output token | $0.00000198 | — |
+| Cost | **$0.01895** | 19,695 × $0.66/M + 3,006 × $1.98/M = $0.01895 |
+
+So the pilot cost under 2 cents. The prices billed are the plan's off-peak
+prices ($0.66 and $1.98 per million tokens), and **nothing was cached**: every
+input token was billed as a cache miss.
 
 **The full run, estimated from these numbers:** 9,476 chunks × 475 prompt
 tokens is about 4.5M input tokens, and 9,476 × 70 is about 0.66M output tokens.
-At the plan's off-peak prices ($0.66 per million input tokens, $1.98 per million
-output tokens), that is about $3.0 + $1.3 = **$4.3 if nothing is cached**, and
-about $8.6 at peak prices. Both are under the $10 limit (KPI-3, NFR-04).
-Caching the prompt would lower it a little. The prices themselves are not
-checked again yet.
+At the billed off-peak prices that is about $3.0 + $1.3 = **$4.3**, and about
+$8.6 at peak prices. Both are under the $10 limit (KPI-3, NFR-04). The pilot
+shows no caching, so $4.3 is the estimate to plan with, not a worst case.
 
 **Time:** the pilot asks one request at a time. At 1.89 s a chunk, 9,476 chunks
 would take about 5 hours one at a time, or about 40 minutes with 8 requests in
@@ -91,10 +105,14 @@ They say nothing about which method is better.
    names), or ask the question prompt to ignore names. The same choice applies
    to the drafted questions.
 3. **Log the cached tokens.** The log saves `prompt_tokens` but not
-   `prompt_cache_hit_tokens`, so the pilot cannot show whether DeepSeek cached
-   the prompt. It is a small change to `rag/deepseek.py` before the full run.
+   `prompt_cache_hit_tokens`. DeepSeek's report shows no cache hits for the
+   pilot, but only as a daily total. Saving the field for each request makes
+   the full run's cost checkable from the log alone. It is a small change to
+   `rag/deepseek.py`.
 4. **The model name in the protocol.** Record `deepseek-v4-pro` with the
    `system_fingerprint`, not `DeepSeek-V4-Pro-0813`.
 5. **Parallel requests.** The full-run command needs up to 8 requests in
    parallel, or the run takes about 5 hours.
-6. **Prices.** Check DeepSeek's prices again on the day of the full run.
+6. **Prices.** The pilot was billed at the plan's off-peak prices on
+   2026-11-20. Check them again on the day of the full run, and compare the
+   run's log with DeepSeek's usage report afterwards, as here.
