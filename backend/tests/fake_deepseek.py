@@ -34,8 +34,11 @@ class FakeDeepSeek:
         self,
         outcomes: list[str | Exception],
         on_request: Callable[[], None] | None = None,
+        cache_hit_tokens: int | None = 0,
     ) -> None:
         self.outcomes = list(outcomes)
+        # None leaves the field out of `usage`, as an older server would.
+        self.cache_hit_tokens = cache_hit_tokens
         self.on_request = on_request
         self.calls: list[dict] = []
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
@@ -53,12 +56,15 @@ class FakeDeepSeek:
         outcome = self.outcomes.pop(0)
         if isinstance(outcome, Exception):
             raise outcome
+        usage = SimpleNamespace(
+            prompt_tokens=sum(len(message["content"].split()) for message in messages),
+            completion_tokens=len(outcome.split()),
+        )
+        if self.cache_hit_tokens is not None:
+            usage.prompt_cache_hit_tokens = self.cache_hit_tokens
         return SimpleNamespace(
             choices=[SimpleNamespace(message=SimpleNamespace(content=outcome))],
             model=SERVED_MODEL,
             system_fingerprint=FINGERPRINT,
-            usage=SimpleNamespace(
-                prompt_tokens=sum(len(message["content"].split()) for message in messages),
-                completion_tokens=len(outcome.split()),
-            ),
+            usage=usage,
         )

@@ -26,6 +26,8 @@ class Completion:
     model: str
     system_fingerprint: str | None
     prompt_tokens: int
+    # None when the server leaves the field out of any attempt's usage.
+    cache_hit_tokens: int | None
     completion_tokens: int
     seconds: float
     attempts: int
@@ -92,10 +94,16 @@ class DeepSeek:
         """
         started = time.perf_counter()
         prompt_tokens = completion_tokens = 0
+        cache_hit_tokens: int | None = 0
         for attempt in range(1, JSON_ATTEMPTS + 1):
             response = self._request(system, user)
             prompt_tokens += response.usage.prompt_tokens
             completion_tokens += response.usage.completion_tokens
+            # A DeepSeek field the SDK's types do not name.
+            hit = getattr(response.usage, "prompt_cache_hit_tokens", None)
+            cache_hit_tokens = (
+                None if hit is None or cache_hit_tokens is None else cache_hit_tokens + hit
+            )
             content = response.choices[0].message.content or ""
             data, problem = _parse(content, validate)
             completion = Completion(
@@ -104,6 +112,7 @@ class DeepSeek:
                 model=response.model,
                 system_fingerprint=response.system_fingerprint,
                 prompt_tokens=prompt_tokens,
+                cache_hit_tokens=cache_hit_tokens,
                 completion_tokens=completion_tokens,
                 seconds=time.perf_counter() - started,
                 attempts=attempt,

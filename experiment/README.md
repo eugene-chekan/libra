@@ -74,12 +74,15 @@ book. The command needs a DeepSeek API key in the setting
 
 From `backend/`:
 
-    uv run python -m app.cli rag pilot-describe ../experiment/corpus.csv ../experiment/files --stats ../experiment/corpus-stats.csv --out ../experiment/pilot/descriptors-v0.jsonl --sample 20 --questions ../experiment/pilot/questions.txt
+    uv run python -m app.cli rag pilot-describe ../experiment/corpus.csv ../experiment/files --stats ../experiment/corpus-stats.csv --out ../experiment/pilot/descriptors-v1.jsonl --sample 20 --questions ../experiment/pilot/questions.txt
 
 It picks 20 chunks of 100 words or more from each pilot book, always the same
 ones, and asks for 8 descriptors of each. Then it asks for 5 descriptors of
 each line in `questions.txt`. The model sees the chunk text or the question
 and nothing else: no title and no author.
+
+Name the log after the prompt version, as above. `pilot/` holds the logs of
+prompt v0 and v1, and `pilot/notes.md` compares them.
 
 Every answer is written to the log file before the next request. So a stopped
 run loses nothing, and the next run asks only for what the log does not hold.

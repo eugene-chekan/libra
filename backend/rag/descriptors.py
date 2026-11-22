@@ -11,7 +11,7 @@ from rag.chunking import SHORT_CHUNK_WORDS
 from rag.corpus import CorpusBook, CorpusError, frozen_chunks
 from rag.deepseek import Completion, DeepSeek, InvalidOutputError
 
-PROMPT_VERSION = "v0"
+PROMPT_VERSION = "v1"
 CHUNK_DESCRIPTORS = 8
 QUESTION_DESCRIPTORS = 5
 DESCRIPTOR_WORDS = (2, 6)
@@ -23,15 +23,17 @@ You write descriptors for a search index of book passages. Read the passage and 
 exactly 8 descriptors of what it is about: its themes, situations, actions, feelings and \
 ideas. Each descriptor is 2 to 6 words. Describe only what this passage says or shows. Do \
 not use names of people or places, and do not guess which book it is from. Answer in json, \
-exactly in this form:
-{"descriptors": ["moral choice under pressure", "...", "...", "...", "...", "...", "...", "..."]}"""
+exactly in this form, with your 8 descriptors in place of the dots:
+{"descriptors": ["...", "...", "...", "...", "...", "...", "...", "..."]}"""
 
 QUESTION_PROMPT = """\
 You write descriptors for a search index of book passages. Read the reader's question and \
 write exactly 5 descriptors of what it asks about: its themes, situations, actions, feelings \
-and ideas. Each descriptor is 2 to 6 words. Do not use names of people or places, and do not \
-guess which book it is about. Answer in json, exactly in this form:
-{"descriptors": ["moral choice under pressure", "...", "...", "...", "..."]}"""
+and ideas. Each descriptor is 2 to 6 words. Describe only what the question itself asks. Do \
+not use names of people or places, and do not use anything you know about a person, place \
+or book that the question names. Answer in json, exactly in this form, with your 5 \
+descriptors in place of the dots:
+{"descriptors": ["...", "...", "...", "...", "..."]}"""
 
 _KINDS = {
     "chunk": (CHUNK_PROMPT, CHUNK_DESCRIPTORS),
@@ -141,6 +143,7 @@ def _describe_and_log(deepseek: DeepSeek, out: Path, subject: dict, text: str) -
         "model": completion.model,
         "system_fingerprint": completion.system_fingerprint,
         "prompt_tokens": completion.prompt_tokens,
+        "cache_hit_tokens": completion.cache_hit_tokens,
         "completion_tokens": completion.completion_tokens,
         "seconds": round(completion.seconds, 3),
         "attempts": completion.attempts,

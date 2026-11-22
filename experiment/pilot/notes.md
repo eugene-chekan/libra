@@ -1,3 +1,8 @@
+# Prompt pilot
+
+Prompt v0 ran first. Its findings led to prompt v1, which ran on the same
+chunks; see "Prompt pilot, prompt v1" below. The full run uses v1.
+
 # Prompt pilot, prompt v0
 
 Run on 2026-11-20 at 19:49 UTC (off-peak), on the 2 pilot books only:
@@ -95,24 +100,93 @@ The miss is the Malatesta question above: its descriptors became general
 Five questions over 40 chunks say only that the pipeline works end to end.
 They say nothing about which method is better.
 
-## Open choices before the full run
+## Choices after v0
 
-1. **The prompt's example.** Keep "moral choice under pressure" (1 copy in 40
-   answers), or replace it with a format that cannot be copied, such as
-   `{"descriptors": ["...", "...", …]}`. A change makes the prompt v1, and v1
-   would need a short pilot of its own.
-2. **Names in questions.** Keep the questions as they are (a real reader uses
-   names), or ask the question prompt to ignore names. The same choice applies
-   to the drafted questions.
-3. **Log the cached tokens.** The log saves `prompt_tokens` but not
-   `prompt_cache_hit_tokens`. DeepSeek's report shows no cache hits for the
-   pilot, but only as a daily total. Saving the field for each request makes
-   the full run's cost checkable from the log alone. It is a small change to
-   `rag/deepseek.py`.
+The author decided on 2026-11-22:
+
+1. **The prompt's example.** Replaced. The answer form now holds only
+   placeholders, `{"descriptors": ["...", …]}`, so there is no example to
+   copy. This makes the prompt v1.
+2. **Names in questions.** The questions stay as they are: a real reader uses
+   names, and BM25 and dense search still see them. The question prompt now
+   says to describe only what the question asks, and to use nothing the model
+   knows about a person, place or book the question names. The chunk prompt
+   already said the same about the passage.
+3. **Log the cached tokens.** Done in v1: each entry saves `cache_hit_tokens`.
+
+Still open before the full run:
+
 4. **The model name in the protocol.** Record `deepseek-v4-pro` with the
    `system_fingerprint`, not `DeepSeek-V4-Pro-0813`.
 5. **Parallel requests.** The full-run command needs up to 8 requests in
    parallel, or the run takes about 5 hours.
-6. **Prices.** The pilot was billed at the plan's off-peak prices on
-   2026-11-20. Check them again on the day of the full run, and compare the
-   run's log with DeepSeek's usage report afterwards, as here.
+6. **Prices.** Check them again on the day of the full run, and compare the
+   run's log with DeepSeek's usage report afterwards, as for v0.
+
+# Prompt pilot, prompt v1
+
+Run on 2026-11-22, 14:15–14:17 UTC (a Sunday, so off-peak), on the **same 40
+chunks** and the same 5 questions as v0. The seeded shuffle picks the same
+chunks. Log: `descriptors-v1.jsonl`, 45 lines.
+
+## v0 and v1 side by side
+
+| | v0 | v1 |
+|---|---|---|
+| Answers ok | 45 of 45 | 45 of 45 |
+| Answers that needed a second request | 0 | 1 (*Mike* chunk 57) |
+| Model, `system_fingerprint` | `deepseek-v4-pro`, `d400d062…` | the same |
+| The example copied | 1 of 40 chunks | 0 (no example to copy) |
+| A placeholder `...` returned as a descriptor | — | 0 |
+| Chunk prompt tokens, mean | 475 | 496 |
+| Chunk output tokens, mean | 70 | 76 |
+| Chunk descriptors of 5–6 words | 18 of 320 | 59 of 320 |
+| Question prompt tokens, mean | 137 | 162 |
+
+- **v1 descriptors are a little longer.** More of them have 5 or 6 words.
+- **The one retry.** The log keeps only the last answer, so the first answer's
+  problem is not saved. Its final descriptors are long ("claiming act as
+  justice not prank" has 6 words), so the first answer most likely had a
+  descriptor of 7 words or more.
+- **The names rule worked on the pilot question.** The Malatesta question got
+  "elected government privilege; power concentration; state as oppressor;
+  political class formation; authority and hierarchy". "anarchist political
+  theory" is gone.
+
+## Cached tokens
+
+v1 logs `cache_hit_tokens` for each request:
+
+- 4 of the 5 questions: 128 cached tokens each, from the shared question prompt.
+- 39 of the 40 chunks: 0 cached tokens. The chunk prompt was not cached
+  between different chunks in this run.
+- *Mike* chunk 57: 384 cached tokens, because its retry sent the same request
+  again.
+
+In total, 896 of 20,650 input tokens were cached. Even if the whole chunk
+prompt (about 128 tokens) were cached for every chunk, the full run would save
+only about $0.77. So plan with no caching.
+
+## The informal check again (not a result)
+
+The same 5 questions and the same 40 chunks as for v0:
+
+| Question | Its chunk | v0 descriptor rank | v1 descriptor rank | Dense rank |
+|---|---|---|---|---|
+| What methods did Malatesta say governments use to check the revolutionary movement? | *Essays* 93 | 1 | 1 | 1 |
+| Why did Malatesta believe that even an elected government becomes a privileged class? | *Essays* 30 | 15 | **1** | 1 |
+| Why did Mr. Appleby feel he could not simply ignore Wyatt breaking out at night? | *Mike* 162 | 1 | 1 | 1 |
+| How was Jellicoe hurt while crossing the field with Mike? | *Mike* 296 | 1 | 1 | 1 |
+| Why did Mike think Wrykyn would agree to play Sedleigh? | *Mike* 393 | 1 | 2 | 1 |
+
+The Malatesta question moved from rank 15 to rank 1, and one *Mike* question
+moved from 1 to 2. As before, 5 questions say only that the pipeline works.
+They do not show that v1 is better than v0, and they do not compare methods.
+
+## Cost of the full run with v1
+
+9,476 chunks × 496 input tokens is about 4.7M input tokens, and 9,476 × 76 is
+about 0.72M output tokens. At the off-peak prices billed for v0 ($0.66 and
+$1.98 per million), that is about $3.1 + $1.4 = **$4.5**, and about $9.1 at
+peak prices. Both are under the $10 limit, but the peak figure is close to it,
+so the full run must happen off-peak.
