@@ -9,7 +9,9 @@ hand-question command and the search index (BM25, dense, RRF, `rag smoke`) are
 built. The 40 hand questions are written (done 2026-11-16: 20 fiction and 20
 non-fiction books, 19 factual and 21 interpretive), so search over the books may
 start. 2026-11-16: the DeepSeek client and the prompt pilot command
-(`rag pilot-describe`) are built; the pilot run itself is next.
+(`rag pilot-describe`) are built. 2026-11-20 and 2026-11-22: the prompt pilot
+ran as v0, then as v1 on the same chunks; the full run uses prompt v1 (see
+[experiment/pilot/notes.md](../../experiment/pilot/notes.md)).
 
 This plan replaces the earlier Phase 2 outline in
 [architecture.md](../architecture.md), which planned a Chroma vector store and
@@ -315,7 +317,8 @@ methods.
 
 | Setting | Value |
 |---|---|
-| Model | `deepseek-v4-pro` (served as `DeepSeek-V4-Pro-0813`) |
+| Model | `deepseek-v4-pro`, the name the API reports; the log also keeps its `system_fingerprint` |
+| Prompt | version v1: the answer form shows placeholders only, and the question prompt says to use nothing known about a named person, place or book |
 | Thinking | off: `thinking: {type: "disabled"}` |
 | Temperature | 0 |
 | Output | JSON mode: `response_format: {type: "json_object"}` |
@@ -342,20 +345,20 @@ methods.
   chunks already saved are skipped. Runs happen off-peak (peak is 01:00–04:00
   and 06:00–10:00 UTC, Monday to Friday; off-peak costs half).
 
-**Cost.** About $4–7 off-peak for all chunks, at DeepSeek's prices since
-16 Aug 2026 (off-peak: $0.66 per million input tokens, $0.022 per million
-cached input tokens, $1.98 per million output tokens; peak costs double).
+**Cost.** About $4.5 off-peak for all chunks. The v1 pilot measured it
+on 2026-11-22: 496 input and 76 output tokens per chunk on average. DeepSeek's
+billed prices on 2026-11-20 were the off-peak prices of 16 Aug 2026: $0.66 per
+million input tokens and $1.98 per million output tokens. Peak costs double.
 
-- The 40 books have 2,517,167 words in 9,476 chunks. At about 1.3 tokens per
-  word, the chunk text is about 3.3M input tokens.
-- The prompt is the same for every chunk, so DeepSeek caches it. Then it costs
-  almost nothing: about $4 in total. If it is never cached, about $7.
-- The output is 8 descriptors, about 80 tokens a chunk: about 0.8M tokens.
+- 9,476 chunks × 496 input tokens is about 4.7M input tokens: about $3.1.
+- 9,476 × 76 output tokens is about 0.72M tokens: about $1.4.
+- Caching does not lower this. In the pilot, DeepSeek did not cache the chunk
+  prompt between chunks. Even if it did, it would save only about $0.77.
 - Question descriptors and the 400 drafts add less than $1.
 
-The business analysis sets the limit at $10 (KPI-3, NFR-04). The pilot
-measures the real tokens per chunk, and checks the prices and the model name
-again before the full run.
+The business analysis sets the limit at $10 (KPI-3, NFR-04). At peak prices
+the full run would cost about $9.1, close to the limit, so it runs off-peak.
+The prices are checked again on the day of the run.
 
 ## Test questions
 
@@ -673,8 +676,8 @@ The API key never appears in a log line or an error message.
 | Drafts copy the chunk's wording and favour BM25 | The 4-word check; word overlap reported per set |
 | One correct chunk under-counts | The 50-question checked sample |
 | "Non-fiction" is broader than popular science | The label is agreed with the supervisor |
-| JSON mode on `v4-pro` is not documented | Confirmed in the week 2 pilot |
-| The model or its price changed since September | The week 2 pilot checks both; the protocol records the model version that served the run |
+| JSON mode on `v4-pro` is not documented | Confirmed by the pilot: 90 of 90 answers valid (v0 and v1), 1 after a retry |
+| The model or its price changed since September | The pilot confirmed both on 2026-11-20; the log records the model name and `system_fingerprint` of every answer |
 | DeepSeek serves different output later | Every response saved; evaluation never calls the API |
 | The schedule slips | No spare week is left. A fixed order of what moves to the thesis period, none of it promised in the application ([Schedule](#schedule)) |
 
