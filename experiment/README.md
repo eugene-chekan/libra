@@ -130,6 +130,18 @@ database, with the same two settings:
   refuses a log that misses a chunk. It writes each book whole or not at all,
   and a second run skips the books already loaded.
 
+## The question descriptors
+
+`rag describe-questions` asks DeepSeek for 5 descriptors of every kept hand
+question, with the question prompt. It needs no database. It refuses to run
+until all 40 hand questions are written. From `backend/`:
+
+    uv run python -m app.cli rag describe-questions --hand ../experiment/questions/hand.jsonl --out ../experiment/query-descriptors.jsonl
+
+Each line of the log names the question's `id`, such as `hand-002`. Like
+`describe`, it sends up to 8 requests at once (`--workers`) and asks only for
+what the log does not hold yet.
+
 ## The experiment branch and its build
 
 The experiment's code goes to the branch `diploma/experiment`, not to `main`.

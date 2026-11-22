@@ -183,6 +183,33 @@ def index_command(corpus_csv: Path, stats_csv: Path) -> int:
     return 0
 
 
+def describe_questions_command(hand: Path, out: Path, workers: int | None) -> int:
+    import openai
+
+    from rag.deepseek import DeepSeek, MissingKeyError, StopRunError
+    from rag.descriptors import RUN_WORKERS, run_describe_questions
+    from rag.smoke import require_hand_set
+
+    try:
+        deepseek = DeepSeek(get_settings())
+        records = read_records(hand)
+        require_hand_set(records)
+        count = RUN_WORKERS if workers is None else workers
+        progress = functools.partial(print, flush=True)
+        ok, failed = run_describe_questions(records, deepseek, out, count, progress)
+    except (CorpusError, MissingKeyError, StopRunError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except openai.APIError as exc:
+        _report_failed_request(exc, out)
+        return 1
+    except KeyboardInterrupt:
+        print(f"\nStopped. Every answer that arrived is saved in {out}.")
+        return 0
+    print(f"{ok} ok, {failed} failed in this run. The log is {out}.")
+    return 0
+
+
 def import_descriptors_command(corpus_csv: Path, log: Path) -> int:
     from rag.descriptors import import_descriptors, read_log
     from rag.embeddings import load_model
@@ -364,6 +391,16 @@ def main(argv: list[str] | None = None) -> int:
         "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
     )
     describe.add_argument("--limit", type=int, help="Ask for at most this many chunks")
+    questions = rag_commands.add_parser(
+        "describe-questions", help="Write descriptors for every kept hand question; resumes"
+    )
+    questions.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
+    questions.add_argument(
+        "--out", type=Path, required=True, help="The question descriptor log, a .jsonl file"
+    )
+    questions.add_argument(
+        "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
+    )
     imports = rag_commands.add_parser(
         "import-descriptors", help="Load the chunk descriptor log into the database; no API"
     )
@@ -383,6 +420,8 @@ def main(argv: list[str] | None = None) -> int:
         return index_command(args.corpus_csv, args.stats)
     if args.command == "rag" and args.rag_command == "smoke":
         return smoke_command(args.hand, args.sample)
+    if args.command == "rag" and args.rag_command == "describe-questions":
+        return describe_questions_command(args.hand, args.out, args.workers)
     if args.command == "rag" and args.rag_command == "import-descriptors":
         return import_descriptors_command(args.corpus_csv, args.log)
     if args.command == "rag" and args.rag_command == "describe":
