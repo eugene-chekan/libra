@@ -159,6 +159,33 @@ in "The database", from `backend/`:
   the drafts the log does not hold. `--limit N` asks for at most N drafts.
 - It refuses to run until all 40 hand questions are written.
 
+## Reviewing the drafts
+
+`rag review` shows each drafted question with its chunk, its kind, its short
+answer and its evidence quote, one at a time. Failed drafts are not shown. With
+the same two settings as in "The database", from `backend/`:
+
+    uv run python -m app.cli rag review ../experiment/corpus.csv --drafts ../experiment/questions/drafts.jsonl --out ../experiment/questions/review.jsonl
+
+Then it asks `k = keep, e = edit, d = drop, q = quit:`.
+
+- `k` keeps the draft as it is.
+- `e` asks for a new question, and refuses one that repeats 4 words of the
+  chunk (names left out). Then it asks for the kind: Enter keeps the draft's.
+- `d` asks why. Type a rule's number, or your own words:
+  1 not answerable from this chunk alone, 2 no real reader would ask it,
+  3 not clear which book it is about, 4 it reuses the chunk's wording,
+  5 the kind is wrong.
+- `q` stops. The next run starts at the first draft not reviewed.
+
+Keep a draft only if all five rules hold (protocol section 7). Each decision
+is saved the moment you finish it. The screen shows how many kept questions
+each genre and kind has so far.
+
+As with `hand.jsonl`, run one session at a time, and edit `review.jsonl` only
+when the command is not running. Commit it to `diploma/experiment` after each
+session. Do not run `rag evaluate` until the review is done.
+
 ## The evaluation
 
 `rag evaluate` ranks every question's source chunk by all six methods of

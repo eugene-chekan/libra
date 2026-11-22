@@ -162,6 +162,26 @@ def hand_question_command(corpus_csv: Path, folder: Path, stats_csv: Path, out: 
     return 0
 
 
+def review_command(corpus_csv: Path, drafts: Path, out: Path) -> int:
+    from rag.review import run_review
+
+    # As in hand_question_command: book text holds characters a Windows code page lacks.
+    sys.stdout.reconfigure(errors="replace")
+    try:
+        books = read_corpus(corpus_csv)
+        _open_experiment_database(books)
+        with Session(get_engine()) as session:
+            reviewed = run_review(session, books, drafts, out, input, print, date.today())
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except (KeyboardInterrupt, EOFError):
+        print(f"\nStopped. Every decision you finished is saved in {out}.")
+        return 0
+    print(f"Reviewed {reviewed} draft(s) in this session. The review file is {out}.")
+    return 0
+
+
 def index_command(corpus_csv: Path, stats_csv: Path) -> int:
     from rag.embeddings import load_model
     from rag.index import index_books
@@ -513,6 +533,12 @@ def main(argv: list[str] | None = None) -> int:
         "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
     )
     drafts.add_argument("--limit", type=int, help="Ask for at most this many drafts")
+    review = rag_commands.add_parser(
+        "review", help="Keep, edit or drop each drafted question, one at a time; resumes"
+    )
+    review.add_argument("corpus_csv", type=Path)
+    review.add_argument("--drafts", type=Path, required=True, help="drafts.jsonl")
+    review.add_argument("--out", type=Path, required=True, help="review.jsonl")
     evaluate = rag_commands.add_parser(
         "evaluate", help="Rank every question's source chunk by every method; writes a run"
     )
@@ -551,6 +577,8 @@ def main(argv: list[str] | None = None) -> int:
         return draft_questions_command(
             args.corpus_csv, args.hand, args.out, args.workers, args.limit
         )
+    if args.command == "rag" and args.rag_command == "review":
+        return review_command(args.corpus_csv, args.drafts, args.out)
     if args.command == "rag" and args.rag_command == "evaluate":
         return evaluate_command(
             args.corpus_csv,
