@@ -81,6 +81,22 @@ def test_the_tokens_of_every_attempt_are_counted() -> None:
     assert (completion.prompt_tokens, completion.completion_tokens) == (10, 4)
 
 
+def test_the_cache_hits_of_every_attempt_are_counted() -> None:
+    fake = FakeDeepSeek(["not json", GOOD], cache_hit_tokens=3)
+
+    completion = DeepSeek(keyed_settings(), client=fake).complete_json(SYSTEM, "a", accept)
+
+    assert completion.cache_hit_tokens == 6
+
+
+def test_a_server_without_the_cache_field_logs_no_count() -> None:
+    fake = FakeDeepSeek([GOOD], cache_hit_tokens=None)
+
+    completion = DeepSeek(keyed_settings(), client=fake).complete_json(SYSTEM, "a", accept)
+
+    assert completion.cache_hit_tokens is None
+
+
 @pytest.mark.parametrize("bad", ["{broken", '["a list"]', '"a string"', ""])
 def test_invalid_json_three_times_raises(bad: str) -> None:
     client, fake = deepseek([bad] * (JSON_ATTEMPTS + 1))

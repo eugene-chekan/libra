@@ -151,6 +151,7 @@ def test_an_entry_records_what_the_protocol_asks_for(pilot: Pilot) -> None:
         "model",
         "system_fingerprint",
         "prompt_tokens",
+        "cache_hit_tokens",
         "completion_tokens",
         "seconds",
         "attempts",
@@ -180,6 +181,17 @@ def test_the_prompt_input_is_the_chunk_text_only(pilot: Pilot) -> None:
     ]
     assert book.author not in json.dumps(request)
     assert book.file not in json.dumps(request)
+
+
+@pytest.mark.parametrize(
+    ("prompt", "count"),
+    [(CHUNK_PROMPT, CHUNK_DESCRIPTORS), (QUESTION_PROMPT, QUESTION_DESCRIPTORS)],
+)
+def test_the_answer_form_holds_only_placeholders(prompt: str, count: int) -> None:
+    """The v0 example "moral choice under pressure" was copied into a pilot answer."""
+    form = json.loads(prompt[prompt.index("{") :])
+
+    assert form == {"descriptors": ["..."] * count}
 
 
 def test_both_prompts_satisfy_json_mode_and_name_their_numbers() -> None:
