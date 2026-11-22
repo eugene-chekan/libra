@@ -14,7 +14,7 @@ from rag.corpus import CorpusError
 from rag.embeddings import Embedder
 from rag.metrics import K_VALUES, rank_of, recall_at
 from rag.questions import HAND_SET_SIZE, HandRecord
-from rag.search import METHODS, VectorIndex, search
+from rag.search import TEXT_METHODS, VectorIndex, search
 
 SMOKE_SEED = "smoke-2026-10"
 QUERY_WORDS = 12
@@ -51,7 +51,7 @@ def smoke(
         sample: How many chunks of 100+ words to try.
 
     Returns:
-        Recall for each method in METHODS.
+        Recall for each method in TEXT_METHODS.
 
     Raises:
         CorpusError: The hand set is not complete.
@@ -65,7 +65,7 @@ def smoke(
     picked = random.Random(SMOKE_SEED).sample(list(chunks), min(sample, len(chunks)))
     k = max(K_VALUES)
     recall = {}
-    for method in METHODS:
+    for method in TEXT_METHODS:
         ranks = [
             rank_of(
                 search(session, vectors, model, " ".join(chunk.text.split()[:QUERY_WORDS]), method),

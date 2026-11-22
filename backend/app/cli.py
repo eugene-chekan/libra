@@ -235,6 +235,75 @@ def import_descriptors_command(corpus_csv: Path, log: Path) -> int:
     return 0
 
 
+def evaluate_command(
+    corpus_csv: Path, stats_csv: Path, hand: Path, query_log: Path, chunk_log: Path, out: Path
+) -> int:
+    from rag.descriptors import PROMPT_VERSION, read_log
+    from rag.embeddings import load_model
+    from rag.evaluate import (
+        check_stored_chunks,
+        load_questions,
+        rank_questions,
+        require_new_run,
+        summarize,
+        write_run,
+    )
+    from rag.search import METHODS, DescriptorIndex, VectorIndex
+    from rag.smoke import require_hand_set
+
+    try:
+        books = read_corpus(corpus_csv)
+        digests = read_digests(stats_csv)
+        records = read_records(hand)
+        require_hand_set(records)
+        queries = read_log(query_log)
+        require_new_run(out)
+        _open_experiment_database(books)
+        settings = get_settings()
+        model = load_model(settings)
+        with Session(get_engine()) as session:
+            check_stored_chunks(session, books, digests)
+            vectors = VectorIndex.load(session, settings.embedding_model)
+            descriptors = DescriptorIndex.load(session, PROMPT_VERSION, settings.embedding_model)
+            questions = load_questions(session, records, queries, model, "hand")
+            progress = functools.partial(print, flush=True)
+            rows = rank_questions(session, vectors, descriptors, model, questions, progress)
+        summary = summarize(rows)
+        inputs = {
+            "corpus.csv": corpus_csv,
+            "corpus-stats.csv": stats_csv,
+            "hand.jsonl": hand,
+            "query-descriptors.jsonl": query_log,
+            "descriptors.jsonl": chunk_log,
+        }
+        facts = {"git_commit": _git_commit(), "embedding_model": settings.embedding_model}
+        write_run(out, rows, summary, inputs, facts)
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"Ranked {len(questions)} questions by {len(METHODS)} methods. The run is in {out}.")
+    return 0
+
+
+def _git_commit() -> str | None:
+    """The checked-out commit, with "-dirty" when files differ from it; None outside git."""
+    import subprocess
+
+    try:
+        head = subprocess.run(
+            ["git", "rev-parse", "HEAD"], capture_output=True, text=True, check=True
+        ).stdout.strip()
+        changed = subprocess.run(
+            ["git", "status", "--porcelain", "--untracked-files=no"],
+            capture_output=True,
+            text=True,
+            check=True,
+        ).stdout.strip()
+    except (OSError, subprocess.CalledProcessError):
+        return None
+    return f"{head}-dirty" if changed else head
+
+
 def smoke_command(hand: Path, sample: int) -> int:
     from rag.embeddings import load_model
     from rag.metrics import K_VALUES
@@ -401,6 +470,19 @@ def main(argv: list[str] | None = None) -> int:
     questions.add_argument(
         "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
     )
+    evaluate = rag_commands.add_parser(
+        "evaluate", help="Rank every question's source chunk by every method; writes a run"
+    )
+    evaluate.add_argument("corpus_csv", type=Path)
+    evaluate.add_argument("--stats", type=Path, required=True, help="corpus-stats.csv")
+    evaluate.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
+    evaluate.add_argument(
+        "--query-descriptors", type=Path, required=True, help="The question descriptor log"
+    )
+    evaluate.add_argument(
+        "--descriptors", type=Path, required=True, help="The chunk descriptor log"
+    )
+    evaluate.add_argument("--out", type=Path, required=True, help="A new run folder")
     imports = rag_commands.add_parser(
         "import-descriptors", help="Load the chunk descriptor log into the database; no API"
     )
@@ -422,6 +504,15 @@ def main(argv: list[str] | None = None) -> int:
         return smoke_command(args.hand, args.sample)
     if args.command == "rag" and args.rag_command == "describe-questions":
         return describe_questions_command(args.hand, args.out, args.workers)
+    if args.command == "rag" and args.rag_command == "evaluate":
+        return evaluate_command(
+            args.corpus_csv,
+            args.stats,
+            args.hand,
+            args.query_descriptors,
+            args.descriptors,
+            args.out,
+        )
     if args.command == "rag" and args.rag_command == "import-descriptors":
         return import_descriptors_command(args.corpus_csv, args.log)
     if args.command == "rag" and args.rag_command == "describe":

@@ -14,7 +14,7 @@ from rag.corpus import CorpusBook, CorpusError, book_stats, load_corpus, write_s
 from rag.index import index_books
 from rag.metrics import K_VALUES
 from rag.questions import HAND_SET_SIZE, HandRecord
-from rag.search import METHODS, VectorIndex
+from rag.search import TEXT_METHODS, VectorIndex
 from rag.smoke import smoke
 from tests.corpus_helpers import chapters_book, row, words_as_tokens, write_csv
 from tests.fake_embedder import FakeEmbedder
@@ -86,7 +86,7 @@ def test_skipped_records_do_not_count_toward_the_hand_set(
 def test_smoke_reports_recall_per_method(session: Session, vectors: VectorIndex) -> None:
     recall = smoke(session, vectors, FakeEmbedder(), hand_set(HAND_SET_SIZE), sample=10)
 
-    assert tuple(recall) == METHODS
+    assert tuple(recall) == TEXT_METHODS
     assert recall["bm25"] == 1.0
     assert all(0.0 <= value <= 1.0 for value in recall.values())
 
@@ -151,4 +151,4 @@ def test_smoke_command_prints_a_line_per_method(
 
     out = capsys.readouterr().out
     assert f"bm25: recall@{max(K_VALUES)} = 1.00" in out
-    assert all(f"{method}: recall@" in out for method in METHODS)
+    assert all(f"{method}: recall@" in out for method in TEXT_METHODS)

@@ -142,6 +142,27 @@ Each line of the log names the question's `id`, such as `hand-002`. Like
 `describe`, it sends up to 8 requests at once (`--workers`) and asks only for
 what the log does not hold yet.
 
+## The evaluation
+
+`rag evaluate` ranks every question's source chunk by all six methods of
+protocol section 5. It reads only saved data: the database, the question
+files and the two descriptor logs. It never calls the API. With the same two
+settings as in "The database", from `backend/`:
+
+    uv run python -m app.cli rag evaluate ../experiment/corpus.csv --stats ../experiment/corpus-stats.csv --hand ../experiment/questions/hand.jsonl --query-descriptors ../experiment/query-descriptors.jsonl --descriptors ../experiment/descriptors.jsonl --out ../experiment/runs/<run-id>
+
+- It first checks that the stored chunks match `corpus-stats.csv`.
+- It writes a new folder, and refuses one that exists: `ranks.csv` (the rank
+  of the source chunk for each question and method, empty past 100),
+  `summary.csv` and `summary.md` (recall@5, recall@10 and MRR@10, for all
+  questions and for each genre), and `run.json` (the protocol, prompt and
+  chunker versions, the git commit, and the sha256 of every input file).
+- The statistics and charts come from a separate `report` step.
+
+**Do not run it on the real questions until the drafted set is reviewed.**
+Whoever has seen which method wins could keep or drop drafts in its favour
+without noticing. This is the same reason the hand questions came first.
+
 ## The experiment branch and its build
 
 The experiment's code goes to the branch `diploma/experiment`, not to `main`.

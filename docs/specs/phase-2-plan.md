@@ -619,7 +619,7 @@ All are `uv run python -m app.cli rag <command>`:
 | `review` | Keep, edit or drop each draft, with a reason |
 | `judge-pool` | The 50-question checked sample |
 | `judge-descriptors` | The 50-chunk descriptor accuracy sample |
-| `evaluate` | Runs every method over every question; writes a run folder |
+| `evaluate <corpus.csv> --stats <file> --hand <file> --query-descriptors <file> --descriptors <file> --out <dir>` | Checks the stored chunks against `corpus-stats.csv`, then ranks every question's source chunk by all six methods. Writes a new run folder: `ranks.csv`, `summary.csv`, `summary.md`, `run.json`. No API. The drafted set joins the inputs once it exists. |
 | `report` | Statistics, tables and charts from a run |
 
 ### Dependencies
