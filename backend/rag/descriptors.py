@@ -1,4 +1,4 @@
-"""Semantic descriptors: the prompts, the shape check, the response log, the pilot, the run."""
+"""Semantic descriptors: the prompts, the shape check, the log, the pilot, the run, the import."""
 
 import json
 import os
@@ -9,11 +9,15 @@ from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlmodel import Session
+from sqlalchemy import func
+from sqlmodel import Session, col, select
 
+from app.config import Settings
+from app.models import Descriptor
 from rag.chunking import SHORT_CHUNK_WORDS
 from rag.corpus import CorpusBook, CorpusError, frozen_chunks
 from rag.deepseek import Completion, DeepSeek, InvalidOutputError
+from rag.embeddings import Embedder, embed_passages, vector_bytes
 from rag.index import indexed_chunks
 
 PROMPT_VERSION = "v1"
@@ -333,3 +337,127 @@ def _in_parallel(
                 record(result)
         raise
     pool.shutdown()
+
+
+def logged_descriptors(entry: dict, count: int) -> list[str] | None:
+    """The descriptors in a log entry's raw answer, checked again; None if it fails.
+
+    The entry's `status` is what the check said when the answer arrived. The raw answer
+    is read again, so a later check (protocol v1, deviation 1) applies to old answers too.
+    """
+    try:
+        data = json.loads(entry["raw"] or "")
+        if not isinstance(data, dict):
+            return None
+        return parse_descriptors(data, count)
+    except (json.JSONDecodeError, ValueError):
+        return None
+
+
+def import_descriptors(
+    session: Session,
+    books: list[CorpusBook],
+    entries: list[dict],
+    settings: Settings,
+    model: Embedder,
+    progress: Callable[[str], None] | None = None,
+) -> tuple[int, int, int]:
+    """Store the logged chunk descriptors of every test book, each with its vector.
+
+    Every entry is matched to a stored chunk before anything is written. Then each book
+    is written in its own transaction, so a stop leaves whole books only. Books already
+    imported at this `PROMPT_VERSION` and embedding model are skipped.
+
+    Args:
+        session: Open session on the experiment database.
+        books: From `read_corpus`; only the books with the role `test` are used.
+        entries: From `read_log`; entries of another kind or prompt version are left out.
+        settings: Names the embedding model.
+        model: The embedding model. Descriptors get no prefix.
+        progress: Told about each book once it is stored.
+
+    Returns:
+        How many books were imported now, how many already were, and how many of the
+        imported chunks had no valid descriptors.
+
+    Raises:
+        CorpusError: A test book is not indexed, a chunk has no entry or two, or an entry
+            names a chunk that is not stored.
+    """
+    logged: dict[tuple[str, int], dict] = {}
+    for entry in entries:
+        if entry["kind"] != "chunk" or entry["prompt_version"] != PROMPT_VERSION:
+            continue
+        key = (entry["file"], entry["position"])
+        if key in logged:
+            raise CorpusError(f"{key[0]} chunk {key[1]}: logged twice")
+        logged[key] = entry
+    tests = [book for book in books if book.role == "test"]
+    files = {book.file for book in tests}
+    strangers = sorted(key for key in logged if key[0] not in files)
+    if strangers:
+        raise CorpusError(f"{strangers[0][0]} chunk {strangers[0][1]}: not a test book")
+
+    todo = []
+    already = 0
+    for book in tests:
+        chunks = {chunk.position: chunk for chunk in indexed_chunks(session, book)}
+        mine = {position for file, position in logged if file == book.file}
+        if extra := sorted(mine - chunks.keys()):
+            raise CorpusError(f"{book.file} chunk {extra[0]}: not stored; is it indexed?")
+        if missing := sorted(chunks.keys() - mine):
+            raise CorpusError(f"{book.file} chunk {missing[0]}: not in the log; run describe first")
+        if _has_descriptors(session, [chunk.id for chunk in chunks.values()], settings):
+            already += 1
+            continue
+        todo.append((book, chunks))
+
+    failed = 0
+    for book, chunks in todo:
+        rows = []
+        for position, chunk in chunks.items():
+            descriptors = logged_descriptors(logged[(book.file, position)], CHUNK_DESCRIPTORS)
+            if descriptors is None:
+                failed += 1
+                continue
+            rows.extend((chunk.id, index, text) for index, text in enumerate(descriptors))
+        _store_descriptors(session, rows, model, settings.embedding_model)
+        if progress:
+            progress(f"{book.file}: {len(rows)} descriptors")
+    return len(todo), already, failed
+
+
+def _has_descriptors(session: Session, chunk_ids: list[int | None], settings: Settings) -> bool:
+    count = session.exec(
+        select(func.count())
+        .select_from(Descriptor)
+        .where(
+            col(Descriptor.chunk_id).in_(chunk_ids),
+            Descriptor.prompt_version == PROMPT_VERSION,
+            Descriptor.model == settings.embedding_model,
+        )
+    ).one()
+    return count > 0
+
+
+def _store_descriptors(
+    session: Session, rows: list[tuple[int | None, int, str]], model: Embedder, model_name: str
+) -> None:
+    """Write one book's descriptors and vectors in one transaction: all of them, or none."""
+    try:
+        vectors = embed_passages(model, [text for _, _, text in rows]) if rows else []
+        session.add_all(
+            Descriptor(
+                chunk_id=chunk_id,
+                prompt_version=PROMPT_VERSION,
+                model=model_name,
+                position=position,
+                text=text,
+                vector=vector_bytes(vector),
+            )
+            for (chunk_id, position, text), vector in zip(rows, vectors, strict=True)
+        )
+        session.commit()
+    except BaseException:
+        session.rollback()
+        raise

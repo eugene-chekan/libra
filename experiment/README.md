@@ -116,8 +116,19 @@ and only off-peak. From `backend/`:
   still logged. Ctrl-C does the same.
 - `--limit N` asks for at most N chunks in this run.
 
-The run writes the log only. Loading the descriptors into the database is a
-separate step.
+The run writes the log only. `import-descriptors` then loads it into the
+database, with the same two settings:
+
+    uv run python -m app.cli rag import-descriptors ../experiment/corpus.csv --log ../experiment/descriptors.jsonl
+
+- It checks each raw answer again with the current rule, not the `status`
+  the run logged. So an answer that failed the old 2–6 word check, and passes
+  the 1–8 word check of deviation 1, is loaded.
+- It embeds each descriptor with no prefix, and stores 8 rows for each chunk.
+  A chunk with no valid descriptors gets none.
+- It matches every log entry to a stored chunk before it writes anything, and
+  refuses a log that misses a chunk. It writes each book whole or not at all,
+  and a second run skips the books already loaded.
 
 ## The experiment branch and its build
 
