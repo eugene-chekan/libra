@@ -210,6 +210,39 @@ def describe_questions_command(hand: Path, out: Path, workers: int | None) -> in
     return 0
 
 
+def draft_questions_command(
+    corpus_csv: Path, hand: Path, out: Path, workers: int | None, limit: int | None
+) -> int:
+    import openai
+
+    from rag.deepseek import DeepSeek, MissingKeyError, StopRunError
+    from rag.descriptors import RUN_WORKERS
+    from rag.drafts import run_drafts
+    from rag.smoke import require_hand_set
+
+    try:
+        deepseek = DeepSeek(get_settings())
+        books = read_corpus(corpus_csv)
+        records = read_records(hand)
+        require_hand_set(records)
+        _open_experiment_database(books)
+        with Session(get_engine()) as session:
+            count = RUN_WORKERS if workers is None else workers
+            progress = functools.partial(print, flush=True)
+            ok, failed = run_drafts(session, books, records, deepseek, out, count, progress, limit)
+    except (CorpusError, MissingKeyError, StopRunError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except openai.APIError as exc:
+        _report_failed_request(exc, out)
+        return 1
+    except KeyboardInterrupt:
+        print(f"\nStopped. Every draft that arrived is saved in {out}.")
+        return 0
+    print(f"{ok} ok, {failed} failed in this run. The log is {out}.")
+    return 0
+
+
 def import_descriptors_command(corpus_csv: Path, log: Path) -> int:
     from rag.descriptors import import_descriptors, read_log
     from rag.embeddings import load_model
@@ -470,6 +503,16 @@ def main(argv: list[str] | None = None) -> int:
     questions.add_argument(
         "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
     )
+    drafts = rag_commands.add_parser(
+        "draft-questions", help="Draft one question for each picked chunk of the test books"
+    )
+    drafts.add_argument("corpus_csv", type=Path)
+    drafts.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
+    drafts.add_argument("--out", type=Path, required=True, help="The draft log, a .jsonl file")
+    drafts.add_argument(
+        "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
+    )
+    drafts.add_argument("--limit", type=int, help="Ask for at most this many drafts")
     evaluate = rag_commands.add_parser(
         "evaluate", help="Rank every question's source chunk by every method; writes a run"
     )
@@ -504,6 +547,10 @@ def main(argv: list[str] | None = None) -> int:
         return smoke_command(args.hand, args.sample)
     if args.command == "rag" and args.rag_command == "describe-questions":
         return describe_questions_command(args.hand, args.out, args.workers)
+    if args.command == "rag" and args.rag_command == "draft-questions":
+        return draft_questions_command(
+            args.corpus_csv, args.hand, args.out, args.workers, args.limit
+        )
     if args.command == "rag" and args.rag_command == "evaluate":
         return evaluate_command(
             args.corpus_csv,

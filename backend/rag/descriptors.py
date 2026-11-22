@@ -338,7 +338,7 @@ def _describe_new(
         logged = counts["ok"] + counts["failed"]
         show(f"{logged}/{len(tasks)} {_label(entry)}: {entry['status']}")
 
-    _in_parallel(tasks, lambda subject, text: _entry(deepseek, subject, text), workers, record)
+    in_parallel(tasks, lambda subject, text: _entry(deepseek, subject, text), workers, record)
     return counts["ok"], counts["failed"]
 
 
@@ -348,7 +348,7 @@ def _label(entry: dict) -> str:
     return entry.get("id") or entry["question"]
 
 
-def _in_parallel(
+def in_parallel(
     tasks: list[tuple[dict, str]],
     work: Callable[[dict, str], dict],
     workers: int,
