@@ -5,11 +5,23 @@ import pytest
 from sqlmodel import Session
 
 from app.config import Settings
-from app.models import Book, Chunk, ChunkVector
+from app.models import Book, Chunk, ChunkVector, Descriptor
 from rag.chunking import CHUNKER_VERSION
 from rag.corpus import CorpusError
 from rag.embeddings import embed_passages, embed_query, vector_bytes
-from rag.search import DEPTH, METHODS, RRF_K, VectorIndex, bm25, fts_query, rrf, search
+from rag.search import (
+    DEPTH,
+    DESCRIPTOR_METHODS,
+    METHODS,
+    RRF_K,
+    TEXT_METHODS,
+    DescriptorIndex,
+    VectorIndex,
+    bm25,
+    fts_query,
+    rrf,
+    search,
+)
 from tests.fake_embedder import FakeEmbedder
 
 
@@ -138,7 +150,7 @@ def test_every_method_returns_at_most_depth_chunks(session: Session) -> None:
     add_chunks(session, [f"ship number {i}" for i in range(5)])
     vectors = VectorIndex.load(session, "m")
 
-    for method in METHODS:
+    for method in TEXT_METHODS:
         found = search(session, vectors, FakeEmbedder(), "ship", method, depth=3)
         assert len(found) == 3, method
 
@@ -183,3 +195,165 @@ def test_a_partly_covered_index_is_refused(session: Session) -> None:
 
     with pytest.raises(CorpusError, match="m"):
         VectorIndex.load(session, "m")
+
+
+# --- descriptors ----------------------------------------------------------------------------
+
+
+def unit(*values: float) -> np.ndarray:
+    vector = np.array(values, dtype=np.float32)
+    return vector / np.linalg.norm(vector)
+
+
+def add_descriptors(
+    session: Session, chunk_id: int, vectors: list[np.ndarray], version: str = "v1"
+) -> None:
+    session.add_all(
+        Descriptor(
+            chunk_id=chunk_id,
+            prompt_version=version,
+            model="m",
+            position=position,
+            text=f"descriptor {chunk_id}-{position}",
+            vector=vector_bytes(vector),
+        )
+        for position, vector in enumerate(vectors)
+    )
+    session.commit()
+
+
+def test_maxsim_is_the_mean_of_each_query_vectors_best_match(session: Session) -> None:
+    """a matches the first query vector exactly and the second not at all: mean 0.5, max 1.
+    b matches both at 0.8: mean 0.8, max 0.8. MaxSim ranks b first; a max of maxes would not.
+    """
+    a, b = add_chunks(session, ["a", "b"])
+    add_descriptors(session, a, [unit(1, 0, 0)])
+    add_descriptors(session, b, [unit(0.8, 0.6, 0), unit(0.6, 0.8, 0)])
+    index = DescriptorIndex.load(session, "v1", "m")
+
+    assert index.top(np.stack([unit(1, 0, 0), unit(0, 1, 0)])) == [b, a]
+
+
+def test_a_chunk_scores_its_best_descriptor_not_their_sum(session: Session) -> None:
+    """many has three descriptors at cosine 0.6 (sum 1.8); one has a single exact match."""
+    many, one = add_chunks(session, ["many", "one"])
+    add_descriptors(session, many, [unit(0.6, 0.8, 0), unit(0.6, 0, 0.8), unit(0.6, -0.8, 0)])
+    add_descriptors(session, one, [unit(1, 0, 0)])
+    index = DescriptorIndex.load(session, "v1", "m")
+
+    assert index.top(np.stack([unit(1, 0, 0)])) == [one, many]
+
+
+def test_a_chunk_with_more_descriptors_than_another_is_grouped_right(session: Session) -> None:
+    """The second chunk's best match is its last row; a wrong group would give it to the third."""
+    ids = add_chunks(session, ["a", "b", "c"])
+    add_descriptors(session, ids[0], [unit(0, 1, 0)])
+    add_descriptors(session, ids[1], [unit(0, 1, 0), unit(0, 1, 0), unit(1, 0, 0)])
+    add_descriptors(session, ids[2], [unit(0, 0, 1), unit(0, 1, 1)])
+    index = DescriptorIndex.load(session, "v1", "m")
+
+    assert index.top(np.stack([unit(1, 0, 0)]))[0] == ids[1]
+    assert list(index.chunk_ids) == ids
+    assert list(index.starts) == [0, 1, 4]
+
+
+def test_descriptor_ties_go_to_the_lower_chunk_id(session: Session) -> None:
+    ids = add_chunks(session, ["a", "b"])
+    for chunk_id in reversed(ids):
+        add_descriptors(session, chunk_id, [unit(1, 0, 0)])
+    index = DescriptorIndex.load(session, "v1", "m")
+
+    assert index.top(np.stack([unit(1, 0, 0)])) == ids
+
+
+def test_a_question_without_descriptors_gets_no_descriptor_ranking(session: Session) -> None:
+    (chunk,) = add_chunks(session, ["a"])
+    add_descriptors(session, chunk, [unit(1, 0, 0)])
+
+    assert DescriptorIndex.load(session, "v1", "m").top(np.empty((0, 0))) == []
+
+
+def test_a_chunk_without_descriptors_is_not_in_the_index(session: Session) -> None:
+    with_them, without = add_chunks(session, ["a", "b"])
+    add_descriptors(session, with_them, [unit(1, 0, 0)])
+
+    index = DescriptorIndex.load(session, "v1", "m")
+
+    assert list(index.chunk_ids) == [with_them]
+
+
+def test_descriptors_of_another_prompt_version_are_not_loaded(session: Session) -> None:
+    (chunk,) = add_chunks(session, ["a"])
+    add_descriptors(session, chunk, [unit(1, 0, 0)], version="v0")
+
+    with pytest.raises(CorpusError, match="import-descriptors"):
+        DescriptorIndex.load(session, "v1", "m")
+
+
+@pytest.fixture(name="described")
+def described_fixture(session: Session) -> tuple[VectorIndex, DescriptorIndex, np.ndarray]:
+    """Four chunks with text vectors and descriptors, and the question's descriptor vectors."""
+    ids = add_chunks(session, ["the ship", "a ship and a whale", "whale song", "quiet"])
+    for n, chunk_id in enumerate(ids):
+        add_descriptors(session, chunk_id, [unit(1, n, 0), unit(0, 1, n)])
+    return (
+        VectorIndex.load(session, "m"),
+        DescriptorIndex.load(session, "v1", "m"),
+        np.stack([unit(1, 2, 0)]),
+    )
+
+
+def test_the_descriptor_hybrids_are_rrf_of_their_lists(
+    session: Session, described: tuple[VectorIndex, DescriptorIndex, np.ndarray]
+) -> None:
+    vectors, descriptors, queries = described
+    model = FakeEmbedder()
+    question = "ship whale"
+    lists = {
+        "bm25": bm25(session, question),
+        "dense": vectors.top(embed_query(model, question)),
+        "descriptors": descriptors.top(queries),
+    }
+
+    def found(method: str) -> list[int]:
+        return search(
+            session,
+            vectors,
+            model,
+            question,
+            method,
+            descriptors=descriptors,
+            query_descriptors=queries,
+        )
+
+    assert found("descriptors") == lists["descriptors"]
+    assert found("dense+descriptors") == rrf([lists["dense"], lists["descriptors"]])
+    assert found("all") == rrf([lists["bm25"], lists["dense"], lists["descriptors"]])
+
+
+@pytest.mark.parametrize("method", DESCRIPTOR_METHODS)
+def test_a_descriptor_method_without_descriptors_is_refused(
+    method: str, session: Session, described: tuple[VectorIndex, DescriptorIndex, np.ndarray]
+) -> None:
+    vectors, _, _ = described
+
+    with pytest.raises(ValueError, match="descriptor"):
+        search(session, vectors, FakeEmbedder(), "ship", method)
+
+
+def test_every_descriptor_method_returns_at_most_depth_chunks(
+    session: Session, described: tuple[VectorIndex, DescriptorIndex, np.ndarray]
+) -> None:
+    vectors, descriptors, queries = described
+    for method in METHODS:
+        found = search(
+            session,
+            vectors,
+            FakeEmbedder(),
+            "ship",
+            method,
+            depth=2,
+            descriptors=descriptors,
+            query_descriptors=queries,
+        )
+        assert len(found) == 2, method
