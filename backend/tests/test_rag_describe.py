@@ -2,6 +2,7 @@
 
 import dataclasses
 import itertools
+import json
 import threading
 import time
 from pathlib import Path
@@ -14,12 +15,23 @@ from app.cli import main
 from app.config import Settings, get_settings
 from rag.corpus import CorpusBook, CorpusError, book_stats, load_corpus, write_stats
 from rag.deepseek import JSON_ATTEMPTS, KEY_SETTING, DeepSeek, StopRunError
-from rag.descriptors import CHUNK_DESCRIPTORS, PROMPT_VERSION, RUN_WORKERS, read_log, run_describe
+from rag.descriptors import (
+    CHUNK_DESCRIPTORS,
+    PROMPT_VERSION,
+    QUESTION_DESCRIPTORS,
+    QUESTION_PROMPT,
+    RUN_WORKERS,
+    read_log,
+    run_describe,
+    run_describe_questions,
+)
 from rag.index import index_books, indexed_chunks
+from rag.questions import HAND_SET_SIZE, HandRecord
 from tests.corpus_helpers import chapters_book, row, words_as_tokens, write_csv
 from tests.fake_deepseek import FakeDeepSeek, api_error
 from tests.fake_embedder import FakeEmbedder
-from tests.test_descriptors import CHUNK_ANSWER
+from tests.test_descriptors import CHUNK_ANSWER, QUESTION_ANSWER
+from tests.test_rag_smoke import hand_set
 
 SIZES = [150, 120, 300]
 
@@ -262,3 +274,97 @@ def test_the_command_reports_a_failed_request_without_a_traceback(
     err = capsys.readouterr().err
     assert err.startswith("error: ")
     assert "429" in err
+
+
+# --- the questions ------------------------------------------------------------------------
+
+
+def describe_questions(
+    records: list[HandRecord], fake: FakeDeepSeek, out: Path, workers: int = 2
+) -> tuple[int, int]:
+    client = DeepSeek(Settings(deepseek_api_key=SecretStr("sk-test")), client=fake)
+    return run_describe_questions(records, client, out, workers, lambda line: None)
+
+
+def test_each_kept_question_gets_five_descriptors_from_the_question_prompt(
+    tmp_path: Path,
+) -> None:
+    kept = hand_set(3)
+    skipped = dataclasses.replace(
+        hand_set(4)[3], status="skipped", question=None, kind=None, reason="too short"
+    )
+    fake = FakeDeepSeek([QUESTION_ANSWER] * 3)
+    out = tmp_path / "query-descriptors.jsonl"
+
+    assert describe_questions([*kept, skipped], fake, out) == (3, 0)
+
+    entries = read_log(out)
+    assert sorted(entry["id"] for entry in entries) == ["hand-001", "hand-002", "hand-003"]
+    assert all(entry["kind"] == "question" for entry in entries)
+    assert all(len(entry["descriptors"]) == QUESTION_DESCRIPTORS for entry in entries)
+    assert {call["messages"][0]["content"] for call in fake.calls} == {QUESTION_PROMPT}
+    assert sorted(call["messages"][1]["content"] for call in fake.calls) == sorted(
+        record.question for record in kept
+    )
+
+
+def test_a_second_question_run_asks_for_nothing(tmp_path: Path) -> None:
+    out = tmp_path / "query-descriptors.jsonl"
+    describe_questions(hand_set(3), FakeDeepSeek([QUESTION_ANSWER] * 3), out)
+    fake = FakeDeepSeek([])
+
+    assert describe_questions(hand_set(3), fake, out) == (0, 0)
+
+    assert fake.calls == []
+
+
+@pytest.fixture(name="questions_args")
+def questions_args_fixture(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    monkeypatch.setenv(KEY_SETTING, "sk-test")
+    get_settings.cache_clear()
+    return [
+        "rag",
+        "describe-questions",
+        "--hand",
+        str(tmp_path / "hand.jsonl"),
+        "--out",
+        str(tmp_path / "query-descriptors.jsonl"),
+    ]
+
+
+def write_hand(path: Path, records: list[HandRecord]) -> None:
+    lines = [json.dumps(dataclasses.asdict(record)) for record in records]
+    path.write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+def test_the_question_command_waits_for_the_whole_hand_set(
+    questions_args: list[str],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    write_hand(tmp_path / "hand.jsonl", hand_set(HAND_SET_SIZE - 1))
+    fake = FakeDeepSeek([])
+    monkeypatch.setattr("rag.deepseek.openai.OpenAI", lambda **kwargs: fake)
+
+    assert main(questions_args) == 1
+
+    assert f"{HAND_SET_SIZE - 1} of {HAND_SET_SIZE}" in capsys.readouterr().err
+    assert fake.calls == []
+
+
+def test_the_question_command_describes_the_hand_set(
+    questions_args: list[str],
+    tmp_path: Path,
+    capsys: pytest.CaptureFixture[str],
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    write_hand(tmp_path / "hand.jsonl", hand_set(HAND_SET_SIZE))
+    fake = FakeDeepSeek([QUESTION_ANSWER] * HAND_SET_SIZE)
+    monkeypatch.setattr("rag.deepseek.openai.OpenAI", lambda **kwargs: fake)
+
+    assert main(questions_args) == 0
+
+    out = capsys.readouterr().out
+    assert f"{HAND_SET_SIZE}/{HAND_SET_SIZE} hand-" in out
+    assert f"{HAND_SET_SIZE} ok, 0 failed in this run." in out
