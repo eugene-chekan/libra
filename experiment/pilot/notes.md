@@ -118,8 +118,8 @@ Still open before the full run:
 
 4. **The model name in the protocol.** Record `deepseek-v4-pro` with the
    `system_fingerprint`, not `DeepSeek-V4-Pro-0813`.
-5. **Parallel requests.** The full-run command needs up to 8 requests in
-   parallel, or the run takes about 5 hours.
+5. **Parallel requests.** Done: `rag describe` sends up to 8 requests at
+   once (see `experiment/README.md`).
 6. **Prices.** Check them again on the day of the full run, and compare the
    run's log with DeepSeek's usage report afterwards, as for v0.
 

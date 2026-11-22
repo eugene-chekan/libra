@@ -1,5 +1,6 @@
 """A stand-in for the OpenAI SDK client pointed at DeepSeek, so tests never call the API."""
 
+import threading
 from collections.abc import Callable
 from types import SimpleNamespace
 
@@ -41,6 +42,8 @@ class FakeDeepSeek:
         self.cache_hit_tokens = cache_hit_tokens
         self.on_request = on_request
         self.calls: list[dict] = []
+        # `rag describe` sends requests from several threads.
+        self._lock = threading.Lock()
         self.chat = SimpleNamespace(completions=SimpleNamespace(create=self._create))
 
     def _create(self, **kwargs: object) -> SimpleNamespace:
@@ -51,9 +54,10 @@ class FakeDeepSeek:
         json_mode = kwargs.get("response_format") == {"type": "json_object"}
         if json_mode and not any("json" in message["content"].lower() for message in messages):
             raise api_error(400, "Prompt must contain the word 'json' to use response_format")
-        if not self.outcomes:
-            raise AssertionError("the code sent more requests than the test expected")
-        outcome = self.outcomes.pop(0)
+        with self._lock:
+            if not self.outcomes:
+                raise AssertionError("the code sent more requests than the test expected")
+            outcome = self.outcomes.pop(0)
         if isinstance(outcome, Exception):
             raise outcome
         usage = SimpleNamespace(

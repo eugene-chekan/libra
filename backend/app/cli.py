@@ -205,6 +205,16 @@ def smoke_command(hand: Path, sample: int) -> int:
     return 0
 
 
+def _report_failed_request(exc: Exception, out: Path) -> None:
+    # Only the kind of error and its status: a server's message can repeat the key.
+    status = getattr(exc, "status_code", "no answer")
+    print(
+        f"error: the request to DeepSeek failed ({type(exc).__name__}, {status}). "
+        f"Every answer before it is saved in {out}; run the command again to go on.",
+        file=sys.stderr,
+    )
+
+
 def pilot_describe_command(
     corpus_csv: Path, folder: Path, stats_csv: Path, out: Path, sample: int, questions: Path | None
 ) -> int:
@@ -237,14 +247,36 @@ def pilot_describe_command(
         print(f"error: {exc}", file=sys.stderr)
         return 1
     except openai.APIError as exc:
-        # Only the kind of error and its status: a server's message can repeat the key.
-        status = getattr(exc, "status_code", "no answer")
-        print(
-            f"error: the request to DeepSeek failed ({type(exc).__name__}, {status}). "
-            f"Every answer before it is saved in {out}; run the command again to go on.",
-            file=sys.stderr,
-        )
+        _report_failed_request(exc, out)
         return 1
+    print(f"{ok} ok, {failed} failed in this run. The log is {out}.")
+    return 0
+
+
+def describe_command(corpus_csv: Path, out: Path, workers: int | None, limit: int | None) -> int:
+    import openai
+
+    from rag.deepseek import DeepSeek, MissingKeyError, StopRunError
+    from rag.descriptors import RUN_WORKERS, run_describe
+
+    try:
+        deepseek = DeepSeek(get_settings())
+        books = read_corpus(corpus_csv)
+        _open_experiment_database(books)
+        with Session(get_engine()) as session:
+            # Flushed, so a log file shows each answer as it is logged.
+            progress = functools.partial(print, flush=True)
+            count = RUN_WORKERS if workers is None else workers
+            ok, failed = run_describe(session, books, deepseek, out, count, progress, limit)
+    except (CorpusError, MissingKeyError, StopRunError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except openai.APIError as exc:
+        _report_failed_request(exc, out)
+        return 1
+    except KeyboardInterrupt:
+        print(f"\nStopped. Every answer that arrived is saved in {out}.")
+        return 0
     print(f"{ok} ok, {failed} failed in this run. The log is {out}.")
     return 0
 
@@ -298,6 +330,15 @@ def main(argv: list[str] | None = None) -> int:
     pilot.add_argument("--out", type=Path, required=True, help="The response log, a .jsonl file")
     pilot.add_argument("--sample", type=int, default=20, help="Chunks per pilot book")
     pilot.add_argument("--questions", type=Path, help="A text file, one question per line")
+    describe = rag_commands.add_parser(
+        "describe", help="Write descriptors for every chunk of the test books; resumes"
+    )
+    describe.add_argument("corpus_csv", type=Path)
+    describe.add_argument("--out", type=Path, required=True, help="The response log, a .jsonl file")
+    describe.add_argument(
+        "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
+    )
+    describe.add_argument("--limit", type=int, help="Ask for at most this many chunks")
 
     args = parser.parse_args(argv)
     if args.command == "create-admin":
@@ -312,6 +353,8 @@ def main(argv: list[str] | None = None) -> int:
         return index_command(args.corpus_csv, args.stats)
     if args.command == "rag" and args.rag_command == "smoke":
         return smoke_command(args.hand, args.sample)
+    if args.command == "rag" and args.rag_command == "describe":
+        return describe_command(args.corpus_csv, args.out, args.workers, args.limit)
     if args.command == "rag" and args.rag_command == "pilot-describe":
         return pilot_describe_command(
             args.corpus_csv, args.folder, args.stats, args.out, args.sample, args.questions
