@@ -11,7 +11,9 @@ non-fiction books, 19 factual and 21 interpretive), so search over the books may
 start. 2026-11-16: the DeepSeek client and the prompt pilot command
 (`rag pilot-describe`) are built. 2026-11-20 and 2026-11-22: the prompt pilot
 ran as v0, then as v1 on the same chunks; the full run uses prompt v1 (see
-[experiment/pilot/notes.md](../../experiment/pilot/notes.md)).
+[experiment/pilot/notes.md](../../experiment/pilot/notes.md)). 2026-11-22: the
+protocol is frozen as [experiment/protocol.md](../../experiment/protocol.md),
+tag `experiment-protocol-v1`.
 
 This plan replaces the earlier Phase 2 outline in
 [architecture.md](../architecture.md), which planned a Chroma vector store and

@@ -1,7 +1,10 @@
 # The retrieval experiment's data
 
 The design is in [docs/specs/phase-2-plan.md](../docs/specs/phase-2-plan.md).
-Everything here goes straight to `main`, like the docs.
+Everything here goes to the branch `diploma/experiment`, not to `main`.
+
+- `protocol.md` — the experiment protocol v1, frozen on 2026-11-22 by the tag
+  `experiment-protocol-v1`. Any later change is a deviation the report lists.
 
 - `corpus.csv` — the 42 books: 20 fiction and 20 non-fiction test books, and
   2 pilot books for tuning the descriptor prompt (*Mike*, fiction, and
@@ -13,6 +16,8 @@ Everything here goes straight to `main`, like the docs.
   `chunks_sha256`, a hash of the book's chunk texts.
 - `questions/hand.jsonl` — the 40 hand questions, one JSON line for each
   answer. See "Writing the hand questions" below.
+- `pilot/` — the prompt pilot on the 2 pilot books: the questions, the logs
+  of prompt v0 and v1, and `notes.md`, which compares them.
 
 ## The files
 
