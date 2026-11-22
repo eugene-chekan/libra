@@ -15,6 +15,7 @@ from rag.chunking import SHORT_CHUNK_WORDS, chunk_book
 from rag.corpus import CorpusBook, CorpusError, book_stats, write_stats
 from rag.deepseek import JSON_ATTEMPTS, KEY_SETTING, DeepSeek, StopRunError
 from rag.descriptors import (
+    ACCEPTED_WORDS,
     CHUNK_DESCRIPTORS,
     CHUNK_PROMPT,
     DESCRIPTOR_WORDS,
@@ -33,7 +34,7 @@ from tests.fake_deepseek import FINGERPRINT, SERVED_MODEL, FakeDeepSeek, api_err
 from tests.fake_embedder import FakeEmbedder
 
 LONG_CHUNKS = 6
-MOST_WORDS = DESCRIPTOR_WORDS[1]
+FEWEST_WORDS, MOST_WORDS = ACCEPTED_WORDS
 
 
 def answer(count: int, words: int = 2) -> str:
@@ -88,12 +89,20 @@ def pilot_fixture(tmp_path: Path) -> Pilot:
     return Pilot(books, folder, digests, tmp_path / "pilot" / "descriptors.jsonl", [])
 
 
-def test_parse_accepts_exactly_count_descriptors_of_2_to_6_words() -> None:
-    least, most = DESCRIPTOR_WORDS
-    data = {"descriptors": ["two words", " ".join(["w"] * most), "  spaced \n out\twords "]}
+def test_parse_accepts_exactly_count_descriptors_of_1_to_8_words() -> None:
+    fewest = " ".join(["w"] * FEWEST_WORDS)
+    most = " ".join(["w"] * MOST_WORDS)
+    data = {"descriptors": [fewest, most, "  spaced \n out\twords "]}
 
-    assert parse_descriptors(data, 3) == ["two words", " ".join(["w"] * most), "spaced out words"]
-    assert least == 2
+    assert parse_descriptors(data, 3) == [fewest, most, "spaced out words"]
+
+
+def test_the_check_accepts_more_than_the_prompt_asks() -> None:
+    """The prompt asks for 2-6 words; the check takes 1-8 (protocol v1, deviation 1)."""
+    asked_least, asked_most = DESCRIPTOR_WORDS
+
+    assert asked_least > FEWEST_WORDS
+    assert asked_most < MOST_WORDS
 
 
 @pytest.mark.parametrize(
@@ -102,13 +111,13 @@ def test_parse_accepts_exactly_count_descriptors_of_2_to_6_words() -> None:
         {"descriptors": "one string"},
         {"descriptors": ["two words"] * (CHUNK_DESCRIPTORS - 1)},
         {"descriptors": ["two words"] * (CHUNK_DESCRIPTORS + 1)},
-        {"descriptors": ["two words"] * (CHUNK_DESCRIPTORS - 1) + ["one"]},
+        {"descriptors": ["two words"] * (CHUNK_DESCRIPTORS - 1) + ["  "]},
         {"descriptors": ["two words"] * (CHUNK_DESCRIPTORS - 1) + ["w " * (MOST_WORDS + 1)]},
         {"descriptors": ["two words"] * (CHUNK_DESCRIPTORS - 1) + [["a nested", "list"]]},
         {"descriptors": ["two words"] * (CHUNK_DESCRIPTORS - 1) + [7]},
         {"themes": ["two words"] * CHUNK_DESCRIPTORS},
     ],
-    ids=["a string", "too few", "too many", "1 word", "7 words", "nested", "number", "no key"],
+    ids=["a string", "too few", "too many", "no words", "9 words", "nested", "number", "no key"],
 )
 def test_parse_refuses_any_other_shape(data: dict) -> None:
     with pytest.raises(ValueError, match="descriptor"):
