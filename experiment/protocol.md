@@ -166,12 +166,59 @@ Every question has a **kind**:
   shares a 4-word sequence with its chunk, names left out, is drafted again.
 - **The drafting prompt** is written and committed, with its sha256 added to
   this file, before the first draft is asked for. It may only carry out the
-  rules above. This is the one planned addition to protocol v1.
+  rules above. This is the one planned addition to protocol v1; it is
+  recorded below, in "The drafting procedure".
 - **Review:** the author keeps, edits or drops each draft with `rag review`. A
   draft is kept only if it can be answered from this chunk alone, a real reader
   could ask it, it is clear which book it is about, it does not reuse the
   chunk's wording, and its kind is right. Every drop records a reason. About
   300 drafts are expected to be kept.
+
+### The drafting procedure (added 2026-11-22, before the first draft)
+
+This is the planned addition to protocol v1. It was committed before any draft
+was asked for.
+
+- **Prompt version** `d1` (`DRAFT_PROMPT_VERSION` in
+  `backend/rag/drafts.py`), with the settings of section 6.
+- **Kinds:** each book gets 5 factual and 5 interpretive questions. Their order
+  over the book's 10 parts is shuffled with the seed
+  `drafts-v1:<book sha256>:kinds`. The chunk of part *n* is chosen with the
+  seed `drafts-v1:<book sha256>:<n>`. This gives 400 chunks: 200 factual and
+  200 interpretive, 200 in each genre.
+- **The 4-word check.** Words are runs of letters, digits and `_`, with an
+  apostrophe inside a word kept, compared in lower case. A *name* is a word
+  that starts with a capital letter and is not the first word of its sentence,
+  in the chunk or in the question. A 4-word sequence of the question that is
+  also in the chunk counts as copied, unless it holds a name.
+- **Drafting again.** A copied question is asked for again: the chunk, then a
+  blank line, then this note, where the dots are the copied sequences:
+  `Your last question repeated these words of the passage: .... Write the question again in your own words.`
+  At most 3 requests are made for one draft this way. A question
+  that still copies, or an answer that is not JSON of the right shape after
+  the retries of section 6, is logged as `failed` and counted in the report.
+- **Shape:** `question`, `kind`, `answer` and `evidence` must each be text; the
+  question must end with a question mark; the kind must be the one asked for.
+- **The log:** `experiment/questions/drafts.jsonl`, one line per draft, with
+  every round's question and its copied sequences.
+
+**The factual prompt**, word for word (sha256
+`93f7209f4c350ca1ee24756f2034580de80c2d026029813db1e735d32122c67f`):
+
+```text
+You write test questions for a search experiment over book passages. Read the passage and write one question that a reader of the book could ask, and that this passage alone answers. Write a factual question: it asks who, what, where or when. You may use the names of people and places from the passage, so that it is clear which book the question is about. Do not copy any other wording from the passage: say it in your own words. Answer in json, exactly in this form, with your text in place of the dots:
+{"question": "...", "kind": "factual", "answer": "...", "evidence": "..."}
+The answer is short and comes from the passage. The evidence is a short quote from the passage that holds the answer.
+```
+
+**The interpretive prompt**, word for word (sha256
+`d5d1398569fa682be26dcead74b98b6a12a10f84b2369daeda9dd7bb9445cf33`):
+
+```text
+You write test questions for a search experiment over book passages. Read the passage and write one question that a reader of the book could ask, and that this passage alone answers. Write an interpretive question: it asks why, or about feelings, motives or ideas. You may use the names of people and places from the passage, so that it is clear which book the question is about. Do not copy any other wording from the passage: say it in your own words. Answer in json, exactly in this form, with your text in place of the dots:
+{"question": "...", "kind": "interpretive", "answer": "...", "evidence": "..."}
+The answer is short and comes from the passage. The evidence is a short quote from the passage that holds the answer.
+```
 
 ### The question set of the main results
 

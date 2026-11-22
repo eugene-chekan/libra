@@ -142,6 +142,23 @@ Each line of the log names the question's `id`, such as `hand-002`. Like
 `describe`, it sends up to 8 requests at once (`--workers`) and asks only for
 what the log does not hold yet.
 
+## Drafting the questions
+
+`rag draft-questions` asks DeepSeek for one question about each of 400 chunks:
+10 from each test book, one from each tenth of the book, never a chunk under
+100 words and never a hand-set chunk. Each book gets 5 factual and 5
+interpretive questions. The chunks, the prompts and the 4-word check are fixed
+in protocol section 7, "The drafting procedure". With the same two settings as
+in "The database", from `backend/`:
+
+    uv run python -m app.cli rag draft-questions ../experiment/corpus.csv --hand ../experiment/questions/hand.jsonl --out ../experiment/questions/drafts.jsonl
+
+- A question that repeats 4 words of its chunk (names left out) is asked for
+  again, with a note that names the copied words: at most 3 requests.
+- Up to 8 requests run at once (`--workers`), and a second run asks only for
+  the drafts the log does not hold. `--limit N` asks for at most N drafts.
+- It refuses to run until all 40 hand questions are written.
+
 ## The evaluation
 
 `rag evaluate` ranks every question's source chunk by all six methods of
