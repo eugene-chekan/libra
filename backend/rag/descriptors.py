@@ -1,15 +1,20 @@
-"""Semantic descriptors: the prompts, the shape check, the response log, the prompt pilot."""
+"""Semantic descriptors: the prompts, the shape check, the response log, the pilot, the run."""
 
 import json
 import os
 import random
+import threading
 from collections.abc import Callable
+from concurrent.futures import Future, ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
+
+from sqlmodel import Session
 
 from rag.chunking import SHORT_CHUNK_WORDS
 from rag.corpus import CorpusBook, CorpusError, frozen_chunks
 from rag.deepseek import Completion, DeepSeek, InvalidOutputError
+from rag.index import indexed_chunks
 
 PROMPT_VERSION = "v1"
 CHUNK_DESCRIPTORS = 8
@@ -17,6 +22,8 @@ QUESTION_DESCRIPTORS = 5
 DESCRIPTOR_WORDS = (2, 6)
 PILOT_SEED = "pilot-v0"
 SHOWN_CHARACTERS = 300
+# DeepSeek has no batch API; the protocol allows this many requests at once.
+RUN_WORKERS = 8
 
 CHUNK_PROMPT = """\
 You write descriptors for a search index of book passages. Read the passage and write \
@@ -128,13 +135,20 @@ def _identity(entry: dict) -> tuple:
 
 def _describe_and_log(deepseek: DeepSeek, out: Path, subject: dict, text: str) -> dict:
     """Describe one text and log the answer, usable or not; returns the log entry."""
+    entry = _entry(deepseek, subject, text)
+    append_log(out, entry)
+    return entry
+
+
+def _entry(deepseek: DeepSeek, subject: dict, text: str) -> dict:
+    """Describe one text; the log entry for the answer, usable or not."""
     prompt, count = _KINDS[subject["kind"]]
     try:
         descriptors, completion = describe(deepseek, prompt, text, count)
         error = None
     except InvalidOutputError as exc:
         descriptors, completion, error = None, exc.completion, str(exc)
-    entry = {
+    return {
         **subject,
         "prompt_version": PROMPT_VERSION,
         "status": "ok" if error is None else "failed",
@@ -150,8 +164,6 @@ def _describe_and_log(deepseek: DeepSeek, out: Path, subject: dict, text: str) -
         "error": error,
         "at": datetime.now(UTC).isoformat(timespec="seconds"),
     }
-    append_log(out, entry)
-    return entry
 
 
 def _screen(heading: str, text: str, entry: dict) -> str:
@@ -217,3 +229,104 @@ def run_pilot(
         counts[entry["status"]] += 1
         show(_screen(heading, text, entry))
     return counts["ok"], counts["failed"]
+
+
+def run_describe(
+    session: Session,
+    books: list[CorpusBook],
+    deepseek: DeepSeek,
+    out: Path,
+    workers: int,
+    show: Callable[[str], None],
+    limit: int | None = None,
+) -> tuple[int, int]:
+    """Write descriptors for every indexed chunk of the test books, several requests at once.
+
+    Every chunk is found before the first request. Each answer is logged as it arrives,
+    in the order the answers arrive.
+
+    Args:
+        session: Open session on the experiment database.
+        books: From `read_corpus`; only the books with the role `test` are used.
+        deepseek: The client.
+        out: The response log. What it already holds is not asked for again.
+        workers: Requests at once, from 1 to `RUN_WORKERS`.
+        show: Told about each answer once it is logged.
+        limit: Ask for at most this many chunks in this run.
+
+    Returns:
+        How many answers this run logged as ok, and how many as failed.
+
+    Raises:
+        ValueError: `workers` is out of range. Raised before anything is read.
+        CorpusError: A test book is not indexed, or a line of `out` is not JSON.
+        StopRunError: The key was refused or the balance is empty. The answers that
+            arrived are logged; no new request starts.
+    """
+    if not 1 <= workers <= RUN_WORKERS:
+        raise ValueError(f"workers must be from 1 to {RUN_WORKERS}, not {workers}")
+    done = {_identity(entry) for entry in read_log(out)}
+    tasks = []
+    for book in books:
+        if book.role != "test":
+            continue
+        for chunk in indexed_chunks(session, book):
+            subject = {"kind": "chunk", "file": book.file, "position": chunk.position}
+            if _identity({**subject, "prompt_version": PROMPT_VERSION}) not in done:
+                tasks.append((subject, chunk.text))
+    tasks = tasks[:limit]
+
+    counts = {"ok": 0, "failed": 0}
+
+    def record(entry: dict) -> None:
+        append_log(out, entry)
+        counts[entry["status"]] += 1
+        logged = counts["ok"] + counts["failed"]
+        show(f"{logged}/{len(tasks)} {entry['file']} chunk {entry['position']}: {entry['status']}")
+
+    _in_parallel(tasks, lambda subject, text: _entry(deepseek, subject, text), workers, record)
+    return counts["ok"], counts["failed"]
+
+
+def _in_parallel(
+    tasks: list[tuple[dict, str]],
+    work: Callable[[dict, str], dict],
+    workers: int,
+    record: Callable[[dict], None],
+) -> None:
+    """Run `work` on each task in a pool, and `record` each result on this thread.
+
+    The first error, or Ctrl-C, stops every task not yet started. The answers of the
+    requests already running are still recorded, and then the error is raised.
+    """
+    stop = threading.Event()
+
+    def guarded(subject: dict, text: str) -> dict | None:
+        # A worker takes its next task before this thread sees the last one fail.
+        if stop.is_set():
+            return None
+        try:
+            return work(subject, text)
+        except BaseException:
+            stop.set()
+            raise
+
+    pool = ThreadPoolExecutor(max_workers=workers)
+    futures = [pool.submit(guarded, subject, text) for subject, text in tasks]
+    recorded: set[Future] = set()
+    try:
+        for future in as_completed(futures):
+            result = future.result()
+            recorded.add(future)
+            if result is not None:
+                record(result)
+    except BaseException:
+        stop.set()
+        pool.shutdown(wait=True, cancel_futures=True)
+        for future in futures:
+            if future in recorded or future.cancelled() or future.exception() is not None:
+                continue
+            if (result := future.result()) is not None:
+                record(result)
+        raise
+    pool.shutdown()

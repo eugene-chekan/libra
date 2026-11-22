@@ -22,6 +22,23 @@ def _stored_book(session: Session, book: CorpusBook) -> Book:
     return stored
 
 
+def indexed_chunks(session: Session, book: CorpusBook) -> list[Chunk]:
+    """A test book's stored chunks at this chunker version, in reading order.
+
+    Raises:
+        CorpusError: The book is not in the database, or it is not indexed.
+    """
+    stored = _stored_book(session, book)
+    chunks = session.exec(
+        select(Chunk)
+        .where(Chunk.book_id == stored.id, Chunk.chunker_version == CHUNKER_VERSION)
+        .order_by(col(Chunk.position))
+    ).all()
+    if not chunks:
+        raise CorpusError(f"{book.file}: not indexed; run index first")
+    return list(chunks)
+
+
 def _is_indexed(session: Session, book: CorpusBook, book_id: int, model_name: str) -> bool:
     """Whether the book's chunks are stored at this chunker version, each with a vector.
 

@@ -95,6 +95,30 @@ An answer of the wrong shape is asked for again, up to 3 requests, and then
 logged with the status `failed`. A refused key or an empty balance stops the
 run at once.
 
+## The full descriptor run
+
+`rag describe` asks DeepSeek for 8 descriptors of every chunk of the 40 test
+books, with the prompt version in `rag/descriptors.py`. It reads the chunks
+from the experiment database, so run `index` first, with the same two
+settings as in "The database" above. Run it only after the protocol is frozen,
+and only off-peak. From `backend/`:
+
+    uv run python -m app.cli rag describe ../experiment/corpus.csv --out ../experiment/descriptors.jsonl
+
+- It sends up to 8 requests at once (`--workers`, from 1 to 8; 8 is the
+  default). DeepSeek has no batch API.
+- Each answer is written to the log as it arrives, so the log is not in
+  chunk order. Each line names its book file and chunk position.
+- A second run asks only for the chunks the log does not hold, failed answers
+  included. So a stopped run goes on where it stopped.
+- A refused key, an empty balance or any other failed request stops the run.
+  No new request starts, and the answers of the requests already running are
+  still logged. Ctrl-C does the same.
+- `--limit N` asks for at most N chunks in this run.
+
+The run writes the log only. Loading the descriptors into the database is a
+separate step.
+
 ## The experiment branch and its build
 
 The experiment's code goes to the branch `diploma/experiment`, not to `main`.
