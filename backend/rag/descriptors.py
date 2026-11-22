@@ -20,6 +20,9 @@ PROMPT_VERSION = "v1"
 CHUNK_DESCRIPTORS = 8
 QUESTION_DESCRIPTORS = 5
 DESCRIPTOR_WORDS = (2, 6)
+# Wider than the prompt asks: at temperature 0 a retry repeats a 1- or 7-word descriptor,
+# so the 2-6 check failed 2.9% of the chunks (protocol v1, deviation 1).
+ACCEPTED_WORDS = (1, 8)
 PILOT_SEED = "pilot-v0"
 SHOWN_CHARACTERS = 300
 # DeepSeek has no batch API; the protocol allows this many requests at once.
@@ -59,13 +62,13 @@ def parse_descriptors(data: dict, count: int) -> list[str]:
         The descriptors, each with single spaces between its words.
 
     Raises:
-        ValueError: `data["descriptors"]` is not a list of exactly `count` strings of 2 to
-            6 words each.
+        ValueError: `data["descriptors"]` is not a list of exactly `count` strings, each of
+            `ACCEPTED_WORDS` words.
     """
     items = data.get("descriptors")
     if not isinstance(items, list) or len(items) != count:
         raise ValueError(f"expected a list of exactly {count} descriptors")
-    least, most = DESCRIPTOR_WORDS
+    least, most = ACCEPTED_WORDS
     descriptors = []
     for item in items:
         if not isinstance(item, str) or not least <= len(item.split()) <= most:

@@ -8,8 +8,8 @@ metrics, the hypotheses and the statistics.
 - **Frozen before:** any test-book chunk was sent to DeepSeek, any question was
   drafted, and any method was run on a test question. Before this date only the
   2 pilot books were sent to DeepSeek (`pilot/notes.md`).
-- **Changes after the freeze** are deviations. Each one is listed in the report
-  with its date and its reason. The one planned addition is the drafting
+- **Changes after the freeze** are deviations. Each one is listed in section 14
+  below and in the report, with its date and its reason. The one planned addition is the drafting
   prompt; see "The drafted set" below.
 
 The reasons behind each choice are in `docs/specs/phase-2-plan.md`. This file
@@ -256,3 +256,39 @@ Measured on 2026-11-22: Python 3.13.12, SQLite 3.50.4, `fastembed` 0.9.0,
 `onnxruntime` 1.31.0, `numpy` 2.5.4, `openai` 3.51.0. Every library version is
 fixed by `backend/uv.lock`. `run.json` records the commit, and with it the
 lock file, that produced each run.
+
+## 14. Deviations
+
+### Deviation 1, 2026-11-22: a descriptor may have 1 to 8 words
+
+**What changed.** The check on an answer accepts a descriptor of 1 to 8 words
+(`ACCEPTED_WORDS` in `backend/rag/descriptors.py`). Before, it accepted 2 to 6.
+Both prompts still ask for 2 to 6 words, word for word as in section 6. The
+rule of exactly 8 descriptors for a chunk and 5 for a question is unchanged.
+
+**Why.** The full chunk run (2026-11-22, 15:13–16:08 UTC) logged 278 of 9,476
+chunks as failed, 2.9%. 274 of them were answers of 8 descriptors where at
+least one descriptor had 1 word (such as "hypocrisy") or 7 or more words. At
+temperature 0 a retry gives almost the same answer, so all 3 requests broke
+the same rule. The failures were not even across the genres: 175 of 4,488
+non-fiction chunks (3.9%) and 103 of 4,988 fiction chunks (2.1%). A chunk with
+no descriptors cannot be found by `descriptors`, so the failures would have
+worked against the method under test, and more in non-fiction, which H3
+compares with fiction.
+
+**Effect.** The log keeps every raw answer, so no new request was needed. Read
+with the new check:
+
+- the 9,198 answers that were ok stay ok;
+- 271 of the 278 failed answers become valid;
+- 7 chunks stay failed: 5 non-fiction and 2 fiction. 4 of them have the wrong
+  number of descriptors, and 3 have a descriptor of more than 8 words.
+
+The `status` field in `descriptors.jsonl` keeps what the run logged. Loading
+the log checks each raw answer again with the new rule, so the 271 count as
+valid from the load on. Question descriptors are asked for after this change,
+so the same check applies to them.
+
+**When.** Decided by the author on 2026-11-22, after the chunk run and before
+any question was described, drafted or searched. No method had run on a test
+question.
