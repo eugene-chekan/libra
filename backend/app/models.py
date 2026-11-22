@@ -482,6 +482,30 @@ class ChunkVector(SQLModel, table=True):
     vector: bytes = Field(sa_type=LargeBinary)
 
 
+class Descriptor(SQLModel, table=True):
+    """One LLM-written descriptor of a chunk, with its embedding by one model."""
+
+    __table_args__ = (
+        UniqueConstraint(
+            "chunk_id",
+            "prompt_version",
+            "model",
+            "position",
+            name="uq_descriptor_chunk_prompt_model_position",
+        ),
+    )
+
+    id: int | None = Field(default=None, primary_key=True)
+    chunk_id: int = Field(foreign_key="chunk.id", index=True)
+    prompt_version: str
+    # The embedding model of `vector`, as in `ChunkVector.model`.
+    model: str
+    # The descriptor's place in the answer, from 0.
+    position: int
+    text: str
+    vector: bytes = Field(sa_type=LargeBinary)
+
+
 # SQLite's FTS5 external-content pattern: the index holds no copy of the text, and the
 # triggers keep it in step with `chunk`. The migration repeats these as literals.
 CHUNK_FTS_DDL = (

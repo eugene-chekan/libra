@@ -183,6 +183,31 @@ def index_command(corpus_csv: Path, stats_csv: Path) -> int:
     return 0
 
 
+def import_descriptors_command(corpus_csv: Path, log: Path) -> int:
+    from rag.descriptors import import_descriptors, read_log
+    from rag.embeddings import load_model
+
+    try:
+        books = read_corpus(corpus_csv)
+        entries = read_log(log)
+        _open_experiment_database(books)
+        settings = get_settings()
+        model = load_model(settings)
+        with Session(get_engine()) as session:
+            progress = functools.partial(print, flush=True)
+            imported, already, failed = import_descriptors(
+                session, books, entries, settings, model, progress
+            )
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(
+        f"Imported {imported} books; {already} were already imported. "
+        f"{failed} chunks of the imported books have no valid descriptors."
+    )
+    return 0
+
+
 def smoke_command(hand: Path, sample: int) -> int:
     from rag.embeddings import load_model
     from rag.metrics import K_VALUES
@@ -339,6 +364,11 @@ def main(argv: list[str] | None = None) -> int:
         "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
     )
     describe.add_argument("--limit", type=int, help="Ask for at most this many chunks")
+    imports = rag_commands.add_parser(
+        "import-descriptors", help="Load the chunk descriptor log into the database; no API"
+    )
+    imports.add_argument("corpus_csv", type=Path)
+    imports.add_argument("--log", type=Path, required=True, help="The response log, a .jsonl file")
 
     args = parser.parse_args(argv)
     if args.command == "create-admin":
@@ -353,6 +383,8 @@ def main(argv: list[str] | None = None) -> int:
         return index_command(args.corpus_csv, args.stats)
     if args.command == "rag" and args.rag_command == "smoke":
         return smoke_command(args.hand, args.sample)
+    if args.command == "rag" and args.rag_command == "import-descriptors":
+        return import_descriptors_command(args.corpus_csv, args.log)
     if args.command == "rag" and args.rag_command == "describe":
         return describe_command(args.corpus_csv, args.out, args.workers, args.limit)
     if args.command == "rag" and args.rag_command == "pilot-describe":

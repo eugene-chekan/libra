@@ -24,6 +24,7 @@ from app.models import (
     Chunk,
     ChunkVector,
     Conversation,
+    Descriptor,
     Message,
     Note,
     NoteRead,
@@ -604,6 +605,7 @@ def delete_book(session: Session, book_id: int, settings: Settings) -> None:
             session.delete(row)
     chunk_ids = select(Chunk.id).where(Chunk.book_id == book_id)
     session.exec(delete(ChunkVector).where(col(ChunkVector.chunk_id).in_(chunk_ids)))
+    session.exec(delete(Descriptor).where(col(Descriptor.chunk_id).in_(chunk_ids)))
     session.exec(delete(Chunk).where(Chunk.book_id == book_id))
     # SQLite refuses to delete a book that rows still point at.
     session.flush()
