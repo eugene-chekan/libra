@@ -43,6 +43,8 @@ repos:
         stages: [pre-commit]
       - id: check-added-large-files
         stages: [pre-commit]
+        # The experiment's response logs are data kept on purpose, and pass 500 KB.
+        exclude: ^experiment/.*\.jsonl$
       - id: check-merge-conflict
         stages: [pre-commit]
       - id: check-case-conflict
