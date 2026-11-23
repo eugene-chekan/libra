@@ -171,7 +171,9 @@ Then it asks `k = keep, e = edit, d = drop, q = quit:`.
 
 - `k` keeps the draft as it is.
 - `e` asks for a new question, and refuses one that repeats 4 words of the
-  chunk (names left out). Then it asks for the kind: Enter keeps the draft's.
+  chunk (names left out). Enter keeps the draft's question. Then it asks for
+  the kind: Enter keeps the draft's. So `e`, Enter, `i` changes only the kind.
+  An edit that changes nothing is saved as a keep.
 - `d` asks why. Type a rule's number, or your own words:
   1 not answerable from this chunk alone, 2 no real reader would ask it,
   3 not clear which book it is about, 4 it reuses the chunk's wording,

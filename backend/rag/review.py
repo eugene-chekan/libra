@@ -27,7 +27,7 @@ DROP_REASONS = {
 }
 
 ACTION_PROMPT = "k = keep, e = edit, d = drop, q = quit: "
-EDIT_PROMPT = "New question: "
+EDIT_PROMPT = "New question (Enter = keep the draft's): "
 EDIT_KIND_PROMPT = "Kind (Enter = {kind}, f = factual, i = interpretive): "
 DROP_PROMPT = "Why drop? (" + ", ".join(f"{k} = {v}" for k, v in DROP_REASONS.items()) + "): "
 _KIND_KEYS = {kind[0]: kind for kind in QUESTION_KINDS}
@@ -163,14 +163,16 @@ def run_review(
         if action.lower() == "k":
             status = "kept"
         elif action.lower() == "e":
-            status = "edited"
-            question = _ask_edit(ask, show, chunk)
+            question = _ask_edit(ask, show, chunk, draft["question"])
             key = _ask_until(
                 ask,
                 EDIT_KIND_PROMPT.format(kind=draft["kind"]),
                 lambda a: a == "" or a.lower() in _KIND_KEYS,
             )
             kind = _KIND_KEYS[key.lower()] if key else draft["kind"]
+            # An edit that changed nothing is a keep.
+            changed = (question, kind) != (draft["question"], draft["kind"])
+            status = "edited" if changed else "kept"
         else:
             status, question, kind = "dropped", None, None
             typed = _ask_until(ask, DROP_PROMPT, bool)
@@ -206,10 +208,17 @@ def _ask_until(ask: Callable[[str], str], prompt: str, accept: Callable[[str], b
             return answer
 
 
-def _ask_edit(ask: Callable[[str], str], show: Callable[[str], None], chunk: str) -> str:
-    """Ask for the new question until it does not repeat 4 words of the chunk."""
+def _ask_edit(
+    ask: Callable[[str], str], show: Callable[[str], None], chunk: str, draft_question: str
+) -> str:
+    """Ask for the new question until it does not repeat 4 words of the chunk.
+
+    Enter keeps the draft's question, which passed the same check when it was drafted.
+    """
     while True:
-        question = " ".join(_ask_until(ask, EDIT_PROMPT, bool).split())
+        question = " ".join(ask(EDIT_PROMPT).split())
+        if not question:
+            return draft_question
         copied = copied_sequences(question, chunk)
         if not copied:
             return question

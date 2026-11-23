@@ -132,6 +132,26 @@ def test_an_edit_keeps_the_kind_on_enter_and_changes_it_on_a_key(desk: Desk) -> 
     assert (second.question, second.kind) == ("Why did they leave?", "interpretive")
 
 
+def test_enter_keeps_the_draft_question_so_only_the_kind_changes(desk: Desk) -> None:
+    first = desk.drafts[0]
+    other = "i" if first["kind"] == "factual" else "f"
+
+    desk.run("e", "", other, "q")
+
+    (record,) = desk.records()
+    assert record.status == "edited"
+    assert record.question == first["question"]
+    assert record.kind != first["kind"]
+
+
+def test_an_edit_that_changes_nothing_is_recorded_as_kept(desk: Desk) -> None:
+    desk.run("e", "", "", "q")
+
+    (record,) = desk.records()
+    assert record.status == "kept"
+    assert (record.question, record.kind) == (desk.drafts[0]["question"], desk.drafts[0]["kind"])
+
+
 def test_an_edited_question_that_copies_the_chunk_is_asked_for_again(
     desk: Desk, session: Session, corpus: list[CorpusBook]
 ) -> None:
