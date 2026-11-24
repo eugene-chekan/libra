@@ -308,6 +308,13 @@ a log collector: `time`, `level`, `logger`, `message`, the event's own fields,
 and `exception` with the traceback when there is one. The Docker image uses
 `json`.
 
+**In the Docker image, uvicorn's lines are JSON too.** The image starts
+uvicorn with `--log-config /app/uvicorn-log.json`
+([`backend/uvicorn-log.json`](backend/uvicorn-log.json)), so its start and
+stop lines and its request log use the same formatter, on stdout. Nothing goes
+to stderr. A host such as Railway files every plain line on stderr as an
+error, whatever its level.
+
 ```json
 {"time": "2026-11-24T20:13:45.715+00:00", "level": "INFO", "logger": "libra.routers.books", "message": "anna added the book 1", "event": "book_uploaded", "book_id": 1, "by_user_id": 1}
 ```

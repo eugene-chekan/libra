@@ -221,3 +221,19 @@ jobs:
             docker logs libra >&2
             exit 1
           }
+
+      # A host such as Railway files every plain line on stderr as an error. The
+      # server's lines, uvicorn's included, go to stdout as JSON.
+      - name: Check the logs are JSON on stdout
+        run: |
+          stderr=$(docker logs libra 2>&1 >/dev/null)
+          if [ -n "$stderr" ]; then
+            echo "the container wrote to stderr:" >&2
+            echo "$stderr" >&2
+            exit 1
+          fi
+          docker logs libra 2>/dev/null | grep -F 'Application startup complete'             | jq -e '.level == "INFO" and .logger == "uvicorn.error"' || {
+            echo "uvicorn's start line is not JSON on stdout:" >&2
+            docker logs libra >&2
+            exit 1
+          }
