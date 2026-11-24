@@ -12,11 +12,25 @@ set -eu
 
 DATA_DIR=/app/data
 
+# With LIBRA_ADMIN_PASSWORD set, the first start makes an admin account called
+# LIBRA_ADMIN_USERNAME (default `admin`). A host with no shell into the
+# container, such as Railway, needs this to have anybody who can sign in. Once
+# any account exists, the command does nothing, so it is safe on every start.
+# The arguments are put in front of the command: `setpriv ...` to run it as
+# `libra`, or nothing.
+create_first_admin() {
+    if [ -n "${LIBRA_ADMIN_PASSWORD:-}" ]; then
+        "$@" python -m app.cli create-admin --username "${LIBRA_ADMIN_USERNAME:-admin}" --if-missing
+    fi
+}
+
 if [ "$(id -u)" = "0" ]; then
     # Every file, not only the folder: a new volume takes the folder's owner
     # from the image, while the files in it keep the owner that wrote them.
     find "$DATA_DIR" ! -user libra -exec chown libra:libra {} +
+    create_first_admin setpriv --reuid=libra --regid=libra --init-groups
     exec setpriv --reuid=libra --regid=libra --init-groups "$@"
 fi
 
+create_first_admin
 exec "$@"

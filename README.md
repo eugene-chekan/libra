@@ -429,12 +429,17 @@ the container starts, it first makes `libra` the owner of every file in the
 volume. So a volume from an older release, which `root` wrote, keeps working
 with no extra step.
 
-**Create the first account.** Unlike `run.sh`, the image does not make one. Run
-this once. It asks for a password:
+**Create the first account.** Unlike `run.sh`, the image does not make one
+unless you ask. Run this once. It asks for a password:
 
 ```bash
 docker compose -f scripts/docker-compose.yml exec backend python -m app.cli create-admin --username yourname
 ```
+
+Or set `LIBRA_ADMIN_PASSWORD` (and, if you like, `LIBRA_ADMIN_USERNAME`, which
+is `admin` by default) for the container. Its first start then makes that admin.
+Once any account exists, the variable does nothing. This is for a host where you
+cannot run a command inside the container, such as Railway.
 
 **Run a published release instead of building.** Each release is pushed to
 `ghcr.io/eugene-chekan/libra` for `linux/amd64` and `linux/arm64`, so a
@@ -453,6 +458,36 @@ may not run on a newer database, so keep the backup until the new one works.
 
 How a release is made is in
 [`docs/architecture.md`](docs/architecture.md#version-numbers).
+
+### Deploying to Railway
+
+The public demo runs on [Railway](https://railway.com), built from this
+repository. Every push to `main` builds and deploys it again, after CI passes.
+The settings live in the Railway dashboard, not in a file: Railway has
+deprecated its `railway.json`.
+
+1. **New project → Deploy from GitHub repo →** `eugene-chekan/libra`, branch
+   `main`.
+2. **Variables** of the service:
+
+   | Variable | Value | Why |
+   |---|---|---|
+   | `RAILWAY_DOCKERFILE_PATH` | `backend/Dockerfile` | The Dockerfile is not at the root |
+   | `PORT` | `8000` | Railway checks health on `PORT`; the app listens on 8000 |
+   | `LIBRA_DATABASE_URL` | `sqlite:////app/data/libra.db` | The database on the volume |
+   | `LIBRA_LIBRARY_DIR` | `/app/data/library` | The books on the same volume |
+   | `LIBRA_SESSION_COOKIE_SECURE` | `true` | Railway serves HTTPS |
+   | `LIBRA_ADMIN_PASSWORD` | a password you choose | Makes the first admin, `admin`, on the first start |
+
+3. **Volume →** mount path `/app/data`. Without it, every deploy starts with an
+   empty library.
+4. **Settings → Deploy:** healthcheck path `/health`. Turn on **Wait for CI**,
+   so a commit that fails CI is never deployed.
+5. **Settings → Networking → Generate domain**, on port `8000`.
+
+The image runs the migrations when it starts, so a deploy needs no other step.
+Keep `LIBRA_ADMIN_PASSWORD` in Railway's variables only, never in the
+repository.
 
 ### Tests and lint
 

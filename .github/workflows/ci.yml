@@ -183,6 +183,7 @@ jobs:
             --health-interval 2s --health-start-period 1s \
             -e LIBRA_DATABASE_URL=sqlite:////tmp/libra.db \
             -e LIBRA_LIBRARY_DIR=/tmp/library \
+            -e LIBRA_ADMIN_PASSWORD=ci-admin-password \
             libra:ci
           for i in $(seq 1 30); do
             [ "$(docker inspect -f '{{.State.Health.Status}}' libra)" = healthy ] && exit 0
@@ -206,5 +207,17 @@ jobs:
           fi
           curl -sf http://localhost:8000/ | grep -q '<div id="root"></div>' || {
             echo "/ did not return the client page" >&2
+            exit 1
+          }
+
+      # The entry point made the first admin from LIBRA_ADMIN_PASSWORD, as a
+      # host with no shell into the container needs it to.
+      - name: Sign in as the admin the image made
+        run: |
+          curl -sf -X POST http://localhost:8000/api/auth/login \
+            -H 'Content-Type: application/json' \
+            -d '{"username": "admin", "password": "ci-admin-password"}' | jq -e '.is_admin == true' || {
+            echo "the image did not make the admin from LIBRA_ADMIN_PASSWORD:" >&2
+            docker logs libra >&2
             exit 1
           }
