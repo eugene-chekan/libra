@@ -12,7 +12,7 @@ The project aims at the **minimum requirements (5 points)**.
 | The web client | the folder [`web/`](https://github.com/eugene-chekan/libra/tree/main/web) on the branch `main` |
 | This page | the folder `docs/frontend/` on the branch `docs/diploma` |
 | The API the client uses | [api.md](api.md), and the full schema [openapi.json](openapi.json) |
-| Deployed application | None. Libra is self-hosted: each household runs it on its own computer. The ready Docker image is `ghcr.io/eugene-chekan/libra` (see "How to run") |
+| Deployed application | https://libra-production-7f573af6.up.railway.app, on Railway. Sign in with the demo account that comes with this page |
 
 ## Which part is the diploma's work
 
@@ -37,7 +37,7 @@ name it first, in bold.
 
 ## How to run
 
-There are three ways. Way 1 is the quickest.
+The quickest is the deployed copy at https://libra-production-7f573af6.up.railway.app. To run it yourself, there are three ways.
 
 ### Way 1: the ready Docker image
 
@@ -411,10 +411,8 @@ server's sentence.
 | New account (admin) | [`AddUserRow.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/users/AddUserRow.tsx) | A name and a password are required |
 | Kindle address | `checkKindleEmail` in [`KindleEmailModal.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/KindleEmailModal.tsx) | It must look like an e-mail address: one `@`, text on both sides, a dot after it. An empty box removes the address. A failed save keeps the dialog open with the reason |
 
-The server checks the page count, the year, the rating, notes and tag names
-again (status 422). It does not yet check that a title or an author is not
-empty, or the form of a Kindle address. For these, the client's own check is
-the one that holds today. This belongs to the back-end block.
+The server checks every one of these rules again (status 422), so another
+program cannot get around them either.
 
 ## Errors
 
@@ -527,9 +525,3 @@ upload, the reader, the phone layout and the admin pages.
 - **The Librarian panel does not show passages yet.** That is Part 2 of the
   diploma, due on 6 January 2027. Today the panel gives fixed example replies
   and says so on screen.
-- **The server does not check every rule the client checks.** It accepts an
-  empty book title and any Kindle address. The client stops both, so the
-  reader cannot send them, but another program could. This belongs to the
-  back-end block.
-- **No deployed copy.** Libra is built to run at home, so there is no public
-  address. The Docker image is the ready-to-run form.
