@@ -1,7 +1,8 @@
+import re
 from datetime import UTC, datetime
 from typing import Literal, get_args
 
-from pydantic import NaiveDatetime
+from pydantic import NaiveDatetime, field_validator
 from sqlalchemy import JSON as SA_JSON
 from sqlalchemy import (
     CheckConstraint,
@@ -16,6 +17,28 @@ from sqlalchemy import (
 from sqlmodel import Field, SQLModel
 
 from app.naming import fold_name
+
+# One "@", text on both sides, and a dot after it: enough to catch a typo, which is all a check
+# can do before the address is used. The client checks the same shape.
+EMAIL_SHAPE = re.compile(r"[^\s@]+@[^\s@]+\.[^\s@]+")
+
+
+def required_text(value: str | None) -> str:
+    """Trim a text field that a book cannot be without, and refuse it empty or null."""
+    if value is None or not value.strip():
+        raise ValueError("must not be empty")
+    return value.strip()
+
+
+def kindle_address(value: str | None) -> str | None:
+    """Trim a Kindle address, turn an empty one into none, and refuse one that is not an address."""
+    if value is None or not value.strip():
+        return None
+    value = value.strip()
+    if not EMAIL_SHAPE.fullmatch(value):
+        raise ValueError("is not an e-mail address")
+    return value
+
 
 SHELF_PRIVATE = "private"
 SHELF_PUBLIC = "public"
@@ -69,7 +92,10 @@ class Book(BookBase, table=True):
 
 
 class BookCreate(BookBase):
-    pass
+    @field_validator("title", "author", "format")
+    @classmethod
+    def _required(cls, value: str) -> str:
+        return required_text(value)
 
 
 class BookRead(BookBase):
@@ -107,6 +133,13 @@ class BookUpdate(SQLModel):
     blurb: str | None = None
     pages: int | None = Field(default=None, ge=1)
     book_metadata: dict | None = None
+
+    # Runs only on a field the caller sent, so a field left out keeps its value; one sent as
+    # null or blank is refused, since the column cannot be empty.
+    @field_validator("title", "author", "format")
+    @classmethod
+    def _required(cls, value: str | None) -> str:
+        return required_text(value)
 
 
 class User(SQLModel, table=True):
@@ -324,6 +357,8 @@ class NoteRead(SQLModel):
 
 
 MessageRole = Literal["user", "librarian"]
+ROLE_READER: MessageRole = "user"
+ROLE_LIBRARIAN: MessageRole = "librarian"
 
 
 class Conversation(SQLModel, table=True):
@@ -384,6 +419,11 @@ class UserCreate(SQLModel):
     is_admin: bool = False
     kindle_email: str | None = None
 
+    @field_validator("kindle_email")
+    @classmethod
+    def _kindle_address(cls, value: str | None) -> str | None:
+        return kindle_address(value)
+
 
 class UserRead(SQLModel):
     """Defined standalone, never derived from `User`, so that adding a field to the table
@@ -407,6 +447,11 @@ class UserUpdate(SQLModel):
     password: str | None = None
     kindle_email: str | None = None
     is_admin: bool | None = None
+
+    @field_validator("kindle_email")
+    @classmethod
+    def _kindle_address(cls, value: str | None) -> str | None:
+        return kindle_address(value)
 
 
 class LoginRequest(SQLModel):

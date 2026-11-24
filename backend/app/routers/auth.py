@@ -12,9 +12,12 @@ from app.auth import (
 )
 from app.config import Settings, get_settings
 from app.db import get_session
+from app.logging_config import get_logger
 from app.models import CurrentUserRead, LoginRequest, User, UserRead
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+log = get_logger(__name__)
 
 
 @router.post("/login", response_model=UserRead)
@@ -31,6 +34,7 @@ def login(
 
     raw_token = issue_session(session, user, settings)
     set_session_cookie(response, raw_token, settings)
+    log.info("%s signed in", user.username, extra={"event": "sign_in", "user_id": user.id})
     return user
 
 
@@ -39,13 +43,14 @@ def logout(
     request: Request,
     response: Response,
     session: Session = Depends(get_session),
-    _: User = Depends(current_user),
+    user: User = Depends(current_user),
 ) -> None:
     """Revoke the caller's session, server-side as well as in the browser."""
     raw_token = request.cookies.get(SESSION_COOKIE)
     if raw_token is not None:
         revoke_session(session, raw_token)
     clear_session_cookie(response)
+    log.info("%s signed out", user.username, extra={"event": "sign_out", "user_id": user.id})
 
 
 @router.get("/me", response_model=CurrentUserRead)

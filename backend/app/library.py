@@ -15,6 +15,8 @@ from app.config import Settings
 from app.logging_config import get_logger
 from app.models import (
     COVER_MEDIA_TYPES,
+    ROLE_LIBRARIAN,
+    ROLE_READER,
     SHELF_PUBLIC,
     SORT_ADDED,
     SORT_TITLE,
@@ -1237,3 +1239,66 @@ def delete_user(session: Session, user_id: int, caller: User) -> None:
 
     session.delete(user)
     session.commit()
+
+
+# --- librarian ------------------------------------------------------------
+
+
+class ConversationNotFoundError(Exception):
+    """No such conversation for this reader. Another reader's counts as none."""
+
+
+def my_conversation(session: Session, user: User) -> Conversation:
+    """The reader's one conversation with the librarian, made on first use."""
+    conversation = session.exec(
+        select(Conversation).where(Conversation.user_id == user.id).order_by(col(Conversation.id))
+    ).first()
+    if conversation is not None:
+        return conversation
+    conversation = Conversation(user_id=user.id)
+    session.add(conversation)
+    session.commit()
+    session.refresh(conversation)
+    return conversation
+
+
+def conversation_messages(session: Session, conversation_id: int) -> list[Message]:
+    """Every turn of a conversation, oldest first."""
+    return list(
+        session.exec(
+            select(Message)
+            .where(Message.conversation_id == conversation_id)
+            .order_by(col(Message.created_at), col(Message.id))
+        ).all()
+    )
+
+
+def add_question(session: Session, conversation_id: int, user: User, text: str) -> Message:
+    """Save a reader's question, committed before any reply starts.
+
+    Args:
+        session: Open database session.
+        conversation_id: Where the question goes.
+        user: Who asks. It must be their conversation.
+        text: The question.
+
+    Raises:
+        ConversationNotFoundError: No such conversation for this reader.
+    """
+    conversation = session.get(Conversation, conversation_id)
+    if conversation is None or conversation.user_id != user.id:
+        raise ConversationNotFoundError
+    question = Message(conversation_id=conversation_id, role=ROLE_READER, content=text)
+    session.add(question)
+    session.commit()
+    session.refresh(question)
+    return question
+
+
+def add_reply(session: Session, conversation_id: int, text: str, meta: dict) -> Message:
+    """Save the librarian's finished reply, with what it did to make it."""
+    reply = Message(conversation_id=conversation_id, role=ROLE_LIBRARIAN, content=text, meta=meta)
+    session.add(reply)
+    session.commit()
+    session.refresh(reply)
+    return reply

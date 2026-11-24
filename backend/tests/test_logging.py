@@ -1,12 +1,14 @@
-"""Logging configuration and the events it exists to make visible.
+"""Logging configuration, the JSON format, and the events logging exists to make visible.
 
-Each site logged here is somewhere the code deliberately carries on after
-something went wrong. The tests assert the message is emitted at all, since
-the whole point is that these paths are otherwise silent — and assert what
-must *not* appear in it, which matters more.
+Two kinds of site are logged: places where the code carries on after something went wrong, and
+the key events of the API. The tests assert the record is emitted at all, since these paths are
+otherwise silent, and assert what must *not* appear in it, which matters more.
 """
 
+import json
 import logging
+import sys
+from collections.abc import Callable, Generator
 from pathlib import Path
 
 import pytest
@@ -14,7 +16,7 @@ from fastapi.testclient import TestClient
 from sqlmodel import Session
 
 from app.auth import authenticate
-from app.logging_config import LOGGER_NAMESPACE, configure_logging, get_logger
+from app.logging_config import LOGGER_NAMESPACE, JsonFormatter, configure_logging, get_logger
 from app.models import User
 from app.storage import delete
 from tests.conftest import USER_PASSWORD
@@ -160,3 +162,148 @@ def test_an_orphaned_upload_is_reported(
         )
 
     assert "orphaned file" in captured.text
+
+
+# --- the JSON format --------------------------------------------------------
+
+
+def _record(**extra) -> logging.LogRecord:
+    record = logging.LogRecord("libra.test", logging.INFO, __file__, 1, "book %s added", (7,), None)
+    for key, value in extra.items():
+        setattr(record, key, value)
+    return record
+
+
+def test_a_json_line_holds_the_time_level_logger_and_message() -> None:
+    line = json.loads(JsonFormatter().format(_record()))
+
+    assert line["level"] == "INFO"
+    assert line["logger"] == "libra.test"
+    assert line["message"] == "book 7 added"
+    assert line["time"].endswith("+00:00")
+
+
+def test_the_extra_fields_of_an_event_become_fields_of_the_line() -> None:
+    line = json.loads(JsonFormatter().format(_record(event="book_uploaded", book_id=7)))
+
+    assert line["event"] == "book_uploaded"
+    assert line["book_id"] == 7
+
+
+def test_a_traceback_is_one_field_so_the_line_stays_one_line() -> None:
+    try:
+        raise RuntimeError("boom")
+    except RuntimeError:
+        record = logging.LogRecord(
+            "libra.test", logging.ERROR, __file__, 1, "failed", (), sys.exc_info()
+        )
+
+    text = JsonFormatter().format(record)
+
+    assert "\n" not in text
+    assert "RuntimeError: boom" in json.loads(text)["exception"]
+
+
+def test_the_json_setting_puts_the_json_formatter_on_the_app_logger() -> None:
+    try:
+        configure_logging("INFO", "json")
+        handlers = logging.getLogger(LOGGER_NAMESPACE).handlers
+        assert any(isinstance(handler.formatter, JsonFormatter) for handler in handlers)
+    finally:
+        configure_logging("INFO")
+
+    assert not any(
+        isinstance(handler.formatter, JsonFormatter)
+        for handler in logging.getLogger(LOGGER_NAMESPACE).handlers
+    )
+
+
+# --- key events -------------------------------------------------------------
+
+
+@pytest.fixture(name="events")
+def events_fixture(
+    caplog: pytest.LogCaptureFixture,
+) -> Generator[Callable[[str], list[logging.LogRecord]], None, None]:
+    """The app's records of one event, by name.
+
+    Request it after any client fixture: building a client runs `configure_logging`, which
+    turns propagation off again.
+    """
+    logging.getLogger(LOGGER_NAMESPACE).propagate = True
+    caplog.set_level(logging.DEBUG, logger=LOGGER_NAMESPACE)
+    yield lambda name: [r for r in caplog.records if getattr(r, "event", None) == name]
+    logging.getLogger(LOGGER_NAMESPACE).propagate = False
+
+
+def test_signing_in_and_out_are_events(anon_client: TestClient, user: User, events) -> None:
+    anon_client.post("/auth/login", json={"username": "reader", "password": USER_PASSWORD})
+    anon_client.post("/auth/logout")
+
+    [sign_in] = events("sign_in")
+    [sign_out] = events("sign_out")
+    assert sign_in.user_id == user.id
+    assert sign_out.user_id == user.id
+
+
+def test_a_changed_account_names_its_fields_never_their_values(
+    client: TestClient, user: User, events, caplog: pytest.LogCaptureFixture
+) -> None:
+    client.patch(
+        f"/users/{user.id}",
+        json={"password": "a-brand-new-secret", "kindle_email": "me@kindle.com"},
+    )
+
+    [event] = events("user_updated")
+    assert event.fields == ["kindle_email", "password"]
+    assert "a-brand-new-secret" not in caplog.text
+    assert "a-brand-new-secret" not in json.dumps(event.__dict__, default=str)
+
+
+def test_creating_an_account_is_an_event(
+    admin_client: TestClient, admin_user: User, events
+) -> None:
+    created = admin_client.post("/users", json={"username": "newbie", "password": "pw"}).json()
+
+    [event] = events("user_created")
+    assert event.user_id == created["id"]
+    assert event.by_user_id == admin_user.id
+
+
+def test_adding_and_deleting_a_book_are_events(
+    admin_client: TestClient, tmp_path: Path, events
+) -> None:
+    from tests.epub_factory import epub_bytes
+
+    book = admin_client.post(
+        "/books/upload",
+        files={"file": ("x.epub", epub_bytes(tmp_path), "application/epub+zip")},
+    ).json()
+    admin_client.delete(f"/books/{book['id']}")
+
+    assert [r.book_id for r in events("book_uploaded")] == [book["id"]]
+    assert [r.book_id for r in events("book_deleted")] == [book["id"]]
+
+
+def test_a_question_to_the_librarian_is_logged_without_its_text(
+    client: TestClient, events, caplog: pytest.LogCaptureFixture
+) -> None:
+    conversation = client.get("/conversations/mine").json()
+
+    client.post(
+        f"/conversations/{conversation['id']}/messages",
+        json={"content": "a private question about my notes"},
+    )
+
+    [event] = events("librarian_question")
+    assert event.conversation_id == conversation["id"]
+    assert event.length == len("a private question about my notes")
+    assert "a private question" not in caplog.text
+    assert "a private question" not in JsonFormatter().format(event)
+
+
+def test_pruning_sessions_is_an_event(admin_client: TestClient, events) -> None:
+    admin_client.post("/maintenance/prune-sessions")
+
+    [event] = events("sessions_pruned")
+    assert event.removed == 0

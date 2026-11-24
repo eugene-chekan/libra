@@ -1,5 +1,6 @@
 """User administration and self-service profile edits."""
 
+import pytest
 from fastapi.testclient import TestClient
 from sqlmodel import Session
 
@@ -127,3 +128,39 @@ def test_patching_an_unknown_user_returns_404(admin_client: TestClient) -> None:
     assert (
         admin_client.patch("/users/999", json={"kindle_email": "x@kindle.com"}).status_code == 404
     )
+
+
+@pytest.mark.parametrize(
+    "address", ["not-an-address", "me@kindle", "@kindle.com", "two words@kindle.com"]
+)
+def test_a_kindle_address_that_is_not_an_address_is_refused(
+    client: TestClient, user: User, address: str
+) -> None:
+    client.patch(f"/users/{user.id}", json={"kindle_email": "me@kindle.com"})
+
+    response = client.patch(f"/users/{user.id}", json={"kindle_email": address})
+
+    assert response.status_code == 422
+    assert client.get("/auth/me").json()["kindle_email"] == "me@kindle.com"
+
+
+def test_a_kindle_address_is_trimmed(client: TestClient, user: User) -> None:
+    response = client.patch(f"/users/{user.id}", json={"kindle_email": "  me@kindle.com  "})
+
+    assert response.json()["kindle_email"] == "me@kindle.com"
+
+
+def test_an_empty_kindle_address_removes_it(client: TestClient, user: User) -> None:
+    client.patch(f"/users/{user.id}", json={"kindle_email": "me@kindle.com"})
+
+    response = client.patch(f"/users/{user.id}", json={"kindle_email": ""})
+
+    assert response.json()["kindle_email"] is None
+
+
+def test_a_new_account_with_a_bad_kindle_address_is_refused(admin_client: TestClient) -> None:
+    response = admin_client.post(
+        "/users", json={"username": "newbie", "password": "pw", "kindle_email": "nope"}
+    )
+
+    assert response.status_code == 422

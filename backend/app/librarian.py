@@ -2,7 +2,7 @@
 
 from collections.abc import Iterator
 
-from sqlmodel import Session, select
+from sqlmodel import Session, func, select
 
 from app.models import Book
 
@@ -19,7 +19,7 @@ def _a_book(session: Session) -> Book | None:
 
 
 def _book_count(session: Session) -> int:
-    return len(session.exec(select(Book)).all())
+    return session.exec(select(func.count()).select_from(Book)).one()
 
 
 def _split(text: str) -> list[str]:

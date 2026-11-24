@@ -3,27 +3,17 @@ from collections.abc import Iterator
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import StreamingResponse
-from sqlmodel import Session, col, select
+from sqlmodel import Session
 
-from app import librarian
+from app import librarian, library
 from app.auth import current_user
 from app.db import get_session
-from app.models import Conversation, ConversationRead, Message, MessageCreate, User
+from app.logging_config import get_logger
+from app.models import ConversationRead, MessageCreate, User
 
 router = APIRouter(prefix="/conversations", tags=["librarian"])
 
-
-def _get_or_create_conversation(session: Session, user: User) -> Conversation:
-    conversation = session.exec(
-        select(Conversation).where(Conversation.user_id == user.id).order_by(col(Conversation.id))
-    ).first()
-    if conversation is not None:
-        return conversation
-    conversation = Conversation(user_id=user.id)
-    session.add(conversation)
-    session.commit()
-    session.refresh(conversation)
-    return conversation
+log = get_logger(__name__)
 
 
 @router.get("/mine", response_model=ConversationRead)
@@ -32,13 +22,9 @@ def get_my_conversation(
     user: User = Depends(current_user),
 ) -> ConversationRead:
     """The reader's one implicit conversation, created on first access."""
-    conversation = _get_or_create_conversation(session, user)
-    messages = session.exec(
-        select(Message)
-        .where(Message.conversation_id == conversation.id)
-        .order_by(col(Message.created_at), col(Message.id))
-    ).all()
-    return ConversationRead(id=conversation.id, messages=list(messages))
+    conversation = library.my_conversation(session, user)
+    messages = library.conversation_messages(session, conversation.id)
+    return ConversationRead(id=conversation.id, messages=messages)
 
 
 @router.post("/{conversation_id}/messages")
@@ -52,12 +38,21 @@ def send_message(
     if not message.content.strip():
         raise HTTPException(status_code=422, detail="Message must not be empty")
 
-    conversation = session.get(Conversation, conversation_id)
-    if conversation is None or conversation.user_id != user.id:
-        raise HTTPException(status_code=404, detail="Conversation not found")
-
-    session.add(Message(conversation_id=conversation_id, role="user", content=message.content))
-    session.commit()
+    try:
+        library.add_question(session, conversation_id, user, message.content)
+    except library.ConversationNotFoundError as exc:
+        raise HTTPException(status_code=404, detail="Conversation not found") from exc
+    # The question itself is private, so only its length is logged.
+    log.info(
+        "User %s asked the librarian a question",
+        user.id,
+        extra={
+            "event": "librarian_question",
+            "conversation_id": conversation_id,
+            "user_id": user.id,
+            "length": len(message.content),
+        },
+    )
 
     def stream() -> Iterator[str]:
         # A fresh session, opened and closed entirely inside this generator:
@@ -76,15 +71,7 @@ def send_message(
                     meta["tool_call"] = {"summary": chunk["summary"]}
                 yield f"data: {json.dumps(chunk, ensure_ascii=False)}\n\n"
 
-            reply = Message(
-                conversation_id=conversation_id,
-                role="librarian",
-                content=reply_text.strip(),
-                meta=meta,
-            )
-            stream_session.add(reply)
-            stream_session.commit()
-            stream_session.refresh(reply)
+            reply = library.add_reply(stream_session, conversation_id, reply_text.strip(), meta)
             done = {"type": "done", "message_id": reply.id}
             yield f"data: {json.dumps(done, ensure_ascii=False)}\n\n"
 

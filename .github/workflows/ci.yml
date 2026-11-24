@@ -45,7 +45,7 @@ jobs:
         run: uv run alembic upgrade head
 
       - name: Run tests
-        run: uv run pytest
+        run: uv run pytest --cov
 
   # Runs independently of the backend job: the client has no Python and the
   # backend has no TypeScript, so a failure in one should not hide the other.

@@ -30,6 +30,7 @@ dev = [
     # warning. Same library, new distribution name for its 2.x line.
     "httpx2>=2.9.0",
     "ruff>=0.7.0",
+    "pytest-cov>=6.0",
 ]
 
 [build-system]
@@ -62,3 +63,11 @@ ignore = ["B008"] # FastAPI's Depends() in argument defaults is idiomatic
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+
+# `uv run pytest --cov` measures the app and the retrieval package, the code the tests are for.
+# CI fails below 90%: well above the 70% the diploma asks for, and below today's 97%.
+[tool.coverage.run]
+source = ["app", "rag"]
+
+[tool.coverage.report]
+fail_under = 90
