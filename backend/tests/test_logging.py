@@ -5,8 +5,10 @@ the key events of the API. The tests assert the record is emitted at all, since 
 otherwise silent, and assert what must *not* appear in it, which matters more.
 """
 
+import io
 import json
 import logging
+import logging.config
 import sys
 from collections.abc import Callable, Generator
 from pathlib import Path
@@ -307,3 +309,71 @@ def test_pruning_sessions_is_an_event(admin_client: TestClient, events) -> None:
 
     [event] = events("sessions_pruned")
     assert event.removed == 0
+
+
+# --- where the lines go -----------------------------------------------------
+
+
+def test_the_app_writes_its_lines_to_stdout() -> None:
+    """A host such as Railway files every plain line on stderr as an error."""
+    logger = logging.getLogger(LOGGER_NAMESPACE)
+    kept = logger.handlers[:]
+    logger.handlers.clear()
+    try:
+        configure_logging("INFO")
+        [handler] = logger.handlers
+        assert handler.stream is sys.stdout
+    finally:
+        logger.handlers[:] = kept
+
+
+UVICORN_LOG_CONFIG = Path(__file__).parents[1] / "uvicorn-log.json"
+UVICORN_LOGGERS = ("uvicorn", "uvicorn.error", "uvicorn.access")
+
+
+@pytest.fixture(name="uvicorn_lines")
+def uvicorn_lines_fixture() -> Generator[io.StringIO, None, None]:
+    """uvicorn's loggers set up from the image's file, writing to a buffer, then put back."""
+    saved = {
+        name: (logger.handlers[:], logger.level, logger.propagate, logger.disabled)
+        for name in UVICORN_LOGGERS
+        for logger in [logging.getLogger(name)]
+    }
+    config = json.loads(UVICORN_LOG_CONFIG.read_text(encoding="utf-8"))
+    buffer = io.StringIO()
+    config["handlers"]["stdout"]["stream"] = buffer
+    logging.config.dictConfig(config)
+    yield buffer
+    for name, (handlers, level, propagate, disabled) in saved.items():
+        logger = logging.getLogger(name)
+        logger.handlers[:] = handlers
+        logger.setLevel(level)
+        logger.propagate = propagate
+        logger.disabled = disabled
+
+
+def test_the_image_writes_uvicorns_start_line_as_json(uvicorn_lines: io.StringIO) -> None:
+    logging.getLogger("uvicorn.error").info(
+        "Uvicorn running on %s", "http://0.0.0.0:8000", extra={"color_message": "\x1b[1mcolour"}
+    )
+
+    line = json.loads(uvicorn_lines.getvalue())
+    assert line["level"] == "INFO"
+    assert line["message"] == "Uvicorn running on http://0.0.0.0:8000"
+    assert "color_message" not in line
+
+
+def test_the_image_writes_each_request_as_json(uvicorn_lines: io.StringIO) -> None:
+    logging.getLogger("uvicorn.access").info(
+        '%s - "%s %s HTTP/%s" %d', "10.0.0.1:5000", "GET", "/health", "1.1", 200
+    )
+
+    line = json.loads(uvicorn_lines.getvalue())
+    assert line["logger"] == "uvicorn.access"
+    assert line["message"] == '10.0.0.1:5000 - "GET /health HTTP/1.1" 200'
+
+
+def test_the_image_config_leaves_the_apps_own_loggers_on(uvicorn_lines: io.StringIO) -> None:
+    """`disable_existing_loggers` defaults to true, and would switch off every libra logger."""
+    assert logging.getLogger(LOGGER_NAMESPACE).disabled is False
+    assert get_logger("app.routers.books").disabled is False

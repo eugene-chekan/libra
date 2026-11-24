@@ -2,6 +2,7 @@
 
 import json
 import logging
+import sys
 from datetime import UTC, datetime
 
 LOGGER_NAMESPACE = "libra"
@@ -13,10 +14,12 @@ _FORMAT = "%(asctime)s %(levelname)-8s %(name)s: %(message)s"
 # the fileConfig fix in alembic/env.py.
 _FOREIGN_LOGGERS = ("uvicorn", "uvicorn.access", "uvicorn.error")
 
-# Every attribute a plain LogRecord has. Anything else on a record came from `extra=`.
+# Every attribute a plain LogRecord has. Anything else on a record came from `extra=`, except
+# `color_message`: uvicorn adds it to its own records, as the message with terminal colour codes.
 _STANDARD_FIELDS = set(logging.LogRecord("", 0, "", 0, "", (), None).__dict__) | {
     "message",
     "asctime",
+    "color_message",
 }
 
 
@@ -60,7 +63,9 @@ def configure_logging(level: str, log_format: str = "text") -> None:
 
     formatter = JsonFormatter() if log_format == "json" else logging.Formatter(_FORMAT)
     if not logger.handlers:
-        handler = logging.StreamHandler()
+        # stdout, not the default stderr: a host such as Railway files every plain line on stderr
+        # as an error, whatever it says.
+        handler = logging.StreamHandler(sys.stdout)
         logger.addHandler(handler)
     for handler in logger.handlers:
         handler.setFormatter(formatter)

@@ -80,10 +80,15 @@ ENV LIBRA_BUILD=$LIBRA_BUILD
 # One JSON object per log line, so `docker compose logs` can be read by a log collector.
 ENV LIBRA_LOG_FORMAT=json
 
+# uvicorn's own lines (start, stop, each request) as JSON on stdout too, with the app's
+# formatter. Its default writes them as plain text, and the start and stop lines to stderr,
+# which a host such as Railway files as errors.
+COPY backend/uvicorn-log.json /app/uvicorn-log.json
+
 EXPOSE 8000
 
 # The slim image has no curl, so Python makes the request.
 HEALTHCHECK --interval=30s --timeout=5s --start-period=20s --retries=3 \
   CMD ["python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=3)"]
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--log-config", "/app/uvicorn-log.json"]
