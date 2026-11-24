@@ -66,6 +66,12 @@ def upload_book(
         raise HTTPException(status_code=413, detail=str(exc)) from exc
     except InvalidEpubError as exc:
         raise HTTPException(status_code=422, detail=f"Invalid EPUB: {exc}") from exc
+    log.info(
+        "%s added the book %s",
+        user.username,
+        book.id,
+        extra={"event": "book_uploaded", "book_id": book.id, "by_user_id": user.id},
+    )
     return library.get_book(session, book.id, user)
 
 
@@ -328,6 +334,13 @@ def send_to_kindle(
     except SendFailedError as exc:
         raise HTTPException(status_code=502, detail=str(exc)) from exc
 
+    # The Kindle address is personal data, so the log names the reader by id only.
+    log.info(
+        "Book %s sent to the Kindle of user %s",
+        book_id,
+        user.id,
+        extra={"event": "book_sent_to_kindle", "book_id": book_id, "user_id": user.id},
+    )
     return KindleDeliveryRead(book_id=book_id, sent_to=user.kindle_email, attempted_at=attempted_at)
 
 
@@ -343,12 +356,24 @@ def update_book(
     if book is None:
         raise HTTPException(status_code=404, detail="Book not found")
 
-    for key, value in update.model_dump(exclude_unset=True).items():
+    fields = update.model_dump(exclude_unset=True)
+    for key, value in fields.items():
         setattr(book, key, value)
 
     session.add(book)
     session.commit()
     session.refresh(book)
+    log.info(
+        "%s edited the book %s",
+        user.username,
+        book_id,
+        extra={
+            "event": "book_updated",
+            "book_id": book_id,
+            "by_user_id": user.id,
+            "fields": sorted(fields),
+        },
+    )
     return library.get_book(session, book_id, user)
 
 
@@ -357,10 +382,16 @@ def delete_book(
     book_id: int,
     session: Session = Depends(get_session),
     settings: Settings = Depends(get_settings),
-    _: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ) -> None:
     """Remove a book, its file, and everything readers had on it."""
     try:
         library.delete_book(session, book_id, settings)
     except library.BookNotFoundError as exc:
         raise HTTPException(status_code=404, detail="Book not found") from exc
+    log.info(
+        "%s deleted the book %s",
+        admin.username,
+        book_id,
+        extra={"event": "book_deleted", "book_id": book_id, "by_user_id": admin.id},
+    )

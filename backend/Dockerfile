@@ -77,6 +77,9 @@ ENTRYPOINT ["docker-entrypoint.sh"]
 ARG LIBRA_BUILD=""
 ENV LIBRA_BUILD=$LIBRA_BUILD
 
+# One JSON object per log line, so `docker compose logs` can be read by a log collector.
+ENV LIBRA_LOG_FORMAT=json
+
 EXPOSE 8000
 
 # The slim image has no curl, so Python makes the request.

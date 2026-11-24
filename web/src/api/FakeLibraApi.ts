@@ -1,3 +1,4 @@
+import { checkKindleEmail } from '../widgets/KindleEmailModal'
 import { ApiError } from './errors'
 import type { LibraApi } from './LibraApi'
 import type {
@@ -175,6 +176,27 @@ interface FakeOptions {
 }
 
 /** The in-memory server. It enforces the real one's rules, including the surprising ones. */
+/**
+ * What the HTTP client makes of the server's answer to a field that fails its check: a 422 whose
+ * `detail` is a list, not a sentence, so `readDetail` falls back to the status line.
+ */
+const FIELD_CHECK_FAILED = 'Request failed (422).'
+
+/** The server's rule for a title or an author: trimmed, and never empty. */
+function requiredText(value: string): string {
+  const trimmed = value.trim()
+  if (!trimmed) throw new ApiError(422, FIELD_CHECK_FAILED)
+  return trimmed
+}
+
+/** The server's rule for a Kindle address: trimmed, empty means none, and it must look like one. */
+function kindleAddress(value: string | null | undefined): string | null {
+  const trimmed = (value ?? '').trim()
+  if (!trimmed) return null
+  if (checkKindleEmail(trimmed) !== null) throw new ApiError(422, FIELD_CHECK_FAILED)
+  return trimmed
+}
+
 export class FakeLibraApi implements LibraApi {
   private handler: (() => void) | null = null
 
@@ -346,7 +368,7 @@ export class FakeLibraApi implements LibraApi {
       user.password = patch.password
     }
 
-    if ('kindle_email' in patch) user.kindle_email = patch.kindle_email ?? null
+    if ('kindle_email' in patch) user.kindle_email = kindleAddress(patch.kindle_email)
     if ('is_admin' in patch && patch.is_admin !== undefined) user.is_admin = patch.is_admin
 
     return publicUser(user)
@@ -375,7 +397,7 @@ export class FakeLibraApi implements LibraApi {
       username,
       password: newUser.password,
       is_admin: newUser.is_admin ?? false,
-      kindle_email: newUser.kindle_email ?? null,
+      kindle_email: kindleAddress(newUser.kindle_email),
     })
     this.users.push(created)
     return publicUser(created)
@@ -624,8 +646,8 @@ export class FakeLibraApi implements LibraApi {
     if (!caller.is_admin) throw new ApiError(403, 'Admin only')
 
     const book = this.requireBook(id)
-    if (patch.title !== undefined) book.title = patch.title
-    if (patch.author !== undefined) book.author = patch.author
+    if (patch.title !== undefined) book.title = requiredText(patch.title)
+    if (patch.author !== undefined) book.author = requiredText(patch.author)
     if ('year' in patch) book.year = patch.year ?? null
     if ('pages' in patch) book.pages = patch.pages ?? null
     if ('blurb' in patch) book.blurb = patch.blurb ?? null

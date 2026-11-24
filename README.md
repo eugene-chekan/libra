@@ -152,6 +152,7 @@ file in `backend/`):
 | `LIBRA_MAX_UPLOAD_BYTES` | `104857600` (100 MB) | Upload size ceiling |
 | `LIBRA_AUTO_UPGRADE_DB` | `true` | Apply pending migrations on startup |
 | `LIBRA_LOG_LEVEL` | `INFO` | Level for the app's own logs; uvicorn's request logging is separate |
+| `LIBRA_LOG_FORMAT` | `text` | `json` for one JSON object per log line; the Docker image sets it |
 | `LIBRA_CORS_ORIGINS` | `[]` | Browser origins allowed to call the API, as JSON |
 | `LIBRA_SESSION_TTL_DAYS` | `14` | How long a login lasts |
 | `LIBRA_SESSION_COOKIE_SECURE` | `false` | Set `true` when serving over HTTPS |
@@ -298,18 +299,36 @@ enumerated and there is no permissive default.
 ### Logs
 
 Written to stdout under the `libra.*` namespace, alongside uvicorn's own
-request logging — read them with `docker compose logs -f` or journald. There
+request logging. Read them with `docker compose logs -f` or journald. There
 are no log files to rotate.
 
-The app logs sparingly, and only where it deliberately carries on after
-something went wrong and would otherwise say nothing:
+**Two formats.** `LIBRA_LOG_FORMAT=text` (the default) writes one readable
+line per record. `LIBRA_LOG_FORMAT=json` writes one JSON object per line, for
+a log collector: `time`, `level`, `logger`, `message`, the event's own fields,
+and `exception` with the traceback when there is one. The Docker image uses
+`json`.
 
-- a stored file that could not be deleted, leaving a stray file on disk
-- a commit falling back from a rename to a copy, meaning `LIBRA_LIBRARY_DIR`
-  is on a different mount from the system temp directory
-- an orphaned file cleaned up after a failed database insert
-- a rejected login, with the attempted username but never the password
-- a schema upgrade actually applying on startup
+```json
+{"time": "2026-11-24T20:13:45.715+00:00", "level": "INFO", "logger": "libra.routers.books", "message": "anna added the book 1", "event": "book_uploaded", "book_id": 1, "by_user_id": 1}
+```
+
+**What is logged.**
+
+- Key events, at INFO, each with an `event` name: `sign_in`, `sign_out`,
+  `user_created`, `user_updated`, `user_deleted`, `book_uploaded`,
+  `book_updated`, `book_deleted`, `book_sent_to_kindle`,
+  `librarian_question`, `sessions_pruned`, `database_vacuumed`,
+  `orphan_deleted`.
+- An error that no route handled, at ERROR, with its traceback
+  (`unhandled_error`). The client gets only "The server ran into a problem."
+- The places where the app carries on after something went wrong: a stored
+  file that could not be deleted, a commit falling back from a rename to a
+  copy, an orphaned file cleaned up after a failed insert, a rejected login,
+  and a schema upgrade applying on startup.
+
+**What is never logged:** a password, a session token, the text of a note or
+of a question to the librarian, or a Kindle address. A changed account logs
+the names of the changed fields, never their values.
 
 Set `LIBRA_LOG_LEVEL=DEBUG` for more, `WARNING` for less. It governs only the
 app's own loggers; uvicorn's access log is configured by uvicorn.
@@ -442,6 +461,9 @@ cd backend
 uv run pytest
 uv run ruff check .
 ```
+
+`uv run pytest --cov` also measures how much of `app` and `rag` the tests run, and fails
+below 90%. CI runs it that way. On 2026-11-24 it was 97%.
 
 ### Git hooks
 

@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pathlib import Path
+from typing import Literal
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -27,6 +28,8 @@ class Settings(BaseSettings):
     build: str = ""
 
     log_level: str = "INFO"
+    # "json" writes one JSON object per line, for a log collector; the Docker image uses it.
+    log_format: Literal["text", "json"] = "text"
 
     # A fastembed model name, and where fastembed keeps the files it downloads.
     embedding_model: str = "BAAI/bge-base-en-v1.5"

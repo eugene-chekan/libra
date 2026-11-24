@@ -307,6 +307,24 @@ describe('FakeLibraApi.updateBook', () => {
     expect(updated.rating).toBe(5)
     expect(updated.progress).toBe(0.5)
   })
+  it.each(['', '   '])('refuses an empty title, as the server does: %j', async (title) => {
+    const admin = fakeUser({ is_admin: true })
+    const book = fakeBook({ title: 'Dune' })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin, books: [book] })
+
+    await expect(api.updateBook(book.id, { title })).rejects.toMatchObject({ status: 422 })
+    expect(book.title).toBe('Dune')
+  })
+
+  it('trims the title and the author, as the server does', async () => {
+    const admin = fakeUser({ is_admin: true })
+    const book = fakeBook({ title: 'Dune' })
+    const api = new FakeLibraApi({ users: [admin], signedInAs: admin, books: [book] })
+
+    const updated = await api.updateBook(book.id, { title: '  Dune  ', author: ' F. Herbert ' })
+
+    expect(updated).toMatchObject({ title: 'Dune', author: 'F. Herbert' })
+  })
 })
 
 describe('FakeLibraApi.deleteBook', () => {
@@ -721,6 +739,25 @@ describe('FakeLibraApi.updateUser', () => {
     const api = new FakeLibraApi({ users: [admin], signedInAs: admin })
 
     expect(await api.updateUser(1, { is_admin: true })).toMatchObject({ is_admin: true })
+  })
+  it('refuses a Kindle address that is not an address, as the server does', async () => {
+    const reader = fakeUser({ id: 1, kindle_email: 'me@kindle.com' })
+    const api = new FakeLibraApi({ users: [reader], signedInAs: reader })
+
+    await expect(api.updateUser(1, { kindle_email: 'not-an-address' })).rejects.toMatchObject({
+      status: 422,
+    })
+    expect((await api.me()).kindle_email).toBe('me@kindle.com')
+  })
+
+  it('trims a Kindle address, and turns an empty one into none', async () => {
+    const reader = fakeUser({ id: 1 })
+    const api = new FakeLibraApi({ users: [reader], signedInAs: reader })
+
+    expect(await api.updateUser(1, { kindle_email: ' me@kindle.com ' })).toMatchObject({
+      kindle_email: 'me@kindle.com',
+    })
+    expect(await api.updateUser(1, { kindle_email: '' })).toMatchObject({ kindle_email: null })
   })
 })
 

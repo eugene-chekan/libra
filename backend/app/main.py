@@ -1,8 +1,9 @@
 import mimetypes
 from contextlib import asynccontextmanager
 
-from fastapi import APIRouter, FastAPI
+from fastapi import APIRouter, FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from fastapi.staticfiles import StaticFiles
 from starlette.exceptions import HTTPException
 from starlette.responses import Response
@@ -25,6 +26,10 @@ from app.routers import (
 from app.version import VERSION
 
 log = get_logger(__name__)
+
+# The sentence the client shows for any error no route handled. It says nothing about the cause,
+# which stays in the log.
+SERVER_FAULT = "The server ran into a problem. Try again in a moment."
 
 # Python's mimetypes table predates woff2 on most systems, so StaticFiles would
 # guess `application/octet-stream` for every font the client ships. Browsers
@@ -65,12 +70,25 @@ class SpaStaticFiles(StaticFiles):
             return await super().get_response("index.html", scope)
 
 
+async def unhandled_error(request: Request, exc: Exception) -> JSONResponse:
+    """Answer an error no route handled with JSON, and log it with its traceback."""
+    log.error(
+        "Unhandled error on %s %s",
+        request.method,
+        request.url.path,
+        exc_info=exc,
+        extra={"event": "unhandled_error", "method": request.method, "path": request.url.path},
+    )
+    return JSONResponse({"detail": SERVER_FAULT}, status_code=500)
+
+
 def create_app() -> FastAPI:
     """Build the application: middleware, routes, and the client in front."""
     settings = get_settings()
-    configure_logging(settings.log_level)
+    configure_logging(settings.log_level, settings.log_format)
 
     app = FastAPI(title="libra", version=VERSION, lifespan=lifespan)
+    app.add_exception_handler(Exception, unhandled_error)
 
     app.add_middleware(
         CORSMiddleware,

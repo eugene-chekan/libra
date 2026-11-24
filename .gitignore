@@ -1,5 +1,7 @@
 # Python
 __pycache__/
+# Coverage data written by `uv run pytest --cov`
+.coverage
 *.py[cod]
 *.egg-info/
 .venv/

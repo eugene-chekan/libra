@@ -8,6 +8,7 @@ covered in test_permissions.py.
 
 from pathlib import Path
 
+import pytest
 from fastapi.testclient import TestClient
 
 from tests.epub_factory import epub_bytes
@@ -99,3 +100,30 @@ def test_patch_answers_with_the_callers_own_state(admin_client: TestClient) -> N
     assert body["title"] == "Dune (1965)"
     assert body["rating"] == 5
     assert body["progress"] == 0.5
+
+
+@pytest.mark.parametrize("field", ["title", "author"])
+@pytest.mark.parametrize("value", ["", "   ", None])
+def test_patch_refuses_to_empty_a_field_a_book_cannot_be_without(
+    admin_client: TestClient, field: str, value: str | None
+) -> None:
+    created = admin_client.post("/books", json=BOOK_PAYLOAD).json()
+
+    response = admin_client.patch(f"/books/{created['id']}", json={field: value})
+
+    assert response.status_code == 422
+    assert admin_client.get(f"/books/{created['id']}").json()[field] == BOOK_PAYLOAD[field]
+
+
+def test_patch_trims_the_title(admin_client: TestClient) -> None:
+    created = admin_client.post("/books", json=BOOK_PAYLOAD).json()
+
+    response = admin_client.patch(f"/books/{created['id']}", json={"title": "  Dune  "})
+
+    assert response.json()["title"] == "Dune"
+
+
+def test_creating_a_book_with_an_empty_title_is_refused(admin_client: TestClient) -> None:
+    response = admin_client.post("/books", json={**BOOK_PAYLOAD, "title": "  "})
+
+    assert response.status_code == 422

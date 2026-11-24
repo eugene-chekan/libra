@@ -10,9 +10,12 @@ from app.auth import (
     require_admin,
 )
 from app.db import get_session
+from app.logging_config import get_logger
 from app.models import User, UserCreate, UserRead, UserUpdate
 
 router = APIRouter(prefix="/users", tags=["users"])
+
+log = get_logger(__name__)
 
 
 @router.get("", response_model=list[UserRead])
@@ -27,7 +30,7 @@ def list_users(
 def create_user(
     new_user: UserCreate,
     session: Session = Depends(get_session),
-    _: User = Depends(require_admin),
+    admin: User = Depends(require_admin),
 ) -> User:
     """Create an account."""
     username = normalise_username(new_user.username)
@@ -47,6 +50,12 @@ def create_user(
     session.add(user)
     session.commit()
     session.refresh(user)
+    log.info(
+        "%s created the account %s",
+        admin.username,
+        user.username,
+        extra={"event": "user_created", "user_id": user.id, "by_user_id": admin.id},
+    )
     return user
 
 
@@ -85,6 +94,18 @@ def update_user(
     session.add(user)
     session.commit()
     session.refresh(user)
+    log.info(
+        "%s changed the account %s",
+        caller.username,
+        user.username,
+        extra={
+            "event": "user_updated",
+            "user_id": user.id,
+            "by_user_id": caller.id,
+            # The names of the fields, never their values: one of them can be a password.
+            "fields": sorted(update.model_dump(exclude_unset=True)),
+        },
+    )
     return user
 
 
@@ -101,3 +122,9 @@ def delete_user(
         raise HTTPException(status_code=404, detail="User not found") from exc
     except library.SelfDeletionError as exc:
         raise HTTPException(status_code=409, detail="Cannot delete your own account") from exc
+    log.info(
+        "%s deleted the account %s",
+        caller.username,
+        user_id,
+        extra={"event": "user_deleted", "user_id": user_id, "by_user_id": caller.id},
+    )
