@@ -52,10 +52,10 @@ cd libra
 ```
 
 ```bash
-LIBRA_VERSION=0.2.5 docker compose -f scripts/docker-compose.yml up -d
+LIBRA_VERSION=0.2.6 docker compose -f scripts/docker-compose.yml up -d
 ```
 
-Docker downloads the image of release 0.2.5. Then create the first account.
+Docker downloads the image of release 0.2.6. Then create the first account.
 The command asks for a password:
 
 ```bash

@@ -55,10 +55,16 @@ cd libra
 ```
 
 ```bash
-LIBRA_ADMIN_PASSWORD=choose-one docker compose -f scripts/docker-compose.yml up --build
+docker compose -f scripts/docker-compose.yml up --build -d
 ```
 
-Open http://localhost:8000 and sign in as `admin` with the password you chose.
+Then create the first account. The command asks for a password:
+
+```bash
+docker compose -f scripts/docker-compose.yml exec backend python -m app.cli create-admin --username admin
+```
+
+Open http://localhost:8000 and sign in as `admin` with that password.
 
 ### Way 3: from the source code
 
@@ -191,6 +197,12 @@ text:
 ```json
 {"time": "2026-11-24T20:13:45.715+00:00", "level": "INFO", "logger": "libra.routers.books", "message": "anna added the book 1", "event": "book_uploaded", "book_id": 1, "by_user_id": 1}
 ```
+
+Every line goes to stdout, and in the image uvicorn's own lines (start, stop,
+each request) are JSON too ([`uvicorn-log.json`](https://github.com/eugene-chekan/libra/blob/main/backend/uvicorn-log.json)).
+So Railway reads each line's real level, and its log page can filter by any
+field, such as `@event:book_uploaded` or `@level:error`. CI fails if the image
+writes anything to stderr.
 
 - **Key events**, each with an `event` name: `sign_in`, `sign_out`,
   `user_created`, `user_updated`, `user_deleted`, `book_uploaded`,
