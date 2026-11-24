@@ -12,7 +12,7 @@ The project aims at the **minimum requirements (5 points)**.
 | The web client | the folder [`web/`](https://github.com/eugene-chekan/libra/tree/main/web) on the branch `main` |
 | This page | the folder `docs/frontend/` on the branch `docs/diploma` |
 | The API the client uses | [api.md](api.md), and the full schema [openapi.json](openapi.json) |
-| Deployed application | https://libra-production-7f573af6.up.railway.app, on Railway. Sign in with the demo account that comes with this page |
+| **Deployed application** | **[https://libra-production-7f573af6.up.railway.app](https://libra-production-7f573af6.up.railway.app)**, on Railway. Sign in with the demo account that comes with this page |
 
 ## Which part is the diploma's work
 
@@ -37,7 +37,21 @@ name it first, in bold.
 
 ## How to run
 
-The quickest is the deployed copy at https://libra-production-7f573af6.up.railway.app. To run it yourself, there are three ways.
+### The deployed copy
+
+Open **[https://libra-production-7f573af6.up.railway.app](https://libra-production-7f573af6.up.railway.app)** and sign in with the demo account that comes with this
+page. It runs release 0.2.6, built from `main`, and the library holds a few
+public-domain books. Things to try:
+
+- **The Librarian:** the "Librarian" button in the sidebar opens the panel over
+  the page. Ask a question, and the reply streams in.
+- **Forms and validation:** open a book and edit it, or set a Kindle address
+  in the account menu.
+- **The phone layout:** make the window narrower than 768 px.
+- **The API:** [https://libra-production-7f573af6.up.railway.app/docs](https://libra-production-7f573af6.up.railway.app/docs) lists every call, and each one can be tried
+  there.
+
+To run it yourself, there are three ways.
 
 ### Way 1: the ready Docker image
 
