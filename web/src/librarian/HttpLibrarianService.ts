@@ -1,4 +1,4 @@
-import { ApiError, readDetail } from '../api/errors'
+import { networkFailure, responseFailure } from '../api/errors'
 import type { Conversation } from '../api/types'
 import type { LibrarianEvent, LibrarianService } from './LibrarianService'
 
@@ -7,20 +7,22 @@ const BASE = '/api'
 /** The real client: fetches the conversation, and parses the librarian's SSE reply stream by hand, since `EventSource` cannot POST a body. */
 export class HttpLibrarianService implements LibrarianService {
   async getConversation(): Promise<Conversation> {
-    const response = await this.fetch(`${BASE}/conversations/mine`, { credentials: 'include' })
-    if (!response.ok) throw new ApiError(response.status, await readDetail(response))
+    const path = `${BASE}/conversations/mine`
+    const response = await this.fetch(path, { credentials: 'include' })
+    if (!response.ok) throw await responseFailure(`GET ${path}`, response)
     return (await response.json()) as Conversation
   }
 
   async *sendMessage(conversationId: number, content: string): AsyncGenerator<LibrarianEvent> {
-    const response = await this.fetch(`${BASE}/conversations/${conversationId}/messages`, {
+    const path = `${BASE}/conversations/${conversationId}/messages`
+    const response = await this.fetch(path, {
       method: 'POST',
       credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ content }),
     })
     if (!response.ok || !response.body) {
-      throw new ApiError(response.status, await readDetail(response))
+      throw await responseFailure(`POST ${path}`, response)
     }
 
     const reader = response.body.getReader()
@@ -40,12 +42,12 @@ export class HttpLibrarianService implements LibrarianService {
     }
   }
 
-  /** `fetch`, with a network failure turned into the same `ApiError(0, ...)` `HttpLibraApi` throws. */
+  /** `fetch`, with a network failure turned into the same error `HttpLibraApi` throws. */
   private async fetch(path: string, init: RequestInit): Promise<Response> {
     try {
       return await fetch(path, init)
     } catch {
-      throw new ApiError(0, 'Could not reach the server.')
+      throw networkFailure(`${init.method ?? 'GET'} ${path}`)
     }
   }
 }

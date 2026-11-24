@@ -724,6 +724,18 @@ Placed **where the content would have been** — never as a toast. A toast that
 vanishes is unhelpful for something the reader may need to act on, and this
 app has no notification region.
 
+**A crash gets a page of its own.** An error thrown while a component renders
+is not a failed request, so no screen can show it. `ErrorBoundary`, around the
+whole app, catches it and shows a card in the same error shape: "Something went
+wrong", one sentence, and a "Reload the page" button.
+
+**Every failure is written to the browser console**, with `libra:` in front.
+`errors.ts` builds every request error in one place, and logs it there: a
+network failure or a 5xx as an error, any other refusal as a warning. A 401 is
+not logged, because every visit before signing in gets one. A 5xx with no
+sentence of its own shows "The server ran into a problem. Try again in a
+moment." in place of a bare status line.
+
 ### Empty library, first run
 
 Centered in the content pane, 60px vertical padding:

@@ -25,6 +25,7 @@ import { RequireSession } from './session/RequireSession'
 import { SessionProvider } from './session/SessionProvider'
 import { AppShell } from './shell/AppShell'
 import { NotFoundScreen } from './screens/screens'
+import { ErrorBoundary } from './widgets/ErrorBoundary'
 
 /** The route table. */
 export function AppRoutes() {
@@ -61,21 +62,23 @@ export function App() {
   const [bookReader] = useState(() => new EpubBookReader(api))
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <ApiProvider api={api}>
-        <LibrarianServiceProvider service={librarianService}>
-          <BrowserRouter>
-            <SessionProvider>
-              <LibrarianProvider>
-                <BookReaderProvider reader={bookReader}>
-                  <AppRoutes />
-                </BookReaderProvider>
-                <LibrarianPanel />
-              </LibrarianProvider>
-            </SessionProvider>
-          </BrowserRouter>
-        </LibrarianServiceProvider>
-      </ApiProvider>
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <ApiProvider api={api}>
+          <LibrarianServiceProvider service={librarianService}>
+            <BrowserRouter>
+              <SessionProvider>
+                <LibrarianProvider>
+                  <BookReaderProvider reader={bookReader}>
+                    <AppRoutes />
+                  </BookReaderProvider>
+                  <LibrarianPanel />
+                </LibrarianProvider>
+              </SessionProvider>
+            </BrowserRouter>
+          </LibrarianServiceProvider>
+        </ApiProvider>
+      </QueryClientProvider>
+    </ErrorBoundary>
   )
 }
