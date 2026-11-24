@@ -1,4 +1,4 @@
-import { ApiError, readDetail } from './errors'
+import { networkFailure, responseFailure } from './errors'
 import type { LibraApi } from './LibraApi'
 import type {
   Book,
@@ -231,17 +231,18 @@ export class HttpLibraApi implements LibraApi {
   /** The tail every request shares, JSON or not: the fetch itself, and turning the response into
    *  a value or an {@link ApiError}. */
   private async request<T>(path: string, init: RequestInit, base: string = BASE): Promise<T> {
+    const what = `${init.method ?? 'GET'} ${base + path}`
     let response: Response
     try {
       response = await fetch(base + path, init)
     } catch {
-      throw new ApiError(0, 'Could not reach the server.')
+      throw networkFailure(what)
     }
 
     if (response.status === 401) this.handler?.()
 
     if (!response.ok) {
-      throw new ApiError(response.status, await readDetail(response))
+      throw await responseFailure(what, response)
     }
 
     if (response.status === 204) return undefined as T

@@ -1,0 +1,50 @@
+/* The whole-page fallback when a screen crashes. */
+.page {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  padding: 24px 16px;
+  background: var(--libra-bg);
+}
+
+.card {
+  max-width: 420px;
+  padding: 28px 32px;
+  background: var(--libra-card);
+  border: 1px solid var(--libra-border);
+  border-left: 3px solid var(--libra-danger);
+  border-radius: var(--libra-radius);
+}
+
+.title {
+  font-family: var(--libra-serif);
+  font-size: 26px;
+  font-weight: 400;
+  color: var(--libra-text);
+}
+
+.text {
+  margin-top: 10px;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--libra-text-mid);
+}
+
+.reload {
+  margin-top: 18px;
+  padding: 8px 16px;
+  font-family: var(--libra-sans);
+  font-size: 13px;
+  font-weight: 600;
+  color: #fff;
+  background: var(--libra-accent);
+  border: none;
+  border-radius: var(--libra-radius);
+  cursor: pointer;
+  transition: background var(--libra-t-interactive);
+}
+
+.reload:hover {
+  background: var(--libra-accent-hover);
+}

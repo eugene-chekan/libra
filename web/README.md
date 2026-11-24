@@ -74,7 +74,7 @@ src/
 ├── library/    the grid: BookCard/BookCover, SearchBar, filter state, query hooks
 ├── book/       one book: cover and lightbox, rating, tags, actions, edit form, notes
 ├── shell/      AppShell, Sidebar, AccountRow, and its SHELVES/TAGS filter sections
-├── widgets/    Skeleton, ErrorBlock, EmptyState, Modal, ConfirmDialog, Icon
+├── widgets/    Skeleton, ErrorBlock, ErrorBoundary, EmptyState, Modal, ConfirmDialog, Icon
 │            plus dropdownMenu.module.css — the one menu style, for every menu
 ├── screens/    the routed screens: LoginScreen, LibraryScreen, BookScreen
 ├── routes.ts   every route path, in one place

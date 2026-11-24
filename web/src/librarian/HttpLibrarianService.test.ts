@@ -133,6 +133,18 @@ describe('HttpLibrarianService', () => {
     expect(error).toMatchObject({ status: 404, message: 'Conversation not found' })
   })
 
+  it('writes a failed reply request to the console, naming it', async () => {
+    fetchMock.mockResolvedValue(new Response('Internal Server Error', { status: 500 }))
+    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await drain(new HttpLibrarianService().sendMessage(3, 'next?')).catch(() => {})
+
+    expect(consoleError).toHaveBeenCalledWith(
+      'libra: POST /api/conversations/3/messages failed (500): The server ran into a problem. Try again in a moment.'
+    )
+    consoleError.mockRestore()
+  })
+
   it('reports a network failure fetching the conversation as ApiError(0), not a thrown TypeError', async () => {
     fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
 

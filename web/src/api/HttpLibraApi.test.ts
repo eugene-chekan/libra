@@ -140,6 +140,86 @@ describe('HttpLibraApi', () => {
     expect((error as ApiError).status).toBe(0)
   })
 
+  it('gives a server fault with no sentence a plain one, not a status line', async () => {
+    // An unhandled exception in FastAPI answers 500 with a plain-text body.
+    fetchMock.mockResolvedValue(new Response('Internal Server Error', { status: 500 }))
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(new HttpLibraApi().me()).rejects.toMatchObject({
+      status: 500,
+      message: 'The server ran into a problem. Try again in a moment.',
+    })
+  })
+
+  it('keeps the server’s own sentence on a server fault that has one', async () => {
+    fetchMock.mockResolvedValue(
+      jsonResponse(503, { detail: 'Kindle delivery is not configured on this server' })
+    )
+    vi.spyOn(console, 'error').mockImplementation(() => {})
+
+    await expect(new HttpLibraApi().sendToKindle(4)).rejects.toMatchObject({
+      status: 503,
+      message: 'Kindle delivery is not configured on this server',
+    })
+  })
+
+  describe('writes every failed request to the console', () => {
+    let consoleError: ReturnType<typeof vi.spyOn>
+    let consoleWarn: ReturnType<typeof vi.spyOn>
+
+    beforeEach(() => {
+      consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+      consoleWarn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    })
+
+    afterEach(() => {
+      consoleError.mockRestore()
+      consoleWarn.mockRestore()
+    })
+
+    it('a server fault as an error, naming the request', async () => {
+      fetchMock.mockResolvedValue(new Response('Internal Server Error', { status: 500 }))
+
+      await new HttpLibraApi().getBook(7).catch(() => {})
+
+      expect(consoleError).toHaveBeenCalledWith(
+        'libra: GET /api/books/7 failed (500): The server ran into a problem. Try again in a moment.'
+      )
+    })
+
+    it('a network failure as an error', async () => {
+      fetchMock.mockRejectedValue(new TypeError('Failed to fetch'))
+
+      await new HttpLibraApi().listBooks().catch(() => {})
+
+      expect(consoleError).toHaveBeenCalledWith(
+        'libra: GET /api/books failed (0): Could not reach the server.'
+      )
+    })
+
+    it('a refusal as a warning, not an error', async () => {
+      fetchMock.mockResolvedValue(
+        jsonResponse(409, { detail: 'You already have a shelf with that name' })
+      )
+
+      await new HttpLibraApi().createShelf({ name: 'Fav', visibility: 'private' }).catch(() => {})
+
+      expect(consoleWarn).toHaveBeenCalledWith(
+        'libra: POST /api/shelves was refused (409): You already have a shelf with that name'
+      )
+      expect(consoleError).not.toHaveBeenCalled()
+    })
+
+    it('nothing for a 401, which every visit before signing in gets', async () => {
+      fetchMock.mockResolvedValue(jsonResponse(401, { detail: 'Not authenticated' }))
+
+      await new HttpLibraApi().me().catch(() => {})
+
+      expect(consoleError).not.toHaveBeenCalled()
+      expect(consoleWarn).not.toHaveBeenCalled()
+    })
+  })
+
   it('fires the registered handler on every 401, including a rejected login', async () => {
     fetchMock.mockResolvedValue(jsonResponse(401, { detail: 'Invalid username or password' }))
     const api = new HttpLibraApi()
