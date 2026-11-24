@@ -151,7 +151,7 @@ They also need a real server with a test account. The steps are in
 | Requirement | Where | Notes |
 |---|---|---|
 | A bundler | [`vite.config.ts`](https://github.com/eugene-chekan/libra/blob/main/web/vite.config.ts) | Vite 8 |
-| Component-based UI | 67 component files in 14 folders | No component holds a whole page of logic |
+| Component-based UI | 68 component files in 14 folders | No component holds a whole page of logic |
 | Reusable components | [`widgets/`](https://github.com/eugene-chekan/libra/tree/main/web/src/widgets): `ErrorBlock`, `Skeleton`, `EmptyState`, `Modal`, `ConfirmDialog`, `Tooltip`, `Icon` | `ErrorBlock` alone is used in 12 files |
 | Layout components | [`AppShell.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/shell/AppShell.tsx) (sidebar and page frame), [`AdminLayout.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/screens/AdminLayout.tsx) (the admin tabs) | |
 | UI library or custom components | Custom components on Radix UI | [Tech stack](#tech-stack-and-why) |
@@ -161,13 +161,13 @@ They also need a real server with a test account. The steps are in
 | Search, filter, sort | [`SearchBar.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/library/SearchBar.tsx) (search by title or author); the sidebar filters by shelf and by tag ([`filterParams.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/library/filterParams.ts)) | Search and filters live in the page address, so a filtered view can be bookmarked. The grid is sorted by title; there is no sort control |
 | Responsive layout | [`breakpoints.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/theme/breakpoints.ts), [`AppShell.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/shell/AppShell.tsx) | Below 768 px the sidebar becomes a drawer, and the **Librarian panel** covers the whole screen. Checked by [`e2e/shell.spec.ts`](https://github.com/eugene-chekan/libra/blob/main/web/e2e/shell.spec.ts) at 390 px and at the 767/768 px edge |
 | ESLint and Prettier | [`eslint.config.js`](https://github.com/eugene-chekan/libra/blob/main/web/eslint.config.js), [`.prettierrc`](https://github.com/eugene-chekan/libra/blob/main/web/.prettierrc) | CI fails on a lint error or a badly formatted file |
-| Basic logging | — | **Not done yet.** See [What is not done yet](#what-is-not-done-yet) |
+| Basic logging | [`api/errors.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/errors.ts), [`ErrorBoundary.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/ErrorBoundary.tsx) | Every failed request and every crash is written to the browser console. [Logging](#logging) |
 
 ### Error handling
 
 | Requirement | Where | Notes |
 |---|---|---|
-| A global error handler | `request()` in [`HttpLibraApi.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/HttpLibraApi.ts) and the 401 handler in [`SessionProvider.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/session/SessionProvider.tsx) | Works like an interceptor: every response passes through it. There is no React error boundary yet |
+| A global error handler | `request()` in [`HttpLibraApi.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/HttpLibraApi.ts) and the 401 handler in [`SessionProvider.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/session/SessionProvider.tsx) for requests; [`ErrorBoundary.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/ErrorBoundary.tsx) for crashes | The request wrapper works like an interceptor: every response passes through it. The error boundary wraps the whole app |
 | Clear messages | [`messageFor()`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/errors.ts), [`ErrorBlock`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/ErrorBlock.tsx) | An inline alert where the action happened, not a toast |
 | 401, 403, 404, 500 | [`errors.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/errors.ts), [`SessionProvider.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/session/SessionProvider.tsx) | [Errors](#errors) |
 | Loading states for every async action | [`Skeleton.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/Skeleton.tsx), **the streamed reply in `MessageBubble.tsx`** | [Loading states](#loading-states) |
@@ -176,7 +176,7 @@ They also need a real server with a test account. The steps are in
 
 | Requirement | Where | Notes |
 |---|---|---|
-| Unit tests, at least 3 key components | **[`LibrarianPanel.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/librarian/LibrarianPanel.test.tsx)**, [`LoginScreen.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/screens/LoginScreen.test.tsx), [`BookEditForm.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/book/BookEditForm.test.tsx), [`AddBookModal.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/addBook/AddBookModal.test.tsx) | 81 test files, 710 tests, all passing on 2026-11-24. [Tests](#tests) |
+| Unit tests, at least 3 key components | **[`LibrarianPanel.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/librarian/LibrarianPanel.test.tsx)**, [`LoginScreen.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/screens/LoginScreen.test.tsx), [`BookEditForm.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/book/BookEditForm.test.tsx), [`AddBookModal.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/addBook/AddBookModal.test.tsx) | 82 test files, 731 tests, all passing on 2026-11-24. [Tests](#tests) |
 | 1–2 e2e tests | **[`e2e/librarian.spec.ts`](https://github.com/eugene-chekan/libra/blob/main/web/e2e/librarian.spec.ts)**, [`e2e/auth.spec.ts`](https://github.com/eugene-chekan/libra/blob/main/web/e2e/auth.spec.ts) | 11 spec files, 74 tests |
 | Forms, states, API logic tested | `BookEditForm.test.tsx` (form), `LibrarianPanel.test.tsx` (states), [`HttpLibrarianService.test.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/librarian/HttpLibrarianService.test.ts) (API logic) | |
 
@@ -185,9 +185,9 @@ They also need a real server with a test account. The steps are in
 | The rubric does not allow | In Libra |
 |---|---|
 | Inline styles without a reason; no CSS architecture | One CSS Module per component, and shared values as CSS variables in [`tokens.css`](https://github.com/eugene-chekan/libra/blob/main/web/src/theme/tokens.css). There are 10 inline `style` attributes, and each one holds a value computed at run time: a progress bar's width, a cover's colour made from the book's number, a chapter's indent |
-| One component for the whole project | 67 components |
+| One component for the whole project | 68 components |
 | Tokens or passwords in the code | None. The session lives in an `HttpOnly` cookie, which the client's code cannot read. The only passwords in the repository are test values for the tests, such as `e2e-password` |
-| Unhandled API errors | Every request goes through `request()`, and every screen shows its error. See [Errors](#errors) |
+| Unhandled API errors | Every request goes through `request()`, every screen shows its error, and every failure is logged. See [Errors](#errors) |
 | `any` without a reason | No `any` in the client's code. ESLint's `typescript-eslint` rules forbid it |
 | Static HTML pages | One HTML page; React builds every screen |
 
@@ -409,16 +409,16 @@ server's sentence.
 | Add a book | [`AddBookModal.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/addBook/AddBookModal.tsx) | The file picker takes only `.epub`. A file that is too large or broken gets the server's sentence |
 | New shelf, new tag, new note | [`ShelfManager.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/shelves/ShelfManager.tsx), [`TagManager.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/tags/TagManager.tsx), [`NotesPanel.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/book/NotesPanel.tsx) | The text is trimmed, and an empty one is not sent. The tag form says "one word, with no spaces" |
 | New account (admin) | [`AddUserRow.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/users/AddUserRow.tsx) | A name and a password are required |
-| Kindle address | [`KindleEmailModal.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/KindleEmailModal.tsx) | The text is trimmed; an empty one removes the address. The form of the address is not checked yet |
+| Kindle address | `checkKindleEmail` in [`KindleEmailModal.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/KindleEmailModal.tsx) | It must look like an e-mail address: one `@`, text on both sides, a dot after it. An empty box removes the address. A failed save keeps the dialog open with the reason |
 
 The server checks the page count, the year, the rating, notes and tag names
 again (status 422). It does not yet check that a title or an author is not
-empty, or the form of a Kindle address. The client's own check is the one
-that holds for these today. This belongs to the back-end block.
+empty, or the form of a Kindle address. For these, the client's own check is
+the one that holds today. This belongs to the back-end block.
 
 ## Errors
 
-Errors are handled in one place, at three levels.
+Errors are handled at four levels.
 
 1. **Every failed request becomes one kind of error.** `request()` in
    [`HttpLibraApi.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/HttpLibraApi.ts)
@@ -439,6 +439,12 @@ Errors are handled in one place, at three levels.
    screen reader reads it out. **The Librarian panel** has its own error card
    in the same form: "Try again" sends the same question again, even after the
    question box was cleared.
+4. **A crash gets a page of its own.** An error thrown while a component
+   builds the screen is not a failed request, so no screen can show it.
+   [`ErrorBoundary`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/ErrorBoundary.tsx)
+   wraps the whole app and catches it. It shows a card in the same error
+   shape: "Something went wrong", one sentence, and a "Reload the page"
+   button. Without it, the page would go blank.
 
 | Status | What the reader sees |
 |---|---|
@@ -447,12 +453,29 @@ Errors are handled in one place, at three levels.
 | 403 | "You are not allowed to do that." Admin pages are also hidden from a reader by the `RequireAdmin` guard |
 | 404 | "That is no longer there." An unknown address shows the "Not found" page |
 | 409, 422 | The server's own sentence, for example "You already have a shelf with that name" |
-| 500 | "Request failed (500)." |
+| 500 and other 5xx | The server's own sentence when it sends one, such as "Kindle delivery is not configured on this server". Otherwise "The server ran into a problem. Try again in a moment." |
 
 Requests are never repeated automatically
 ([`queryClient.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/queryClient.ts)).
 The "Try again" button is the one way to repeat a request, so the reader sees
 what happens.
+
+### Logging
+
+Every failure is written to the browser console, with `libra:` in front, so
+it can be found among other messages.
+
+| What failed | Level | Where | Example line |
+|---|---|---|---|
+| A request that never reached the server | error | `networkFailure()` in [`errors.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/errors.ts) | `libra: GET /api/books failed (0): Could not reach the server.` |
+| A request the server failed (5xx) | error | `responseFailure()` in [`errors.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/errors.ts) | `libra: GET /api/books/7 failed (500): The server ran into a problem. Try again in a moment.` |
+| A request the server refused (4xx) | warning | `responseFailure()` in [`errors.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/errors.ts) | `libra: POST /api/shelves was refused (409): You already have a shelf with that name` |
+| A 401 | not logged | — | Every visit before signing in gets one, so it says nothing |
+| A crash in a component | error | `componentDidCatch()` in [`ErrorBoundary.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/ErrorBoundary.tsx) | `libra: a screen crashed`, then the error and the component it came from |
+
+Both services (`HttpLibraApi` and `HttpLibrarianService`) build their errors
+through the same two functions. So a failed request cannot be shown without
+being logged, and the rule for the level is in one place.
 
 ## Loading states
 
@@ -466,7 +489,7 @@ what happens.
 
 ## Tests
 
-The client has **81 test files with 710 component tests**, all passing on
+The client has **82 test files with 731 component tests**, all passing on
 2026-11-24, and **74 end-to-end tests in 11 files**. CI runs the component
 tests, the type check, the lint and the format check on every pull request.
 
@@ -484,7 +507,9 @@ The Librarian's state and service have their own tests too:
 [`LibrarianProvider.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/librarian/LibrarianProvider.test.tsx)
 and
 [`HttpLibrarianService.test.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/librarian/HttpLibrarianService.test.ts),
-which checks how the event stream is read.
+which checks how the event stream is read, and that a failed request is
+logged. The error boundary has its own tests too:
+[`ErrorBoundary.test.tsx`](https://github.com/eugene-chekan/libra/blob/main/web/src/widgets/ErrorBoundary.test.tsx).
 
 **End-to-end tests.** Playwright drives a real Chromium against a real Libra
 server. Two of them match this requirement best:
@@ -502,14 +527,9 @@ upload, the reader, the phone layout and the admin pages.
 - **The Librarian panel does not show passages yet.** That is Part 2 of the
   diploma, due on 6 January 2027. Today the panel gives fixed example replies
   and says so on screen.
-- **No logging.** The client writes nothing to the browser console when a
-  request or a component fails.
-- **No React error boundary.** An error inside a component's own code (not in
-  a request) is not caught, and the page goes blank. Request errors, the
-  common case, are all handled as described above.
-- **A server error shows "Request failed (500).",** not a sentence in plain
-  words.
-- **The Kindle address is not checked** for the form of an e-mail address. A
-  wrong address fails only when a book is sent.
+- **The server does not check every rule the client checks.** It accepts an
+  empty book title and any Kindle address. The client stops both, so the
+  reader cannot send them, but another program could. This belongs to the
+  back-end block.
 - **No deployed copy.** Libra is built to run at home, so there is no public
   address. The Docker image is the ready-to-run form.
