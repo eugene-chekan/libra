@@ -27,17 +27,21 @@ def isolate_real_settings(tmp_path_factory: pytest.TempPathFactory) -> Generator
     Per-test fixtures below override the session and settings *dependencies*,
     but app startup still calls `init_db()` against the real engine. Without
     this, running the suite would create a stray libra.db and library/ in the
-    repo. Caches are cleared so the new env is picked up and again on the way
-    out so nothing leaks into another session.
+    repo. The web dir points at a path that never exists: the run scripts put a
+    client build in app/web/, and its mount at `/` would catch a route that a
+    test adds after `create_app()`. Caches are cleared so the new env is picked
+    up and again on the way out so nothing leaks into another session.
     """
     root = tmp_path_factory.mktemp("libra-session")
     os.environ["LIBRA_DATABASE_URL"] = f"sqlite:///{root / 'session.db'}"
     os.environ["LIBRA_LIBRARY_DIR"] = str(root / "library")
+    os.environ["LIBRA_WEB_DIR"] = str(root / "no-client-build")
     get_settings.cache_clear()
     get_engine.cache_clear()
     yield
     del os.environ["LIBRA_DATABASE_URL"]
     del os.environ["LIBRA_LIBRARY_DIR"]
+    del os.environ["LIBRA_WEB_DIR"]
     get_settings.cache_clear()
     get_engine.cache_clear()
 
