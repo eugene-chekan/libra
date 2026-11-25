@@ -32,6 +32,10 @@ dev = [
     "httpx2>=2.9.0",
     "ruff>=0.7.0",
 ]
+experiment = [
+    "matplotlib>=3.11.2",
+    "scipy>=1.18.1",
+]
 
 [build-system]
 requires = ["hatchling"]

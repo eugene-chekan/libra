@@ -210,11 +210,36 @@ settings as in "The database", from `backend/`:
   `summary.csv` and `summary.md` (recall@5, recall@10 and MRR@10, for each
   set and genre, and over all of each), and `run.json` (the protocol, prompt and
   chunker versions, the git commit, and the sha256 of every input file).
-- The statistics and charts come from a separate `report` step.
+- The statistics and the chart come from `rag report` (below).
 
 **Do not run it on the real questions until the drafted set is reviewed.**
 Whoever has seen which method wins could keep or drop drafts in its favour
 without noticing. This is the same reason the hand questions came first.
+
+## The report
+
+`rag report` reads a run folder's `ranks.csv` and nothing else. It needs the
+`experiment` dependency group (`scipy`, `matplotlib`), which `uv sync
+--all-groups` installs. It is not in the app or the Docker image. From
+`backend/`:
+
+    uv run python -m app.cli rag report ../experiment/runs/<run-id>
+
+It writes into the run folder, and refuses a folder that has a report:
+
+- `tests.csv`: H1 and H2 in each genre, H3, and H4 (protocol sections 9–10).
+  Each has the mean difference in recall@10, a 95% interval and a two-sided
+  p-value; the main family of five also has its Holm-corrected p-value.
+- `recall.csv`: recall@10 of each method, over all questions and in each
+  genre, with a 95% interval.
+- `recall.png`: the same as a chart.
+- `report.md`: both tables in Markdown, and the chart.
+
+The intervals are percentile bootstrap intervals, 10,000 resamples. The
+p-values come from randomisation tests, 10,000 permutations: for H1 and H2 the
+two methods are swapped inside each question, and for H3 and H4 the group
+labels are shuffled. Every test starts from the seed 20261122, so a report
+gives the same numbers every time.
 
 ## The experiment branch and its build
 

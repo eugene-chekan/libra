@@ -357,6 +357,18 @@ def evaluate_command(
     return 0
 
 
+def report_command(run: Path) -> int:
+    from rag.report import write_report
+
+    try:
+        write_report(run)
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"The report is {run / 'report.md'}.")
+    return 0
+
+
 def _git_commit() -> str | None:
     """The checked-out commit, with "-dirty" when files differ from it; None outside git."""
     import subprocess
@@ -555,6 +567,10 @@ def main(argv: list[str] | None = None) -> int:
         "--workers", type=int, help="Requests at once (default: the most the protocol allows)"
     )
     drafts.add_argument("--limit", type=int, help="Ask for at most this many drafts")
+    report = rag_commands.add_parser(
+        "report", help="Statistics, tables and a chart for a run; needs the experiment group"
+    )
+    report.add_argument("run", type=Path, help="A run folder written by rag evaluate")
     review = rag_commands.add_parser(
         "review", help="Keep, edit or drop each drafted question, one at a time; resumes"
     )
@@ -601,6 +617,8 @@ def main(argv: list[str] | None = None) -> int:
         return draft_questions_command(
             args.corpus_csv, args.hand, args.out, args.workers, args.limit
         )
+    if args.command == "rag" and args.rag_command == "report":
+        return report_command(args.run)
     if args.command == "rag" and args.rag_command == "review":
         return review_command(args.corpus_csv, args.drafts, args.out)
     if args.command == "rag" and args.rag_command == "evaluate":

@@ -620,7 +620,7 @@ All are `uv run python -m app.cli rag <command>`:
 | `judge-pool` | The 50-question checked sample |
 | `judge-descriptors` | The 50-chunk descriptor accuracy sample |
 | `evaluate <corpus.csv> --stats <file> --hand <file> --drafts <file> --review <file> --query-descriptors <file> --descriptors <file> --out <dir>` | Refuses to run until every draft is reviewed. Checks the stored chunks against `corpus-stats.csv`, then ranks every question's source chunk (hand set and drafted set) by all six methods. Writes a new run folder: `ranks.csv`, `summary.csv` and `summary.md` by set and genre, `run.json`. No API. |
-| `report` | Statistics, tables and charts from a run |
+| `report <run-dir>` | From `ranks.csv` alone: H1–H4 with 95% percentile bootstrap intervals and two-sided randomisation p-values (10,000 each, seed 20261122), Holm over the main five; recall@10 per method and genre with intervals; `tests.csv`, `recall.csv`, `recall.png`, `report.md`. Needs the `experiment` dependency group. |
 
 ### Dependencies
 
