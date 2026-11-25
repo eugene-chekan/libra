@@ -7,9 +7,11 @@ real examples.
 - **The full schema** is [`openapi.json`](openapi.json) in this folder: every
   address, every field and every type, in the OpenAPI 3 format. The server
   makes it from its own code.
-- **An interactive page** with the same schema opens at
-  http://localhost:8000/docs while the server runs. Each call can be tried
-  from there.
+- **An interactive page** (Swagger UI) with the same schema is live at
+  [https://libra-production-7f573af6.up.railway.app/docs](https://libra-production-7f573af6.up.railway.app/docs), and at http://localhost:8000/docs on a server you run
+  yourself. Each call can be tried there. A call that needs a session works
+  after you sign in to the app in the same browser, because the page sends the
+  same cookie.
 - **The client's own types** for this data are in
   [`web/src/api/types.ts`](https://github.com/eugene-chekan/libra/blob/main/web/src/api/types.ts).
   The two services that call the API are
