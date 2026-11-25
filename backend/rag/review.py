@@ -110,6 +110,24 @@ def reviewable_drafts(drafts: list[dict]) -> list[dict]:
     )
 
 
+def require_review_done(reviews: list[ReviewRecord], drafts: list[dict]) -> None:
+    """Refuse to search the drafted set before every draft is reviewed.
+
+    Whoever has seen which method wins could keep or drop drafts in its favour.
+
+    Raises:
+        CorpusError: A draft that passed drafting has no review record.
+    """
+    reviewable = reviewable_drafts(drafts)
+    reviewed = {record.id for record in reviews}
+    left = [draft["id"] for draft in reviewable if draft["id"] not in reviewed]
+    if left:
+        raise CorpusError(
+            f"{len(reviewable) - len(left)} of {len(reviewable)} drafts are reviewed; "
+            f"finish the review first (next: {left[0]})"
+        )
+
+
 def run_review(
     session: Session,
     books: list[CorpusBook],

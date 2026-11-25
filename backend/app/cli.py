@@ -203,17 +203,21 @@ def index_command(corpus_csv: Path, stats_csv: Path) -> int:
     return 0
 
 
-def describe_questions_command(hand: Path, out: Path, workers: int | None) -> int:
+def describe_questions_command(
+    hand: Path, review: Path | None, out: Path, workers: int | None
+) -> int:
     import openai
 
     from rag.deepseek import DeepSeek, MissingKeyError, StopRunError
     from rag.descriptors import RUN_WORKERS, run_describe_questions
+    from rag.review import read_reviews
     from rag.smoke import require_hand_set
 
     try:
         deepseek = DeepSeek(get_settings())
-        records = read_records(hand)
-        require_hand_set(records)
+        hand_records = read_records(hand)
+        require_hand_set(hand_records)
+        records = [*hand_records, *(read_reviews(review) if review else [])]
         count = RUN_WORKERS if workers is None else workers
         progress = functools.partial(print, flush=True)
         ok, failed = run_describe_questions(records, deepseek, out, count, progress)
@@ -289,7 +293,14 @@ def import_descriptors_command(corpus_csv: Path, log: Path) -> int:
 
 
 def evaluate_command(
-    corpus_csv: Path, stats_csv: Path, hand: Path, query_log: Path, chunk_log: Path, out: Path
+    corpus_csv: Path,
+    stats_csv: Path,
+    hand: Path,
+    drafts: Path,
+    review: Path,
+    query_log: Path,
+    chunk_log: Path,
+    out: Path,
 ) -> int:
     from rag.descriptors import PROMPT_VERSION, read_log
     from rag.embeddings import load_model
@@ -301,6 +312,7 @@ def evaluate_command(
         summarize,
         write_run,
     )
+    from rag.review import read_reviews, require_review_done
     from rag.search import METHODS, DescriptorIndex, VectorIndex
     from rag.smoke import require_hand_set
 
@@ -309,6 +321,8 @@ def evaluate_command(
         digests = read_digests(stats_csv)
         records = read_records(hand)
         require_hand_set(records)
+        reviews = read_reviews(review)
+        require_review_done(reviews, read_log(drafts))
         queries = read_log(query_log)
         require_new_run(out)
         _open_experiment_database(books)
@@ -318,7 +332,10 @@ def evaluate_command(
             check_stored_chunks(session, books, digests)
             vectors = VectorIndex.load(session, settings.embedding_model)
             descriptors = DescriptorIndex.load(session, PROMPT_VERSION, settings.embedding_model)
-            questions = load_questions(session, records, queries, model, "hand")
+            questions = [
+                *load_questions(session, records, queries, model, "hand"),
+                *load_questions(session, reviews, queries, model, "drafted"),
+            ]
             progress = functools.partial(print, flush=True)
             rows = rank_questions(session, vectors, descriptors, model, questions, progress)
         summary = summarize(rows)
@@ -326,6 +343,8 @@ def evaluate_command(
             "corpus.csv": corpus_csv,
             "corpus-stats.csv": stats_csv,
             "hand.jsonl": hand,
+            "drafts.jsonl": drafts,
+            "review.jsonl": review,
             "query-descriptors.jsonl": query_log,
             "descriptors.jsonl": chunk_log,
         }
@@ -518,6 +537,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     questions.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
     questions.add_argument(
+        "--review", type=Path, help="review.jsonl; its kept and edited drafts are described too"
+    )
+    questions.add_argument(
         "--out", type=Path, required=True, help="The question descriptor log, a .jsonl file"
     )
     questions.add_argument(
@@ -545,6 +567,8 @@ def main(argv: list[str] | None = None) -> int:
     evaluate.add_argument("corpus_csv", type=Path)
     evaluate.add_argument("--stats", type=Path, required=True, help="corpus-stats.csv")
     evaluate.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
+    evaluate.add_argument("--drafts", type=Path, required=True, help="drafts.jsonl")
+    evaluate.add_argument("--review", type=Path, required=True, help="review.jsonl")
     evaluate.add_argument(
         "--query-descriptors", type=Path, required=True, help="The question descriptor log"
     )
@@ -572,7 +596,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.command == "rag" and args.rag_command == "smoke":
         return smoke_command(args.hand, args.sample)
     if args.command == "rag" and args.rag_command == "describe-questions":
-        return describe_questions_command(args.hand, args.out, args.workers)
+        return describe_questions_command(args.hand, args.review, args.out, args.workers)
     if args.command == "rag" and args.rag_command == "draft-questions":
         return draft_questions_command(
             args.corpus_csv, args.hand, args.out, args.workers, args.limit
@@ -584,6 +608,8 @@ def main(argv: list[str] | None = None) -> int:
             args.corpus_csv,
             args.stats,
             args.hand,
+            args.drafts,
+            args.review,
             args.query_descriptors,
             args.descriptors,
             args.out,

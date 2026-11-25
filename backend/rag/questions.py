@@ -8,6 +8,7 @@ from collections.abc import Callable
 from dataclasses import asdict, dataclass
 from datetime import date
 from pathlib import Path
+from typing import Protocol
 
 from rag.chunking import CHUNKER_VERSION, SHORT_CHUNK_WORDS, TextChunk
 from rag.corpus import CorpusBook, CorpusError, frozen_chunks
@@ -21,6 +22,39 @@ REASON_PROMPT = "Why skip? "
 KIND_PROMPT = "Kind (f = factual, i = interpretive): "
 _KIND_KEYS = {kind[0]: kind for kind in QUESTION_KINDS}
 _ID = re.compile(r"hand-(\d{3,})")
+
+# A question the experiment uses: a kept hand question, or a draft the review kept or edited.
+USED_STATUSES = ("kept", "edited")
+
+
+class QuestionRecord(Protocol):
+    """What the descriptors and the evaluation read of a hand or a reviewed question."""
+
+    @property
+    def id(self) -> str: ...
+    @property
+    def status(self) -> str: ...
+    @property
+    def genre(self) -> str: ...
+    @property
+    def book_sha256(self) -> str: ...
+    @property
+    def position(self) -> int: ...
+    @property
+    def chunker_version(self) -> int: ...
+    @property
+    def question(self) -> str | None: ...
+    @property
+    def kind(self) -> str | None: ...
+
+
+def used_questions(records: list[QuestionRecord]) -> list[QuestionRecord]:
+    """The records the experiment asks: kept or edited, with a question and a kind."""
+    return [
+        record
+        for record in records
+        if record.status in USED_STATUSES and record.question is not None and record.kind
+    ]
 
 
 @dataclass(frozen=True)

@@ -142,6 +142,10 @@ Each line of the log names the question's `id`, such as `hand-002`. Like
 `describe`, it sends up to 8 requests at once (`--workers`) and asks only for
 what the log does not hold yet.
 
+After the review, add `--review ../experiment/questions/review.jsonl`: the
+drafts you kept or edited are described too, with the question you kept. A
+dropped draft is not described.
+
 ## Drafting the questions
 
 `rag draft-questions` asks DeepSeek for one question about each of 400 chunks:
@@ -195,13 +199,16 @@ protocol section 5. It reads only saved data: the database, the question
 files and the two descriptor logs. It never calls the API. With the same two
 settings as in "The database", from `backend/`:
 
-    uv run python -m app.cli rag evaluate ../experiment/corpus.csv --stats ../experiment/corpus-stats.csv --hand ../experiment/questions/hand.jsonl --query-descriptors ../experiment/query-descriptors.jsonl --descriptors ../experiment/descriptors.jsonl --out ../experiment/runs/<run-id>
+    uv run python -m app.cli rag evaluate ../experiment/corpus.csv --stats ../experiment/corpus-stats.csv --hand ../experiment/questions/hand.jsonl --drafts ../experiment/questions/drafts.jsonl --review ../experiment/questions/review.jsonl --query-descriptors ../experiment/query-descriptors.jsonl --descriptors ../experiment/descriptors.jsonl --out ../experiment/runs/<run-id>
 
+- It refuses to run until every draft that passed drafting is reviewed.
+- It ranks both sets: the 40 hand questions (set `hand`) and the drafts you
+  kept or edited (set `drafted`).
 - It first checks that the stored chunks match `corpus-stats.csv`.
 - It writes a new folder, and refuses one that exists: `ranks.csv` (the rank
   of the source chunk for each question and method, empty past 100),
-  `summary.csv` and `summary.md` (recall@5, recall@10 and MRR@10, for all
-  questions and for each genre), and `run.json` (the protocol, prompt and
+  `summary.csv` and `summary.md` (recall@5, recall@10 and MRR@10, for each
+  set and genre, and over all of each), and `run.json` (the protocol, prompt and
   chunker versions, the git commit, and the sha256 of every input file).
 - The statistics and charts come from a separate `report` step.
 

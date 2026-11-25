@@ -27,6 +27,7 @@ from rag.descriptors import (
 )
 from rag.index import index_books, indexed_chunks
 from rag.questions import HAND_SET_SIZE, HandRecord
+from rag.review import ReviewRecord
 from tests.corpus_helpers import chapters_book, row, words_as_tokens, write_csv
 from tests.fake_deepseek import FakeDeepSeek, api_error
 from tests.fake_embedder import FakeEmbedder
@@ -280,7 +281,7 @@ def test_the_command_reports_a_failed_request_without_a_traceback(
 
 
 def describe_questions(
-    records: list[HandRecord], fake: FakeDeepSeek, out: Path, workers: int = 2
+    records: list[HandRecord] | list[ReviewRecord], fake: FakeDeepSeek, out: Path, workers: int = 2
 ) -> tuple[int, int]:
     client = DeepSeek(Settings(deepseek_api_key=SecretStr("sk-test")), client=fake)
     return run_describe_questions(records, client, out, workers, lambda line: None)
@@ -368,3 +369,30 @@ def test_the_question_command_describes_the_hand_set(
     out = capsys.readouterr().out
     assert f"{HAND_SET_SIZE}/{HAND_SET_SIZE} hand-" in out
     assert f"{HAND_SET_SIZE} ok, 0 failed in this run." in out
+
+
+def test_reviewed_drafts_are_described_when_kept_or_edited(tmp_path: Path) -> None:
+    def reviewed(n: int, status: str) -> ReviewRecord:
+        used = status != "dropped"
+        return ReviewRecord(
+            id=f"draft-{n:03d}",
+            status=status,
+            file=f"{n}.epub",
+            book_sha256=f"{n:064x}",
+            genre="fiction",
+            position=0,
+            chunker_version=1,
+            question=f"Draft question {n}?" if used else None,
+            kind="factual" if used else None,
+            draft_question=f"Draft question {n}?",
+            draft_kind="factual",
+            reason=None if used else "a reason",
+            reviewed_at="2026-11-25",
+        )
+
+    records = [reviewed(1, "kept"), reviewed(2, "edited"), reviewed(3, "dropped")]
+    out = tmp_path / "query-descriptors.jsonl"
+
+    assert describe_questions(records, FakeDeepSeek([QUESTION_ANSWER] * 2), out) == (2, 0)
+
+    assert sorted(entry["id"] for entry in read_log(out)) == ["draft-001", "draft-002"]
