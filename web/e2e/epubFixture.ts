@@ -168,6 +168,23 @@ function chapterXhtml(label: string, index: number, length: number, lead = ''): 
 </html>`
 }
 
+/** A title page whose heading is hidden 999em to the left, for screen readers only. */
+function hiddenTitleXhtml(title: string): string {
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <title>${title}</title>
+    <style>h1 { position: absolute; left: -999em; }</style>
+  </head>
+  <body>
+    <section>
+      <h1>${title}</h1>
+      <p>A title page with nothing on it but this line.</p>
+    </section>
+  </body>
+</html>`
+}
+
 function navXhtml(labels: string[]): string {
   const items = labels
     .map((label, index) => `<li><a href="chapter${index + 1}.xhtml">${label}</a></li>`)
@@ -240,6 +257,7 @@ export function buildReadableEpub({
   chapters,
   paragraphs = 60,
   note = false,
+  hiddenTitle = false,
 }: {
   title: string
   author: string
@@ -252,6 +270,8 @@ export function buildReadableEpub({
   paragraphs?: number
   /** Starts the first chapter with a note link, which points at a notes section at the end. */
   note?: boolean
+  /** Hides the title page's heading far to the left, the way Standard Ebooks does. */
+  hiddenTitle?: boolean
 }): Buffer {
   const noteLink = `<p>This sentence has a note.<a id="ref-1" href="notes.xhtml#note-1">1</a></p>`
   return buildZip([
@@ -263,7 +283,10 @@ export function buildReadableEpub({
     { name: 'nav.xhtml', data: Buffer.from(navXhtml(chapters), 'utf8') },
     // Front matter, first in the spine and absent from the contents — the shape of a real
     // book, and the reason a contents entry's position is not its spine position.
-    { name: 'titlepage.xhtml', data: Buffer.from(chapterXhtml(title, 0, 4), 'utf8') },
+    {
+      name: 'titlepage.xhtml',
+      data: Buffer.from(hiddenTitle ? hiddenTitleXhtml(title) : chapterXhtml(title, 0, 4), 'utf8'),
+    },
     ...chapters.map((label, index) => ({
       name: `chapter${index + 1}.xhtml`,
       data: Buffer.from(

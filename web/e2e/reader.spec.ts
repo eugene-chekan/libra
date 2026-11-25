@@ -22,7 +22,7 @@ const LONG_BOOK = Array.from({ length: 12 }, (_, n) => `Chapter ${n + 1}`)
 async function uploadBook(
   request: APIRequestContext,
   title: string,
-  shape: { chapters?: string[]; paragraphs?: number; note?: boolean } = {}
+  shape: { chapters?: string[]; paragraphs?: number; note?: boolean; hiddenTitle?: boolean } = {}
 ): Promise<number> {
   const response = await request.post('/api/books/upload', {
     multipart: {
@@ -35,6 +35,7 @@ async function uploadBook(
           chapters: shape.chapters ?? CHAPTERS,
           paragraphs: shape.paragraphs,
           note: shape.note,
+          hiddenTitle: shape.hiddenTitle,
         }),
       },
     },
@@ -211,6 +212,18 @@ test.describe('the reader, in a real browser', () => {
     await expect
       .poll(async () => page.getByRole('progressbar').getAttribute('aria-valuenow'))
       .toBe(first)
+  })
+
+  test('turns past a title page that hides its heading off the page', async ({ page, request }) => {
+    // epub.js counts hidden text as part of the page. Unless the reader moves this heading, the
+    // title page is dozens of blank pages long, and Next seems to do nothing.
+    const title = `E2E Reader Hidden Title ${Date.now()}`
+    const id = await uploadBook(request, title, { hiddenTitle: true })
+
+    await openReader(page, id, title)
+    await page.getByRole('button', { name: 'Next page' }).click()
+
+    await expect.poll(() => renderedHeadings(page)).toEqual([CHAPTERS[0]])
   })
 
   test('cannot turn back from the first page', async ({ page, request }) => {

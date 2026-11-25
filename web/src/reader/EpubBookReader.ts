@@ -11,6 +11,7 @@ import {
   type TextSize,
 } from './BookReader'
 import { loadLocations, saveLocations } from './locationsCache'
+import { pullInOffPage } from './offPage'
 import { pagesAt, type Pages } from './pages'
 import { tapFraction } from './tapFraction'
 
@@ -57,6 +58,14 @@ interface MeasuredLocations {
  */
 interface Resizable {
   resize(width: number | null, height: number | null): void
+}
+
+/**
+ * Asking epub.js to measure a chapter again. It is private in the typings, but it is the same
+ * call epub.js makes itself when an image in the chapter finishes loading.
+ */
+interface Expandable {
+  expand(): void
 }
 
 /**
@@ -123,6 +132,10 @@ export class EpubBookReader implements BookReader {
         const from = this.current
         for (const listener of this.linkListeners) listener(from)
       })
+      // epub.js counts a chapter's pages from the box around all of its text, hidden text
+      // included. Text a book hides far to the left, as Standard Ebooks does on its title page,
+      // would add a run of blank pages.
+      if (pullInOffPage(contents.document) > 0) (contents as unknown as Expandable).expand()
     })
     await rendition.display()
 
