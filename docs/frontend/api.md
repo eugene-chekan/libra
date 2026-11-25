@@ -4,9 +4,9 @@ The web client talks to one server: the Libra server (Python, FastAPI). This
 page lists every call the client makes, the data it sends and gets back, and
 real examples.
 
-- **The full schema** is [`openapi.json`](openapi.json) in this folder: every
-  address, every field and every type, in the OpenAPI 3 format. The server
-  makes it from its own code.
+- **The full schema** is live at [https://libra-production-7f573af6.up.railway.app/openapi.json](https://libra-production-7f573af6.up.railway.app/openapi.json): every address, every field
+  and every type, in the OpenAPI 3 format. The server makes it from its own
+  code, so it always matches the running version.
 - **An interactive page** (Swagger UI) with the same schema is live at
   [https://libra-production-7f573af6.up.railway.app/docs](https://libra-production-7f573af6.up.railway.app/docs), and at http://localhost:8000/docs on a server you run
   yourself. Each call can be tried there. A call that needs a session works

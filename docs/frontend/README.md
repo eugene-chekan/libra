@@ -11,7 +11,7 @@ The project aims at the **minimum requirements (5 points)**.
 | Repository | https://github.com/eugene-chekan/libra (public, read access for everybody) |
 | The web client | the folder [`web/`](https://github.com/eugene-chekan/libra/tree/main/web) on the branch `main` |
 | This page | the folder `docs/frontend/` on the branch `docs/diploma` |
-| The API the client uses | [api.md](api.md); the full schema [openapi.json](openapi.json); the live, interactive page **[https://libra-production-7f573af6.up.railway.app/docs](https://libra-production-7f573af6.up.railway.app/docs)** (Swagger UI) |
+| The API the client uses | [api.md](api.md), and the live, interactive page **[https://libra-production-7f573af6.up.railway.app/docs](https://libra-production-7f573af6.up.railway.app/docs)** (Swagger UI), which also gives the full schema |
 | **Deployed application** | **[https://libra-production-7f573af6.up.railway.app](https://libra-production-7f573af6.up.railway.app)**, on Railway. Sign in with the demo account that comes with this page |
 
 ## Which part is the diploma's work
@@ -141,7 +141,7 @@ They also need a real server with a test account. The steps are in
 |---|---|
 | Architecture diagram: modules, components, routes, state | [Architecture](#architecture) |
 | Architecture approach | [The approach](#the-approach) |
-| API documentation: schemas, methods, examples | [api.md](api.md), [openapi.json](openapi.json), and the live Swagger UI at [https://libra-production-7f573af6.up.railway.app/docs](https://libra-production-7f573af6.up.railway.app/docs) |
+| API documentation: schemas, methods, examples | [api.md](api.md), and the live Swagger UI at [https://libra-production-7f573af6.up.railway.app/docs](https://libra-production-7f573af6.up.railway.app/docs) |
 | User flows | [User flows](#user-flows). **Flow 3 is the Librarian** |
 | Tech stack justification: framework, state, UI kit | [Tech stack, and why](#tech-stack-and-why) |
 

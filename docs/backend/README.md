@@ -10,7 +10,7 @@ requirement of the "Minimum Backend Requirements" rubric is met.
 | Repository | https://github.com/eugene-chekan/libra (public, read access for everybody) |
 | The server | the folder [`backend/`](https://github.com/eugene-chekan/libra/tree/main/backend) on the branch `main` |
 | Deployed application | https://libra-production-7f573af6.up.railway.app, on Railway. The interactive API page is at https://libra-production-7f573af6.up.railway.app/docs |
-| API description | [`docs/frontend/api.md`](../frontend/api.md), the schema [`openapi.json`](../frontend/openapi.json), and the live page `/docs` |
+| API description | [`docs/frontend/api.md`](../frontend/api.md), the live Swagger UI [https://libra-production-7f573af6.up.railway.app/docs](https://libra-production-7f573af6.up.railway.app/docs), and the schema [https://libra-production-7f573af6.up.railway.app/openapi.json](https://libra-production-7f573af6.up.railway.app/openapi.json) |
 | This page | the folder `docs/backend/` on the branch `docs/diploma` |
 
 ## Which part is the diploma's work
@@ -101,7 +101,7 @@ From `backend/`:
 | An ORM | [`app/models.py`](https://github.com/eugene-chekan/libra/blob/main/backend/app/models.py) | SQLModel, built on SQLAlchemy. Alembic migrations create the tables |
 | Layered architecture | [Layers](#layers) | Routers, the business layer, data access |
 | SOLID | [SOLID](#solid) | An example from the code for each principle |
-| API description | `/docs` on the server; [`api.md`](../frontend/api.md); [`openapi.json`](../frontend/openapi.json) | FastAPI makes the OpenAPI schema from the code, so it cannot drift from it |
+| API description | [`/docs`](https://libra-production-7f573af6.up.railway.app/docs) and [`/openapi.json`](https://libra-production-7f573af6.up.railway.app/openapi.json) on the server; [`api.md`](../frontend/api.md) | FastAPI makes the OpenAPI schema from the code, so it cannot drift from it |
 | Global error handling | [Errors](#errors) | One handler turns any error no route handled into JSON |
 | Logging | [Logging](#logging) | One JSON object per line, with named key events |
 | Production deployment | [Deployment](#deployment) | Railway, deployed from `main` |
@@ -280,7 +280,7 @@ Each new rule is checked by hand: break it, and confirm that a test fails.
 | Missing error handling | One global handler, and named exceptions in the business layer. See [Errors](#errors) |
 | Wrong status codes | See the status table in [Errors](#errors) |
 | Database does not match the documentation | The database block's `schema.sql` is generated from the migrations, and a test fails when the models and the migrations differ |
-| Missing API documentation | `/docs`, `openapi.json`, `api.md` |
+| Missing API documentation | The live `/docs` and `/openapi.json`, and `api.md` |
 | Poor code quality | `ruff` lint and format in CI and in a pre-commit hook, and a written style guide ([code-style.md](https://github.com/eugene-chekan/libra/blob/main/docs/specs/code-style.md)) |
 | Inefficient queries | Lists load related data in batches, not one query per row: one join for reading state, one grouped count for shelves and tags. Indexes on every lookup column (database block, Section 2.3) |
 | Hardcoded configuration | All settings are `LIBRA_*` variables with safe defaults |
