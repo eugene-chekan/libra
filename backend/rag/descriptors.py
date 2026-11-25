@@ -19,7 +19,7 @@ from rag.corpus import CorpusBook, CorpusError, frozen_chunks
 from rag.deepseek import Completion, DeepSeek, InvalidOutputError
 from rag.embeddings import Embedder, embed_passages, vector_bytes
 from rag.index import indexed_chunks
-from rag.questions import HandRecord
+from rag.questions import QuestionRecord, used_questions
 
 PROMPT_VERSION = "v1"
 CHUNK_DESCRIPTORS = 8
@@ -281,16 +281,16 @@ def run_describe(
 
 
 def run_describe_questions(
-    records: list[HandRecord],
+    records: list[QuestionRecord],
     deepseek: DeepSeek,
     out: Path,
     workers: int,
     show: Callable[[str], None],
 ) -> tuple[int, int]:
-    """Write descriptors for every kept question, several requests at once.
+    """Write descriptors for every question the experiment uses, several requests at once.
 
     Args:
-        records: From `read_records`; skipped chunks are left out.
+        records: Hand records and review records; skipped and dropped ones are left out.
         deepseek: The client.
         out: The question descriptor log. What it already holds is not asked for again.
         workers: Requests at once, from 1 to `RUN_WORKERS`.
@@ -306,8 +306,7 @@ def run_describe_questions(
     """
     subjects = [
         ({"kind": "question", "id": record.id, "question": record.question}, record.question)
-        for record in records
-        if record.status == "kept" and record.question is not None
+        for record in used_questions(records)
     ]
     return _describe_new(subjects, deepseek, out, workers, show)
 

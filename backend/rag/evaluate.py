@@ -19,7 +19,7 @@ from rag.descriptors import PROMPT_VERSION, QUESTION_DESCRIPTORS, logged_descrip
 from rag.embeddings import Embedder, embed_passages
 from rag.index import indexed_chunks
 from rag.metrics import K_VALUES, MRR_K, mrr_at, rank_of, recall_at
-from rag.questions import HandRecord
+from rag.questions import QuestionRecord, used_questions
 from rag.search import DEPTH, METHODS, DescriptorIndex, VectorIndex, search
 
 PROTOCOL_VERSION = "v1"
@@ -58,16 +58,16 @@ def check_stored_chunks(session: Session, books: list[CorpusBook], digests: dict
 
 def load_questions(
     session: Session,
-    records: list[HandRecord],
+    records: list[QuestionRecord],
     query_log: list[dict],
     model: Embedder,
     question_set: str,
 ) -> list[Question]:
-    """The kept questions of a set, each matched to its source chunk and its descriptors.
+    """The used questions of a set, each matched to its source chunk and its descriptors.
 
     Args:
         session: Open session on the indexed experiment database.
-        records: From `read_records`; skipped chunks are left out.
+        records: Hand records or review records; skipped and dropped ones are left out.
         query_log: From `read_log` on the question descriptor log.
         model: The embedding model.
         question_set: The set's name in the results, such as "hand".
@@ -82,9 +82,7 @@ def load_questions(
         if entry["kind"] == "question" and entry["prompt_version"] == PROMPT_VERSION
     }
     questions = []
-    for record in records:
-        if record.status != "kept" or record.question is None or record.kind is None:
-            continue
+    for record in used_questions(records):
         entry = logged.get(record.id)
         if entry is None:
             raise CorpusError(f"{record.id}: no question descriptors; run describe-questions")
@@ -106,7 +104,7 @@ def load_questions(
     return questions
 
 
-def _source_chunk(session: Session, record: HandRecord) -> int:
+def _source_chunk(session: Session, record: QuestionRecord) -> int:
     chunk_id = session.exec(
         select(Chunk.id)
         .join(Book, Book.id == Chunk.book_id)
@@ -161,20 +159,29 @@ def rank_questions(
 
 
 def summarize(rows: list[dict]) -> list[dict]:
-    """recall@k and MRR for each method, over all questions and for each genre."""
+    """recall@k and MRR for each method, by question set and genre, and over all of each."""
+    sets = sorted({row["set"] for row in rows})
     summary = []
     for method in METHODS:
         mine = [row for row in rows if row["method"] == method]
-        for genre in ("all", *GENRES):
-            ranks = [row["rank"] for row in mine if genre == "all" or row["genre"] == genre]
-            if not ranks:
-                continue
-            line = {"method": method, "genre": genre, "questions": len(ranks)}
-            for k in K_VALUES:
-                line[f"recall@{k}"] = round(recall_at(ranks, k), 4)
-            line[f"mrr@{MRR_K}"] = round(mrr_at(ranks, MRR_K), 4)
-            summary.append(line)
+        for question_set in ("all", *sets):
+            for genre in ("all", *GENRES):
+                ranks = [
+                    row["rank"]
+                    for row in mine
+                    if question_set in ("all", row["set"]) and genre in ("all", row["genre"])
+                ]
+                if ranks:
+                    summary.append(_summary_line(method, question_set, genre, ranks))
     return summary
+
+
+def _summary_line(method: str, question_set: str, genre: str, ranks: list[int | None]) -> dict:
+    line = {"method": method, "set": question_set, "genre": genre, "questions": len(ranks)}
+    for k in K_VALUES:
+        line[f"recall@{k}"] = round(recall_at(ranks, k), 4)
+    line[f"mrr@{MRR_K}"] = round(mrr_at(ranks, MRR_K), 4)
+    return line
 
 
 def require_new_run(out: Path) -> None:
