@@ -51,6 +51,7 @@ def test_the_answer_says_nothing_about_the_cause(failing_app: FastAPI) -> None:
 
     response = client.get("/api/crash")
 
+    assert response.status_code == 500
     assert "a bug in a route" not in response.text
     assert "RuntimeError" not in response.text
 
