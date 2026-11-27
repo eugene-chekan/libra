@@ -331,7 +331,14 @@ def _chart(table: list[dict], path: Path) -> None:
     for side in ("top", "right", "left"):
         axes.spines[side].set_visible(False)
     axes.spines["bottom"].set_color(_MUTED)
-    axes.legend(frameon=False, labelcolor=_INK, loc="lower right")
+    # Below the axis label: inside the axes, the legend covers the longest bars.
+    axes.legend(
+        frameon=False,
+        labelcolor=_INK,
+        loc="upper center",
+        bbox_to_anchor=(0.5, -0.14),
+        ncol=len(GENRES),
+    )
     axes.set_title(
         f"recall@{MAIN_K} by method and genre, with {CONFIDENCE:.0%} intervals",
         color=_INK,
