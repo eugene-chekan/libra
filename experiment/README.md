@@ -266,6 +266,42 @@ settings as in "The database", from `backend/`:
   same way.
 - It refuses a folder that has checks already.
 
+## The checked sample
+
+Check 3 of protocol section 11. The main scores count only the source chunk
+as correct. Another chunk may answer the question too. The checked sample
+measures how much the main scores under-count, and whether the order of the
+methods changes. It has two steps, both with the same two settings as in
+"The database", from `backend/`.
+
+**1. The pool** (done once, no judgement):
+
+    uv run python -m app.cli rag judge-pool ../experiment/corpus.csv --hand ../experiment/questions/hand.jsonl --review ../experiment/questions/review.jsonl --query-descriptors ../experiment/query-descriptors.jsonl --descriptors ../experiment/descriptors.jsonl --run ../experiment/runs/2026-11-27-main --out ../experiment/judgements/pool.jsonl
+
+- It picks 50 used questions of both sets at random, with the seed
+  `checked-v1`.
+- For each question and method, it saves the first 5 chunks, ranked as in the
+  run, and marks the source chunk. That is 1,500 lines.
+- It refuses input files whose sha256 differs from the run's `run.json`, and a
+  pool that exists.
+
+**2. The judging** (the author, in sittings):
+
+    uv run python -m app.cli rag judge ../experiment/corpus.csv --pool ../experiment/judgements/pool.jsonl --out ../experiment/judgements/pool-judgements.jsonl
+
+- For each question, it first shows the chunk the question was written on.
+  Press Enter to go on.
+- Then it shows each other chunk that some method found, once. The order is
+  shuffled with a seed per question, and the method is never named, so the
+  judge cannot tell which method found a chunk.
+- Answer `y` if this chunk alone lets a reader answer the question, `n` if it
+  does not, or `q` to stop. A chunk that answers only part of it is `n`.
+- Each answer is saved at once. The next sitting resumes where the last one
+  stopped. It stops if the file changes under it.
+
+The pool of `2026-11-27-main` has 806 found chunks to judge, 9 to 22 for each
+question.
+
 ## The experiment branch and its build
 
 The experiment's code goes to the branch `diploma/experiment`, not to `main`.
