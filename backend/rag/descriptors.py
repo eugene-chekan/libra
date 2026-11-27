@@ -107,7 +107,15 @@ def describe(
 def append_log(path: Path, entry: dict) -> None:
     """Add one JSON line, and make sure it is on disk before the next request."""
     path.parent.mkdir(parents=True, exist_ok=True)
+    # An editor may have saved the file without a final line break.
+    joined = False
+    if path.exists() and path.stat().st_size:
+        with path.open("rb") as tail:
+            tail.seek(-1, os.SEEK_END)
+            joined = tail.read(1) != b"\n"
     with path.open("a", encoding="utf-8", newline="\n") as handle:
+        if joined:
+            handle.write("\n")
         handle.write(json.dumps(entry, ensure_ascii=False) + "\n")
         handle.flush()
         os.fsync(handle.fileno())

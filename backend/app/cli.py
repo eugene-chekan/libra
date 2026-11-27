@@ -390,6 +390,79 @@ def checks_command(
     return 0
 
 
+def judge_pool_command(
+    corpus_csv: Path,
+    hand: Path,
+    review: Path,
+    query_log: Path,
+    chunk_log: Path,
+    run: Path,
+    out: Path,
+) -> int:
+    from rag.checks import require_run_inputs
+    from rag.descriptors import PROMPT_VERSION, read_log
+    from rag.embeddings import load_model
+    from rag.evaluate import QUESTION_SETS, load_questions
+    from rag.judging import build_pool, sample_questions, to_judge, write_pool
+    from rag.review import read_reviews
+    from rag.search import DescriptorIndex, VectorIndex
+
+    try:
+        require_run_inputs(
+            run,
+            {
+                "corpus.csv": corpus_csv,
+                "hand.jsonl": hand,
+                "review.jsonl": review,
+                "query-descriptors.jsonl": query_log,
+                "descriptors.jsonl": chunk_log,
+            },
+        )
+        if out.exists():
+            raise CorpusError(f"{out} exists; a pool is never written over")
+        books = read_corpus(corpus_csv)
+        sets = dict(zip(QUESTION_SETS, (read_records(hand), read_reviews(review)), strict=True))
+        queries = read_log(query_log)
+        _open_experiment_database(books)
+        settings = get_settings()
+        model = load_model(settings)
+        with Session(get_engine()) as session:
+            vectors = VectorIndex.load(session, settings.embedding_model)
+            descriptors = DescriptorIndex.load(session, PROMPT_VERSION, settings.embedding_model)
+            questions = [
+                load_questions(session, [record], queries, model, name)[0]
+                for name, record in sample_questions(sets)
+            ]
+            lines = build_pool(session, books, vectors, descriptors, model, questions)
+        write_pool(out, lines)
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    found = sum(len(chunks) for _, chunks in to_judge(lines))
+    print(f"The pool of {len(questions)} questions is in {out}: {found} found chunks to judge.")
+    return 0
+
+
+def judge_command(corpus_csv: Path, pool: Path, out: Path) -> int:
+    from rag.judging import run_judging
+
+    # As in hand_question_command: book text holds characters a Windows code page lacks.
+    sys.stdout.reconfigure(errors="replace")
+    try:
+        books = read_corpus(corpus_csv)
+        _open_experiment_database(books)
+        with Session(get_engine()) as session:
+            judged = run_judging(session, books, pool, out, input, print, date.today())
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    except (KeyboardInterrupt, EOFError):
+        print(f"\nStopped. Every judgement you finished is saved in {out}.")
+        return 0
+    print(f"Judged {judged} chunk(s) in this session. The judgement file is {out}.")
+    return 0
+
+
 def report_command(run: Path) -> int:
     from rag.report import write_report
 
@@ -615,6 +688,24 @@ def main(argv: list[str] | None = None) -> int:
     )
     checks.add_argument("--descriptors", type=Path, required=True, help="The chunk descriptor log")
     checks.add_argument("--run", type=Path, required=True, help="A run folder written by evaluate")
+    pool = rag_commands.add_parser(
+        "judge-pool", help="The checked sample: every method's first 5 chunks for 50 questions"
+    )
+    pool.add_argument("corpus_csv", type=Path)
+    pool.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
+    pool.add_argument("--review", type=Path, required=True, help="review.jsonl")
+    pool.add_argument(
+        "--query-descriptors", type=Path, required=True, help="The question descriptor log"
+    )
+    pool.add_argument("--descriptors", type=Path, required=True, help="The chunk descriptor log")
+    pool.add_argument("--run", type=Path, required=True, help="A run folder written by evaluate")
+    pool.add_argument("--out", type=Path, required=True, help="The pool, a new .jsonl file")
+    judge = rag_commands.add_parser(
+        "judge", help="Judge each found chunk of the pool relevant or not, one at a time; resumes"
+    )
+    judge.add_argument("corpus_csv", type=Path)
+    judge.add_argument("--pool", type=Path, required=True, help="The pool from judge-pool")
+    judge.add_argument("--out", type=Path, required=True, help="The judgement file, .jsonl")
     review = rag_commands.add_parser(
         "review", help="Keep, edit or drop each drafted question, one at a time; resumes"
     )
@@ -672,6 +763,18 @@ def main(argv: list[str] | None = None) -> int:
             args.descriptors,
             args.run,
         )
+    if args.command == "rag" and args.rag_command == "judge-pool":
+        return judge_pool_command(
+            args.corpus_csv,
+            args.hand,
+            args.review,
+            args.query_descriptors,
+            args.descriptors,
+            args.run,
+            args.out,
+        )
+    if args.command == "rag" and args.rag_command == "judge":
+        return judge_command(args.corpus_csv, args.pool, args.out)
     if args.command == "rag" and args.rag_command == "review":
         return review_command(args.corpus_csv, args.drafts, args.out)
     if args.command == "rag" and args.rag_command == "evaluate":
