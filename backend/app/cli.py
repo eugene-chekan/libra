@@ -305,6 +305,7 @@ def evaluate_command(
     from rag.descriptors import PROMPT_VERSION, read_log
     from rag.embeddings import load_model
     from rag.evaluate import (
+        QUESTION_SETS,
         check_stored_chunks,
         load_questions,
         rank_questions,
@@ -333,8 +334,9 @@ def evaluate_command(
             vectors = VectorIndex.load(session, settings.embedding_model)
             descriptors = DescriptorIndex.load(session, PROMPT_VERSION, settings.embedding_model)
             questions = [
-                *load_questions(session, records, queries, model, "hand"),
-                *load_questions(session, reviews, queries, model, "drafted"),
+                question
+                for name, of_set in zip(QUESTION_SETS, (records, reviews), strict=True)
+                for question in load_questions(session, of_set, queries, model, name)
             ]
             progress = functools.partial(print, flush=True)
             rows = rank_questions(session, vectors, descriptors, model, questions, progress)
@@ -354,6 +356,37 @@ def evaluate_command(
         print(f"error: {exc}", file=sys.stderr)
         return 1
     print(f"Ranked {len(questions)} questions by {len(METHODS)} methods. The run is in {out}.")
+    return 0
+
+
+def checks_command(
+    corpus_csv: Path, hand: Path, review: Path, query_log: Path, chunk_log: Path, run: Path
+) -> int:
+    from rag.checks import CHECKS_FILE, check_run, require_run_inputs
+    from rag.descriptors import read_log
+    from rag.evaluate import QUESTION_SETS
+    from rag.review import read_reviews
+
+    try:
+        require_run_inputs(
+            run,
+            {
+                "corpus.csv": corpus_csv,
+                "hand.jsonl": hand,
+                "review.jsonl": review,
+                "query-descriptors.jsonl": query_log,
+                "descriptors.jsonl": chunk_log,
+            },
+        )
+        books = read_corpus(corpus_csv)
+        sets = dict(zip(QUESTION_SETS, (read_records(hand), read_reviews(review)), strict=True))
+        _open_experiment_database(books)
+        with Session(get_engine()) as session:
+            check_run(session, books, run, sets, read_log(chunk_log), read_log(query_log))
+    except CorpusError as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(f"The checks are {run / CHECKS_FILE}.")
     return 0
 
 
@@ -571,6 +604,17 @@ def main(argv: list[str] | None = None) -> int:
         "report", help="Statistics, tables and a chart for a run; needs the experiment group"
     )
     report.add_argument("run", type=Path, help="A run folder written by rag evaluate")
+    checks = rag_commands.add_parser(
+        "checks", help="Checks 1, 2 and 4 of the protocol for a run; no API"
+    )
+    checks.add_argument("corpus_csv", type=Path)
+    checks.add_argument("--hand", type=Path, required=True, help="hand.jsonl")
+    checks.add_argument("--review", type=Path, required=True, help="review.jsonl")
+    checks.add_argument(
+        "--query-descriptors", type=Path, required=True, help="The question descriptor log"
+    )
+    checks.add_argument("--descriptors", type=Path, required=True, help="The chunk descriptor log")
+    checks.add_argument("--run", type=Path, required=True, help="A run folder written by evaluate")
     review = rag_commands.add_parser(
         "review", help="Keep, edit or drop each drafted question, one at a time; resumes"
     )
@@ -619,6 +663,15 @@ def main(argv: list[str] | None = None) -> int:
         )
     if args.command == "rag" and args.rag_command == "report":
         return report_command(args.run)
+    if args.command == "rag" and args.rag_command == "checks":
+        return checks_command(
+            args.corpus_csv,
+            args.hand,
+            args.review,
+            args.query_descriptors,
+            args.descriptors,
+            args.run,
+        )
     if args.command == "rag" and args.rag_command == "review":
         return review_command(args.corpus_csv, args.drafts, args.out)
     if args.command == "rag" and args.rag_command == "evaluate":

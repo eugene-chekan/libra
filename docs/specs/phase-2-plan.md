@@ -621,6 +621,7 @@ All are `uv run python -m app.cli rag <command>`:
 | `judge-descriptors` | The 50-chunk descriptor accuracy sample |
 | `evaluate <corpus.csv> --stats <file> --hand <file> --drafts <file> --review <file> --query-descriptors <file> --descriptors <file> --out <dir>` | Refuses to run until every draft is reviewed. Checks the stored chunks against `corpus-stats.csv`, then ranks every question's source chunk (hand set and drafted set) by all six methods. Writes a new run folder: `ranks.csv`, `summary.csv` and `summary.md` by set and genre, `run.json`. No API. |
 | `report <run-dir>` | From `ranks.csv` alone: H1–H4 with 95% percentile bootstrap intervals and two-sided randomisation p-values (10,000 each, seed 20261122), Holm over the main five; recall@10 per method and genre with intervals; `tests.csv`, `recall.csv`, `recall.png`, `report.md`. Needs the `experiment` dependency group. |
+| `checks <corpus.csv> --hand <file> --review <file> --query-descriptors <file> --descriptors <file> --run <dir>` | Checks 1, 2 and 4 of protocol section 11: each set's order of methods by recall@10, the word overlap of each question with its source chunk, and the chunks and questions without valid descriptors. Refuses input files whose sha256 differs from the run's `run.json`. Writes `checks.md`, `orders.csv`, `overlap.csv`, `failures.csv` into the run folder; never over earlier checks. No API. |
 
 ### Dependencies
 

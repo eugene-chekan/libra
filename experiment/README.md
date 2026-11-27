@@ -241,6 +241,31 @@ two methods are swapped inside each question, and for H3 and H4 the group
 labels are shuffled. Every test starts from the seed 20261122, so a report
 gives the same numbers every time.
 
+## The checks
+
+`rag checks` writes checks 1, 2 and 4 of protocol section 11 into a run
+folder. Checks 3, 5 and 6 need a person's judgement, so they are not here. It
+reads the run's `ranks.csv`, the question files, the two descriptor logs and
+the source chunks in the database. It never calls the API. With the same two
+settings as in "The database", from `backend/`:
+
+    uv run python -m app.cli rag checks ../experiment/corpus.csv --hand ../experiment/questions/hand.jsonl --review ../experiment/questions/review.jsonl --query-descriptors ../experiment/query-descriptors.jsonl --descriptors ../experiment/descriptors.jsonl --run ../experiment/runs/<run-id>
+
+- It refuses an input file whose sha256 differs from the one in the run's
+  `run.json`. So the checks always describe the questions the run used.
+- `orders.csv` (check 1): each set's methods, from the best recall@10 to the
+  worst. A tie keeps the protocol's order of methods.
+- `overlap.csv` (check 2): for each question, the share of its distinct words
+  that are also in its source chunk. Words are counted as in the 4-word check,
+  in lower case, and a curly apostrophe counts as a straight one. Common words
+  such as "the" count too.
+- `failures.csv` (check 4): for chunks and for questions, by genre, how many
+  answers failed the 2-6 word check when they arrived, and how many still fail
+  the 1-8 word check of deviation 1.
+- `checks.md`: the three tables, and whether both sets order the methods the
+  same way.
+- It refuses a folder that has checks already.
+
 ## The experiment branch and its build
 
 The experiment's code goes to the branch `diploma/experiment`, not to `main`.
