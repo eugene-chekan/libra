@@ -103,6 +103,11 @@ def pick_chunks(
     return picked
 
 
+def words(text: str) -> list[str]:
+    """The words of a text in lower case, as the 4-word check counts them."""
+    return [word.lower() for word in _WORD.findall(text)]
+
+
 def copied_sequences(question: str, chunk_text: str) -> list[str]:
     """The `COPIED_WORDS`-word sequences of the question that are in the chunk, names left out.
 
@@ -110,14 +115,14 @@ def copied_sequences(question: str, chunk_text: str) -> list[str]:
     chunk or in the question. A sequence with a name in it does not count.
     """
     names = _names(chunk_text) | _names(question)
-    chunk_words = [word.lower() for word in _WORD.findall(chunk_text)]
+    chunk_words = words(chunk_text)
     in_chunk = {
         tuple(chunk_words[i : i + COPIED_WORDS]) for i in range(len(chunk_words) - COPIED_WORDS + 1)
     }
-    words = [word.lower() for word in _WORD.findall(question)]
+    question_words = words(question)
     found = []
-    for i in range(len(words) - COPIED_WORDS + 1):
-        sequence = tuple(words[i : i + COPIED_WORDS])
+    for i in range(len(question_words) - COPIED_WORDS + 1):
+        sequence = tuple(question_words[i : i + COPIED_WORDS])
         if sequence in in_chunk and not names.intersection(sequence):
             found.append(" ".join(sequence))
     return found

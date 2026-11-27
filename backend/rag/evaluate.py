@@ -24,6 +24,8 @@ from rag.search import DEPTH, METHODS, DescriptorIndex, VectorIndex, search
 
 PROTOCOL_VERSION = "v1"
 GENRES = ("fiction", "non-fiction")
+# The hand questions, then the drafts the review kept or edited.
+QUESTION_SETS = ("hand", "drafted")
 
 
 @dataclass(frozen=True)
@@ -97,16 +99,21 @@ def load_questions(
                 genre=record.genre,
                 kind=record.kind,
                 text=record.question,
-                source_chunk_id=_source_chunk(session, record),
+                source_chunk_id=source_chunk(session, record).id,
                 descriptor_vectors=vectors,
             )
         )
     return questions
 
 
-def _source_chunk(session: Session, record: QuestionRecord) -> int:
-    chunk_id = session.exec(
-        select(Chunk.id)
+def source_chunk(session: Session, record: QuestionRecord) -> Chunk:
+    """The stored chunk a question was written on.
+
+    Raises:
+        CorpusError: It is not stored, or the record is for another chunker version.
+    """
+    chunk = session.exec(
+        select(Chunk)
         .join(Book, Book.id == Chunk.book_id)
         .where(
             func.json_extract(Book.book_metadata, "$.sha256") == record.book_sha256,
@@ -114,9 +121,9 @@ def _source_chunk(session: Session, record: QuestionRecord) -> int:
             Chunk.chunker_version == record.chunker_version,
         )
     ).first()
-    if chunk_id is None or record.chunker_version != CHUNKER_VERSION:
+    if chunk is None or record.chunker_version != CHUNKER_VERSION:
         raise CorpusError(f"{record.id}: its source chunk is not stored; is the book indexed?")
-    return chunk_id
+    return chunk
 
 
 def rank_questions(
@@ -223,7 +230,7 @@ def write_run(
         "questions": len({row["question"] for row in rows}),
         "created_at": datetime.now(UTC).isoformat(timespec="seconds"),
         **facts,
-        "sha256": {name: _sha256(path) for name, path in inputs.items()},
+        "sha256": {name: file_sha256(path) for name, path in inputs.items()},
     }
     (out / "run.json").write_text(json.dumps(run, indent=2) + "\n", encoding="utf-8", newline="\n")
 
@@ -245,5 +252,6 @@ def _markdown(summary: list[dict]) -> str:
     return "\n".join(lines) + "\n"
 
 
-def _sha256(path: Path) -> str:
+def file_sha256(path: Path) -> str:
+    """The sha256 of a file's bytes, as `run.json` records it."""
     return hashlib.sha256(path.read_bytes()).hexdigest()

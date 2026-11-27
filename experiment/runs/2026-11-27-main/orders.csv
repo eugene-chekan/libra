@@ -1,0 +1,13 @@
+set,place,method,recall@10
+hand,1,bm25,0.975
+hand,2,all,0.975
+hand,3,bm25+dense,0.925
+hand,4,dense+descriptors,0.825
+hand,5,dense,0.6
+hand,6,descriptors,0.425
+drafted,1,all,0.8773
+drafted,2,bm25+dense,0.8533
+drafted,3,bm25,0.8293
+drafted,4,dense,0.7627
+drafted,5,dense+descriptors,0.7067
+drafted,6,descriptors,0.4133
