@@ -1,0 +1,27 @@
+{
+  "protocol": "v1",
+  "prompt_version": "v1",
+  "chunker_version": 1,
+  "depth": 100,
+  "methods": [
+    "bm25",
+    "dense",
+    "bm25+dense",
+    "descriptors",
+    "dense+descriptors",
+    "all"
+  ],
+  "questions": 415,
+  "created_at": "2026-11-27T20:57:40+00:00",
+  "git_commit": "2abdf4608179e545d878a5781ec89c3ee7069450",
+  "embedding_model": "BAAI/bge-base-en-v1.5",
+  "sha256": {
+    "corpus.csv": "208c07b631d20d643bd196599e6ad0968708466a7f3ed2aaba84e84c4b8a5faa",
+    "corpus-stats.csv": "f9fef7cf89db323067fbba55e6d63c4723b43eacd89b4407f16eaa18886f0da2",
+    "hand.jsonl": "084432f52ce74f0acebf8e57afb86156ee6c827ef64065dc9353e8f15bf58a8e",
+    "drafts.jsonl": "f1432957ad8680f7107d13689cdbaf8331b5db8432eb1f182c408f835813d035",
+    "review.jsonl": "721b5c565eb571025edb3ac4d1f49529c668ec086366d8f8355bc62043f2d1e5",
+    "query-descriptors.jsonl": "f0d7669d1db1195932a0f4337eba2c7239c7a41dfa1bb70c8b84ee081c97bae6",
+    "descriptors.jsonl": "14b7bf2872d777ac88be29b70caacf1e633fbe9dd18ad6005ee222248cdde103"
+  }
+}
